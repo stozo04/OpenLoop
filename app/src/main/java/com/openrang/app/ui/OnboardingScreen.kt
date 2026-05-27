@@ -8,6 +8,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.graphics.drawscope.rotate
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -282,9 +284,7 @@ fun SkateboardKickflipAnimation() {
         )
 
         // Draw Skateboard deck rotates in place
-        androidx.compose.ui.graphics.drawscope.withTransform({
-            rotate(degrees = rotation, pivot = Offset(cx, cy))
-        }) {
+        rotate(degrees = rotation, pivot = Offset(cx, cy)) {
             // Board Deck
             drawRoundRect(
                 color = NeonCoral,
