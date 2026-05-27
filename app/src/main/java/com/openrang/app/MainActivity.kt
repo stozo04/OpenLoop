@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.ui.CameraScreen
+import com.openrang.app.ui.OnboardingScreen
 import com.openrang.app.ui.OpenRangUiState
 import com.openrang.app.ui.OpenRangViewModel
 
@@ -62,9 +63,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         cameraManager = CameraManager(this)
 
-        // Perform initial permission check
-        checkPermissions()
-
         setContent {
             OpenRangTheme {
                 Surface(
@@ -74,6 +72,14 @@ class MainActivity : ComponentActivity() {
                     val uiState by viewModel.uiState.collectAsState()
 
                     when (uiState) {
+                        is OpenRangUiState.Onboarding -> {
+                            OnboardingScreen(
+                                onGetStartedClick = {
+                                    viewModel.onOnboardingCompleted()
+                                    checkPermissions()
+                                }
+                            )
+                        }
                         is OpenRangUiState.CheckingPermissions -> {
                             CheckingPermissionsScreen()
                         }
