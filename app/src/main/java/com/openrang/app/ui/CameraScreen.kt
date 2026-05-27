@@ -13,22 +13,34 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import com.openrang.app.R
+
+
+
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.vectorResource
@@ -46,6 +58,54 @@ val NeonCoral = Color(0xFFFF5252)
 val NeonPurple = Color(0xFF7C4DFF)
 val DeepCharcoal = Color(0xCC1A1A1D)
 
+val SwitchCameraIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "SwitchCamera",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        fill = SolidColor(Color.White)
+    ) {
+        moveTo(20f, 4f)
+        horizontalLineToRelative(-3.17f)
+        lineTo(15f, 2f)
+        horizontalLineTo(9f)
+        lineTo(7.17f, 4f)
+        horizontalLineTo(4f)
+        curveTo(2.9f, 4f, 2f, 4.9f, 2f, 6f)
+        verticalLineToRelative(12f)
+        curveTo(2f, 19.1f, 2.9f, 20f, 4f, 20f)
+        horizontalLineToRelative(16f)
+        curveTo(21.1f, 20f, 22f, 19.1f, 22f, 18f)
+        verticalLineTo(6f)
+        curveTo(22f, 4.9f, 21.1f, 4f, 20f, 4f)
+        close()
+        moveTo(12f, 18f)
+        curveTo(9.24f, 18f, 7f, 15.76f, 7f, 13f)
+        horizontalLineTo(5f)
+        lineToRelative(3.5f, -3.5f)
+        lineTo(12f, 13f)
+        horizontalLineToRelative(-2f)
+        curveTo(10f, 14.66f, 11.34f, 16f, 12f, 16f)
+        curveTo(12.8f, 16f, 13.53f, 15.68f, 14.07f, 15.16f)
+        lineToRelative(1.41f, 1.41f)
+        curveTo(15.42f, 17.48f, 13.82f, 18f, 12f, 18f)
+        close()
+        moveTo(15.5f, 16.5f)
+        lineToRelative(-3.5f, -3.5f)
+        horizontalLineToRelative(2f)
+        curveTo(14f, 11.34f, 12.66f, 10f, 11f, 10f)
+        curveTo(10.2f, 10f, 9.47f, 10.32f, 8.93f, 10.84f)
+        lineTo(7.52f, 9.43f)
+        curveTo(8.58f, 8.52f, 10.18f, 8f, 12f, 8f)
+        curveTo(14.76f, 8f, 17f, 10.24f, 17f, 13f)
+        horizontalLineToRelative(2f)
+        lineToRelative(-3.5f, 3.5f)
+        close()
+    }.build()
+
 @Composable
 fun CameraScreen(
     viewModel: OpenRangViewModel,
@@ -54,6 +114,8 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val uiState by viewModel.uiState.collectAsState()
+    val isRecording = uiState is OpenRangUiState.Recording
 
     // Set up standard aspect-ratio responsive PreviewView
     val previewView = remember {
@@ -90,29 +152,23 @@ fun CameraScreen(
                         )
                     )
                 )
-                .padding(top = 28.dp, bottom = 24.dp)
+                .statusBarsPadding()
+                .padding(top = 12.dp, bottom = 16.dp)
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "🪃 OPENRANG",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    letterSpacing = 4.sp,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "TAP TO LOOP",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = NeonCoral,
-                    letterSpacing = 2.sp,
-                    textAlign = TextAlign.Center
-                )
+            if (isRecording) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "RECORDING BURST...",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NeonCoral,
+                        letterSpacing = 2.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
 
@@ -129,7 +185,8 @@ fun CameraScreen(
                         )
                     )
                 )
-                .padding(bottom = 48.dp, start = 24.dp, end = 24.dp, top = 40.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp, start = 24.dp, end = 24.dp, top = 32.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -158,14 +215,19 @@ fun CameraScreen(
                     modifier = Modifier
                         .size(86.dp)
                         .clip(CircleShape)
-                        .background(GlassWhite)
-                        .border(3.dp, Color.White, CircleShape)
-                        .padding(6.dp)
+                        .background(if (isRecording) NeonCoral.copy(alpha = 0.2f) else GlassWhite)
+                        .border(
+                            width = if (isRecording) 5.dp else 3.dp,
+                            color = if (isRecording) NeonCoral else Color.White,
+                            shape = CircleShape
+                        )
+                        .padding(if (isRecording) 12.dp else 6.dp)
                         .clickable(
+                            enabled = !isRecording,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            // Capture action will be wired here in Phase 2
+                            viewModel.startBurstCapture(context, cameraManager)
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -174,29 +236,40 @@ fun CameraScreen(
                             .fillMaxSize()
                             .clip(CircleShape)
                             .background(
-                                Brush.linearGradient(
-                                    colors = listOf(NeonCoral, NeonPurple)
-                                )
+                                if (isRecording) {
+                                    Brush.linearGradient(
+                                        colors = listOf(NeonCoral, Color.Red)
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        colors = listOf(NeonCoral, NeonPurple)
+                                    )
+                                }
                             )
                     )
                 }
 
-                // Switch Camera / Lens Toggle Button
+                // Switch Camera / Lens Toggle Button (Sleek Glowing Neon Gradient!)
                 Box(
                     modifier = Modifier
                         .size(54.dp)
                         .clip(CircleShape)
-                        .background(GlassWhite)
-                        .border(1.dp, GlassWhiteBorder, CircleShape)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(NeonCoral, NeonPurple)
+                            )
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
                         .clickable {
                             cameraManager.toggleCamera(lifecycleOwner, previewView)
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    // Custom drawn camera flip icon using custom Compose drawing
-                    CameraFlipIcon(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_flip_camera),
+                        contentDescription = "Flip Camera",
+                        modifier = Modifier.size(28.dp),
+                        tint = Color.White
                     )
                 }
             }
@@ -204,53 +277,3 @@ fun CameraScreen(
     }
 }
 
-@Composable
-fun CameraFlipIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
-    // Custom Vector icon representing a clean camera switch action
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        
-        // Draw the circular flip arrow outline elegantly
-        drawArc(
-            color = color,
-            startAngle = 45f,
-            sweepAngle = 270f,
-            useCenter = false,
-            style = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 2.dp.toPx(),
-                cap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-        )
-        
-        // Draw arrows on the arc tips
-        val arrowLength = 5.dp.toPx()
-        // Upper arrow tip
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.85f - arrowLength, h * 0.15f),
-            strokeWidth = 2.dp.toPx()
-        )
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f + arrowLength),
-            strokeWidth = 2.dp.toPx()
-        )
-        
-        // Lower arrow tip
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.15f + arrowLength, h * 0.85f),
-            strokeWidth = 2.dp.toPx()
-        )
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f - arrowLength),
-            strokeWidth = 2.dp.toPx()
-        )
-    }
-}
