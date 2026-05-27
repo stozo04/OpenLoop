@@ -229,51 +229,78 @@ fun CameraScreen(
 
 @Composable
 fun CameraFlipIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
-    // Custom Vector icon representing a clean camera switch action
     androidx.compose.foundation.Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        
-        // Draw the circular flip arrow outline elegantly
+
+        // 1. Draw the circular loop outline
         drawArc(
             color = color,
             startAngle = 45f,
             sweepAngle = 270f,
             useCenter = false,
             style = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 2.dp.toPx(),
+                width = 2.5.dp.toPx(),
                 cap = androidx.compose.ui.graphics.StrokeCap.Round
             )
         )
-        
-        // Draw arrows on the arc tips
+
+        // 2. Draw a gorgeous camera silhouette in the center of the loop
+        // Camera body rounded outline
+        drawRoundRect(
+            color = color,
+            topLeft = androidx.compose.ui.geometry.Offset(w * 0.3f, h * 0.38f),
+            size = androidx.compose.ui.geometry.Size(w * 0.4f, h * 0.28f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
+        )
+        // Camera lens inner circle
+        drawCircle(
+            color = color,
+            radius = 3.5.dp.toPx(),
+            center = androidx.compose.ui.geometry.Offset(w * 0.5f, h * 0.52f),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
+        )
+        // Camera top pentaprism/flash bump
+        drawRect(
+            color = color,
+            topLeft = androidx.compose.ui.geometry.Offset(w * 0.44f, h * 0.32f),
+            size = androidx.compose.ui.geometry.Size(w * 0.12f, h * 0.06f)
+        )
+
+        // 3. Draw bold arrowheads on loop tips
         val arrowLength = 5.dp.toPx()
-        // Upper arrow tip
+        // Top-right tip (pointing clockwise/down-left)
         drawLine(
             color = color,
             start = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f),
             end = androidx.compose.ui.geometry.Offset(w * 0.85f - arrowLength, h * 0.15f),
-            strokeWidth = 2.dp.toPx()
+            strokeWidth = 2.5.dp.toPx(),
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
         )
         drawLine(
             color = color,
             start = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f),
             end = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f + arrowLength),
-            strokeWidth = 2.dp.toPx()
+            strokeWidth = 2.5.dp.toPx(),
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
         )
-        
-        // Lower arrow tip
+
+        // Bottom-left tip (pointing clockwise/up-right)
         drawLine(
             color = color,
             start = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f),
             end = androidx.compose.ui.geometry.Offset(w * 0.15f + arrowLength, h * 0.85f),
-            strokeWidth = 2.dp.toPx()
+            strokeWidth = 2.5.dp.toPx(),
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
         )
         drawLine(
             color = color,
             start = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f),
             end = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f - arrowLength),
-            strokeWidth = 2.dp.toPx()
+            strokeWidth = 2.5.dp.toPx(),
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
         )
     }
+}
 }
