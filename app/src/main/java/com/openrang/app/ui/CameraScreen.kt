@@ -32,7 +32,9 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.vectorResource
@@ -49,6 +51,54 @@ val GlassWhiteBorder = Color(0x4DFFFFFF)
 val NeonCoral = Color(0xFFFF5252)
 val NeonPurple = Color(0xFF7C4DFF)
 val DeepCharcoal = Color(0xCC1A1A1D)
+
+val SwitchCameraIcon: ImageVector
+    get() = ImageVector.Builder(
+        name = "SwitchCamera",
+        defaultWidth = 24.dp,
+        defaultHeight = 24.dp,
+        viewportWidth = 24f,
+        viewportHeight = 24f
+    ).path(
+        fill = SolidColor(Color.White)
+    ) {
+        moveTo(20f, 4f)
+        horizontalLineToRelative(-3.17f)
+        lineTo(15f, 2f)
+        horizontalLineTo(9f)
+        lineTo(7.17f, 4f)
+        horizontalLineTo(4f)
+        curveTo(2.9f, 4f, 2f, 4.9f, 2f, 6f)
+        verticalLineToRelative(12f)
+        curveTo(2f, 19.1f, 2.9f, 20f, 4f, 20f)
+        horizontalLineToRelative(16f)
+        curveTo(21.1f, 20f, 22f, 19.1f, 22f, 18f)
+        verticalLineTo(6f)
+        curveTo(22f, 4.9f, 21.1f, 4f, 20f, 4f)
+        close()
+        moveTo(12f, 18f)
+        curveTo(9.24f, 18f, 7f, 15.76f, 7f, 13f)
+        horizontalLineTo(5f)
+        lineToRelative(3.5f, -3.5f)
+        lineTo(12f, 13f)
+        horizontalLineToRelative(-2f)
+        curveTo(10f, 14.66f, 11.34f, 16f, 12f, 16f)
+        curveTo(12.8f, 16f, 13.53f, 15.68f, 14.07f, 15.16f)
+        lineToRelative(1.41f, 1.41f)
+        curveTo(15.42f, 17.48f, 13.82f, 18f, 12f, 18f)
+        close()
+        moveTo(15.5f, 16.5f)
+        lineToRelative(-3.5f, -3.5f)
+        horizontalLineToRelative(2f)
+        curveTo(14f, 11.34f, 12.66f, 10f, 11f, 10f)
+        curveTo(10.2f, 10f, 9.47f, 10.32f, 8.93f, 10.84f)
+        lineTo(7.52f, 9.43f)
+        curveTo(8.58f, 8.52f, 10.18f, 8f, 12f, 8f)
+        curveTo(14.76f, 8f, 17f, 10.24f, 17f, 13f)
+        horizontalLineToRelative(2f)
+        lineToRelative(-3.5f, 3.5f)
+        close()
+    }.build()
 
 @Composable
 fun CameraScreen(
@@ -216,10 +266,11 @@ fun CameraScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    // Custom drawn camera flip icon using custom Compose drawing
-                    CameraFlipIcon(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
+                    Icon(
+                        imageVector = SwitchCameraIcon,
+                        contentDescription = "Switch Camera Lens",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
@@ -227,80 +278,3 @@ fun CameraScreen(
     }
 }
 
-@Composable
-fun CameraFlipIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
-    androidx.compose.foundation.Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        // 1. Draw the circular loop outline
-        drawArc(
-            color = color,
-            startAngle = 45f,
-            sweepAngle = 270f,
-            useCenter = false,
-            style = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 2.5.dp.toPx(),
-                cap = androidx.compose.ui.graphics.StrokeCap.Round
-            )
-        )
-
-        // 2. Draw a gorgeous camera silhouette in the center of the loop
-        // Camera body rounded outline
-        drawRoundRect(
-            color = color,
-            topLeft = androidx.compose.ui.geometry.Offset(w * 0.3f, h * 0.38f),
-            size = androidx.compose.ui.geometry.Size(w * 0.4f, h * 0.28f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx()),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
-        )
-        // Camera lens inner circle
-        drawCircle(
-            color = color,
-            radius = 3.5.dp.toPx(),
-            center = androidx.compose.ui.geometry.Offset(w * 0.5f, h * 0.52f),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
-        )
-        // Camera top pentaprism/flash bump
-        drawRect(
-            color = color,
-            topLeft = androidx.compose.ui.geometry.Offset(w * 0.44f, h * 0.32f),
-            size = androidx.compose.ui.geometry.Size(w * 0.12f, h * 0.06f)
-        )
-
-        // 3. Draw bold arrowheads on loop tips
-        val arrowLength = 5.dp.toPx()
-        // Top-right tip (pointing clockwise/down-left)
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.85f - arrowLength, h * 0.15f),
-            strokeWidth = 2.5.dp.toPx(),
-            cap = androidx.compose.ui.graphics.StrokeCap.Round
-        )
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.85f, h * 0.15f + arrowLength),
-            strokeWidth = 2.5.dp.toPx(),
-            cap = androidx.compose.ui.graphics.StrokeCap.Round
-        )
-
-        // Bottom-left tip (pointing clockwise/up-right)
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.15f + arrowLength, h * 0.85f),
-            strokeWidth = 2.5.dp.toPx(),
-            cap = androidx.compose.ui.graphics.StrokeCap.Round
-        )
-        drawLine(
-            color = color,
-            start = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f),
-            end = androidx.compose.ui.geometry.Offset(w * 0.15f, h * 0.85f - arrowLength),
-            strokeWidth = 2.5.dp.toPx(),
-            cap = androidx.compose.ui.graphics.StrokeCap.Round
-        )
-    }
-}
-}
