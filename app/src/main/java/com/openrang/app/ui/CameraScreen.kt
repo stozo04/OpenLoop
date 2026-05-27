@@ -155,6 +155,29 @@ fun CameraScreen(
                 .statusBarsPadding()
                 .padding(top = 12.dp, bottom = 16.dp)
         ) {
+            // Home / Gallery Button — top-left neon gradient circle
+            Box(
+                modifier = Modifier
+                    .padding(start = 16.dp, top = 4.dp)
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(NeonCoral, NeonPurple)
+                        )
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                    .clickable { viewModel.navigateToGallery(context) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_home),
+                    contentDescription = "Gallery",
+                    modifier = Modifier.size(20.dp),
+                    tint = Color.White
+                )
+            }
+
             if (isRecording) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -249,17 +272,13 @@ fun CameraScreen(
                     )
                 }
 
-                // Switch Camera / Lens Toggle Button (Sleek Glowing Neon Gradient!)
+                // Switch Camera / Lens Toggle Button (subtle glass to match 1.5s badge)
                 Box(
                     modifier = Modifier
                         .size(54.dp)
                         .clip(CircleShape)
-                        .background(
-                            Brush.horizontalGradient(
-                                colors = listOf(NeonCoral, NeonPurple)
-                            )
-                        )
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                        .background(GlassWhite)
+                        .border(1.dp, GlassWhiteBorder, CircleShape)
                         .clickable {
                             cameraManager.toggleCamera(lifecycleOwner, previewView)
                         },
