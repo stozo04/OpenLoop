@@ -266,15 +266,98 @@ fun CameraScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = SwitchCameraIcon,
-                        contentDescription = "Switch Camera Lens",
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
+                    CameraFlipIcon(
+                        modifier = Modifier.size(28.dp),
+                        color = Color.White
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+fun CameraFlipIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val strokeWidth = 3.dp.toPx()
+        val r = w * 0.33f
+        val cx = w / 2f
+        val cy = h / 2f
+
+        // 1. Draw top arc (from 195 deg to 345 deg)
+        drawArc(
+            color = color,
+            startAngle = 195f,
+            sweepAngle = 150f,
+            useCenter = false,
+            topLeft = Offset(cx - r, cy - r),
+            size = androidx.compose.ui.geometry.Size(r * 2, r * 2),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = strokeWidth,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+        )
+
+        // 2. Draw bottom arc (from 15 deg to 165 deg)
+        drawArc(
+            color = color,
+            startAngle = 15f,
+            sweepAngle = 150f,
+            useCenter = false,
+            topLeft = Offset(cx - r, cy - r),
+            size = androidx.compose.ui.geometry.Size(r * 2, r * 2),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = strokeWidth,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+        )
+
+        // 3. Arrowheads
+        val arrowLength = 5.5.dp.toPx()
+
+        // Top-Right Arrowhead (at 345 deg)
+        val angle1 = 345f * (Math.PI / 180f)
+        val ex1 = cx + (r * Math.cos(angle1)).toFloat()
+        val ey1 = cy + (r * Math.sin(angle1)).toFloat()
+
+        // Vertical line down, Horizontal line left
+        drawLine(
+            color = color,
+            start = Offset(ex1, ey1),
+            end = Offset(ex1 - arrowLength, ey1),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(ex1, ey1),
+            end = Offset(ex1, ey1 + arrowLength),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+
+        // Bottom-Left Arrowhead (at 165 deg)
+        val angle2 = 165f * (Math.PI / 180f)
+        val ex2 = cx + (r * Math.cos(angle2)).toFloat()
+        val ey2 = cy + (r * Math.sin(angle2)).toFloat()
+
+        // Vertical line up, Horizontal line right
+        drawLine(
+            color = color,
+            start = Offset(ex2, ey2),
+            end = Offset(ex2 + arrowLength, ey2),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        drawLine(
+            color = color,
+            start = Offset(ex2, ey2),
+            end = Offset(ex2, ey2 - arrowLength),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
     }
 }
 
