@@ -67,6 +67,9 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
     // CameraX
     implementation(libs.androidx.camerax.core)
     implementation(libs.androidx.camerax.camera2)

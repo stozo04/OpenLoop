@@ -30,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,6 +43,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.openrang.app.camera.CameraManager
+import com.openrang.app.data.UserPreferencesRepositoryImpl
+import com.openrang.app.data.dataStore
 import com.openrang.app.ui.CameraScreen
 import com.openrang.app.ui.GalleryScreen
 import com.openrang.app.ui.OnboardingScreen
@@ -50,7 +53,11 @@ import com.openrang.app.ui.OpenRangViewModel
 import com.openrang.app.ui.PreviewScreen
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: OpenRangViewModel by viewModels()
+    private val viewModel: OpenRangViewModel by viewModels {
+        OpenRangViewModel.Factory(
+            UserPreferencesRepositoryImpl(applicationContext.dataStore)
+        )
+    }
     private lateinit var cameraManager: CameraManager
 
     // Permission request contract launcher
@@ -75,12 +82,24 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val uiState by viewModel.uiState.collectAsState()
 
+                    // Auto-trigger permission check when state reaches CheckingPermissions
+                    // (from either Initializing→CheckingPermissions for returning users,
+                    //  or Onboarding→CheckingPermissions for first-time users)
+                    LaunchedEffect(uiState) {
+                        if (uiState is OpenRangUiState.CheckingPermissions) {
+                            checkPermissions()
+                        }
+                    }
+
                     when (uiState) {
+                        is OpenRangUiState.Initializing -> {
+                            // Brief spinner while DataStore loads preferences
+                            CheckingPermissionsScreen()
+                        }
                         is OpenRangUiState.Onboarding -> {
                             OnboardingScreen(
                                 onGetStartedClick = {
                                     viewModel.onOnboardingCompleted()
-                                    checkPermissions()
                                 }
                             )
                         }
@@ -306,7 +325,7 @@ fun OpenRangTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Color(0xFFFF5252),
-            secondary = Color(0xFF7C4DFF),
+            secondary = Color(0xFFFF7C4DFF),
             background = Color(0xFF121212)
         ),
         content = content

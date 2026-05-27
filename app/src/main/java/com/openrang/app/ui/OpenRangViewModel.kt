@@ -1,16 +1,19 @@
 package com.openrang.app.ui
 
-import androidx.lifecycle.ViewModel
 import android.content.Context
 import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.openrang.app.camera.CameraManager
+import com.openrang.app.data.UserPreferencesRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.io.File
 import androidx.camera.video.VideoRecordEvent
 import android.media.MediaMetadataRetriever
@@ -22,14 +25,30 @@ data class RecordedVideo(
     val thumbnailPath: String
 )
 
-class OpenRangViewModel : ViewModel() {
+class OpenRangViewModel(
+    private val userPreferencesRepository: UserPreferencesRepository
+) : ViewModel() {
 
-    // Start with the beautiful Onboarding Carousel
-    private val _uiState = MutableStateFlow<OpenRangUiState>(OpenRangUiState.Onboarding)
+    // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
+    private val _uiState = MutableStateFlow<OpenRangUiState>(OpenRangUiState.Initializing)
     val uiState: StateFlow<OpenRangUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            val onboardingDone = userPreferencesRepository.hasCompletedOnboarding.first()
+            _uiState.value = if (onboardingDone) {
+                OpenRangUiState.CheckingPermissions
+            } else {
+                OpenRangUiState.Onboarding
+            }
+        }
+    }
 
     fun onOnboardingCompleted() {
         _uiState.value = OpenRangUiState.CheckingPermissions
+        viewModelScope.launch {
+            userPreferencesRepository.setOnboardingCompleted(true)
+        }
     }
 
     fun onPermissionsChecked(granted: Boolean) {
@@ -199,5 +218,21 @@ class OpenRangViewModel : ViewModel() {
 
     fun resetToCapture() {
         _uiState.value = OpenRangUiState.ReadyToCapture
+    }
+
+    /**
+     * Factory for creating [OpenRangViewModel] with its [UserPreferencesRepository] dependency.
+     * Used in MainActivity since we don't have a DI framework.
+     */
+    class Factory(
+        private val userPreferencesRepository: UserPreferencesRepository
+    ) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(OpenRangViewModel::class.java)) {
+                return OpenRangViewModel(userPreferencesRepository) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        }
     }
 }
