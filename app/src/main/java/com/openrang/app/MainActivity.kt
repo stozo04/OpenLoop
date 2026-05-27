@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
@@ -45,6 +46,7 @@ import com.openrang.app.ui.CameraScreen
 import com.openrang.app.ui.OnboardingScreen
 import com.openrang.app.ui.OpenRangUiState
 import com.openrang.app.ui.OpenRangViewModel
+import com.openrang.app.ui.PreviewScreen
 
 class MainActivity : ComponentActivity() {
     private val viewModel: OpenRangViewModel by viewModels()
@@ -60,6 +62,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         cameraManager = CameraManager(this)
 
@@ -93,6 +96,19 @@ class MainActivity : ComponentActivity() {
                             CameraScreen(
                                 viewModel = viewModel,
                                 cameraManager = cameraManager
+                            )
+                        }
+                        is OpenRangUiState.Recording -> {
+                            CameraScreen(
+                                viewModel = viewModel,
+                                cameraManager = cameraManager
+                            )
+                        }
+                        is OpenRangUiState.LoopingPreview -> {
+                            val state = uiState as OpenRangUiState.LoopingPreview
+                            PreviewScreen(
+                                videoPath = state.videoPath,
+                                onBackToCaptureClick = { viewModel.resetToCapture() }
                             )
                         }
                         else -> {

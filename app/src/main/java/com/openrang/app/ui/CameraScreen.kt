@@ -13,14 +13,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +58,8 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val uiState by viewModel.uiState.collectAsState()
+    val isRecording = uiState is OpenRangUiState.Recording
 
     // Set up standard aspect-ratio responsive PreviewView
     val previewView = remember {
@@ -90,7 +96,8 @@ fun CameraScreen(
                         )
                     )
                 )
-                .padding(top = 28.dp, bottom = 24.dp)
+                .statusBarsPadding()
+                .padding(top = 12.dp, bottom = 16.dp)
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -106,7 +113,7 @@ fun CameraScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "TAP TO LOOP",
+                    text = if (isRecording) "RECORDING BURST..." else "TAP TO LOOP",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeonCoral,
@@ -129,7 +136,8 @@ fun CameraScreen(
                         )
                     )
                 )
-                .padding(bottom = 48.dp, start = 24.dp, end = 24.dp, top = 40.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp, start = 24.dp, end = 24.dp, top = 32.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -158,14 +166,19 @@ fun CameraScreen(
                     modifier = Modifier
                         .size(86.dp)
                         .clip(CircleShape)
-                        .background(GlassWhite)
-                        .border(3.dp, Color.White, CircleShape)
-                        .padding(6.dp)
+                        .background(if (isRecording) NeonCoral.copy(alpha = 0.2f) else GlassWhite)
+                        .border(
+                            width = if (isRecording) 5.dp else 3.dp,
+                            color = if (isRecording) NeonCoral else Color.White,
+                            shape = CircleShape
+                        )
+                        .padding(if (isRecording) 12.dp else 6.dp)
                         .clickable(
+                            enabled = !isRecording,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            // Capture action will be wired here in Phase 2
+                            viewModel.startBurstCapture(context, cameraManager)
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -174,9 +187,15 @@ fun CameraScreen(
                             .fillMaxSize()
                             .clip(CircleShape)
                             .background(
-                                Brush.linearGradient(
-                                    colors = listOf(NeonCoral, NeonPurple)
-                                )
+                                if (isRecording) {
+                                    Brush.linearGradient(
+                                        colors = listOf(NeonCoral, Color.Red)
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        colors = listOf(NeonCoral, NeonPurple)
+                                    )
+                                }
                             )
                     )
                 }

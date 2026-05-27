@@ -10,20 +10,26 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.graphics.drawscope.rotate
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -58,7 +64,7 @@ fun OnboardingScreen(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(
@@ -66,11 +72,13 @@ fun OnboardingScreen(
                     colors = listOf(Color(0xFF0F0C20), Color(0xFF15102A), Color(0xFF070510))
                 )
             )
+            .safeDrawingPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Horizontal swiper of the three pages
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.weight(1f)
         ) { page ->
             OnboardingPageContent(page = page)
         }
@@ -78,9 +86,8 @@ fun OnboardingScreen(
         // Bottom Controls Overlays
         Column(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(bottom = 54.dp, start = 28.dp, end = 28.dp),
+                .padding(bottom = 24.dp, start = 28.dp, end = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 1. Pager Dots Indicator
@@ -100,49 +107,113 @@ fun OnboardingScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // 2. Navigation Actions
-            if (pagerState.currentPage < 2) {
-                // Next Screen Circular Glass Button
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(GlassWhite)
-                        .border(1.dp, GlassWhiteBorder, CircleShape)
-                        .clickable {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "→",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Page 0 (Slide 1): Show only Next button in the center (Catchy Glowing Neon Gradient!)
+                if (pagerState.currentPage == 0) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(NeonCoral, NeonPurple)
+                                )
+                            )
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                            .clickable {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(1)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ArrowRightIcon(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White
+                        )
+                    }
                 }
-            } else {
-                // Pulse Glowing "GET STARTED" primary action
-                Button(
-                    onClick = onGetStartedClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCoral),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
-                ) {
-                    Text(
-                        text = "LET'S GO! 🪃",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
+
+                // Page 1 (Slide 2): Show Back (Neon Purple Glass) and Next (Glowing Neon) side-by-side
+                if (pagerState.currentPage == 1) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(GlassWhite)
+                            .border(2.dp, NeonPurple, CircleShape)
+                            .clickable {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(0)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ArrowLeftIcon(
+                            modifier = Modifier.size(24.dp),
+                            color = NeonPurple
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(24.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(NeonCoral, NeonPurple)
+                                )
+                            )
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                            .clickable {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(2)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ArrowRightIcon(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White
+                        )
+                    }
+                }
+
+                // Page 2 (Slide 3): Show "LET'S GO! 🪃" Button in clean, full-width glory
+                if (pagerState.currentPage == 2) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(NeonCoral, NeonPurple)
+                                )
+                            )
+                            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(32.dp))
+                            .clickable {
+                                onGetStartedClick()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "LET'S GO! 🪃",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            letterSpacing = 1.5.sp
+                        )
+                    }
                 }
             }
         }
@@ -154,33 +225,53 @@ fun OnboardingPageContent(page: Int) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp, vertical = 72.dp),
+            .padding(horizontal = 32.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Top Logo Spacer
-        Text(
-            text = "🪃 OPENRANG",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.4f),
-            letterSpacing = 3.sp
-        )
 
-        // Center visual card (animated Compose drawings)
+
+        // Ambient soft neon glow behind the frosted glass card
         Box(
             modifier = Modifier
-                .size(260.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(Color(0x331E1E2E))
-                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(28.dp)),
+                .weight(1f, fill = false)
+                .padding(vertical = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Render specific looping animation based on the page index
-            when (page) {
-                0 -> SkateboardKickflipAnimation()
-                1 -> FloatingBubblesAnimation()
-                2 -> ConfettiExplosionAnimation()
+            val glowColor = when (page) {
+                0 -> NeonCoral.copy(alpha = 0.25f)
+                1 -> NeonPurple.copy(alpha = 0.25f)
+                else -> Color.Cyan.copy(alpha = 0.25f)
+            }
+            Box(
+                modifier = Modifier
+                    .size(220.dp)
+                    .background(glowColor, CircleShape)
+                    .blur(56.dp)
+            )
+
+            // Center visual card - premium frosted glass with high-definition generated asset
+            Box(
+                modifier = Modifier
+                    .sizeIn(maxWidth = 280.dp, maxHeight = 280.dp)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color(0x1AFFFFFF))
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                val drawableRes = when (page) {
+                    0 -> com.openrang.app.R.drawable.onboarding_skater
+                    1 -> com.openrang.app.R.drawable.onboarding_bubbles
+                    else -> com.openrang.app.R.drawable.onboarding_confetti
+                }
+
+                Image(
+                    painter = painterResource(id = drawableRes),
+                    contentDescription = "Onboarding visual asset representing loops",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
 
@@ -190,50 +281,20 @@ fun OnboardingPageContent(page: Int) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val title = when (page) {
-                0 -> "ALWAYS FREE"
-                1 -> "ALWAYS OPEN"
-                else -> "LET'S GO!"
-            }
-
-            val tagline = when (page) {
-                0 -> "Create Loops that Wow — No Subscriptions!"
+                0 -> "No Subscriptions & No Ads"
                 1 -> "Built by Everyone, For Everyone"
-                else -> "Just Point, Tap & Boom!"
-            }
-
-            val subtitle = when (page) {
-                0 -> "Unlock full creative power with zero ads, zero paywalls, and unlimited high-quality local loops."
-                1 -> "100% open-source with local processing under your control. No data collection, ever."
-                else -> "No accounts required. Start recording stunning speed-controlled loops instantly."
+                else -> "Just Point, Tap & Loop!"
             }
 
             Text(
                 text = title,
-                fontSize = 32.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
-                color = if (page == 0) NeonCoral else if (page == 1) NeonPurple else Color.White,
-                letterSpacing = 1.sp
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = tagline,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
                 color = Color.White,
+                letterSpacing = 1.sp,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = subtitle,
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center,
-                lineHeight = 20.sp
-            )
         }
-
-        // Spacer to leave room for indicators/buttons
-        Spacer(modifier = Modifier.height(86.dp))
     }
 }
 
@@ -420,11 +481,74 @@ fun ConfettiExplosionAnimation() {
             val px = cx + (pieceDistance * Math.cos(angleRad)).toFloat()
             val py = cy + (pieceDistance * Math.sin(angleRad)).toFloat()
             
-            drawRect(
-                color = colors[i % colors.size],
-                topLeft = Offset(px - 4.dp.toPx(), py - 4.dp.toPx()),
-                size = androidx.compose.ui.geometry.Size(8.dp.toPx(), 8.dp.toPx())
-            )
         }
+    }
+}
+
+@Composable
+fun ArrowLeftIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val strokeWidth = 2.dp.toPx()
+        
+        // Draw horizontal line
+        drawLine(
+            color = color,
+            start = Offset(w * 0.25f, h * 0.5f),
+            end = Offset(w * 0.75f, h * 0.5f),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        // Draw upper arrow tip
+        drawLine(
+            color = color,
+            start = Offset(w * 0.25f, h * 0.5f),
+            end = Offset(w * 0.45f, h * 0.3f),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        // Draw lower arrow tip
+        drawLine(
+            color = color,
+            start = Offset(w * 0.25f, h * 0.5f),
+            end = Offset(w * 0.45f, h * 0.7f),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+    }
+}
+
+@Composable
+fun ArrowRightIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val strokeWidth = 2.dp.toPx()
+        
+        // Draw horizontal line
+        drawLine(
+            color = color,
+            start = Offset(w * 0.25f, h * 0.5f),
+            end = Offset(w * 0.75f, h * 0.5f),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        // Draw upper arrow tip
+        drawLine(
+            color = color,
+            start = Offset(w * 0.75f, h * 0.5f),
+            end = Offset(w * 0.55f, h * 0.3f),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+        // Draw lower arrow tip
+        drawLine(
+            color = color,
+            start = Offset(w * 0.75f, h * 0.5f),
+            end = Offset(w * 0.55f, h * 0.7f),
+            strokeWidth = strokeWidth,
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
     }
 }
