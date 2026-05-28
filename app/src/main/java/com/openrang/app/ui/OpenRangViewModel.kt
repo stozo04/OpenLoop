@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
 import androidx.camera.video.VideoRecordEvent
 import android.media.MediaMetadataRetriever
 import android.graphics.Bitmap
@@ -47,7 +48,12 @@ class OpenRangViewModel(
     fun onOnboardingCompleted() {
         _uiState.value = OpenRangUiState.CheckingPermissions
         viewModelScope.launch {
-            userPreferencesRepository.setOnboardingCompleted(true)
+            try {
+                userPreferencesRepository.setOnboardingCompleted(true)
+            } catch (e: IOException) {
+                Log.e("OpenRangViewModel", "Failed to persist onboarding state", e)
+                // Non-fatal: user will just see onboarding again next launch
+            }
         }
     }
 

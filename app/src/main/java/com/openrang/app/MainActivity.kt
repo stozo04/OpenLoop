@@ -31,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.data.UserPreferencesRepositoryImpl
 import com.openrang.app.data.dataStore
@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val uiState by viewModel.uiState.collectAsState()
+                    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
                     // Auto-trigger permission check when state reaches CheckingPermissions
                     // (from either Initializing→CheckingPermissions for returning users,
@@ -325,7 +325,7 @@ fun OpenRangTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Color(0xFFFF5252),
-            secondary = Color(0xFFFF7C4DFF),
+            secondary = Color(0xFF7C4DFF),
             background = Color(0xFF121212)
         ),
         content = content

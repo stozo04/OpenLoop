@@ -19,6 +19,7 @@ import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import java.io.File
+import java.io.IOException
 import androidx.core.util.Consumer
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -52,6 +53,18 @@ class FakeUserPreferencesRepository(
     override suspend fun setOnboardingCompleted(completed: Boolean) {
         onboardingCompletedValue = completed
         _hasCompletedOnboarding.value = completed
+    }
+}
+
+/**
+ * Fake that throws [IOException] on write to simulate disk-full / corruption scenarios.
+ */
+class FailingWritePreferencesRepository : UserPreferencesRepository {
+    private val _hasCompletedOnboarding = MutableStateFlow(false)
+    override val hasCompletedOnboarding: Flow<Boolean> = _hasCompletedOnboarding
+
+    override suspend fun setOnboardingCompleted(completed: Boolean) {
+        throw IOException("Simulated disk full")
     }
 }
 
@@ -109,6 +122,17 @@ class OpenRangViewModelTest {
         viewModel.onOnboardingCompleted()
 
         assertTrue(fakePreferencesRepository.onboardingCompletedValue)
+    }
+
+    @Test
+    fun `onOnboardingCompleted handles IOException gracefully`() {
+        // Use the failing repository that throws IOException on write
+        val failingViewModel = OpenRangViewModel(FailingWritePreferencesRepository())
+
+        // Should not crash — state should still transition to CheckingPermissions
+        failingViewModel.onOnboardingCompleted()
+
+        assertEquals(OpenRangUiState.CheckingPermissions, failingViewModel.uiState.value)
     }
 
     // ── Existing state transition tests ──
