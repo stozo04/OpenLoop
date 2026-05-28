@@ -58,13 +58,13 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.openrang.app.data.RecordedVideo
 
 @Composable
 fun GalleryScreen(
     viewModel: OpenRangViewModel,
     onBackClick: () -> Unit
 ) {
-    val context = LocalContext.current
     val videos by viewModel.recordedVideos.collectAsStateWithLifecycle()
     var selectedVideo by remember { mutableStateOf<RecordedVideo?>(null) }
 
@@ -152,7 +152,7 @@ fun GalleryScreen(
                         VideoThumbnailCard(
                             video = video,
                             onClick = { selectedVideo = video },
-                            onDelete = { viewModel.deleteVideo(context, video) }
+                            onDelete = { viewModel.deleteVideo(video) }
                         )
                     }
                 }

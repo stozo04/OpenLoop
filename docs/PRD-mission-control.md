@@ -56,6 +56,7 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 ├─────────────────────────────────────────────────┤
 │  Data Layer (Preferences + Storage)              │
 │  UserPreferencesRepository · DataStore           │
+│  VideoStorageRepository · filesDir / cacheDir    │
 ├─────────────────────────────────────────────────┤
 │  Platform Layer (CameraX + Media3 + Storage)    │
 │  CameraManager · MediaMetadataRetriever         │
@@ -110,35 +111,22 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 
 ### 4.2 OpenRangViewModel.kt
 
-**Purpose:** MVVM hub. Owns UI state, recording lifecycle, video storage pipeline, gallery operations.
+**Purpose:** MVVM hub. Owns UI state, recording lifecycle, and gallery navigation. Delegates all filesystem work to `VideoStorageRepository` (see §4.8).
+
+**Dependencies (constructor-injected, no `Context`):** `UserPreferencesRepository`, `VideoStorageRepository`. The `Factory` takes both already-constructed repositories; `MainActivity` is the single place that bridges `Context` → repositories. The ViewModel holds **zero** references to `Context` (lesson 004 — enforceable by `grep`).
 
 **State:** `MutableStateFlow<OpenRangUiState>` exposed as `StateFlow`.
-
-**Video storage:**
-- On successful capture: copies `raw_capture.mp4` from `cacheDir` to `filesDir/videos/clip_<timestamp>.mp4`
-- Extracts thumbnail at 0ms via `MediaMetadataRetriever` → `filesDir/thumbnails/clip_<timestamp>.jpg` (JPEG, 90% quality)
-- Fallback: on-demand thumbnail extraction during `loadRecordedVideos()` if cache miss
 
 **Key flows:**
 
 | Flow | Trigger | Behavior |
 |------|---------|----------|
-| `startBurstCapture` | Shutter tap (state must be `ReadyToCapture`) | Sets `Recording`, starts CameraManager, launches 1500ms auto-stop coroutine |
+| `startBurstCapture(cameraManager)` | Shutter tap (state must be `ReadyToCapture`) | Sets `Recording`, writes to `videoStorage.rawCaptureFile`, starts CameraManager, launches 1500ms auto-stop coroutine. On finalize success, calls `videoStorage.saveFinalizedVideo(...)` and transitions to `LoopingPreview` (falls back to the raw capture path if the save returns null) |
 | `stopBurstCapture` | Auto-timer or manual | Cancels coroutine job, stops CameraManager |
-| `saveFinalizedVideo` | `VideoRecordEvent.Finalize` success | Copies to persistent storage, extracts thumbnail, returns destination `File` |
-| `loadRecordedVideos` | Gallery entry | Scans `filesDir/videos/clip_*.mp4`, maps to `RecordedVideo` list (newest first) |
-| `deleteVideo` | Gallery delete tap | Removes `.mp4` + `.jpg`, reloads list |
-| `navigateToGallery` | Home button tap | Sets `Gallery` state, loads videos |
+| `loadRecordedVideos()` | Gallery entry | Publishes `videoStorage.loadRecordedVideos()` to the `recordedVideos` flow |
+| `deleteVideo(video)` | Gallery delete tap | Calls `videoStorage.deleteVideo(video)`, then reloads the list |
+| `navigateToGallery()` | Home button tap | Sets `Gallery` state, loads videos |
 | `navigateBackFromGallery` | Gallery back button | Sets `ReadyToCapture` |
-
-**Data class:**
-```kotlin
-data class RecordedVideo(
-    val id: Long,           // timestamp parsed from filename
-    val videoPath: String,  // absolute path to .mp4
-    val thumbnailPath: String // absolute path to .jpg
-)
-```
 
 ### 4.3 CameraScreen.kt
 
@@ -150,8 +138,8 @@ data class RecordedVideo(
 3. Bottom gradient bar: 1.5s badge (glass, 54dp) | shutter button (86dp, dual-ring glow) | flip camera (glass, 54dp)
 
 **Interactions:**
-- Shutter: `viewModel.startBurstCapture()` (disabled while recording)
-- Home: `viewModel.navigateToGallery(context)`
+- Shutter: `viewModel.startBurstCapture(cameraManager)` (disabled while recording)
+- Home: `viewModel.navigateToGallery()`
 - Flip: `cameraManager.toggleCamera()`
 
 ### 4.4 OnboardingScreen.kt
@@ -201,6 +189,30 @@ data class RecordedVideo(
 - Theme: `OpenRangTheme` wrapping `darkColorScheme(primary = NeonCoral, secondary = NeonPurple, background = #121212)`
 - Includes `CheckingPermissionsScreen` and `PermissionExplanationScreen` inline composables. `PermissionExplanationScreen` is shared by `PermissionRationale` (secondary action "Not now" → `PermissionDenied`) and `PermissionDenied` (secondary action "Open Device Settings") via a parameterized `secondaryActionLabel` / `onSecondaryAction`.
 
+### 4.8 VideoStorageRepository.kt (data layer)
+
+**Purpose:** The repository seam for all recorded-burst filesystem work. Defined as an interface so the ViewModel depends on a contract (not `Context`) and tests use a fake instead of mocking `Context`/`File` (lesson 004; [Data Layer](https://developer.android.com/topic/architecture/data-layer)). Mirrors the `UserPreferencesRepository` (+ `Impl`) pattern from PR #5.
+
+**Interface:**
+
+| Member | Behavior |
+|--------|----------|
+| `val rawCaptureFile: File` | Stable scratch path `cacheDir/raw_capture.mp4`; overwritten each capture |
+| `saveFinalizedVideo(rawCapture): File?` | Copies the raw capture to `filesDir/videos/clip_<ts>.mp4`, extracts a 0ms thumbnail via `MediaMetadataRetriever` → `filesDir/thumbnails/clip_<ts>.jpg` (JPEG 90%). Returns the persisted `File`, or `null` on failure |
+| `loadRecordedVideos(): List<RecordedVideo>` | Scans `filesDir/videos/clip_*.mp4`, maps to `RecordedVideo` (newest first); lazily extracts a thumbnail if one is missing |
+| `deleteVideo(video)` | Removes the `.mp4` + `.jpg` (no reload — the caller refreshes) |
+
+**Implementation:** `VideoStorageRepositoryImpl(cacheDir: File, filesDir: File)` holds only raw `File` handles — never a `Context`. Constructed in `MainActivity` from `applicationContext.cacheDir` / `applicationContext.filesDir`.
+
+**Data class** (lives in the data layer, consumed by the UI):
+```kotlin
+data class RecordedVideo(
+    val id: Long,             // epoch millis parsed from filename
+    val videoPath: String,    // absolute path to .mp4
+    val thumbnailPath: String // absolute path to .jpg
+)
+```
+
 ---
 
 ## 5. Planned Components (Phases 3–5)
@@ -219,6 +231,7 @@ data class RecordedVideo(
 - Processing must complete in <1 second on mid-range devices
 - `Processing` UI state shown during transform
 - Error handling falls back to `ReadyToCapture` with a log
+- Filesystem I/O goes through `VideoStorageRepository` (§4.8) — the Context-free seam already in place from Issue #10; the processor reads `rawCaptureFile` and writes finalized output via the repository, no new `Context` parameters
 
 ### 5.2 Speed Slider (Phase 4)
 
@@ -298,13 +311,32 @@ data class RecordedVideo(
 | `startBurstCapture starts recording and delays stop` | Full capture lifecycle with time advance |
 | `startBurstCapture failures fallback` | Error recovery |
 | `stopBurstCapture cancels job` | Clean shutdown |
-| `Finalize → LoopingPreview on success` | Happy path |
+| `Finalize → LoopingPreview using saved video path` | Happy path (uses `videoStorage.saveFinalizedVideo` result) |
+| `Finalize falls back to raw capture path when save fails` | Save-failure fallback |
 | `Finalize → ReadyToCapture on error` | Error path |
 | `navigateToGallery transitions to Gallery` | Navigation |
+| `navigateToGallery loads videos from storage` | Gallery entry loads list |
 | `navigateBackFromGallery transitions to ReadyToCapture` | Navigation |
-| `loadRecordedVideos with missing directory` | Empty state |
-| `deleteVideo removes files and reloads` | Deletion flow |
+| `loadRecordedVideos with empty storage` | Empty state |
+| `deleteVideo removes video from storage and reloads` | Deletion flow |
 | `recordedVideos flow starts empty` | Initial state |
+
+> These run against a `FakeVideoStorageRepository` (in-memory) — no `mockk<Context>` / `mockk<File>` (lesson 004).
+
+### Repository Unit Tests (app/src/test/) — `VideoStorageRepositoryImplTest`
+
+Real-filesystem tests via JUnit `TemporaryFolder` (lesson 008); the Android-only `MediaMetadataRetriever` is mocked via `mockkConstructor`.
+
+| Test | What it covers |
+|------|---------------|
+| `rawCaptureFile points at cacheDir raw_capture mp4` | Scratch path |
+| `loadRecordedVideos returns empty when videos dir is missing` | Empty state |
+| `loadRecordedVideos returns clips newest first` | Scan + sort |
+| `loadRecordedVideos ignores non-clip files` | Filename filter |
+| `loadRecordedVideos still lists a clip whose thumbnail is missing` | Lazy-thumbnail resilience |
+| `deleteVideo removes both the video and its thumbnail` | Deletion |
+| `deleteVideo with already-missing files does not throw` | Defensive deletion |
+| `saveFinalizedVideo copies the raw capture into persistent storage` | Persist copy |
 
 ### UI Tests (app/src/androidTest/)
 
@@ -335,6 +367,7 @@ data class RecordedVideo(
 | 10 | **Dark-only theme** | Matches vaporwave aesthetic; camera apps benefit from dark UI (less screen glare on subjects) | No light mode for accessibility preferences |
 | 11 | **Onboarding persistence via Jetpack DataStore** | Replaced the intentional deferral — DataStore now persists `has_completed_onboarding` flag. Returning users skip straight to permission check. Uses Preferences DataStore (not SharedPreferences) with repository pattern for testability. | Added `Initializing` state to sealed interface for async DataStore read at startup |
 | 12 | **No skip button on onboarding (intentional)** | 3 pages is short enough; forced traversal ensures users see all value props | Mild friction for power users; revisit post-launch |
+| 13 | **`VideoStorageRepository` extracted; ViewModel is Context-free** (Issue #10) | Filesystem work moved behind a repository interface so `OpenRangViewModel` holds no `Context` (Google ViewModel rule, lesson 004). Mirrors `UserPreferencesRepository`; `MainActivity` is the single Context→repository bridge. Tests use a fake, not `mockk<Context>`. | Two constructor deps instead of one; `RecordedVideo` moved from the `ui` to the `data` package |
 
 ---
 

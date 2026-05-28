@@ -1,10 +1,11 @@
 package com.openrang.app.ui
 
-import android.content.Context
 import android.util.Log
 import androidx.camera.video.VideoRecordEvent
 import com.openrang.app.camera.CameraManager
+import com.openrang.app.data.RecordedVideo
 import com.openrang.app.data.UserPreferencesRepository
+import com.openrang.app.data.VideoStorageRepository
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,7 +17,6 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import java.io.File
@@ -68,23 +68,59 @@ class FailingWritePreferencesRepository : UserPreferencesRepository {
     }
 }
 
+/**
+ * In-memory fake of [VideoStorageRepository] (lesson 004: fakes over mocking Context/File).
+ * Holds an in-memory list of saved videos and a single real scratch file for [rawCaptureFile],
+ * so tests can assert on storage behavior without touching the Android framework.
+ */
+class FakeVideoStorageRepository : VideoStorageRepository {
+
+    // A real temp directory so File handles behave; deterministic, no Android needed.
+    private val tempRoot: File = File.createTempFile("fake_video_storage_", "").let { f ->
+        f.delete()
+        f.mkdirs()
+        f
+    }
+
+    /** Saved videos, exposed for assertions. */
+    val saved = mutableListOf<RecordedVideo>()
+
+    /** Toggle to simulate a save failure (e.g. copy error) — [saveFinalizedVideo] returns null. */
+    var failSave: Boolean = false
+
+    override val rawCaptureFile: File = File(tempRoot, "raw_capture.mp4")
+
+    override fun saveFinalizedVideo(rawCapture: File): File? {
+        if (failSave) return null
+        val id = (saved.maxOfOrNull { it.id } ?: 0L) + 1
+        val dest = File(tempRoot, "clip_$id.mp4")
+        saved.add(
+            RecordedVideo(
+                id = id,
+                videoPath = dest.absolutePath,
+                thumbnailPath = File(tempRoot, "clip_$id.jpg").absolutePath
+            )
+        )
+        return dest
+    }
+
+    override fun loadRecordedVideos(): List<RecordedVideo> = saved.sortedByDescending { it.id }
+
+    override fun deleteVideo(video: RecordedVideo) {
+        saved.remove(video)
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class OpenRangViewModelTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    // Real temp directories — File(parent, child) reads parent.path directly (same package),
-    // which a mockk<File> can't intercept, so mocked dirs NPE. Use real dirs for file logic.
-    @get:Rule
-    val tempFolder = TemporaryFolder()
-
     private lateinit var viewModel: OpenRangViewModel
     private lateinit var fakePreferencesRepository: FakeUserPreferencesRepository
-    private val context: Context = mockk(relaxed = true)
+    private lateinit var fakeVideoStorage: FakeVideoStorageRepository
     private val cameraManager: CameraManager = mockk(relaxed = true)
-    private lateinit var cacheDir: File
-    private lateinit var filesDir: File
 
     @Before
     fun setUp() {
@@ -93,14 +129,10 @@ class OpenRangViewModelTest {
         every { Log.e(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
 
-        cacheDir = tempFolder.newFolder("cache")
-        filesDir = tempFolder.newFolder("files")
-        every { context.cacheDir } returns cacheDir
-        every { context.filesDir } returns filesDir
-
         // Default: onboarding NOT completed (first-time user)
         fakePreferencesRepository = FakeUserPreferencesRepository(initialOnboardingCompleted = false)
-        viewModel = OpenRangViewModel(fakePreferencesRepository)
+        fakeVideoStorage = FakeVideoStorageRepository()
+        viewModel = OpenRangViewModel(fakePreferencesRepository, fakeVideoStorage)
     }
 
     @After
@@ -121,7 +153,7 @@ class OpenRangViewModelTest {
     fun `returning user resolves to CheckingPermissions after init`() {
         // Create a ViewModel where onboarding was already completed
         val returningUserRepo = FakeUserPreferencesRepository(initialOnboardingCompleted = true)
-        val returningViewModel = OpenRangViewModel(returningUserRepo)
+        val returningViewModel = OpenRangViewModel(returningUserRepo, FakeVideoStorageRepository())
 
         assertEquals(OpenRangUiState.CheckingPermissions, returningViewModel.uiState.value)
     }
@@ -136,7 +168,8 @@ class OpenRangViewModelTest {
     @Test
     fun `onOnboardingCompleted handles IOException gracefully`() {
         // Use the failing repository that throws IOException on write
-        val failingViewModel = OpenRangViewModel(FailingWritePreferencesRepository())
+        val failingViewModel =
+            OpenRangViewModel(FailingWritePreferencesRepository(), FakeVideoStorageRepository())
 
         // Should not crash — state should still transition to CheckingPermissions
         failingViewModel.onOnboardingCompleted()
@@ -214,7 +247,7 @@ class OpenRangViewModelTest {
     @Test
     fun `startBurstCapture when not ready does not transition or call camera`() {
         // State is Onboarding (first-time user default), which is not ReadyToCapture
-        viewModel.startBurstCapture(context, cameraManager)
+        viewModel.startBurstCapture(cameraManager)
         assertEquals(OpenRangUiState.Onboarding, viewModel.uiState.value)
         verify(exactly = 0) { cameraManager.startRecording(any(), any()) }
     }
@@ -228,7 +261,7 @@ class OpenRangViewModelTest {
             val slot = slot<(VideoRecordEvent) -> Unit>()
             every { cameraManager.startRecording(any(), capture(slot)) } returns null
 
-            viewModel.startBurstCapture(context, cameraManager)
+            viewModel.startBurstCapture(cameraManager)
 
             assertEquals(OpenRangUiState.Recording, viewModel.uiState.value)
             verify(exactly = 1) { cameraManager.startRecording(any(), any()) }
@@ -246,7 +279,7 @@ class OpenRangViewModelTest {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
         every { cameraManager.startRecording(any(), any()) } throws RuntimeException("Camera error")
 
-        viewModel.startBurstCapture(context, cameraManager)
+        viewModel.startBurstCapture(cameraManager)
 
         assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
     }
@@ -256,20 +289,20 @@ class OpenRangViewModelTest {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
         every { cameraManager.startRecording(any(), any()) } returns null
 
-        viewModel.startBurstCapture(context, cameraManager)
+        viewModel.startBurstCapture(cameraManager)
         viewModel.stopBurstCapture(cameraManager)
 
         verify(exactly = 1) { cameraManager.stopRecording() }
     }
 
     @Test
-    fun `video record event finalize transitions to LoopingPreview on success`() {
+    fun `video record event finalize transitions to LoopingPreview using saved video path`() {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
 
         val slot = slot<(VideoRecordEvent) -> Unit>()
         every { cameraManager.startRecording(any(), capture(slot)) } returns null
 
-        viewModel.startBurstCapture(context, cameraManager)
+        viewModel.startBurstCapture(cameraManager)
 
         // Mock a success Finalize event
         val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
@@ -280,10 +313,33 @@ class OpenRangViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is OpenRangUiState.LoopingPreview)
         val previewState = state as OpenRangUiState.LoopingPreview
-        // raw_capture.mp4 was never actually written (camera is mocked), so saveFinalizedVideo
-        // fails its copy and the ViewModel falls back to the temp output path.
-        assertEquals(File(cacheDir, "raw_capture.mp4").absolutePath, previewState.videoPath)
+        // saveFinalizedVideo succeeded, so the preview points at the persisted clip path.
+        val persisted = fakeVideoStorage.saved.single()
+        assertEquals(persisted.videoPath, previewState.videoPath)
         assertEquals(1.5f, previewState.playbackSpeed)
+    }
+
+    @Test
+    fun `video record event finalize falls back to raw capture path when save fails`() {
+        viewModel.onPermissionsChecked(true) // ReadyToCapture
+        fakeVideoStorage.failSave = true
+
+        val slot = slot<(VideoRecordEvent) -> Unit>()
+        every { cameraManager.startRecording(any(), capture(slot)) } returns null
+
+        viewModel.startBurstCapture(cameraManager)
+
+        val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
+        every { finalizeEvent.hasError() } returns false
+
+        slot.captured.invoke(finalizeEvent)
+
+        val state = viewModel.uiState.value
+        assertTrue(state is OpenRangUiState.LoopingPreview)
+        val previewState = state as OpenRangUiState.LoopingPreview
+        // Save returned null → ViewModel falls back to the raw scratch capture path.
+        assertEquals(fakeVideoStorage.rawCaptureFile.absolutePath, previewState.videoPath)
+        assertTrue(fakeVideoStorage.saved.isEmpty())
     }
 
     @Test
@@ -293,7 +349,7 @@ class OpenRangViewModelTest {
         val slot = slot<(VideoRecordEvent) -> Unit>()
         every { cameraManager.startRecording(any(), capture(slot)) } returns null
 
-        viewModel.startBurstCapture(context, cameraManager)
+        viewModel.startBurstCapture(cameraManager)
 
         // Mock a failed Finalize event
         val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
@@ -309,14 +365,25 @@ class OpenRangViewModelTest {
 
     @Test
     fun `navigateToGallery transitions state to Gallery`() {
-        viewModel.navigateToGallery(context)
+        viewModel.navigateToGallery()
 
         assertEquals(OpenRangUiState.Gallery, viewModel.uiState.value)
     }
 
     @Test
+    fun `navigateToGallery loads videos from storage`() {
+        // Seed storage with a saved clip, then enter the gallery.
+        fakeVideoStorage.saveFinalizedVideo(fakeVideoStorage.rawCaptureFile)
+
+        viewModel.navigateToGallery()
+
+        assertEquals(OpenRangUiState.Gallery, viewModel.uiState.value)
+        assertEquals(1, viewModel.recordedVideos.value.size)
+    }
+
+    @Test
     fun `navigateBackFromGallery transitions state to ReadyToCapture`() {
-        viewModel.navigateToGallery(context)
+        viewModel.navigateToGallery()
         assertEquals(OpenRangUiState.Gallery, viewModel.uiState.value)
 
         viewModel.navigateBackFromGallery()
@@ -324,31 +391,25 @@ class OpenRangViewModelTest {
     }
 
     @Test
-    fun `loadRecordedVideos with missing directory returns empty list`() {
-        // filesDir exists but the "videos" subdirectory was never created.
-        viewModel.loadRecordedVideos(context)
+    fun `loadRecordedVideos with empty storage returns empty list`() {
+        viewModel.loadRecordedVideos()
 
         assertTrue(viewModel.recordedVideos.value.isEmpty())
     }
 
     @Test
-    fun `deleteVideo removes files and reloads empty list`() {
-        val videosDir = File(filesDir, "videos").apply { mkdirs() }
-        val thumbsDir = File(filesDir, "thumbnails").apply { mkdirs() }
-        val videoFile = File(videosDir, "clip_123.mp4").apply { writeBytes(ByteArray(4)) }
-        val thumbFile = File(thumbsDir, "clip_123.jpg").apply { writeBytes(ByteArray(4)) }
+    fun `deleteVideo removes video from storage and reloads list`() {
+        // Seed two clips so the delete leaves a non-trivial remainder.
+        fakeVideoStorage.saveFinalizedVideo(fakeVideoStorage.rawCaptureFile)
+        fakeVideoStorage.saveFinalizedVideo(fakeVideoStorage.rawCaptureFile)
+        viewModel.loadRecordedVideos()
+        assertEquals(2, viewModel.recordedVideos.value.size)
 
-        val video = RecordedVideo(
-            id = 123L,
-            videoPath = videoFile.absolutePath,
-            thumbnailPath = thumbFile.absolutePath
-        )
+        val toDelete = viewModel.recordedVideos.value.first()
+        viewModel.deleteVideo(toDelete)
 
-        viewModel.deleteVideo(context, video)
-
-        assertFalse(videoFile.exists())
-        assertFalse(thumbFile.exists())
-        assertTrue(viewModel.recordedVideos.value.isEmpty())
+        assertEquals(1, viewModel.recordedVideos.value.size)
+        assertFalse(viewModel.recordedVideos.value.contains(toDelete))
     }
 
     @Test

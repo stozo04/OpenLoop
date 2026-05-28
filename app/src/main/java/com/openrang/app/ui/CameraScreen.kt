@@ -168,7 +168,7 @@ fun CameraScreen(
                         )
                     )
                     .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
-                    .clickable { viewModel.navigateToGallery(context) },
+                    .clickable { viewModel.navigateToGallery() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -256,7 +256,7 @@ fun CameraScreen(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            viewModel.startBurstCapture(context, cameraManager)
+                            viewModel.startBurstCapture(cameraManager)
                         },
                     contentAlignment = Alignment.Center
                 ) {

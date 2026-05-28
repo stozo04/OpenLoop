@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.data.UserPreferencesRepositoryImpl
+import com.openrang.app.data.VideoStorageRepositoryImpl
 import com.openrang.app.data.dataStore
 import com.openrang.app.ui.CameraScreen
 import com.openrang.app.ui.GalleryScreen
@@ -56,8 +57,15 @@ import com.openrang.app.ui.PreviewScreen
 
 class MainActivity : ComponentActivity() {
     private val viewModel: OpenRangViewModel by viewModels {
+        // Bridge Context → repositories here, once. applicationContext is the long-lived,
+        // safe Context to read dataStore / cacheDir / filesDir from; nothing downstream
+        // (Factory, ViewModel) ever sees a Context.
         OpenRangViewModel.Factory(
-            UserPreferencesRepositoryImpl(applicationContext.dataStore)
+            UserPreferencesRepositoryImpl(applicationContext.dataStore),
+            VideoStorageRepositoryImpl(
+                cacheDir = applicationContext.cacheDir,
+                filesDir = applicationContext.filesDir,
+            ),
         )
     }
     private lateinit var cameraManager: CameraManager
