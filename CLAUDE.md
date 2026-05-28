@@ -17,6 +17,18 @@ Apache 2.0 licensed. Early-stage — concept spike through gallery feature compl
 
 Your knowledge cutoff could be a year old. **Do not assume** you know the current version of any Google standard, Android API behavior, Jetpack library pattern, testing framework convention, or Play Store requirement. Before making any claim about how something works or what Google recommends, **web-search `developer.android.com` first**. This applies to everything — architecture patterns, Compose APIs, DataStore usage, CameraX, coroutines, permissions, accessibility, Play Store requirements, and any external package or library. If you catch yourself writing "Google recommends X" without having searched for it in this session, stop and search.
 
+## Required Reading — Every Session
+
+Before doing any non-trivial work in this repo, read **every file in `docs/lessons_learned/`**. Each file captures a real mistake from a past PR review or bug and the pattern to apply going forward. Skipping these means re-making the same mistake — these were expensive to learn the first time.
+
+Order of operations at session start:
+
+1. Read this `CLAUDE.md` (already in context).
+2. Read `docs/lessons_learned/README.md` for the index, then read every numbered lesson file (`001-*.md`, `002-*.md`, ...).
+3. Proceed with the user's request.
+
+When a PR review surfaces a new pattern worth preserving, add it to `docs/lessons_learned/` using the convention in that folder's README. Commit the lesson alongside the fix it documents.
+
 ## How to Work With Me
 
 ### PRD-first — always
@@ -107,6 +119,7 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 
 | Document | Purpose |
 |----------|--------|
+| `docs/lessons_learned/` | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.** |
 | `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
 | `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. |
