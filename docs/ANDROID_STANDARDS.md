@@ -245,7 +245,7 @@ These conventions apply specifically to OpenRang and are consistent with the Goo
 
 **Google Guide:** [Behavior changes — targeting Android 16](https://developer.android.com/about/versions/16/behavior-changes-16) · **OpenRang detail:** [`docs/android-16/`](android-16/README.md)
 
-These rules are **in force** — OpenRang targets **API 36** (see §8). Each was carried as `Status: pending — Issue #7` during the docs-prep phase and flipped to satisfied when the [007 upgrade](active/007-target-sdk-upgrade/IMPLEMENTATION.md) landed, keeping this doc honest rather than aspirational ([Lesson 007](lessons_learned/007-standards-doc-must-match-code.md)).
+These rules are **in force** — OpenRang targets **API 36** (see §8). Each was carried as `Status: pending — Issue #7` during the docs-prep phase and flipped to satisfied when the [007 upgrade](completed/007-target-sdk-upgrade/IMPLEMENTATION.md) landed, keeping this doc honest rather than aspirational ([Lesson 007](lessons_learned/007-standards-doc-must-match-code.md)).
 
 **Target the current Play floor.** `compileSdk` and `targetSdk` track Google Play's required level (see §8). Bump in a dedicated upgrade, never bundled with feature work ([Lesson 005](lessons_learned/005-play-store-target-api-level.md)).
 `Status: satisfied (Issue #7)` — `compileSdk`/`targetSdk` = 36 in `app/build.gradle.kts`.

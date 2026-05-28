@@ -7,10 +7,8 @@ This directory tracks features currently in development. Each feature gets its o
 ```
 docs/active/
 ├── README.md                          ← You are here
-├── datastore-preferences/
-│   └── IMPLEMENTATION.md              ← Implementation plan for this feature
 ├── loop-generation/
-│   └── IMPLEMENTATION.md
+│   └── IMPLEMENTATION.md              ← Implementation plan for this feature
 └── <feature-name>/
     ├── IMPLEMENTATION.md              ← Required: at minimum, the implementation plan
     ├── RESEARCH.md                    ← Optional: background research, alternatives considered
@@ -38,7 +36,6 @@ docs/active/
 
 | Feature | Branch | Status |
 |---------|--------|--------|
-| Target SDK Upgrade (API 34 → 36) | implementation TBD · [Issue #7](https://github.com/stozo04/OpenRang/issues/7) | Planning |
-| Android 16 Doc-Prep | `feature/update-api` | In progress |
+| Loop Generation (Media3 Transformer) | `loop-generation` | Planned — core feature, not yet started |
 
-> Shipped since the last edit: Permission Rationale Flow (PR #12 → `docs/completed/`) and Jetpack DataStore Preferences (PR #5; its folder still sits under `docs/active/` — pending the move to `docs/completed/`).
+> Now in `docs/completed/`: Target SDK Upgrade + Android 16 Doc-Prep (combined — Issue #7, PRs #13 & #15), Jetpack DataStore Preferences (PR #5), and Permission Rationale Flow (PR #12).

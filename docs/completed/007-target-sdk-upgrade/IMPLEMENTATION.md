@@ -1,7 +1,7 @@
 # 007 — Target SDK Upgrade (Android 14 → Android 16) for Google Play
 
 **GitHub Issue:** [#7 — Upgrade targetSdk to meet Google Play requirements](https://github.com/stozo04/OpenRang/issues/7)
-**Branch:** implementation lands on a dedicated future branch. The current `feature/update-api` branch is **docs-prep only** (see [android-16-doc-prep](../android-16-doc-prep/IMPLEMENTATION.md)) — no build or code changes happen there.
+**Branch:** implementation landed on `feature/target-sdk-36` (PR #15). The docs-prep that preceded it shipped on `feature/update-api` (PR #13) — see the [doc-prep record](./DOC-PREP.md), now archived in this same folder.
 **Status:** IMPLEMENTED on branch `feature/target-sdk-36` — ready for review. Build (debug + release/R8) is green, unit (24) + instrumented (10) tests pass, and native libs verified 16 KB-aligned. On-device ≥600dp large-screen visual pass still recommended (see "Implementation outcome" below). Behavior-change research is captured in the [Android 16 hub](../../android-16/README.md).
 **Last updated:** 2026-05-28
 
@@ -162,7 +162,7 @@ absorb both the 34→35 and 35→36 behavior changes in one pass.
 - [ ] Close issue #7.
 - [ ] **Final step — reconcile the docs with the shipped code.** Once the build actually targets 36, sort every affected doc reference into one of two buckets:
   - **Flip (normative — these state *current* status):** `docs/ANDROID_STANDARDS.md` §8 OpenRang status note + the four §11 `Status: pending — Issue #7` markers → mark satisfied or remove; `CLAUDE.md` (Tech Stack table + SDK status note) and `README.md` (SDK levels) → change 34 → 36. This is the convergence step that keeps docs and code in agreement ([Lesson 007](../../lessons_learned/007-standards-doc-must-match-code.md)).
-  - **Keep (provenance — these record what was *planned/done*):** this file, [`android-16-doc-prep/IMPLEMENTATION.md`](../android-16-doc-prep/IMPLEMENTATION.md), and the [`docs/android-16/`](../../android-16/README.md) hub. Leave their Issue #7 / "pending" history intact — that's correct linkage, not stale debt to scrub.
+  - **Keep (provenance — these record what was *planned/done*):** this file, [`DOC-PREP.md`](./DOC-PREP.md), and the [`docs/android-16/`](../../android-16/README.md) hub. Leave their Issue #7 / "pending" history intact — that's correct linkage, not stale debt to scrub.
   - The source of truth for the version numbers stays `app/build.gradle.kts`; the docs only echo it, so there are just a handful of echoes to update — all listed above.
 
 ---

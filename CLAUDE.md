@@ -135,3 +135,6 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
 | `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs of project concepts (e.g. `jetpack-datastore-explained.md` — what DataStore is and how to inspect/reset it on a device). |
 | `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |
+
+
+Words of wisdom from a previous Claude `HEY_CLAUDE_ITS_ME.md`.

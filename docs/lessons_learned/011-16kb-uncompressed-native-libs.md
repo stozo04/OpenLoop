@@ -51,4 +51,4 @@ Two independent things must both be true for 16 KB compliance:
 
 - [Support 16 KB page sizes](https://developer.android.com/guide/practices/page-sizes) — Google Play requirement (native-lib apps targeting API 35+, since Nov 1 2025) and verification tooling.
 - [`useLegacyPackaging`](https://developer.android.com/reference/tools/gradle-api/com/android/build/api/dsl/JniLibsPackaging) — AGP packaging DSL.
-- Surfaced during the target-SDK-36 upgrade ([Issue #7](https://github.com/stozo04/OpenRang/issues/7)); see [`docs/active/007-target-sdk-upgrade/IMPLEMENTATION.md`](../active/007-target-sdk-upgrade/IMPLEMENTATION.md).
+- Surfaced during the target-SDK-36 upgrade ([Issue #7](https://github.com/stozo04/OpenRang/issues/7)); see [`docs/completed/007-target-sdk-upgrade/IMPLEMENTATION.md`](../completed/007-target-sdk-upgrade/IMPLEMENTATION.md).

@@ -57,4 +57,4 @@ The new `CancellationSignal` file-open overloads are the only items relevant to 
 
 ## See also
 - Evergreen rules: [ANDROID_STANDARDS.md](../ANDROID_STANDARDS.md)
-- Upgrade plan: [007 IMPLEMENTATION.md](../active/007-target-sdk-upgrade/IMPLEMENTATION.md)
+- Upgrade plan: [007 IMPLEMENTATION.md](../completed/007-target-sdk-upgrade/IMPLEMENTATION.md)

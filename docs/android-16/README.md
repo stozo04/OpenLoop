@@ -7,7 +7,7 @@ Google search.
 
 This hub is **evergreen reference**: unlike a feature folder, it does **not** move to
 `docs/completed/` when the upgrade ships. The actionable, ordered upgrade plan lives separately in
-[`docs/active/007-target-sdk-upgrade/IMPLEMENTATION.md`](../active/007-target-sdk-upgrade/IMPLEMENTATION.md)
+[`docs/completed/007-target-sdk-upgrade/IMPLEMENTATION.md`](../completed/007-target-sdk-upgrade/IMPLEMENTATION.md)
 (GitHub Issue [#7](https://github.com/stozo04/OpenRang/issues/7)).
 
 > **Verified 2026-05-28.** Google's pages change. Every file records the source URL and fetch date
@@ -49,5 +49,5 @@ Each document leads with:
 - **Evergreen rules:** [`docs/ANDROID_STANDARDS.md`](../ANDROID_STANDARDS.md) — the version-agnostic
   "how we build" standards. Android-16-specific rules there carried a `Status: pending — Issue #7`
   marker during docs-prep and are now marked **satisfied** — the app targets 36 (Issue #7).
-- **Upgrade plan & checklist:** [`docs/active/007-target-sdk-upgrade/IMPLEMENTATION.md`](../active/007-target-sdk-upgrade/IMPLEMENTATION.md)
-- **This docs-prep effort:** [`docs/active/android-16-doc-prep/IMPLEMENTATION.md`](../active/android-16-doc-prep/IMPLEMENTATION.md)
+- **Upgrade plan & checklist:** [`docs/completed/007-target-sdk-upgrade/IMPLEMENTATION.md`](../completed/007-target-sdk-upgrade/IMPLEMENTATION.md)
+- **This docs-prep effort (archived with the upgrade):** [`docs/completed/007-target-sdk-upgrade/DOC-PREP.md`](../completed/007-target-sdk-upgrade/DOC-PREP.md)

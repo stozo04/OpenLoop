@@ -1,8 +1,8 @@
 # Android 16 Doc-Prep — Get the docs ready for the `targetSdk 36` upgrade
 
 **GitHub Issue:** none of its own — this is **preparation for [Issue #7](https://github.com/stozo04/OpenRang/issues/7)** (the actual SDK upgrade). Unnumbered folder on purpose: the `NNN-` prefix maps a folder to a GitHub issue number, and this work has no separate issue.
-**Branch:** `feature/update-api`
-**Status:** IN PROGRESS
+**Branch:** `feature/update-api` (merged in PR #13)
+**Status:** SHIPPED — archived here. Originally `docs/active/android-16-doc-prep/IMPLEMENTATION.md`; combined into the `007-target-sdk-upgrade/` folder alongside the implementation record when Issue #7 shipped (PR #15).
 **Last updated:** 2026-05-28
 
 ---
@@ -38,10 +38,10 @@ This branch is **documentation only**. It changes no Kotlin and no Gradle config
 |-----|------|----------|
 | [`docs/ANDROID_STANDARDS.md`](../../ANDROID_STANDARDS.md) | Evergreen "how we build" rules (all SDK versions) | Permanent, at `docs/` root |
 | [`docs/android-16/`](../../android-16/README.md) | Version-specific Android 16 reference (verbatim + summarized Google pages) | Durable hub — does **not** move to `completed/` |
-| [`docs/active/007-target-sdk-upgrade/`](../007-target-sdk-upgrade/IMPLEMENTATION.md) | The actual upgrade plan & checklist (code + build) | Moves to `completed/` when #7 ships |
-| `docs/active/android-16-doc-prep/` (this folder) | Tracks the doc-prep deliverable | Moves to `completed/` when this branch merges |
+| [`IMPLEMENTATION.md`](./IMPLEMENTATION.md) (this folder) | The actual upgrade plan & checklist (code + build) | Now in `docs/completed/007-target-sdk-upgrade/` |
+| `DOC-PREP.md` (this file) | Tracks the doc-prep deliverable | Now in `docs/completed/007-target-sdk-upgrade/` |
 
-**Lesson 007 boundary.** Because this branch lets docs run *ahead* of code, every Android-16 rule that the code (API 34) does not yet satisfy is marked `Status: pending — Issue #7`. No doc asserts OpenRang already targets 36, is edge-to-edge, or handles predictive back. A dedicated phase in the [007 plan](../007-target-sdk-upgrade/IMPLEMENTATION.md) flips those markers and bumps the API numbers when the corresponding code merges, keeping doc and code convergent.
+**Lesson 007 boundary.** Because this branch lets docs run *ahead* of code, every Android-16 rule that the code (API 34) does not yet satisfy is marked `Status: pending — Issue #7`. No doc asserts OpenRang already targets 36, is edge-to-edge, or handles predictive back. A dedicated phase in the [007 plan](./IMPLEMENTATION.md) flips those markers and bumps the API numbers when the corresponding code merges, keeping doc and code convergent.
 
 ## Implementation steps (done on this branch)
 
@@ -50,7 +50,7 @@ This branch is **documentation only**. It changes no Kotlin and no Gradle config
 3. **Updated `ANDROID_STANDARDS.md`** — verified §8 dates; new §11 with target-36 rules (edge-to-edge, predictive back, adaptive layouts), each `pending — Issue #7`; added Android 16 links.
 4. **Updated `CLAUDE.md` + `README.md`** — SDK-state notes and hub references.
 5. **Wrote this record.**
-6. **Updated the [007 plan](../007-target-sdk-upgrade/IMPLEMENTATION.md)** — added a doc-sync phase, clarified that implementation lands on a later branch, cross-linked the hub, and fixed a stale Lesson-002 citation.
+6. **Updated the [007 plan](./IMPLEMENTATION.md)** — added a doc-sync phase, clarified that implementation lands on a later branch, cross-linked the hub, and fixed a stale Lesson-002 citation.
 
 ## Testing plan
 

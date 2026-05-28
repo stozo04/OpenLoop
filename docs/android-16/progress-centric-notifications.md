@@ -84,4 +84,4 @@ var ps = Notification.ProgressStyle()
 
 ## See also
 - Evergreen rules: [ANDROID_STANDARDS.md](../ANDROID_STANDARDS.md)
-- Upgrade plan: [007 IMPLEMENTATION.md](../active/007-target-sdk-upgrade/IMPLEMENTATION.md)
+- Upgrade plan: [007 IMPLEMENTATION.md](../completed/007-target-sdk-upgrade/IMPLEMENTATION.md)

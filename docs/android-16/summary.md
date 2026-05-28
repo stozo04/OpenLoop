@@ -189,4 +189,4 @@ The page also links to API diffs (Beta 2 to 36 incremental, and API 35 to API 36
 
 ## See also
 - Evergreen rules: [ANDROID_STANDARDS.md](../ANDROID_STANDARDS.md)
-- Upgrade plan: [007 IMPLEMENTATION.md](../active/007-target-sdk-upgrade/IMPLEMENTATION.md)
+- Upgrade plan: [007 IMPLEMENTATION.md](../completed/007-target-sdk-upgrade/IMPLEMENTATION.md)
