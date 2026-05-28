@@ -20,7 +20,7 @@ Fixes # (issue number, if applicable)
 Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce.
 
 - **Manual Verification**: (e.g., tested on Pixel 7 API 34, verified permission flow)
-- **Automated Tests**: (e.g., ran gradle compile tasks)
+- **Automated Tests**: (e.g., ran Gradle compile tasks)
 
 ## Checklist
 

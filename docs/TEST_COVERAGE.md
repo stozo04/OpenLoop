@@ -150,16 +150,22 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 ## Current Test Inventory
 
-### Local Unit Tests (`app/src/test/`) — 19 tests
+### Local Unit Tests (`app/src/test/`) — 24 tests
 
 | Test | Category | What It Validates |
 |------|----------|------------------|
 | `first-time user resolves to Onboarding after init` | DataStore | DataStore `false` → Onboarding state |
 | `returning user resolves to CheckingPermissions after init` | DataStore | DataStore `true` → CheckingPermissions state |
 | `onOnboardingCompleted persists true to repository` | DataStore | Write to DataStore actually happens |
+| `onOnboardingCompleted handles IOException gracefully` | Error | Failed write still transitions to CheckingPermissions |
 | `onOnboardingCompleted transitions to CheckingPermissions` | State | Onboarding → CheckingPermissions |
 | `onPermissionsChecked when granted transitions to ReadyToCapture` | State | Permission grant → camera ready |
 | `onPermissionsChecked when denied transitions to PermissionDenied` | State | Permission deny → denied screen |
+| `showPermissionRationale transitions to PermissionRationale` | Permissions | Denied-once → educational rationale (Issue #11) |
+| `onRationaleAcknowledged transitions to CheckingPermissions` | Permissions | Acknowledge rationale → re-check (Issue #11) |
+| `onRationaleDeclined transitions to PermissionDenied` | Permissions | "Not now" cancel → blocked-but-recoverable screen (Issue #11) |
+| `rationale flow ending in grant reaches ReadyToCapture` | Permissions | Full rationale → grant path (Issue #11) |
+| `rationale flow ending in denial reaches PermissionDenied` | Permissions | Full rationale → denial path (Issue #11) |
 | `resetToCapture transitions state back to ReadyToCapture` | State | State reset works from any state |
 | `startBurstCapture when not ready does not transition or call camera` | Guard | Guard clause prevents recording from wrong state |
 | `startBurstCapture successfully starts recording and delays automatic stop` | Capture | Full capture lifecycle with 1500ms time advance |
@@ -173,7 +179,7 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 | `deleteVideo removes files and reloads empty list` | Storage | Deletion flow works |
 | `recordedVideos flow starts as empty list` | State | Initial state is clean |
 
-### Instrumented UI Tests (`app/src/androidTest/`) — 6 tests
+### Instrumented UI Tests (`app/src/androidTest/`) — 10 tests
 
 | Test | What It Guards |
 |------|---------------|
@@ -183,6 +189,10 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 | `page0_doesNotShowPage1OrPage2Controls` | Mutual exclusivity of page controls |
 | `page1_doesNotShowPage0OrPage2Controls` | Mutual exclusivity of page controls |
 | `page2_doesNotShowPage0OrPage1Controls` | Mutual exclusivity of page controls |
+| `rationaleVariant_showsGrantAndCancel_hidesSettings` | Rationale screen shows "Grant"/"Not now", hides Settings (Issue #11) |
+| `denialVariant_showsTryAgainAndSettings` | Denial screen shows "Try Again"/"Open Device Settings" (Issue #11) |
+| `noSecondaryAction_rendersPrimaryOnly` | Omitting the secondary action hides the second button (Issue #11) |
+| `primaryAndSecondaryClicks_invokeTheirCallbacks` | Both buttons fire their callbacks (Issue #11) |
 
 ---
 

@@ -75,6 +75,12 @@ com.openrang.app/
 
 That's it. No API keys, no backend, no environment variables.
 
+## Guides
+
+Plain-English, beginner-friendly walkthroughs live in [`docs/guides/`](docs/guides/):
+
+- [**Jetpack DataStore — Explained Like You're Five**](docs/guides/jetpack-datastore-explained.md) — what the app's little "memory" is, where it lives on the phone, three ways to peek inside it, and how to reset onboarding for testing.
+
 ## Development Standards
 
 This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. We treat these as non-negotiable — if Google recommends it, we follow it.
@@ -91,7 +97,7 @@ The reviewer web-searches `developer.android.com` for the latest guidance on eve
 
 **To merge, a PR must:**
 1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
-2. Address all **WARNINGs** or document why they're accepted
+2. Address all **WARNINGS** or document why they're accepted
 3. Pass all unit tests (19+) and UI regression tests (6+)
 
 ### Fixing Review Feedback

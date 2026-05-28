@@ -39,3 +39,4 @@ docs/active/
 | Feature | Branch | Status |
 |---------|--------|--------|
 | Jetpack DataStore Preferences | `feature/datastore-preferences` | PR #5 open |
+| Permission Rationale Flow | `feature/permission-rationale` (Issue #11) | In progress |

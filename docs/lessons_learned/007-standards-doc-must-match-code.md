@@ -25,4 +25,4 @@ After any change to `docs/ANDROID_STANDARDS.md` or other guideline docs:
 
 ## Reference
 
-- Meta-lesson from PR #5 FAIL #2 and Recommendation R4. The reviewer specifically called out: "The standards doc this PR introduces says to use `collectAsStateWithLifecycle()`, but the code in the same PR uses `collectAsState()`. Aligning these prevents the standards doc from being treated as aspirational rather than enforced."
+- Meta-lesson from PR #5 FAIL #2 and Recommendation R4. The reviewer specifically called out: "The standards doc this PR introduces says to use `collectAsStateWithLifecycle()`, but the code in the same PR uses `collectAsState()`. Aligning this prevents the standards doc from being treated as aspirational rather than enforced."

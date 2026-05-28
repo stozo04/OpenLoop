@@ -2,9 +2,11 @@ package com.openrang.app
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -60,6 +62,11 @@ class MainActivity : ComponentActivity() {
     }
     private lateinit var cameraManager: CameraManager
 
+    private val requiredPermissions = arrayOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO
+    )
+
     // Permission request contract launcher
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -106,10 +113,26 @@ class MainActivity : ComponentActivity() {
                         is OpenRangUiState.CheckingPermissions -> {
                             CheckingPermissionsScreen()
                         }
+                        is OpenRangUiState.PermissionRationale -> {
+                            PermissionExplanationScreen(
+                                title = "We need a quick permission",
+                                body = "OpenRang needs Camera and Audio to capture your " +
+                                    "video loops. Tap Grant to continue.",
+                                primaryActionLabel = "Grant Permissions",
+                                onPrimaryAction = { onRationaleAcknowledged() },
+                                secondaryActionLabel = "Not now",
+                                onSecondaryAction = { viewModel.onRationaleDeclined() }
+                            )
+                        }
                         is OpenRangUiState.PermissionDenied -> {
-                            PermissionDeniedScreen(
-                                onRequestPermissions = { checkPermissions() },
-                                onOpenSettings = { openAppSettings() }
+                            PermissionExplanationScreen(
+                                title = "Permissions Required",
+                                body = "OpenRang needs Camera and Audio recording permissions " +
+                                    "to capture high-quality speed-controlled video loops.",
+                                primaryActionLabel = "Try Again",
+                                onPrimaryAction = { checkPermissions() },
+                                secondaryActionLabel = "Open Device Settings",
+                                onSecondaryAction = { openAppSettings() }
                             )
                         }
                         is OpenRangUiState.ReadyToCapture -> {
@@ -151,21 +174,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkPermissions() {
-        val hasCamera = androidx.core.content.ContextCompat.checkSelfPermission(
-            this, Manifest.permission.CAMERA
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-        val hasAudio = androidx.core.content.ContextCompat.checkSelfPermission(
-            this, Manifest.permission.RECORD_AUDIO
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-        if (hasCamera && hasAudio) {
-            viewModel.onPermissionsChecked(true)
-        } else {
-            requestPermissionLauncher.launch(
-                arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-            )
+        val allGranted = requiredPermissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
+
+        when {
+            allGranted -> viewModel.onPermissionsChecked(true)
+
+            // Denied at least once but not permanently — explain before re-asking.
+            requiredPermissions.any { shouldShowRequestPermissionRationale(it) } ->
+                viewModel.showPermissionRationale()
+
+            // First request, or permanently denied — the system handles both. A permanent
+            // denial returns granted=false from the launcher, routing to PermissionDenied.
+            else -> requestPermissionLauncher.launch(requiredPermissions)
+        }
+    }
+
+    private fun onRationaleAcknowledged() {
+        viewModel.onRationaleAcknowledged()
+        // Launch the system dialog directly, bypassing checkPermissions(), so we don't
+        // re-enter the rationale branch (shouldShowRequestPermissionRationale stays true
+        // until the user actually responds to the dialog).
+        requestPermissionLauncher.launch(requiredPermissions)
     }
 
     private fun openAppSettings() {
@@ -214,10 +245,20 @@ fun CheckingPermissionsScreen() {
     }
 }
 
+/**
+ * Educational permission screen reused for both the rationale step (before re-asking) and the
+ * permanent-denial step. The optional secondary action is "Not now" (cancel) on the rationale
+ * variant and "Open Device Settings" on the denial variant; omit both [secondaryActionLabel] and
+ * [onSecondaryAction] to render only the primary button.
+ */
 @Composable
-fun PermissionDeniedScreen(
-    onRequestPermissions: () -> Unit,
-    onOpenSettings: () -> Unit
+fun PermissionExplanationScreen(
+    title: String,
+    body: String,
+    primaryActionLabel: String,
+    onPrimaryAction: () -> Unit,
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -259,27 +300,27 @@ fun PermissionDeniedScreen(
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                text = "Permissions Required",
+                text = title,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
                 letterSpacing = 1.sp
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Text(
-                text = "OpenRang needs Camera and Audio recording permissions to capture high-quality speed-controlled video loops.",
+                text = body,
                 fontSize = 14.sp,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
                 lineHeight = 22.sp
             )
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
+
             Button(
-                onClick = onRequestPermissions,
+                onClick = onPrimaryAction,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFFF5252)
                 ),
@@ -289,32 +330,34 @@ fun PermissionDeniedScreen(
                     .height(48.dp)
             ) {
                 Text(
-                    text = "Grant Permissions",
+                    text = primaryActionLabel,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Button(
-                onClick = onOpenSettings,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-            ) {
-                Text(
-                    text = "Open Device Settings",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White
-                )
+
+            if (secondaryActionLabel != null && onSecondaryAction != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onSecondaryAction,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                ) {
+                    Text(
+                        text = secondaryActionLabel,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                }
             }
         }
     }

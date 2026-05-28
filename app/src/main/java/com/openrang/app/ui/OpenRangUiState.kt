@@ -5,6 +5,12 @@ sealed interface OpenRangUiState {
     object Initializing : OpenRangUiState
     object Onboarding : OpenRangUiState
     object CheckingPermissions : OpenRangUiState
+
+    /**
+     * User has denied a required permission at least once (but not permanently).
+     * Show an educational rationale before re-requesting, per Google's permission flow.
+     */
+    object PermissionRationale : OpenRangUiState
     object PermissionDenied : OpenRangUiState
     object ReadyToCapture : OpenRangUiState
     object Recording : OpenRangUiState

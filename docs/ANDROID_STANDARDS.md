@@ -215,7 +215,7 @@ Platform Layer    →  CameraX, Media3, system APIs
 
 **Use Baseline Profiles for startup optimization.** Baseline Profiles improve cold-start speed by ~30% by enabling ahead-of-time compilation for critical code paths. Consider adding them before Play Store launch.
 
-**Profile before optimizing.** Use Android Studio's CPU Profiler and Jetpack Macrobenchmark to identify actual bottlenecks. Don't guess — measure.
+**Profile before optimizing.** Use Android Studio's CPU Profiler and Jetpack Macro benchmark to identify actual bottlenecks. Don't guess — measure.
 
 **Minimize allocations in hot paths.** Recording callbacks, frame processing, and animation composables should avoid object creation where possible.
 

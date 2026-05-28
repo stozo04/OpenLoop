@@ -20,6 +20,9 @@ Each lesson follows the same shape:
 | 005 | [Track current Play Store target API level requirements](./005-play-store-target-api-level.md) | PR #5 |
 | 006 | [Always show permission rationale before re-requesting](./006-permission-rationale-flow.md) | PR #5 |
 | 007 | [A standards doc and the code in the same PR must agree](./007-standards-doc-must-match-code.md) | PR #5 |
+| 008 | [JVM unit tests: real temp dirs for File, one shared TestDispatcher](./008-jvm-test-file-and-dispatcher-pitfalls.md) | Issue #11 |
+| 009 | [TOML inline tables must be on a single line](./009-toml-inline-tables-single-line.md) | IDE inspection |
+| 010 | [Markdown code fences are parsed by the IDE; keep snippets valid](./010-markdown-code-fences-are-inspected.md) | IDE inspection |
 
 ## Adding a new lesson
 
@@ -30,4 +33,4 @@ When a PR review surfaces a new pattern worth preserving:
 3. Add an entry to the index above.
 4. Commit the lesson alongside the fix it documents.
 
-A lesson is only worth writing down if it would have prevented the original mistake — abstract advice doesn't qualify. Be specific. Cite file paths, grep patterns, and the exact Google doc URL.
+A lesson is only worth writing down if it had prevented the original mistake — abstract advice doesn't qualify. Be specific. Cite file paths, grep patterns, and the exact Google doc URL.

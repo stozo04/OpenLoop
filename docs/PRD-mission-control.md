@@ -29,7 +29,6 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 - Persistent local gallery with thumbnail caching for performant browsing
 - Beautiful, polished UI matching the glassmorphic vaporwave aesthetic
 - 100% unit test coverage for ViewModel logic; UI regression tests for layout-critical composables
-
 ### Non-Goals (this build window)
 
 - Cloud storage or sync — all data stays on-device
@@ -72,8 +71,9 @@ All navigation is driven by a single `MutableStateFlow<OpenRangUiState>` in `Ope
 |-------|-------------|---------------|
 | `Initializing` | Loading preferences from DataStore | `Onboarding` (first launch) or `CheckingPermissions` (returning user) |
 | `Onboarding` | 3-page carousel (first launch) | `CheckingPermissions` |
-| `CheckingPermissions` | Runtime permission check | `ReadyToCapture` or `PermissionDenied` |
-| `PermissionDenied` | Permission dialog with settings link | `CheckingPermissions` (retry) |
+| `CheckingPermissions` | Runtime permission check (3-state: granted / rationale / request) | `ReadyToCapture`, `PermissionRationale`, or `PermissionDenied` |
+| `PermissionRationale` | Educational UI before re-requesting a previously-denied permission (`shouldShowRequestPermissionRationale`). "Grant" acknowledges; "Not now" cancels. | `CheckingPermissions` (Grant → launches the system dialog) or `PermissionDenied` ("Not now") |
+| `PermissionDenied` | Permanent-denial screen with settings link | `CheckingPermissions` (retry) |
 | `ReadyToCapture` | Live camera viewfinder | `Recording`, `Gallery` |
 | `Recording` | Active 1.5s burst capture | `LoopingPreview` (success) or `ReadyToCapture` (failure) |
 | `Processing` | (Planned) Loop generation in progress | `LoopingPreview` |
@@ -196,9 +196,10 @@ data class RecordedVideo(
 **Purpose:** Entry point. Handles permissions, state-based routing, theme.
 
 - Permission launcher: `CAMERA` + `RECORD_AUDIO` via `ActivityResultContracts.RequestMultiplePermissions`
+- `checkPermissions()` is a 3-state `when`: all-granted → proceed; `shouldShowRequestPermissionRationale` → `PermissionRationale`; else → launch the system dialog. The rationale "Grant" action launches the dialog directly (bypassing `checkPermissions()`) to avoid re-entering the rationale branch.
 - Routing: `when (uiState)` dispatches to the appropriate screen composable
 - Theme: `OpenRangTheme` wrapping `darkColorScheme(primary = NeonCoral, secondary = NeonPurple, background = #121212)`
-- Includes `CheckingPermissionsScreen` and `PermissionDeniedScreen` inline composables
+- Includes `CheckingPermissionsScreen` and `PermissionExplanationScreen` inline composables. `PermissionExplanationScreen` is shared by `PermissionRationale` (secondary action "Not now" → `PermissionDenied`) and `PermissionDenied` (secondary action "Open Device Settings") via a parameterized `secondaryActionLabel` / `onSecondaryAction`.
 
 ---
 
@@ -289,6 +290,9 @@ data class RecordedVideo(
 | `initial state is Onboarding` | Default state |
 | `onOnboardingCompleted transitions to CheckingPermissions` | Onboarding → permissions flow |
 | `onPermissionsChecked when granted/denied` | Permission branching |
+| `showPermissionRationale transitions to PermissionRationale` | Rationale step (Issue #11) |
+| `onRationaleAcknowledged transitions to CheckingPermissions` | Rationale acknowledge (Issue #11) |
+| `rationale flow ending in grant/denial` | Full rationale path to terminal state (Issue #11) |
 | `resetToCapture transitions state` | State reset |
 | `startBurstCapture when not ready` | Guard clause |
 | `startBurstCapture starts recording and delays stop` | Full capture lifecycle with time advance |

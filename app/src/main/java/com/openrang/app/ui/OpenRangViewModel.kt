@@ -65,6 +65,30 @@ class OpenRangViewModel(
         }
     }
 
+    /** User denied a required permission once; show the educational rationale screen. */
+    fun showPermissionRationale() {
+        _uiState.value = OpenRangUiState.PermissionRationale
+    }
+
+    /**
+     * User acknowledged the rationale. Return to [OpenRangUiState.CheckingPermissions] so the
+     * permission flow has a single source of truth; MainActivity then launches the system dialog
+     * directly to avoid re-entering the rationale branch (see MainActivity.checkPermissions).
+     */
+    fun onRationaleAcknowledged() {
+        _uiState.value = OpenRangUiState.CheckingPermissions
+    }
+
+    /**
+     * User dismissed the rationale ("Not now") instead of granting. Move to the blocked-but-
+     * recoverable [OpenRangUiState.PermissionDenied] screen rather than nagging — the user can
+     * still retry or open Settings from there. Satisfies Google's "always provide the option to
+     * cancel an educational UI flow" guidance.
+     */
+    fun onRationaleDeclined() {
+        _uiState.value = OpenRangUiState.PermissionDenied
+    }
+
     private var recordingJob: Job? = null
 
     private val _recordedVideos = MutableStateFlow<List<RecordedVideo>>(emptyList())
