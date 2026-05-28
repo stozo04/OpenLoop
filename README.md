@@ -38,6 +38,8 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 | **State** | MVVM + StateFlow | Single ViewModel, sealed-interface state machine, unidirectional data flow |
 | **Testing** | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
 
+**SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 34` · `targetSdk 34` today. An upgrade to **API 36 (Android 16)** is in progress for Google Play readiness (`minSdk` stays 26) — tracked in [Issue #7](https://github.com/stozo04/OpenRang/issues/7), with the full behavior-change breakdown in [`docs/android-16/`](docs/android-16/README.md). Google Play's current target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
+
 ### State Machine
 
 ```
@@ -83,7 +85,7 @@ Plain-English, beginner-friendly walkthroughs live in [`docs/guides/`](docs/guid
 
 ## Development Standards
 
-This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. We treat these as non-negotiable — if Google recommends it, we follow it.
+This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. We treat these as non-negotiable — if Google recommends it, we follow it. For Android 16 / `targetSdk 36`-specific guidance behind the in-progress upgrade, see the [`docs/android-16/`](docs/android-16/README.md) knowledge hub.
 
 ### PR Merge Policy
 

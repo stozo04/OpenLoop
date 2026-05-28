@@ -38,5 +38,7 @@ docs/active/
 
 | Feature | Branch | Status |
 |---------|--------|--------|
-| Jetpack DataStore Preferences | `feature/datastore-preferences` | PR #5 open |
-| Permission Rationale Flow | `feature/permission-rationale` (Issue #11) | In progress |
+| Target SDK Upgrade (API 34 → 36) | implementation TBD · [Issue #7](https://github.com/stozo04/OpenRang/issues/7) | Planning |
+| Android 16 Doc-Prep | `feature/update-api` | In progress |
+
+> Shipped since the last edit: Permission Rationale Flow (PR #12 → `docs/completed/`) and Jetpack DataStore Preferences (PR #5; its folder still sits under `docs/active/` — pending the move to `docs/completed/`).
