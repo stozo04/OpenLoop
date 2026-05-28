@@ -94,6 +94,14 @@ The reviewer web-searches `developer.android.com` for the latest guidance on eve
 2. Address all **WARNINGs** or document why they're accepted
 3. Pass all unit tests (19+) and UI regression tests (6+)
 
+### Fixing Review Feedback
+
+When a PR gets review feedback, open a new Cowork session with the OpenRang folder mounted and say:
+
+> Start addressing PR feedback following `docs/prompts/PR-FEEDBACK-RESOLUTION.md` — here is the PR: https://github.com/stozo04/OpenRang/pull/XX
+
+Replace `XX` with your PR number. The agent will read the review comments, web-search Google's latest standards to verify each finding, fix the code, push, post a response comment explaining what was fixed and why, then run a fresh review to confirm zero FAILs.
+
 ## Build Status
 
 **What's shipping:**

@@ -13,6 +13,10 @@ Open-source Android camera app for creating custom, speed-controlled video loops
 
 Apache 2.0 licensed. Early-stage — concept spike through gallery feature complete, core "loop" generation still ahead.
 
+## Critical Rule — Do Not Trust Your Training Data
+
+Your knowledge cutoff could be a year old. **Do not assume** you know the current version of any Google standard, Android API behavior, Jetpack library pattern, testing framework convention, or Play Store requirement. Before making any claim about how something works or what Google recommends, **web-search `developer.android.com` first**. This applies to everything — architecture patterns, Compose APIs, DataStore usage, CameraX, coroutines, permissions, accessibility, Play Store requirements, and any external package or library. If you catch yourself writing "Google recommends X" without having searched for it in this session, stop and search.
+
 ## How to Work With Me
 
 ### PRD-first — always
