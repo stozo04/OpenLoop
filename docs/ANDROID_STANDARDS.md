@@ -193,7 +193,7 @@ Platform Layer    →  CameraX, Media3, system APIs
 
 **Target API level.** New apps and app updates submitted to Google Play must currently target at least **API 35 (Android 15)** — in force since **August 31, 2025** (the extension window closed November 1, 2025). The floor is expected to rise to **API 36 (Android 16)** around **August 2026** on Google's annual cadence, but as of this review the [requirements page](https://developer.android.com/google/play/requirements/target-sdk) had **not** published an exact date for the API 36 requirement — re-verify before release rather than trusting this line. (Wear OS, Android Automotive, and Android TV trail by one level — not relevant to OpenRang.)
 
-> **OpenRang status — pending [Issue #7](https://github.com/stozo04/OpenRang/issues/7):** the code currently targets **API 34** (`app/build.gradle.kts`), which is **below the current Play floor of API 35** — we cannot publish until this is bumped. The decision (Issue #7) is to go straight to **API 36** to avoid a second bump when the floor rises. As of this review no build files have changed yet — this is a documentation-prep state. See the [Android 16 hub](android-16/README.md) for the behavior-change detail behind the upgrade.
+> **OpenRang status — satisfied ([Issue #7](https://github.com/stozo04/OpenRang/issues/7)):** the app targets **API 36** (`app/build.gradle.kts`: `compileSdk`/`targetSdk` 36, `minSdk` 26), clearing the current Play floor of API 35 — going straight to 36 to avoid a second bump when the floor rises. Native libraries are 16 KB page-aligned (CameraX/Media3 upgraded, uncompressed packaging). See the [Android 16 hub](android-16/README.md) for the behavior-change detail behind the upgrade.
 
 **64-bit support.** All apps must include 64-bit native libraries if they include any native code.
 
@@ -245,19 +245,19 @@ These conventions apply specifically to OpenRang and are consistent with the Goo
 
 **Google Guide:** [Behavior changes — targeting Android 16](https://developer.android.com/about/versions/16/behavior-changes-16) · **OpenRang detail:** [`docs/android-16/`](android-16/README.md)
 
-These rules apply once OpenRang targets **API 36**. The code currently targets **API 34**, so each carries **`Status: pending — Issue #7`** until the upgrade lands. Do **not** read them as already satisfied — that would make this doc aspirational, the exact failure [Lesson 007](lessons_learned/007-standards-doc-must-match-code.md) warns against. The ordered work is in [007 IMPLEMENTATION.md](active/007-target-sdk-upgrade/IMPLEMENTATION.md); the marker flips to satisfied when the corresponding code change merges.
+These rules are **in force** — OpenRang targets **API 36** (see §8). Each was carried as `Status: pending — Issue #7` during the docs-prep phase and flipped to satisfied when the [007 upgrade](active/007-target-sdk-upgrade/IMPLEMENTATION.md) landed, keeping this doc honest rather than aspirational ([Lesson 007](lessons_learned/007-standards-doc-must-match-code.md)).
 
 **Target the current Play floor.** `compileSdk` and `targetSdk` track Google Play's required level (see §8). Bump in a dedicated upgrade, never bundled with feature work ([Lesson 005](lessons_learned/005-play-store-target-api-level.md)).
-`Status: pending — Issue #7` (currently 34; target 36).
+`Status: satisfied (Issue #7)` — `compileSdk`/`targetSdk` = 36 in `app/build.gradle.kts`.
 
-**Edge-to-edge is mandatory at target 36.** The `windowOptOutEdgeToEdgeEnforcement` opt-out is removed, so every screen must consume `WindowInsets` — no interactive element (shutter, home, gallery delete, onboarding arrows) may sit under the status/navigation bars or display cutout. `MainActivity` already calls `enableEdgeToEdge()`; the remaining work is auditing each screen's inset handling.
-`Status: pending — Issue #7`.
+**Edge-to-edge is mandatory at target 36.** The `windowOptOutEdgeToEdgeEnforcement` opt-out is removed, so every screen must consume `WindowInsets` — no interactive element (shutter, home, gallery delete, onboarding arrows) may sit under the status/navigation bars or display cutout. `MainActivity` calls `enableEdgeToEdge()`, and every screen consumes insets (`safeDrawingPadding` on onboarding; `statusBarsPadding`/`navigationBarsPadding` on camera, gallery, and preview). The permission and loading screens are centered content that never reaches the bars.
+`Status: satisfied (Issue #7)`.
 
-**Predictive back is default-on at target 36.** `android:enableOnBackInvokedCallback` defaults to `true`, and `onBackPressed` / `KEYCODE_BACK` stop being dispatched. Back must route through the `OpenRangUiState` state machine using supported back-navigation APIs — never an ad-hoc back flag (see §10 — all navigation goes through the sealed-interface state machine).
-`Status: pending — Issue #7`.
+**Predictive back is default-on at target 36.** `android:enableOnBackInvokedCallback` defaults to `true`, and `onBackPressed` / `KEYCODE_BACK` stop being dispatched. Back must route through the `OpenRangUiState` state machine using supported back-navigation APIs — never an ad-hoc back flag (see §10 — all navigation goes through the sealed-interface state machine). Implemented with Compose `BackHandler` in `GalleryScreen` and `PreviewScreen` (each calls the ViewModel's navigation method); `enableOnBackInvokedCallback="true"` is set on `<application>` in the manifest.
+`Status: satisfied (Issue #7)`.
 
-**UI must be adaptive on large screens.** At target 36, orientation / resizability / aspect-ratio restrictions are ignored on displays ≥ `sw600dp`. The camera viewfinder and gallery must survive landscape and resize rather than assuming fixed portrait. A temporary opt-out (`PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY`) exists but is explicitly transitional — prefer making the UI adaptive.
-`Status: pending — Issue #7`.
+**UI must be adaptive on large screens.** At target 36, orientation / resizability / aspect-ratio restrictions are ignored on displays ≥ `sw600dp`. The camera viewfinder and gallery must survive landscape and resize rather than assuming fixed portrait. A temporary opt-out (`PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY`) exists but is explicitly transitional — we made the UI adaptive instead (no opt-out, no fixed `screenOrientation`). Gallery uses an adaptive grid (`GridCells.Adaptive`); the camera and preview control rows are width-capped and centered so they don't stretch to the display edges.
+`Status: satisfied in code (Issue #7) — pending an on-device ≥600dp visual pass.`
 
 ---
 

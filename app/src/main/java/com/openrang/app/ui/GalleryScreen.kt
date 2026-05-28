@@ -1,6 +1,7 @@
 package com.openrang.app.ui
 
 import android.graphics.BitmapFactory
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
@@ -30,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -64,8 +65,13 @@ fun GalleryScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val videos by viewModel.recordedVideos.collectAsState()
+    val videos by viewModel.recordedVideos.collectAsStateWithLifecycle()
     var selectedVideo by remember { mutableStateOf<RecordedVideo?>(null) }
+
+    // Predictive-back (default-on at target 36): route the gallery's back through the
+    // OpenRangUiState state machine instead of exiting the app. While the preview overlay
+    // is open its Dialog consumes back to close itself, so this handler is disabled then.
+    BackHandler(enabled = selectedVideo == null) { onBackClick() }
 
     Box(
         modifier = Modifier
@@ -134,7 +140,7 @@ fun GalleryScreen(
             } else {
                 // 3-column grid
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Adaptive(minSize = 110.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),

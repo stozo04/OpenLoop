@@ -23,6 +23,7 @@ Each lesson follows the same shape:
 | 008 | [JVM unit tests: real temp dirs for File, one shared TestDispatcher](./008-jvm-test-file-and-dispatcher-pitfalls.md) | Issue #11 |
 | 009 | [TOML inline tables must be on a single line](./009-toml-inline-tables-single-line.md) | IDE inspection |
 | 010 | [Markdown code fences are parsed by the IDE; keep snippets valid](./010-markdown-code-fences-are-inspected.md) | IDE inspection |
+| 011 | [Verify 16 KB alignment on uncompressed native libs, not a "compressed" pass](./011-16kb-uncompressed-native-libs.md) | Issue #7 |
 
 ## Adding a new lesson
 

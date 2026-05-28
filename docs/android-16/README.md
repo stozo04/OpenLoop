@@ -47,7 +47,7 @@ Each document leads with:
 ## Related
 
 - **Evergreen rules:** [`docs/ANDROID_STANDARDS.md`](../ANDROID_STANDARDS.md) — the version-agnostic
-  "how we build" standards. Android-16-specific rules there carry a `Status: pending — Issue #7`
-  marker until the code actually targets 36.
+  "how we build" standards. Android-16-specific rules there carried a `Status: pending — Issue #7`
+  marker during docs-prep and are now marked **satisfied** — the app targets 36 (Issue #7).
 - **Upgrade plan & checklist:** [`docs/active/007-target-sdk-upgrade/IMPLEMENTATION.md`](../active/007-target-sdk-upgrade/IMPLEMENTATION.md)
 - **This docs-prep effort:** [`docs/active/android-16-doc-prep/IMPLEMENTATION.md`](../active/android-16-doc-prep/IMPLEMENTATION.md)

@@ -49,6 +49,10 @@ Before anything destructive (deleting files, overwriting code, sending communica
 2. Flag what is irreversible.
 3. Wait for explicit "proceed."
 
+### Definition of Done — required before "done" or "Ready for PR"
+
+A change is **not done because it compiles.** Before calling any non-trivial change done or opening a PR, clear the verification gate in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**: baseline → clean build (debug **and** release) genuinely green → requirement checks (e.g. 16 KB `zipalign`) → unit + instrumented tests with 0 failures → **actually run the app on an emulator, launch it, and capture a screenshot as proof** → honestly state what could not be verified + a manual QA checklist → attach the screenshot to the PR. "Genuinely green" = `BUILD SUCCESSFUL` **and** exit code 0 **and** zero `e:` errors (never trust a `| tail`-masked exit code). This is the standard, not a nice-to-have.
+
 ### Note-taking
 
 Capture context, decisions, and open threads continuously. Checkpoint before switching domains or when a conversation runs long. If I say "things changed," re-interview me — don't assume prior context still holds.
@@ -69,15 +73,15 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 
 | Layer | Technology | Version |
 |-------|-----------|--------|
-| Language | Kotlin | 1.9.22 |
-| UI | Jetpack Compose | BOM 2024.02.02 |
-| Camera | AndroidX CameraX | 1.3.1 |
-| Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.3.0 |
+| Language | Kotlin | 2.3.21 |
+| UI | Jetpack Compose | BOM 2026.05.01 |
+| Camera | AndroidX CameraX | 1.6.1 |
+| Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.10.1 |
 | Preferences | Jetpack DataStore (Preferences) | 1.0.0 |
-| Build | Gradle 8.3.2, AGP 8.3.2 | — |
-| Target | compileSdk 34, minSdk 26, targetSdk 34 | — |
+| Build | Gradle 9.0.0, AGP 8.13.2 | — |
+| Target | compileSdk 36, minSdk 26, targetSdk 36 | — |
 
-> **SDK status (pending — [Issue #7](https://github.com/stozo04/OpenRang/issues/7)):** code currently targets **API 34**, which is below Google Play's current floor of **API 35**. The planned upgrade goes straight to **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26. No build files have changed yet (docs-prep state). Behavior-change detail: [`docs/android-16/`](docs/android-16/README.md). Play's current requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
+> **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenRang/issues/7)):** the app targets **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26 — clearing Google Play's target-API floor (currently API 35). The upgrade also moved to Kotlin 2.3.21 + the Compose Compiler Gradle plugin (required by the latest CameraX/Media3), and the native libraries are 16 KB page-aligned (uncompressed packaging). Behavior-change detail: [`docs/android-16/`](docs/android-16/README.md). Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
 ### Source Layout
 
@@ -121,10 +125,11 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 
 | Document | Purpose |
 |----------|--------|
+| `docs/DEFINITION_OF_DONE.md` | **The "Ready for PR" verification gate** — build + test + *run the app + screenshot* before anything is called done. Non-negotiable for non-trivial changes. |
 | `docs/lessons_learned/` | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.** |
 | `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
 | `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. |
-| `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (marked pending Issue #7). |
+| `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
 | `docs/android-16/` | **Android 16 (API 36) upgrade knowledge hub.** Per-page summaries of Google's Android 16 docs, each with an OpenRang impact verdict and the official source URL. Durable reference for the `targetSdk 36` upgrade (Issue #7) — does not move to `completed/`. |
 | `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
 | `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |

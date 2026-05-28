@@ -38,7 +38,7 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 | **State** | MVVM + StateFlow | Single ViewModel, sealed-interface state machine, unidirectional data flow |
 | **Testing** | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
 
-**SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 34` · `targetSdk 34` today. An upgrade to **API 36 (Android 16)** is in progress for Google Play readiness (`minSdk` stays 26) — tracked in [Issue #7](https://github.com/stozo04/OpenRang/issues/7), with the full behavior-change breakdown in [`docs/android-16/`](docs/android-16/README.md). Google Play's current target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
+**SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 36` · `targetSdk 36` — upgraded to **API 36 (Android 16)** for Google Play readiness (`minSdk` stays 26), tracked in [Issue #7](https://github.com/stozo04/OpenRang/issues/7), with the full behavior-change breakdown in [`docs/android-16/`](docs/android-16/README.md). Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
 ### State Machine
 
@@ -76,6 +76,52 @@ com.openrang.app/
 3. **Sync Gradle and run** the `:app` module on a device or emulator running Android 8.0+ (API 26+)
 
 That's it. No API keys, no backend, no environment variables.
+
+### Building from the command line (no Android Studio UI)
+
+Sometimes you just want to build from a terminal — to check it compiles or to produce an installable APK. The project ships with the **Gradle wrapper** (`gradlew`), so you don't need to install Gradle yourself.
+
+**1. Point Java at a JDK.** Gradle needs a Java Development Kit to run. The easiest one to use is the JDK bundled *inside* Android Studio (the "JBR"). Tell your terminal where it lives:
+
+- **Windows (PowerShell):**
+  ```powershell
+  $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+  ```
+- **macOS:**
+  ```bash
+  export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+  ```
+
+(If `java -version` already prints a version in your terminal, Java is set up and you can skip this step.)
+
+**2. Build the app.** Use `.\gradlew.bat` on Windows, or `./gradlew` on macOS/Linux:
+
+```powershell
+.\gradlew.bat assembleDebug
+```
+
+The finished app lands at `app/build/outputs/apk/debug/app-debug.apk`.
+
+**Other handy commands** (drop them in place of `assembleDebug`):
+
+| Command | What it does |
+|---------|--------------|
+| `clean` | Deletes old build output — run it first if a build is acting weird |
+| `assembleDebug` | Builds the normal debug APK (everyday "does it compile and run?") |
+| `assembleRelease` | Builds the optimized, shrunk release APK (the kind that goes to Google Play) |
+| `testDebugUnitTest` | Runs the fast unit tests — no phone needed |
+| `connectedDebugAndroidTest` | Runs the UI tests — needs a connected device or emulator |
+
+You can chain them, e.g. `.\gradlew.bat clean assembleDebug`.
+
+**How do I know it actually worked?** Don't trust "the command finished" — trust two signals:
+
+1. The last line says **`BUILD SUCCESSFUL`** (a failure says `BUILD FAILED` and explains why).
+2. The **exit code is `0`**. Check it right after the build — PowerShell: `echo $LASTEXITCODE`; macOS/Linux: `echo $?`. `0` means success; anything else means it failed.
+
+Then skim the output for lines starting with `e:` (errors — these stop the build) or `w:` (warnings — these don't, but are worth a glance). A genuinely clean build prints `BUILD SUCCESSFUL` with no `e:` lines.
+
+> **Gotcha:** if you pipe the build through something like `... | tail`, the exit code you see belongs to `tail`, not Gradle — so a failed build can look like it "passed." Check the `BUILD SUCCESSFUL`/`BUILD FAILED` line itself, not just whether the command returned cleanly.
 
 ## Guides
 

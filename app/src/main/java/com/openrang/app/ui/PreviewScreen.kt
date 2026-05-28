@@ -1,5 +1,6 @@
 package com.openrang.app.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,6 +42,9 @@ fun PreviewScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
+    // Predictive-back (default-on at target 36): back returns to capture via the state machine.
+    BackHandler { onBackToCaptureClick() }
 
     // Initialize ExoPlayer
     val exoPlayer = remember {
@@ -90,7 +95,8 @@ fun PreviewScreen(
                     )
                 )
                 .navigationBarsPadding()
-                .padding(bottom = 24.dp, start = 28.dp, end = 28.dp, top = 32.dp)
+                .padding(bottom = 24.dp, start = 28.dp, end = 28.dp, top = 32.dp),
+            contentAlignment = Alignment.Center
         ) {
             Button(
                 onClick = onBackToCaptureClick,
@@ -98,6 +104,7 @@ fun PreviewScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .widthIn(max = 520.dp)
                     .height(56.dp)
                     .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
             ) {

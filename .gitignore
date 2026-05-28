@@ -9,6 +9,9 @@
 /local.properties
 /gradle/wrapper/gradle-wrapper.jar
 
+# Kotlin build-session data (Kotlin Gradle plugin 2.x)
+.kotlin/
+
 # IDE specific files
 .idea/
 *.iml
