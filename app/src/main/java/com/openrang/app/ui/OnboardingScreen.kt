@@ -281,7 +281,7 @@ internal fun OnboardingNavigation(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "LET'S GO! 🪃",
+                    text = "LET'S GO!",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,

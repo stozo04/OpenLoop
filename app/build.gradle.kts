@@ -78,6 +78,9 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
+    // Splash screen (Android 12+ system splash, back-compat to earlier APIs)
+    implementation(libs.androidx.core.splashscreen)
+
     // CameraX
     implementation(libs.androidx.camerax.core)
     implementation(libs.androidx.camerax.camera2)

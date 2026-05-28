@@ -172,7 +172,7 @@ fun CameraScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_home),
+                    painter = painterResource(id = R.drawable.ic_pictures_folder),
                     contentDescription = "Gallery",
                     modifier = Modifier.size(20.dp),
                     tint = Color.White

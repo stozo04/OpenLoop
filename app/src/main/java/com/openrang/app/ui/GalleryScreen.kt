@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.openrang.app.R
 import com.openrang.app.data.RecordedVideo
 
 @Composable
@@ -104,9 +107,11 @@ fun GalleryScreen(
                         .clickable { onBackClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    ArrowLeftIcon(
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_film_slate),
+                        contentDescription = "Back to camera",
                         modifier = Modifier.size(24.dp),
-                        color = NeonPurple
+                        tint = NeonPurple
                     )
                 }
             }
@@ -122,7 +127,7 @@ fun GalleryScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "NO BURSTS YET 🪃", // 🪃
+                            text = "NO LOOPS YET",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White.copy(alpha = 0.6f),

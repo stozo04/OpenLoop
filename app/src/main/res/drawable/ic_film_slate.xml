@@ -1,0 +1,13 @@
+<!-- Film-Slate icon (Streamline Core Gradient), converted from SVG.
+     Rendered via the Icon tint at the call site (NeonPurple) to match the button's
+     existing accent color; fillColor here is white so it previews correctly on its own. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="14"
+    android:viewportHeight="14">
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:fillType="evenOdd"
+      android:pathData="M12.5932,3.64515 8.67595,4.69476 9.44302,0.959973c0.00441,-0.021443 0.00737,-0.042847 0.00895,-0.064111l1.28573,-0.3445c0.8002,-0.214413 1.6227,0.26046 1.8371,1.060658l0.0007,0.00278 0,0.00001 0.3719,1.42075c0.0697,0.26606 -0.0886,0.53841 -0.3542,0.60959ZM5.79687,1.87524l2.57924,-0.6911 -0.78049,3.8001 -2.51832,0.67478 0.7106,-3.67343c0.00718,-0.03712 0.01005,-0.07407 0.00897,-0.11035Zm-1.06117,0.28434 -3.12356,0.83696C0.812452,3.21081 0.337675,4.03241 0.551075,4.83213l0.371598,1.4195 0.077447,0.29585V12c0,0.8284 0.67157,1.5 1.5,1.5h9.49998c0.8284,0 1.5,-0.6716 1.5,-1.5V6.99474c0,-0.27614 -0.2238,-0.5 -0.5,-0.5H1.95833l2.04476,-0.54789 0.73261,-3.78727ZM3.55174,10.8173c0,-0.3452 0.27982,-0.625 0.625,-0.625h1.27923c0.34518,0 0.625,0.2798 0.625,0.625s-0.27982,0.625 -0.625,0.625H4.17674c-0.34518,0 -0.625,-0.2798 -0.625,-0.625Z" />
+</vector>

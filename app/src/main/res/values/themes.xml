@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Android 12+ system splash screen (via androidx core-splashscreen for back-compat).
+         The transparent neon-infinity foreground sits on a pure-black window, and we set
+         NO icon-background color, so the circular icon mask reveals only the glowing
+         infinity floating on black — no white circle, no dark square. -->
+    <style name="Theme.OpenRang.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/black</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.OpenRang</item>
+    </style>
+
+    <!-- Post-splash app theme. A black window background prevents any flash between the
+         splash dismissing and Compose drawing its first frame. -->
+    <style name="Theme.OpenRang" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
+</resources>

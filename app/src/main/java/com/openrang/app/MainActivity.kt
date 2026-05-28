@@ -7,11 +7,13 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,11 +40,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.openrang.app.R
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.data.UserPreferencesRepositoryImpl
 import com.openrang.app.data.VideoStorageRepositoryImpl
@@ -85,6 +88,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate(): hands the system splash to core-splashscreen,
+        // which then swaps to postSplashScreenTheme (Theme.OpenRang) for the app window.
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         cameraManager = CameraManager(this)
@@ -108,8 +114,7 @@ class MainActivity : ComponentActivity() {
 
                     when (uiState) {
                         is OpenRangUiState.Initializing -> {
-                            // Brief spinner while DataStore loads preferences
-                            CheckingPermissionsScreen()
+                            InfinityLoadingScreen()
                         }
                         is OpenRangUiState.Onboarding -> {
                             OnboardingScreen(
@@ -119,7 +124,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         is OpenRangUiState.CheckingPermissions -> {
-                            CheckingPermissionsScreen()
+                            InfinityLoadingScreen()
                         }
                         is OpenRangUiState.PermissionRationale -> {
                             PermissionExplanationScreen(
@@ -220,36 +225,25 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Loading screen shown during app init / permission checks. Renders the same neon infinity as
+ * the launcher icon and system splash, on a matching black field, so the system splash hands off
+ * to this screen with no visible seam. Static by design — no artificial hold, so the loader only
+ * shows for the natural (sub-second) init window and the user gets straight into the app.
+ */
 @Composable
-fun CheckingPermissionsScreen() {
+fun InfinityLoadingScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1A1A2E), Color(0xFF0F0C1B))
-                )
-            ),
+            .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            CircularProgressIndicator(
-                color = Color(0xFFFF5252),
-                strokeWidth = 3.dp,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Initializing OpenRang...",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.8f),
-                letterSpacing = 1.sp
-            )
-        }
+        Image(
+            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+            contentDescription = "Loading",
+            modifier = Modifier.size(200.dp)
+        )
     }
 }
 

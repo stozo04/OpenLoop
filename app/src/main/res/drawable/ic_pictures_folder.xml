@@ -1,0 +1,13 @@
+<!-- Pictures-Folder-Memories icon (Streamline Core Gradient), converted from SVG.
+     Rendered white via the Icon tint at the call site to match the existing button glyph;
+     fillColor here is white so the drawable previews correctly on its own. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="14"
+    android:viewportHeight="14">
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:fillType="evenOdd"
+      android:pathData="M1.5,0.999939c-0.828427,0 -1.5,0.671571 -1.5,1.500001v8.99996c0,0.8285 0.671573,1.5 1.5,1.5h11c0.8284,0 1.5,-0.6715 1.5,-1.5V4.49994c0,-0.82843 -0.6716,-1.5 -1.5,-1.5H6.39039l-0.21595,-0.8638C6.0075,1.46838 5.40753,0.999939 4.71922,0.999939H1.5Zm0,8.618011 2.80835,-2.01193c0.18371,-0.14678 0.41205,-0.22693 0.64762,-0.22693 0.24264,0 0.4776,0.08504 0.66404,0.24032 0.00881,0.00734 0.01736,0.01497 0.02564,0.0229L9.678,11.4999H1.5V9.61795Zm6.85938,-3.23886c0,0.82843 0.67157,1.5 1.5,1.5 0.82842,0 1.50002,-0.67157 1.50002,-1.5s-0.6716,-1.5 -1.50002,-1.5c-0.82843,0 -1.5,0.67157 -1.5,1.5Z" />
+</vector>

@@ -109,7 +109,7 @@ fun PreviewScreen(
                     .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
             ) {
                 Text(
-                    text = "RETAKE BURST 🪃",
+                    text = "RETAKE LOOP",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,

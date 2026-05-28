@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive launcher icon (API 26+, which is our minSdk so this is the universal path).
+     Foreground = the neon infinity on a transparent canvas; background = pure black.
+     Replaces the old legacy bitmap that launchers wrapped in a white plate. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/black" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
