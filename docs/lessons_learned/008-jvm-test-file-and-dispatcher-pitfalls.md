@@ -6,7 +6,7 @@
 
 1. **Stale mock signature.** The test stubbed `cameraManager.startRecording(any(), capture(slot))` with `slot<Consumer<VideoRecordEvent>>()` and `just Runs`. The real signature is `startRecording(File, (VideoRecordEvent) -> Unit): Recording?` — a Kotlin function type, returning a nullable `Recording`. Result: `Type mismatch` compile errors. `just Runs` only works for `Unit`-returning calls; a `Recording?` return needs `returns null`.
 
-2. **Mocking `java.io.File`.** `cacheDir`/`filesDir` were `mockk<File>(relaxed = true)`. The JDK constructor `File(File parent, String child)` reads `parent.path` **as a package-private field**, not via a getter — so mockk can't intercept it and it's `null`, throwing `NullPointerException: Cannot invoke "String.isEmpty()" because "<parameter1>.path" is null` deep inside `File.<init>`.
+2. **Mocking `java.io.File`.** `cacheDir`/`filesDir` were `mockk<File>(relaxed = true)`. The JDK constructor `File(File parent, String child)` reads `parent.path` **as a package-private field**, not via a getter — so mock can't intercept it, and it's `null`, throwing `NullPointerException: Cannot invoke "String.isEmpty()" because "<parameter1>.path" is null` deep inside `File.<init>`.
 
 3. **Two schedulers fighting.** The test used `MainDispatcherRule` (its own `UnconfinedTestDispatcher`) *and* a bare `runTest { }` (which creates a **different** scheduler). `advanceTimeBy(1500)` advanced the `runTest` scheduler, but the `viewModelScope` `delay(1500)` was registered on the *Main* dispatcher's scheduler — so the auto-stop never fired and the `verify { stopRecording() }` failed.
 
@@ -27,8 +27,8 @@
 
 - **One scheduler.** When a test needs virtual time, bind `runTest` to the rule's dispatcher so they share a scheduler, and prefer `advanceUntilIdle()` over `advanceTimeBy(n)` (the latter does not run tasks scheduled at exactly `now + n`):
   ```kotlin
-  fun `...`() = runTest(mainDispatcherRule.testDispatcher) {
-      ...
+  fun `auto-stop fires only after the delay`() = runTest(mainDispatcherRule.testDispatcher) {
+      // start the capture, then advance virtual time past the timer
       advanceUntilIdle()
       verify(exactly = 1) { cameraManager.stopRecording() }
   }

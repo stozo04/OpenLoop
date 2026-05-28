@@ -125,4 +125,5 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. |
 | `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
 | `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
+| `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs of project concepts (e.g. `jetpack-datastore-explained.md` — what DataStore is and how to inspect/reset it on a device). |
 | `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |

@@ -29,7 +29,6 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 - Persistent local gallery with thumbnail caching for performant browsing
 - Beautiful, polished UI matching the glassmorphic vaporwave aesthetic
 - 100% unit test coverage for ViewModel logic; UI regression tests for layout-critical composables
-
 ### Non-Goals (this build window)
 
 - Cloud storage or sync — all data stays on-device

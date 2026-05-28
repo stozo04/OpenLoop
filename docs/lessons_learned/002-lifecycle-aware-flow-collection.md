@@ -8,22 +8,17 @@ The bug is invisible for a `StateFlow<UiState>` (no heavy work happens on emissi
 
 ## Pattern
 
-For every `StateFlow` / `Flow` collected inside an `@Composable`:
+For every `StateFlow` / `Flow` collected inside an `@Composable`, import
+`androidx.lifecycle.compose.collectAsStateWithLifecycle` and collect with it:
 
 ```kotlin
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
 val state by viewModel.someFlow.collectAsStateWithLifecycle()
 ```
 
 Required dependency in `gradle/libs.versions.toml`:
 
 ```toml
-androidx-lifecycle-runtime-compose = {
-    group = "androidx.lifecycle",
-    name = "lifecycle-runtime-compose",
-    version.ref = "lifecycleKtx"
-}
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleKtx" }
 ```
 
 And in `app/build.gradle.kts`:

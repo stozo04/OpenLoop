@@ -32,7 +32,7 @@ Read these files from the repo root. They are your ground truth and override any
 1. **`CLAUDE.md`** — Architecture snapshot, tech stack, state machine, reference doc pointers
 2. **`PRD-mission-control.md`** — Authoritative component specs, data layer schemas, decision
    log (check this before flagging something as "wrong" — it may be intentional)
-3. **`docs/ANDROID_STANDARDS.md`** — Project-specific standards with links to Google docs
+3. **`docs/ANDROID_STANDARDS.md`** — Project-specific standards with links to Google Docs
 4. **`TEST_COVERAGE.md`** — Testing strategy, test directory structure (`test/` vs `androidTest/`),
    frameworks, coroutine testing patterns, current inventory, and known coverage gaps
 
@@ -109,11 +109,11 @@ blank.
 - **Check the Decision Log.** Before flagging something as wrong, check
   `PRD-mission-control.md` Decision Log. If a pattern was an intentional decision, don't
   override it — flag the tension and explain the tradeoff instead.
-- **Severity matters.** A missing `contentDescription` is a real issue but it's not a
+- **Severity matters.** A missing `contentDescription` is a real issue, but it's not a
   crash. A `runBlocking` on the main thread is a crash. Rank accordingly.
 - **Don't pad.** If the code is clean, say PASS and move on. Inventing issues to look
   thorough destroys trust.
-- **Context over rules.** A 46dp touch target on a secondary button in a developer tool
+- **Context overrules.** A 46dp touch target on a secondary button in a developer tool
   is different from a 46dp touch target on the main CTA of a consumer app. Use judgment.
 - **Cross-cutting concerns.** Always check these regardless of what the PR changes:
   - **CameraX** — lifecycle binding, use cases, executor shutdown
