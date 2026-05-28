@@ -79,6 +79,21 @@ That's it. No API keys, no backend, no environment variables.
 
 This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. We treat these as non-negotiable — if Google recommends it, we follow it.
 
+### PR Merge Policy
+
+**No PR merges without passing the automated standards review.**
+
+Every pull request is reviewed by an autonomous compliance agent ([`docs/skills/pr-reviewer/`](docs/skills/pr-reviewer/)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
+
+Architecture, DataStore, Permissions, Compose, CameraX, Media & Audio, Coroutines, Testing, Accessibility, Play Store Readiness, and Android Version Compatibility.
+
+The reviewer web-searches `developer.android.com` for the latest guidance on every run — no stale rules. It posts a structured PASS/FAIL/WARNING report directly on the PR with file-level specifics, Google doc citations, and reasoning for every finding.
+
+**To merge, a PR must:**
+1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
+2. Address all **WARNINGs** or document why they're accepted
+3. Pass all unit tests (19+) and UI regression tests (6+)
+
 ## Build Status
 
 **What's shipping:**
