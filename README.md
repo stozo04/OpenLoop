@@ -1,28 +1,121 @@
-# 🪃 OpenRang
+# OpenRang
 
-An open-source, device-agnostic Android Camera App for creating custom, speed-controlled video loops ("Boomerangs"). 
+**The open-source Boomerang camera app that should have existed years ago.**
 
-Unlike proprietary apps with rigid speed configurations, **OpenRang** puts control back in the user's hands with real-time, customizable playback speed adjustments.
+No subscriptions. No ads. No data harvesting. Just point, tap, and loop.
 
-## Core Features (Concept Spike)
-- **Standard Video Burst:** Quick 1.5-second captures using CameraX.
-- **The "Loop" (Forward & Reversed):** Seamless, back-to-back concatenation of forward and backward clips using **Jetpack Media3**.
-- **Dynamic Speed Slider:** Real-time speed adjustments (from 0.5x to 3.0x) on the preview loop before sharing.
-- **Privacy & Speed:** 100% on-device processing with zero latency or external network requirements.
+OpenRang is a free Android camera app for creating speed-controlled video loops — the kind of thing Big Tech locks behind paywalls and cluttered UIs. We're leveraging the power of AI and open-source tooling to bring the coolest creative toys to everyone, for free, forever.
 
-## Architecture & Technology Stack
-- **Language:** Kotlin
-- **UI:** Jetpack Compose (Modern, responsive declarative layouts)
-- **Camera API:** AndroidX CameraX (Device-agnostic compatibility for the Google Play Store)
-- **Media Engine:** AndroidX Media3 (ExoPlayer for playback, Transformer for reversing/exporting)
+Built with Google's latest Android libraries. Runs entirely on your device. Your videos never leave your phone.
 
-## Setup & Compilation
-1. Clone this repository:
+## What It Does
+
+- **Burst Capture** — Tap the shutter for a quick 1.5-second video burst (custom duration coming soon)
+- **Seamless Loops** — Forward-backward loop generation entirely on-device via Media3 Transformer
+- **Speed Control** — Real-time playback speed slider from 0.5x to 3.0x before you save
+- **Gallery** — Browse, replay, and manage all your loops in a slick grid
+- **100% Private** — Zero network calls. Zero tracking. Everything stays on your phone
+
+## Why OpenRang?
+
+Every boomerang/loop app on the Play Store either costs money, runs ads, or sends your videos to a server you don't control. OpenRang is the alternative:
+
+- **Open source** (Apache 2.0) — read every line, fork it, improve it
+- **No accounts** — no sign-up, no login, no profile
+- **No ads, ever** — not now, not later, not with a "premium tier"
+- **AI-assisted development** — built faster and better by pairing human creativity with AI tooling
+- **Google-first architecture** — follows every Jetpack best practice Google recommends
+
+## Architecture & Tech Stack
+
+| Layer | Technology | What It Does |
+|-------|-----------|-------------|
+| **Language** | Kotlin | Modern, concise, Google's preferred language for Android |
+| **UI** | Jetpack Compose | Declarative UI — no XML layouts, no fragments |
+| **Camera** | AndroidX CameraX | Device-agnostic camera API that works across 1000+ Android devices |
+| **Media** | AndroidX Media3 | ExoPlayer for looping playback, Transformer for video reversal & export |
+| **Preferences** | Jetpack DataStore | Async, coroutine-based key-value storage (replaces SharedPreferences) |
+| **State** | MVVM + StateFlow | Single ViewModel, sealed-interface state machine, unidirectional data flow |
+| **Testing** | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
+
+### State Machine
+
+```
+Initializing → Onboarding → CheckingPermissions → ReadyToCapture <-> Recording
+           \                       |                      |
+        CheckingPermissions     Gallery            LoopingPreview
+         (returning user)          |
+                            ReadyToCapture
+```
+
+All navigation is driven by a single `MutableStateFlow<OpenRangUiState>` — no Jetpack Navigation needed at this scale. The `Initializing` state reads from DataStore to determine whether to show onboarding or skip straight to the camera.
+
+### Project Structure
+
+```
+com.openrang.app/
+├── camera/          CameraX lifecycle, recording, lens toggle
+├── data/            DataStore preferences, repository pattern
+├── ui/              Compose screens, ViewModel, state machine
+├── MainActivity.kt  Permissions, routing, theme
+└── (planned)
+    └── media/       Media3 Transformer pipeline
+```
+
+## Getting Started
+
+1. **Clone it:**
    ```bash
    git clone https://github.com/stozo04/OpenRang.git
    ```
-2. Open the project in **Android Studio**.
-3. Sync Gradle and run the `:app` module on a connected device or emulator (Android 8.0 / API 26+).
+
+2. **Open in Android Studio** (Hedgehog or newer recommended)
+
+3. **Sync Gradle and run** the `:app` module on a device or emulator running Android 8.0+ (API 26+)
+
+That's it. No API keys, no backend, no environment variables.
+
+## Development Standards
+
+This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. We treat these as non-negotiable — if Google recommends it, we follow it.
+
+### PR Merge Policy
+
+**No PR merges without passing the automated standards review.**
+
+Every pull request is reviewed by an autonomous compliance agent ([`docs/skills/pr-reviewer/`](docs/skills/pr-reviewer/)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
+
+Architecture, DataStore, Permissions, Compose, CameraX, Media & Audio, Coroutines, Testing, Accessibility, Play Store Readiness, and Android Version Compatibility.
+
+The reviewer web-searches `developer.android.com` for the latest guidance on every run — no stale rules. It posts a structured PASS/FAIL/WARNING report directly on the PR with file-level specifics, Google doc citations, and reasoning for every finding.
+
+**To merge, a PR must:**
+1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
+2. Address all **WARNINGs** or document why they're accepted
+3. Pass all unit tests (19+) and UI regression tests (6+)
+
+## Build Status
+
+**What's shipping:**
+- 3-page onboarding (with DataStore persistence — you only see it once)
+- CameraX viewfinder with 1.5s burst capture + auto-stop
+- Front/back camera toggle
+- Persistent video storage + thumbnail caching
+- Looping preview (ExoPlayer)
+- Gallery with delete and full-screen playback
+- 19 unit tests + 6 UI regression tests
+
+**What's next:**
+- Loop generation (Media3 Transformer reversal + concatenation)
+- Speed slider on preview screen
+- Export with speed burn-in to device gallery
+- Custom capture duration
+- Share flow
+
+## Contributing
+
+OpenRang is early-stage and built by a solo developer with AI assistance. Contributions are welcome — check the issues tab or open a discussion if you want to help.
 
 ## License
-OpenRang is available under the **Apache License 2.0**.
+
+**Apache License 2.0** — use it, fork it, ship it. See [LICENSE](LICENSE) for details.
