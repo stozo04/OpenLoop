@@ -83,7 +83,7 @@ This project follows Google's official Android development guidance. See [`docs/
 
 **No PR merges without passing the automated standards review.**
 
-Every pull request is reviewed by an autonomous compliance agent ([`docs/skills/pr-reviewer/`](docs/skills/pr-reviewer/)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
+Every pull request is reviewed by an autonomous compliance agent ([`.claude/skills/pr-reviewer/`](.claude/skills/pr-reviewer/)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
 
 Architecture, DataStore, Permissions, Compose, CameraX, Media & Audio, Coroutines, Testing, Accessibility, Play Store Readiness, and Android Version Compatibility.
 
@@ -93,6 +93,14 @@ The reviewer web-searches `developer.android.com` for the latest guidance on eve
 1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
 2. Address all **WARNINGs** or document why they're accepted
 3. Pass all unit tests (19+) and UI regression tests (6+)
+
+### Fixing Review Feedback
+
+When a PR gets review feedback, open a new Cowork session with the OpenRang folder mounted and say:
+
+> Start addressing PR feedback following `docs/prompts/PR-FEEDBACK-RESOLUTION.md` — here is the PR: https://github.com/stozo04/OpenRang/pull/XX
+
+Replace `XX` with your PR number. The agent will read the review comments, web-search Google's latest standards to verify each finding, fix the code, push, post a response comment explaining what was fixed and why, then run a fresh review to confirm zero FAILs.
 
 ## Build Status
 

@@ -4,9 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.camera.video.VideoRecordEvent
 import com.openrang.app.camera.CameraManager
+import com.openrang.app.data.UserPreferencesRepository
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
@@ -16,6 +19,7 @@ import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import java.io.File
+import java.io.IOException
 import androidx.core.util.Consumer
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -31,12 +35,46 @@ class MainDispatcherRule(
     }
 }
 
+/**
+ * Fake implementation of [UserPreferencesRepository] for unit tests.
+ * Avoids mocking Flow complexity — just uses MutableStateFlow under the hood.
+ */
+class FakeUserPreferencesRepository(
+    initialOnboardingCompleted: Boolean = false
+) : UserPreferencesRepository {
+
+    private val _hasCompletedOnboarding = MutableStateFlow(initialOnboardingCompleted)
+    override val hasCompletedOnboarding: Flow<Boolean> = _hasCompletedOnboarding
+
+    /** Tracks the last value written via [setOnboardingCompleted]. */
+    var onboardingCompletedValue: Boolean = initialOnboardingCompleted
+        private set
+
+    override suspend fun setOnboardingCompleted(completed: Boolean) {
+        onboardingCompletedValue = completed
+        _hasCompletedOnboarding.value = completed
+    }
+}
+
+/**
+ * Fake that throws [IOException] on write to simulate disk-full / corruption scenarios.
+ */
+class FailingWritePreferencesRepository : UserPreferencesRepository {
+    private val _hasCompletedOnboarding = MutableStateFlow(false)
+    override val hasCompletedOnboarding: Flow<Boolean> = _hasCompletedOnboarding
+
+    override suspend fun setOnboardingCompleted(completed: Boolean) {
+        throw IOException("Simulated disk full")
+    }
+}
+
 class OpenRangViewModelTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
     private lateinit var viewModel: OpenRangViewModel
+    private lateinit var fakePreferencesRepository: FakeUserPreferencesRepository
     private val context: Context = mockk(relaxed = true)
     private val cameraManager: CameraManager = mockk(relaxed = true)
     private val cacheDir: File = mockk(relaxed = true)
@@ -51,7 +89,9 @@ class OpenRangViewModelTest {
         every { context.cacheDir } returns cacheDir
         every { cacheDir.absolutePath } returns "/fake/cache"
 
-        viewModel = OpenRangViewModel()
+        // Default: onboarding NOT completed (first-time user)
+        fakePreferencesRepository = FakeUserPreferencesRepository(initialOnboardingCompleted = false)
+        viewModel = OpenRangViewModel(fakePreferencesRepository)
     }
 
     @After
@@ -59,10 +99,43 @@ class OpenRangViewModelTest {
         unmockkStatic(Log::class)
     }
 
+    // ── DataStore-driven startup tests ──
+
     @Test
-    fun `initial state is Onboarding`() {
+    fun `first-time user resolves to Onboarding after init`() {
+        // With UnconfinedTestDispatcher, init coroutine completes eagerly.
+        // hasCompletedOnboarding = false → state resolves to Onboarding.
         assertEquals(OpenRangUiState.Onboarding, viewModel.uiState.value)
     }
+
+    @Test
+    fun `returning user resolves to CheckingPermissions after init`() {
+        // Create a ViewModel where onboarding was already completed
+        val returningUserRepo = FakeUserPreferencesRepository(initialOnboardingCompleted = true)
+        val returningViewModel = OpenRangViewModel(returningUserRepo)
+
+        assertEquals(OpenRangUiState.CheckingPermissions, returningViewModel.uiState.value)
+    }
+
+    @Test
+    fun `onOnboardingCompleted persists true to repository`() {
+        viewModel.onOnboardingCompleted()
+
+        assertTrue(fakePreferencesRepository.onboardingCompletedValue)
+    }
+
+    @Test
+    fun `onOnboardingCompleted handles IOException gracefully`() {
+        // Use the failing repository that throws IOException on write
+        val failingViewModel = OpenRangViewModel(FailingWritePreferencesRepository())
+
+        // Should not crash — state should still transition to CheckingPermissions
+        failingViewModel.onOnboardingCompleted()
+
+        assertEquals(OpenRangUiState.CheckingPermissions, failingViewModel.uiState.value)
+    }
+
+    // ── Existing state transition tests ──
 
     @Test
     fun `onOnboardingCompleted transitions to CheckingPermissions`() {
@@ -91,7 +164,7 @@ class OpenRangViewModelTest {
 
     @Test
     fun `startBurstCapture when not ready does not transition or call camera`() {
-        // State is Onboarding, which is not ReadyToCapture
+        // State is Onboarding (first-time user default), which is not ReadyToCapture
         viewModel.startBurstCapture(context, cameraManager)
         assertEquals(OpenRangUiState.Onboarding, viewModel.uiState.value)
         verify(exactly = 0) { cameraManager.startRecording(any(), any()) }
@@ -100,7 +173,7 @@ class OpenRangViewModelTest {
     @Test
     fun `startBurstCapture successfully starts recording and delays automatic stop`() = runTest {
         viewModel.onPermissionsChecked(true) // Set state to ReadyToCapture
-        
+
         // Mock startRecording to capture and trigger the callback
         val slot = slot<Consumer<VideoRecordEvent>>()
         every { cameraManager.startRecording(any(), capture(slot)) } just Runs
@@ -112,7 +185,7 @@ class OpenRangViewModelTest {
 
         // Simulate 1.5 seconds delay to trigger the automatic capture halt
         advanceTimeBy(1500)
-        
+
         // Verify stopRecording was invoked after the delay
         verify(exactly = 1) { cameraManager.stopRecording() }
     }
@@ -141,7 +214,7 @@ class OpenRangViewModelTest {
     @Test
     fun `video record event finalize transitions to LoopingPreview on success`() {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
-        
+
         val slot = slot<Consumer<VideoRecordEvent>>()
         every { cameraManager.startRecording(any(), capture(slot)) } just Runs
 

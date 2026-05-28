@@ -13,13 +13,29 @@ Open-source Android camera app for creating custom, speed-controlled video loops
 
 Apache 2.0 licensed. Early-stage — concept spike through gallery feature complete, core "loop" generation still ahead.
 
+## Critical Rule — Do Not Trust Your Training Data
+
+Your knowledge cutoff could be a year old. **Do not assume** you know the current version of any Google standard, Android API behavior, Jetpack library pattern, testing framework convention, or Play Store requirement. Before making any claim about how something works or what Google recommends, **web-search `developer.android.com` first**. This applies to everything — architecture patterns, Compose APIs, DataStore usage, CameraX, coroutines, permissions, accessibility, Play Store requirements, and any external package or library. If you catch yourself writing "Google recommends X" without having searched for it in this session, stop and search.
+
+## Required Reading — Every Session
+
+Before doing any non-trivial work in this repo, read **every file in `docs/lessons_learned/`**. Each file captures a real mistake from a past PR review or bug and the pattern to apply going forward. Skipping these means re-making the same mistake — these were expensive to learn the first time.
+
+Order of operations at session start:
+
+1. Read this `CLAUDE.md` (already in context).
+2. Read `docs/lessons_learned/README.md` for the index, then read every numbered lesson file (`001-*.md`, `002-*.md`, ...).
+3. Proceed with the user's request.
+
+When a PR review surfaces a new pattern worth preserving, add it to `docs/lessons_learned/` using the convention in that folder's README. Commit the lesson alongside the fix it documents.
+
 ## How to Work With Me
 
 ### PRD-first — always
 
 Before building anything non-trivial: write a PRD covering problem statement, success criteria, scope, constraints, implementation plan, and open questions. Get sign-off before writing code. Check what already exists before proposing custom work.
 
-**Always reference `PRD-mission-control.md` at the project root for the authoritative architecture and component specs before making structural changes.**
+**Always reference `docs/PRD-mission-control.md` at the project root for the authoritative architecture and component specs before making structural changes.**
 
 ### Pushback — required
 
@@ -45,6 +61,8 @@ Show reasoning, not just conclusions. I value breadth and rigor equally — cast
 
 When operating in a specific subfolder that has its own CLAUDE.md, respect that folder's voice and approach. The root CLAUDE.md (this file) provides defaults; subfolder overrides take precedence.
 
+All project documentation (`.md` files) belongs in the `docs/` directory — not the project root. The only exceptions are `CLAUDE.md` and `README.md` which live at the root by convention.
+
 ## Architecture Snapshot
 
 ### Tech Stack
@@ -55,6 +73,7 @@ When operating in a specific subfolder that has its own CLAUDE.md, respect that 
 | UI | Jetpack Compose | BOM 2024.02.02 |
 | Camera | AndroidX CameraX | 1.3.1 |
 | Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.3.0 |
+| Preferences | Jetpack DataStore (Preferences) | 1.0.0 |
 | Build | Gradle 8.3.2, AGP 8.3.2 | — |
 | Target | compileSdk 34, minSdk 26, targetSdk 34 | — |
 
@@ -64,14 +83,17 @@ When operating in a specific subfolder that has its own CLAUDE.md, respect that 
 com.openrang.app/
 ├── camera/
 │   └── CameraManager.kt         # CameraX lifecycle, recording, lens toggle
+├── data/
+│   ├── UserPreferencesRepository.kt    # Interface: Flow-based preference reads + suspend writes
+│   └── UserPreferencesRepositoryImpl.kt # DataStore wrapper + Context.dataStore singleton
 ├── ui/
-│   ├── OpenRangUiState.kt       # Sealed interface: state machine
-│   ├── OpenRangViewModel.kt     # MVVM hub: state, video storage, navigation
+│   ├── OpenRangUiState.kt       # Sealed interface: state machine (incl. Initializing)
+│   ├── OpenRangViewModel.kt     # MVVM hub: state, video storage, navigation, preferences
 │   ├── CameraScreen.kt          # Live viewfinder, shutter, home button
 │   ├── OnboardingScreen.kt      # 3-page carousel, animations, ArrowIcons
 │   ├── PreviewScreen.kt         # Full-screen looping ExoPlayer preview
 │   └── GalleryScreen.kt         # 3-col grid, thumbnails, delete, video overlay
-├── MainActivity.kt              # Permissions, state routing, theme
+├── MainActivity.kt              # Permissions, state routing, theme, ViewModelFactory
 └── (planned)
     └── media/
         └── VideoProcessor.kt    # Media3 Transformer: reversal, concat, speed burn-in
@@ -80,78 +102,27 @@ com.openrang.app/
 ### State Machine
 
 ```
-Onboarding → CheckingPermissions → ReadyToCapture ↔ Recording
-                                  ↕                      ↓
-                               Gallery            LoopingPreview
-                                  ↕
-                            ReadyToCapture
+Initializing → Onboarding → CheckingPermissions → ReadyToCapture ↔ Recording
+           ↘                 ↕                      ↓
+        CheckingPermissions  Gallery            LoopingPreview
+         (returning user)      ↕
+                          ReadyToCapture
 ```
 
-States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. Navigation is conditional composable routing in `MainActivity.kt`.
+States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Navigation is conditional composable routing in `MainActivity.kt`.
 
-### Design System
+### Design System, Storage, Testing & Engineering Decisions
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `NeonCoral` | `#FF5252` | Primary accent, shutter, gradients |
-| `NeonPurple` | `#7C4DFF` | Secondary accent, gradients |
-| `GlassWhite` | `#33FFFFFF` | Glassmorphic backgrounds |
-| `GlassWhiteBorder` | `#4DFFFFFF` | Glassmorphic borders |
-| `DeepCharcoal` | `#CC1A1A1D` | Translucent overlay bars |
-
-Theme: dark-only (`darkColorScheme`). Aesthetic: glassmorphic vaporwave. All color constants are top-level vals in `CameraScreen.kt` and shared across screens via same-package visibility.
-
-Onboarding has its own private palette: `DeepIndigo`, `DarkPlum`, `VoidBlack`, `FrostedGlass`, `FrostedGlassBorder`.
-
-### Storage Pipeline
-
-Videos are saved to `context.filesDir/videos/clip_<timestamp>.mp4`. Thumbnails (JPEG, 90% quality) are extracted at the 0ms mark via `MediaMetadataRetriever` and cached at `context.filesDir/thumbnails/clip_<timestamp>.jpg`. On-demand thumbnail extraction runs as a fallback if the cache is missing.
-
-### Testing Strategy
-
-| Type | Location | Framework | Coverage |
-|------|----------|-----------|----------|
-| Unit tests | `app/src/test/` | JUnit 4 + MockK + Coroutines Test | ViewModel state transitions, capture lifecycle, gallery ops |
-| UI tests | `app/src/androidTest/` | Compose UI Test + AndroidJUnit4 | Navigation centering regression (OnboardingNavigationTest) |
-
-`MainDispatcherRule` overrides `Dispatchers.Main` for coroutine testing.
-
-### Key Engineering Decisions
-
-- **OnboardingNavigation is extracted as an `internal` composable** — never inline it back into the Column. `ColumnScope.AnimatedVisibility` uses slide animations that cause buttons to jump. See `OnboardingNavigationTest` for the regression guard.
-- **Page data is a data class** (`OnboardingPage`) — titles, drawables, and glow colors are a list, not scattered `when` branches.
-- **Video storage uses `filesDir` not `cacheDir`** — gallery videos are persistent, not temporary.
-- **Thumbnail caching is eager + lazy fallback** — extracted at save time, re-extracted on demand if missing.
-
-### Git Workflow
-
-Branch naming: `feature/<short-description>`. PR template at `.github/pull_request_template.md` with type labels, test checklist, and self-review gate. Current active branch: `feature/gallery-home-grid`.
+All design tokens, storage patterns, testing strategy, and engineering decisions are documented in `docs/PRD-mission-control.md`. All implementation patterns must comply with `docs/ANDROID_STANDARDS.md` — that document is the single source of truth for Google best practices across architecture, Compose, coroutines, DataStore, CameraX, testing, accessibility, Play Store readiness, and performance.
 
 ## Reference Documents
 
 | Document | Purpose |
 |----------|--------|
-| `PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
-| `docs/active/IMPLEMENTATION_PLAN.md` | Phase-by-phase technical blueprint for the core "Loop" feature. |
-| `README.md` | Public-facing project overview. |
-| `.github/pull_request_template.md` | PR checklist and conventions. |
-
-## What's Built vs. What's Ahead
-
-### Complete
-
-- 3-page onboarding carousel with animated transitions
-- CameraX viewfinder with 1.5s burst capture + auto-stop timer
-- Front/back camera toggle
-- Persistent video storage + JPEG thumbnail caching
-- Looping preview (ExoPlayer, `REPEAT_MODE_ALL`)
-- Gallery grid with delete and full-screen playback overlay
-- Home/gallery navigation from camera screen
-- Unit tests (16) + UI regression tests (6)
-
-### Remaining (per IMPLEMENTATION_PLAN.md)
-
-- **Phase 3:** Loop generation — Media3 Transformer reversal + concatenation
-- **Phase 4:** Dynamic speed slider (0.5x–3.0x) on preview
-- **Phase 5:** Export with speed burn-in to device gallery
-- **Future:** Share flow, audio toggle, custom duration, filters/effects
+| `docs/lessons_learned/` | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.** |
+| `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
+| `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. |
+| `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. |
+| `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
+| `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
+| `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |

@@ -55,6 +55,9 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 │  OpenRangViewModel · VideoProcessor (planned)   │
 │  OpenRangUiState (sealed interface)             │
 ├─────────────────────────────────────────────────┤
+│  Data Layer (Preferences + Storage)              │
+│  UserPreferencesRepository · DataStore           │
+├─────────────────────────────────────────────────┤
 │  Platform Layer (CameraX + Media3 + Storage)    │
 │  CameraManager · MediaMetadataRetriever         │
 │  ExoPlayer · Transformer · Local filesystem     │
@@ -67,6 +70,7 @@ All navigation is driven by a single `MutableStateFlow<OpenRangUiState>` in `Ope
 
 | State | Description | Transitions to |
 |-------|-------------|---------------|
+| `Initializing` | Loading preferences from DataStore | `Onboarding` (first launch) or `CheckingPermissions` (returning user) |
 | `Onboarding` | 3-page carousel (first launch) | `CheckingPermissions` |
 | `CheckingPermissions` | Runtime permission check | `ReadyToCapture` or `PermissionDenied` |
 | `PermissionDenied` | Permission dialog with settings link | `CheckingPermissions` (retry) |
@@ -314,7 +318,7 @@ data class RecordedVideo(
 ## 8. Decision Log
 
 | # | Decision | Reasoning | Trade-off |
-|---|----------|-----------|-----------||
+|---|----------|-----------|----------|
 | 1 | **Sealed interface for UI state** | Exhaustive `when` matching at compile time prevents missing state handling | Slightly more boilerplate than enum, but safer with data-carrying states like `LoopingPreview` |
 | 2 | **Single ViewModel, no nav library** | App has <10 screens, all state-driven; Compose Navigation adds complexity without value at this scale | Will need migration if screen count grows significantly |
 | 3 | **`filesDir` for video storage, not `cacheDir`** | Gallery videos are user-created content that must persist across sessions | Uses more permanent storage; need manual cleanup via delete |
@@ -325,7 +329,7 @@ data class RecordedVideo(
 | 8 | **BitmapFactory.decodeFile for thumbnails** | No image-loading library dependency (Coil/Glide); thumbnails are small local JPEGs | Will need Coil if we ever load remote images or need cache management |
 | 9 | **Home button gets neon gradient, flip camera gets glass** | Home/gallery is a primary navigation action; flip camera is secondary utility. Visual weight should match importance | Flip camera is less discoverable in glass style |
 | 10 | **Dark-only theme** | Matches vaporwave aesthetic; camera apps benefit from dark UI (less screen glare on subjects) | No light mode for accessibility preferences |
-| 11 | **No onboarding persistence (intentional)** | Early-stage; onboarding shows every launch. Will add SharedPreferences/DataStore flag when the onboarding is finalized | Returning users see onboarding each time — acceptable during development |
+| 11 | **Onboarding persistence via Jetpack DataStore** | Replaced the intentional deferral — DataStore now persists `has_completed_onboarding` flag. Returning users skip straight to permission check. Uses Preferences DataStore (not SharedPreferences) with repository pattern for testability. | Added `Initializing` state to sealed interface for async DataStore read at startup |
 | 12 | **No skip button on onboarding (intentional)** | 3 pages is short enough; forced traversal ensures users see all value props | Mild friction for power users; revisit post-launch |
 
 ---
@@ -335,7 +339,7 @@ data class RecordedVideo(
 ### Phase 3: Loop Generation (~3 hours)
 
 | Block | What gets built | Who | Output | Done when |
-|-------|----------------|-----|--------|-----------||
+|-------|----------------|-----|--------|----------|
 | 3.1 | Create `VideoProcessor.kt` with Transformer reversal pipeline | Cowork | `reversed_capture.mp4` generated from any input | Reversed file plays backward correctly |
 | 3.2 | Add concatenation (forward + reversed) | Cowork | `openrang_output.mp4` = seamless loop | Loop plays without stutter or black flash at inflection |
 | 3.3 | Wire into ViewModel: `Recording` → `Processing` → `LoopingPreview` | Cowork | State transitions work end-to-end | Capture → loop preview in one tap |
@@ -344,7 +348,7 @@ data class RecordedVideo(
 ### Phase 4: Speed Slider (~2 hours)
 
 | Block | What gets built | Who | Output | Done when |
-|-------|----------------|-----|--------|-----------||
+|-------|----------------|-----|--------|----------|
 | 4.1 | Add Compose Slider to PreviewScreen (0.5x–3.0x, default 1.5x) | Cowork | Slider visible on preview | Slider renders, value changes |
 | 4.2 | Connect slider to ExoPlayer.setPlaybackSpeed() | Cowork | Real-time speed changes | Dragging slider instantly changes playback speed |
 | 4.3 | Persist speed in LoopingPreview state for export handoff | Cowork | Speed value available downstream | Speed survives state reads |
@@ -352,7 +356,7 @@ data class RecordedVideo(
 ### Phase 5: Export (~2 hours)
 
 | Block | What gets built | Who | Output | Done when |
-|-------|----------------|-----|--------|-----------||
+|-------|----------------|-----|--------|----------|
 | 5.1 | Transformer speed burn-in pipeline | Cowork | Final video at selected speed | Exported file plays at burned-in speed in any player |
 | 5.2 | Save to MediaStore + completion UI | Cowork | File in device gallery + toast | Video appears in Photos/Gallery app |
 | 5.3 | Return-to-viewfinder flow | Cowork | Clean state reset | App returns to ReadyToCapture after save |
@@ -373,8 +377,5 @@ data class RecordedVideo(
 | Custom capture duration | 1.5s is the MVP constraint; slider adds complexity | Medium |
 | Filters/effects (color grading, vignette) | Requires shader pipeline; not core to loop concept | Large |
 | Share-to-platform flow | Export to gallery is sufficient; direct share is distribution polish | Medium |
-| Onboarding persistence (DataStore) | Intentionally deferred; onboarding not finalized | Small |
-| Light mode / dynamic theming | Dark-only matches aesthetic; accessibility concern for later | Medium |
-| Tablet/foldable layouts | minSdk 26 covers phones; adaptive layouts are a separate initiative | Large |
-
-**Scaling model:** New features follow the existing pattern — add a state to the sealed interface, add a screen composable, route in MainActivity. The architecture scales without restructuring up to ~10–12 screens before a nav library becomes worthwhile.
+| ~~Onboarding persistence (DataStore)~~ | **Implemented** — Jetpack DataStore with `Initializing` state, repository pattern, and ViewModel factory injection | ~~Small~~ Done |
+| Light mode / dynamic theming | Dark-only matches aesthetic; accessibility concern for later |

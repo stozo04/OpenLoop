@@ -30,7 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +41,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.openrang.app.camera.CameraManager
+import com.openrang.app.data.UserPreferencesRepositoryImpl
+import com.openrang.app.data.dataStore
 import com.openrang.app.ui.CameraScreen
 import com.openrang.app.ui.GalleryScreen
 import com.openrang.app.ui.OnboardingScreen
@@ -50,7 +53,11 @@ import com.openrang.app.ui.OpenRangViewModel
 import com.openrang.app.ui.PreviewScreen
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: OpenRangViewModel by viewModels()
+    private val viewModel: OpenRangViewModel by viewModels {
+        OpenRangViewModel.Factory(
+            UserPreferencesRepositoryImpl(applicationContext.dataStore)
+        )
+    }
     private lateinit var cameraManager: CameraManager
 
     // Permission request contract launcher
@@ -73,14 +80,26 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val uiState by viewModel.uiState.collectAsState()
+                    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+                    // Auto-trigger permission check when state reaches CheckingPermissions
+                    // (from either Initializing→CheckingPermissions for returning users,
+                    //  or Onboarding→CheckingPermissions for first-time users)
+                    LaunchedEffect(uiState) {
+                        if (uiState is OpenRangUiState.CheckingPermissions) {
+                            checkPermissions()
+                        }
+                    }
 
                     when (uiState) {
+                        is OpenRangUiState.Initializing -> {
+                            // Brief spinner while DataStore loads preferences
+                            CheckingPermissionsScreen()
+                        }
                         is OpenRangUiState.Onboarding -> {
                             OnboardingScreen(
                                 onGetStartedClick = {
                                     viewModel.onOnboardingCompleted()
-                                    checkPermissions()
                                 }
                             )
                         }

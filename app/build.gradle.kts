@@ -55,6 +55,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     
     // Compose
@@ -66,6 +67,9 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
 
     // CameraX
     implementation(libs.androidx.camerax.core)
