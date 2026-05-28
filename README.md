@@ -83,7 +83,7 @@ This project follows Google's official Android development guidance. See [`docs/
 
 **No PR merges without passing the automated standards review.**
 
-Every pull request is reviewed by an autonomous compliance agent ([`docs/skills/pr-reviewer/`](docs/skills/pr-reviewer/)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
+Every pull request is reviewed by an autonomous compliance agent ([`.claude/skills/pr-reviewer/`](.claude/skills/pr-reviewer/)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
 
 Architecture, DataStore, Permissions, Compose, CameraX, Media & Audio, Coroutines, Testing, Accessibility, Play Store Readiness, and Android Version Compatibility.
 

@@ -191,9 +191,9 @@ Platform Layer    →  CameraX, Media3, system APIs
 
 ### Current Requirements (2026)
 
-**Target API level.** New apps and updates must target **Android 15 (API level 35)** or higher to be submitted to Google Play. Existing apps must target at least **API 34** to remain available to new users on newer devices.
+**Target API level.** As of August 31, 2026, all new apps and updates must target **Android 16 (API level 36)** or higher to be submitted to Google Play. Currently, new apps must target at least **API 35** (Android 15).
 
-> **OpenRang note:** We currently target API 34. This must be bumped to API 35 before the first Play Store submission.
+> **OpenRang note:** We currently target API 34. This must be bumped to API 36 before the first Play Store submission. See GitHub Issue #7.
 
 **64-bit support.** All apps must include 64-bit native libraries if they include any native code.
 

@@ -19,7 +19,7 @@ Apache 2.0 licensed. Early-stage — concept spike through gallery feature compl
 
 Before building anything non-trivial: write a PRD covering problem statement, success criteria, scope, constraints, implementation plan, and open questions. Get sign-off before writing code. Check what already exists before proposing custom work.
 
-**Always reference `PRD-mission-control.md` at the project root for the authoritative architecture and component specs before making structural changes.**
+**Always reference `docs/PRD-mission-control.md` at the project root for the authoritative architecture and component specs before making structural changes.**
 
 ### Pushback — required
 
@@ -44,6 +44,8 @@ Show reasoning, not just conclusions. I value breadth and rigor equally — cast
 ### Subfolder rules
 
 When operating in a specific subfolder that has its own CLAUDE.md, respect that folder's voice and approach. The root CLAUDE.md (this file) provides defaults; subfolder overrides take precedence.
+
+All project documentation (`.md` files) belongs in the `docs/` directory — not the project root. The only exceptions are `CLAUDE.md` and `README.md` which live at the root by convention.
 
 ## Architecture Snapshot
 
@@ -93,72 +95,17 @@ Initializing → Onboarding → CheckingPermissions → ReadyToCapture ↔ Recor
 
 States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Navigation is conditional composable routing in `MainActivity.kt`.
 
-### Design System
+### Design System, Storage, Testing & Engineering Decisions
 
-| Token | Value | Usage |
-|-------|-------|------|
-| `NeonCoral` | `#FF5252` | Primary accent, shutter, gradients |
-| `NeonPurple` | `#7C4DFF` | Secondary accent, gradients |
-| `GlassWhite` | `#33FFFFFF` | Glassmorphic backgrounds |
-| `GlassWhiteBorder` | `#4DFFFFFF` | Glassmorphic borders |
-| `DeepCharcoal` | `#CC1A1A1D` | Translucent overlay bars |
-
-Theme: dark-only (`darkColorScheme`). Aesthetic: glassmorphic vaporwave. All color constants are top-level vals in `CameraScreen.kt` and shared across screens via same-package visibility.
-
-Onboarding has its own private palette: `DeepIndigo`, `DarkPlum`, `VoidBlack`, `FrostedGlass`, `FrostedGlassBorder`.
-
-### Storage Pipeline
-
-Videos are saved to `context.filesDir/videos/clip_<timestamp>.mp4`. Thumbnails (JPEG, 90% quality) are extracted at the 0ms mark via `MediaMetadataRetriever` and cached at `context.filesDir/thumbnails/clip_<timestamp>.jpg`. On-demand thumbnail extraction runs as a fallback if the cache is missing.
-
-### Testing Strategy
-
-| Type | Location | Framework | Coverage |
-|------|----------|-----------|----------|
-| Unit tests | `app/src/test/` | JUnit 4 + MockK + Coroutines Test | ViewModel state transitions, capture lifecycle, gallery ops |
-| UI tests | `app/src/androidTest/` | Compose UI Test + AndroidJUnit4 | Navigation centering regression (OnboardingNavigationTest) |
-
-`MainDispatcherRule` overrides `Dispatchers.Main` for coroutine testing.
-
-### Key Engineering Decisions
-
-- **OnboardingNavigation is extracted as an `internal` composable** — never inline it back into the Column. `ColumnScope.AnimatedVisibility` uses slide animations that cause buttons to jump. See `OnboardingNavigationTest` for the regression guard.
-- **Page data is a data class** (`OnboardingPage`) — titles, drawables, and glow colors are a list, not scattered `when` branches.
-- **Video storage uses `filesDir` not `cacheDir`** — gallery videos are persistent, not temporary.
-- **Thumbnail caching is eager + lazy fallback** — extracted at save time, re-extracted on demand if missing.
-- **Jetpack DataStore for user preferences** — Preferences DataStore via repository pattern (`UserPreferencesRepository` interface). ViewModel takes the repository via constructor injection + `ViewModelProvider.Factory`. IOException caught with safe fallback (show onboarding again). Top-level `Context.dataStore` singleton delegate per Google's mandate.
-
-### Git Workflow
-
-Branch naming: `feature/<short-description>`. PR template at `.github/pull_request_template.md` with type labels, test checklist, and self-review gate. Current active branch: `feature/gallery-home-grid`.
+All design tokens, storage patterns, testing strategy, and engineering decisions are documented in `docs/PRD-mission-control.md`. All implementation patterns must comply with `docs/ANDROID_STANDARDS.md` — that document is the single source of truth for Google best practices across architecture, Compose, coroutines, DataStore, CameraX, testing, accessibility, Play Store readiness, and performance.
 
 ## Reference Documents
 
 | Document | Purpose |
-|----------|---------|
-| `PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
+|----------|--------|
+| `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
+| `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. |
-| `docs/active/IMPLEMENTATION_PLAN.md` | Phase-by-phase technical blueprint for the core "Loop" feature. |
-| `README.md` | Public-facing project overview. |
-| `.github/pull_request_template.md` | PR checklist and conventions. |
-
-## What's Built vs. What's Ahead
-
-### Complete
-
-- 3-page onboarding carousel with animated transitions
-- CameraX viewfinder with 1.5s burst capture + auto-stop timer
-- Front/back camera toggle
-- Persistent video storage + JPEG thumbnail caching
-- Looping preview (ExoPlayer, `REPEAT_MODE_ALL`)
-- Gallery grid with delete and full-screen playback overlay
-- Home/gallery navigation from camera screen
-- Jetpack DataStore: onboarding persistence, repository pattern, ViewModel factory injection
-- Unit tests (19) + UI regression tests (6)
-
-### Remaining (per IMPLEMENTATION_PLAN.md)
-
-- **Phase 3:** Loop generation — Media3 Transformer reversal + concatenation
-- **Phase 4:** Dynamic speed slider (0.5x–3.0x) on preview
-- **Phase 5:** Export with speed burn-in to device gallery
-- **Future:** Share flow, audio toggle, custom duration, filters/effects
+| `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
+| `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
+| `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |

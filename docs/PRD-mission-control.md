@@ -1,0 +1,381 @@
+# PRD-mission-control.md — OpenRang Architecture & Component Specs
+
+**Status:** Living document — update as the system evolves.
+**Owner:** Steven Gates
+**Last updated from build session:** 2026-05-27
+
+---
+
+## 1. Executive Summary
+
+OpenRang is an open-source Android camera app for creating custom, speed-controlled video loops. The system captures 1.5-second video bursts, generates seamless forward-backward loops via Media3 Transformer, and gives users real-time speed control (0.5x–3.0x) before exporting. All processing is 100% on-device.
+
+The architecture follows MVVM with Jetpack Compose, a sealed-interface state machine, and a local file-based storage pipeline for videos and thumbnails. The app is designed to be device-agnostic (CameraX) and privacy-first (zero network requirements).
+
+### Current build state
+
+Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding). Phases 3–5 (loop generation, speed slider, export) are next. This PRD is the authoritative reference for all structural decisions.
+
+---
+
+## 2. Goals and Non-Goals
+
+### Goals
+
+- Seamless 1.5-second video burst capture with automatic stop
+- Forward-backward loop generation entirely on-device using Media3 Transformer
+- Real-time speed adjustment (0.5x–3.0x) with instant preview feedback
+- Export with speed burn-in to device gallery for sharing
+- Persistent local gallery with thumbnail caching for performant browsing
+- Beautiful, polished UI matching the glassmorphic vaporwave aesthetic
+- 100% unit test coverage for ViewModel logic; UI regression tests for layout-critical composables
+
+### Non-Goals (this build window)
+
+- Cloud storage or sync — all data stays on-device
+- Social features (sharing to specific platforms, comments, likes)
+- Audio recording toggle UI — audio is captured if permission exists, no toggle yet
+- Custom capture duration — fixed at 1.5s for now
+- Filters or visual effects — raw capture only
+- Tablet or foldable-specific layouts
+
+---
+
+## 3. Architecture Overview
+
+### Three Layers
+
+```
+┌─────────────────────────────────────────────────┐
+│  UI Layer (Jetpack Compose)                     │
+│  CameraScreen · OnboardingScreen · PreviewScreen│
+│  GalleryScreen · MainActivity                   │
+├─────────────────────────────────────────────────┤
+│  Domain Layer (ViewModel + Processor)           │
+│  OpenRangViewModel · VideoProcessor (planned)   │
+│  OpenRangUiState (sealed interface)             │
+├─────────────────────────────────────────────────┤
+│  Data Layer (Preferences + Storage)              │
+│  UserPreferencesRepository · DataStore           │
+├─────────────────────────────────────────────────┤
+│  Platform Layer (CameraX + Media3 + Storage)    │
+│  CameraManager · MediaMetadataRetriever         │
+│  ExoPlayer · Transformer · Local filesystem     │
+└─────────────────────────────────────────────────┘
+```
+
+### State Machine
+
+All navigation is driven by a single `MutableStateFlow<OpenRangUiState>` in `OpenRangViewModel`. States:
+
+| State | Description | Transitions to |
+|-------|-------------|---------------|
+| `Initializing` | Loading preferences from DataStore | `Onboarding` (first launch) or `CheckingPermissions` (returning user) |
+| `Onboarding` | 3-page carousel (first launch) | `CheckingPermissions` |
+| `CheckingPermissions` | Runtime permission check | `ReadyToCapture` or `PermissionDenied` |
+| `PermissionDenied` | Permission dialog with settings link | `CheckingPermissions` (retry) |
+| `ReadyToCapture` | Live camera viewfinder | `Recording`, `Gallery` |
+| `Recording` | Active 1.5s burst capture | `LoopingPreview` (success) or `ReadyToCapture` (failure) |
+| `Processing` | (Planned) Loop generation in progress | `LoopingPreview` |
+| `LoopingPreview` | ExoPlayer infinite loop preview | `ReadyToCapture` |
+| `Gallery` | Recorded bursts grid | `ReadyToCapture` |
+
+### Design System Tokens
+
+| Token | Hex | Alpha | Role |
+|-------|-----|-------|------|
+| `NeonCoral` | `#FF5252` | 100% | Primary accent |
+| `NeonPurple` | `#7C4DFF` | 100% | Secondary accent |
+| `GlassWhite` | `#FFFFFF` | 20% | Glassmorphic fill |
+| `GlassWhiteBorder` | `#FFFFFF` | 30% | Glassmorphic border |
+| `DeepCharcoal` | `#1A1A1D` | 80% | Overlay bars |
+
+Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `darkColorScheme` only.
+
+---
+
+## 4. Component Specifications
+
+### 4.1 CameraManager.kt
+
+**Purpose:** Manages CameraX lifecycle — preview binding, video recording, lens toggling.
+
+| Method | Behavior |
+|--------|----------|
+| `startCamera(lifecycleOwner, previewView)` | Binds Preview + VideoCapture use cases at HD quality |
+| `toggleCamera(lifecycleOwner, previewView)` | Switches between `LENS_FACING_BACK` and `LENS_FACING_FRONT`, rebinds |
+| `startRecording(outputFile, callback)` | Records to file with audio (if permitted), fires `VideoRecordEvent` callbacks |
+| `stopRecording()` | Stops active recording |
+| `shutdown()` | Releases executor resources |
+
+### 4.2 OpenRangViewModel.kt
+
+**Purpose:** MVVM hub. Owns UI state, recording lifecycle, video storage pipeline, gallery operations.
+
+**State:** `MutableStateFlow<OpenRangUiState>` exposed as `StateFlow`.
+
+**Video storage:**
+- On successful capture: copies `raw_capture.mp4` from `cacheDir` to `filesDir/videos/clip_<timestamp>.mp4`
+- Extracts thumbnail at 0ms via `MediaMetadataRetriever` → `filesDir/thumbnails/clip_<timestamp>.jpg` (JPEG, 90% quality)
+- Fallback: on-demand thumbnail extraction during `loadRecordedVideos()` if cache miss
+
+**Key flows:**
+
+| Flow | Trigger | Behavior |
+|------|---------|----------|
+| `startBurstCapture` | Shutter tap (state must be `ReadyToCapture`) | Sets `Recording`, starts CameraManager, launches 1500ms auto-stop coroutine |
+| `stopBurstCapture` | Auto-timer or manual | Cancels coroutine job, stops CameraManager |
+| `saveFinalizedVideo` | `VideoRecordEvent.Finalize` success | Copies to persistent storage, extracts thumbnail, returns destination `File` |
+| `loadRecordedVideos` | Gallery entry | Scans `filesDir/videos/clip_*.mp4`, maps to `RecordedVideo` list (newest first) |
+| `deleteVideo` | Gallery delete tap | Removes `.mp4` + `.jpg`, reloads list |
+| `navigateToGallery` | Home button tap | Sets `Gallery` state, loads videos |
+| `navigateBackFromGallery` | Gallery back button | Sets `ReadyToCapture` |
+
+**Data class:**
+```kotlin
+data class RecordedVideo(
+    val id: Long,           // timestamp parsed from filename
+    val videoPath: String,  // absolute path to .mp4
+    val thumbnailPath: String // absolute path to .jpg
+)
+```
+
+### 4.3 CameraScreen.kt
+
+**Purpose:** Live camera viewfinder with recording controls.
+
+**Layout (top to bottom):**
+1. Full-screen CameraX `PreviewView` (AndroidView, `FILL_CENTER`)
+2. Top gradient bar: home button (top-left, neon gradient, 44dp) + recording indicator
+3. Bottom gradient bar: 1.5s badge (glass, 54dp) | shutter button (86dp, dual-ring glow) | flip camera (glass, 54dp)
+
+**Interactions:**
+- Shutter: `viewModel.startBurstCapture()` (disabled while recording)
+- Home: `viewModel.navigateToGallery(context)`
+- Flip: `cameraManager.toggleCamera()`
+
+### 4.4 OnboardingScreen.kt
+
+**Purpose:** 3-page horizontal carousel introducing the app.
+
+**Architecture:**
+- Page data modeled as `OnboardingPage(title, drawableRes, glowColor)` data class with a list of 3 instances
+- Navigation extracted into `OnboardingNavigation` (internal composable) — **MUST remain extracted to avoid ColumnScope.AnimatedVisibility bug** (see decision log)
+- Dot indicators use `animateFloatAsState` for smooth size transitions
+- Navigation buttons use `AnimatedVisibility` with `fadeIn + scaleIn` / `fadeOut + scaleOut`
+
+**Private color palette:** `DeepIndigo`, `DarkPlum`, `VoidBlack`, `FrostedGlass`, `FrostedGlassBorder`
+
+**Pages:**
+1. "No Subscriptions & No Ads" — skater visual, coral glow
+2. "Built by Everyone, For Everyone" — bubbles visual, purple glow
+3. "Just Point, Tap & Loop!" — confetti visual, cyan glow
+
+### 4.5 PreviewScreen.kt
+
+**Purpose:** Full-screen looping video playback after capture.
+
+- ExoPlayer with `REPEAT_MODE_ALL`, no player controls visible
+- Top banner: "OPENRANG" title + "RAW BURST PREVIEW (1.5S)" subtitle
+- Bottom: "RETAKE BURST" button → `viewModel.resetToCapture()`
+- (Planned) Speed slider integration in Phase 4
+
+### 4.6 GalleryScreen.kt
+
+**Purpose:** Grid display of all recorded bursts with playback and deletion.
+
+**Layout:**
+- Header: back button (64dp, glass + NeonPurple border, ArrowLeftIcon) + "YOUR BURSTS" title
+- Empty state: "NO BURSTS YET" message
+- Grid: `LazyVerticalGrid(GridCells.Fixed(3))`, 9:16 aspect ratio cards
+- Cards: `BitmapFactory.decodeFile` thumbnail, press-scale animation (0.93x), delete button (coral circle, top-right)
+- Playback overlay: full-screen `Dialog` with ExoPlayer loop + "CLOSE PREVIEW" gradient capsule button
+
+### 4.7 MainActivity.kt
+
+**Purpose:** Entry point. Handles permissions, state-based routing, theme.
+
+- Permission launcher: `CAMERA` + `RECORD_AUDIO` via `ActivityResultContracts.RequestMultiplePermissions`
+- Routing: `when (uiState)` dispatches to the appropriate screen composable
+- Theme: `OpenRangTheme` wrapping `darkColorScheme(primary = NeonCoral, secondary = NeonPurple, background = #121212)`
+- Includes `CheckingPermissionsScreen` and `PermissionDeniedScreen` inline composables
+
+---
+
+## 5. Planned Components (Phases 3–5)
+
+### 5.1 VideoProcessor.kt (Phase 3)
+
+**Purpose:** Media3 Transformer pipeline for loop generation.
+
+**Pipeline:**
+1. Input: `raw_capture.mp4` (1.5s forward clip)
+2. Reversal: Transformer with reversed frame timestamps → `reversed_capture.mp4`
+3. Concatenation: `Composition` / `EditedMediaItem` joining forward + reversed → `openrang_output.mp4`
+4. Output: seamless loop file ready for preview
+
+**Constraints:**
+- Processing must complete in <1 second on mid-range devices
+- `Processing` UI state shown during transform
+- Error handling falls back to `ReadyToCapture` with a log
+
+### 5.2 Speed Slider (Phase 4)
+
+**Integration point:** `PreviewScreen.kt`
+
+- Compose `Slider` range: 0.5f to 3.0f, default 1.5f
+- Connected to `ExoPlayer.setPlaybackSpeed()`
+- Speed value stored in `LoopingPreview` state for export
+
+### 5.3 Export Pipeline (Phase 5)
+
+**Purpose:** Burn selected speed into final video and save to device gallery.
+
+- Transformer with `SpeedChangingVideoEffect` + `SpeedChangingAudioProcessor`
+- Output to `MediaStore.Video.Media` (public gallery)
+- Filename: `OpenRang_Capture_<timestamp>.mp4`
+- Completion toast, return to viewfinder
+
+---
+
+## 6. Data Layer
+
+### File Structure
+
+```
+context.filesDir/
+├── videos/
+│   ├── clip_1716825600000.mp4
+│   ├── clip_1716825660000.mp4
+│   └── ...
+└── thumbnails/
+    ├── clip_1716825600000.jpg
+    ├── clip_1716825660000.jpg
+    └── ...
+
+context.cacheDir/
+└── raw_capture.mp4              # temporary, overwritten each capture
+```
+
+### Schemas
+
+**RecordedVideo (in-memory):**
+```kotlin
+data class RecordedVideo(
+    val id: Long,              // e.g. 1716825600000 (epoch millis from filename)
+    val videoPath: String,     // e.g. "/data/.../files/videos/clip_1716825600000.mp4"
+    val thumbnailPath: String  // e.g. "/data/.../files/thumbnails/clip_1716825600000.jpg"
+)
+```
+
+**Naming convention:** `clip_<System.currentTimeMillis()>.mp4` / `.jpg`
+
+### Refresh Strategy
+
+| File | Populated by | Trigger | Strategy |
+|------|-------------|---------|----------|
+| `videos/clip_*.mp4` | `saveFinalizedVideo()` | Successful capture finalize | Create new file (never overwrite) |
+| `thumbnails/clip_*.jpg` | `saveFinalizedVideo()` or `loadRecordedVideos()` | Save-time extraction or on-demand fallback | Create if missing |
+| `cacheDir/raw_capture.mp4` | `startBurstCapture()` | Each new capture | Overwrite previous |
+
+---
+
+## 7. Testing Architecture
+
+### Unit Tests (app/src/test/)
+
+| Test | What it covers |
+|------|---------------|
+| `initial state is Onboarding` | Default state |
+| `onOnboardingCompleted transitions to CheckingPermissions` | Onboarding → permissions flow |
+| `onPermissionsChecked when granted/denied` | Permission branching |
+| `resetToCapture transitions state` | State reset |
+| `startBurstCapture when not ready` | Guard clause |
+| `startBurstCapture starts recording and delays stop` | Full capture lifecycle with time advance |
+| `startBurstCapture failures fallback` | Error recovery |
+| `stopBurstCapture cancels job` | Clean shutdown |
+| `Finalize → LoopingPreview on success` | Happy path |
+| `Finalize → ReadyToCapture on error` | Error path |
+| `navigateToGallery transitions to Gallery` | Navigation |
+| `navigateBackFromGallery transitions to ReadyToCapture` | Navigation |
+| `loadRecordedVideos with missing directory` | Empty state |
+| `deleteVideo removes files and reloads` | Deletion flow |
+| `recordedVideos flow starts empty` | Initial state |
+
+### UI Tests (app/src/androidTest/)
+
+| Test | What it guards |
+|------|---------------|
+| `page0_nextButton_isDisplayedAndCentered` | Button centering regression |
+| `page1_backAndNextButtons_areDisplayedAndCentered` | Button centering regression |
+| `page2_ctaButton_isDisplayedAndFillsWidth` | CTA layout regression |
+| `page0_doesNotShowPage1OrPage2Controls` | Mutual exclusivity |
+| `page1_doesNotShowPage0OrPage2Controls` | Mutual exclusivity |
+| `page2_doesNotShowPage0OrPage1Controls` | Mutual exclusivity |
+
+---
+
+## 8. Decision Log
+
+| # | Decision | Reasoning | Trade-off |
+|---|----------|-----------|----------|
+| 1 | **Sealed interface for UI state** | Exhaustive `when` matching at compile time prevents missing state handling | Slightly more boilerplate than enum, but safer with data-carrying states like `LoopingPreview` |
+| 2 | **Single ViewModel, no nav library** | App has <10 screens, all state-driven; Compose Navigation adds complexity without value at this scale | Will need migration if screen count grows significantly |
+| 3 | **`filesDir` for video storage, not `cacheDir`** | Gallery videos are user-created content that must persist across sessions | Uses more permanent storage; need manual cleanup via delete |
+| 4 | **Eager + lazy thumbnail extraction** | Eager at save time for speed; lazy fallback for resilience if thumbnail is somehow lost | Slightly more code than eager-only, but prevents blank grid cards |
+| 5 | **OnboardingNavigation extracted as internal composable** | ColumnScope.AnimatedVisibility resolves to slide animations that cause layout jumping; extraction breaks the scope chain | Function is `internal` (not `private`) to enable UI regression testing |
+| 6 | **OnboardingPage data class model** | Eliminates 3 separate `when` branches for title/drawable/glow; adding pages is a one-line change | Minor: data class is private to file, not reusable outside onboarding |
+| 7 | **animateFloatAsState for dot indicators** | Smooth size interpolation instead of snap; uses float → `.dp` conversion to avoid `animateDpAsState` import ambiguity | Negligible performance cost |
+| 8 | **BitmapFactory.decodeFile for thumbnails** | No image-loading library dependency (Coil/Glide); thumbnails are small local JPEGs | Will need Coil if we ever load remote images or need cache management |
+| 9 | **Home button gets neon gradient, flip camera gets glass** | Home/gallery is a primary navigation action; flip camera is secondary utility. Visual weight should match importance | Flip camera is less discoverable in glass style |
+| 10 | **Dark-only theme** | Matches vaporwave aesthetic; camera apps benefit from dark UI (less screen glare on subjects) | No light mode for accessibility preferences |
+| 11 | **Onboarding persistence via Jetpack DataStore** | Replaced the intentional deferral — DataStore now persists `has_completed_onboarding` flag. Returning users skip straight to permission check. Uses Preferences DataStore (not SharedPreferences) with repository pattern for testability. | Added `Initializing` state to sealed interface for async DataStore read at startup |
+| 12 | **No skip button on onboarding (intentional)** | 3 pages is short enough; forced traversal ensures users see all value props | Mild friction for power users; revisit post-launch |
+
+---
+
+## 9. Build Plan — Remaining Phases
+
+### Phase 3: Loop Generation (~3 hours)
+
+| Block | What gets built | Who | Output | Done when |
+|-------|----------------|-----|--------|----------|
+| 3.1 | Create `VideoProcessor.kt` with Transformer reversal pipeline | Cowork | `reversed_capture.mp4` generated from any input | Reversed file plays backward correctly |
+| 3.2 | Add concatenation (forward + reversed) | Cowork | `openrang_output.mp4` = seamless loop | Loop plays without stutter or black flash at inflection |
+| 3.3 | Wire into ViewModel: `Recording` → `Processing` → `LoopingPreview` | Cowork | State transitions work end-to-end | Capture → loop preview in one tap |
+| 3.4 | Unit tests for VideoProcessor + updated ViewModel tests | Cowork | Tests pass | Processing state, error handling, output file assertions |
+
+### Phase 4: Speed Slider (~2 hours)
+
+| Block | What gets built | Who | Output | Done when |
+|-------|----------------|-----|--------|----------|
+| 4.1 | Add Compose Slider to PreviewScreen (0.5x–3.0x, default 1.5x) | Cowork | Slider visible on preview | Slider renders, value changes |
+| 4.2 | Connect slider to ExoPlayer.setPlaybackSpeed() | Cowork | Real-time speed changes | Dragging slider instantly changes playback speed |
+| 4.3 | Persist speed in LoopingPreview state for export handoff | Cowork | Speed value available downstream | Speed survives state reads |
+
+### Phase 5: Export (~2 hours)
+
+| Block | What gets built | Who | Output | Done when |
+|-------|----------------|-----|--------|----------|
+| 5.1 | Transformer speed burn-in pipeline | Cowork | Final video at selected speed | Exported file plays at burned-in speed in any player |
+| 5.2 | Save to MediaStore + completion UI | Cowork | File in device gallery + toast | Video appears in Photos/Gallery app |
+| 5.3 | Return-to-viewfinder flow | Cowork | Clean state reset | App returns to ReadyToCapture after save |
+
+### Cut order (if behind)
+
+1. Drop Phase 5.2 toast polish — save still works, just no confirmation UI
+2. Drop Phase 4 slider — hardcode speed at 1.5x, add slider later
+3. **Never cut:** Phase 3 (loop generation is the core feature)
+
+---
+
+## 10. Out of Scope / Future Work
+
+| Feature | Why deferred | Effort |
+|---------|-------------|--------|
+| Audio toggle UI | Capture works with audio if permission granted; toggle is UX polish | Small |
+| Custom capture duration | 1.5s is the MVP constraint; slider adds complexity | Medium |
+| Filters/effects (color grading, vignette) | Requires shader pipeline; not core to loop concept | Large |
+| Share-to-platform flow | Export to gallery is sufficient; direct share is distribution polish | Medium |
+| ~~Onboarding persistence (DataStore)~~ | **Implemented** — Jetpack DataStore with `Initializing` state, repository pattern, and ViewModel factory injection | ~~Small~~ Done |
+| Light mode / dynamic theming | Dark-only matches aesthetic; accessibility concern for later |
