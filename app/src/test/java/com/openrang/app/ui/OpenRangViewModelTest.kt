@@ -180,6 +180,13 @@ class OpenRangViewModelTest {
     }
 
     @Test
+    fun `onRationaleDeclined transitions to PermissionDenied`() {
+        viewModel.showPermissionRationale()
+        viewModel.onRationaleDeclined()
+        assertEquals(OpenRangUiState.PermissionDenied, viewModel.uiState.value)
+    }
+
+    @Test
     fun `rationale flow ending in grant reaches ReadyToCapture`() {
         // Full path: denied-once → rationale → acknowledge → system grant.
         viewModel.showPermissionRationale()

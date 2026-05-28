@@ -18,8 +18,10 @@ Origin: WARNING #5 from PR #5 review; captured in
 - ViewModel `showPermissionRationale()` and `onRationaleAcknowledged()`.
 - `MainActivity.checkPermissions()` rewritten as a 3-state `when` (granted / rationale / request).
 - `PermissionDeniedScreen` generalized into `PermissionExplanationScreen`, reused for both the
-  rationale and permanent-denial UIs (nullable `onOpenSettings` hides the settings link for rationale).
-- Unit tests for the new transitions.
+  rationale and permanent-denial UIs via a parameterized secondary action.
+- "Not now" cancel affordance on the rationale screen (`onRationaleDeclined()` → `PermissionDenied`),
+  per Google's "always provide the option to cancel an educational UI flow" guidance.
+- Unit tests for the new transitions, plus a Compose UI test for `PermissionExplanationScreen`.
 
 **Out (tracked separately):** DataStore-backed permission UX metadata (#6); `targetSdk` bump (#7);
 removing `Context` params from the ViewModel (#10).
@@ -48,8 +50,13 @@ actually responds. See `docs/PRD-mission-control.md` §3 (State Machine) and §4
 Unit tests (`OpenRangViewModelTest.kt`):
 - `showPermissionRationale transitions to PermissionRationale`
 - `onRationaleAcknowledged transitions to CheckingPermissions`
+- `onRationaleDeclined transitions to PermissionDenied`
 - `rationale flow ending in grant reaches ReadyToCapture`
 - `rationale flow ending in denial reaches PermissionDenied`
+
+Compose UI tests (`PermissionExplanationScreenTest.kt`): rationale variant shows "Grant"/"Not now"
+and hides Settings; denial variant shows "Try Again"/"Open Device Settings"; primary-only variant
+hides the secondary button; both buttons fire their callbacks.
 
 The Activity-level `checkPermissions()` branching (framework calls) is verified by manual emulator
 passes per the issue's acceptance criteria — Activities are out of scope for local unit tests
@@ -65,7 +72,9 @@ run green; the fixes and the general pattern are recorded in
 - [x] `showPermissionRationale()` / `onRationaleAcknowledged()` added.
 - [x] `checkPermissions()` rewritten as a 3-state `when`.
 - [x] `PermissionExplanationScreen` serves both rationale and denial.
+- [x] Rationale screen has a "Not now" cancel affordance (`onRationaleDeclined()` → `PermissionDenied`).
 - [x] Routing wired for both states.
-- [x] Unit tests for the new transitions; full suite green (23 unit tests).
+- [x] Unit tests for the new transitions; full suite green (24 unit tests).
+- [x] Compose UI test for `PermissionExplanationScreen` (rationale vs denial variants).
 - [x] PRD state-machine table updated with the `PermissionRationale` row.
 - [ ] Manual emulator pass (fresh install / deny-once / grant-from-rationale / permanent-deny).

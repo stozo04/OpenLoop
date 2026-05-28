@@ -119,7 +119,9 @@ class MainActivity : ComponentActivity() {
                                 body = "OpenRang needs Camera and Audio to capture your " +
                                     "video loops. Tap Grant to continue.",
                                 primaryActionLabel = "Grant Permissions",
-                                onPrimaryAction = { onRationaleAcknowledged() }
+                                onPrimaryAction = { onRationaleAcknowledged() },
+                                secondaryActionLabel = "Not now",
+                                onSecondaryAction = { viewModel.onRationaleDeclined() }
                             )
                         }
                         is OpenRangUiState.PermissionDenied -> {
@@ -129,7 +131,8 @@ class MainActivity : ComponentActivity() {
                                     "to capture high-quality speed-controlled video loops.",
                                 primaryActionLabel = "Try Again",
                                 onPrimaryAction = { checkPermissions() },
-                                onOpenSettings = { openAppSettings() }
+                                secondaryActionLabel = "Open Device Settings",
+                                onSecondaryAction = { openAppSettings() }
                             )
                         }
                         is OpenRangUiState.ReadyToCapture -> {
@@ -244,8 +247,9 @@ fun CheckingPermissionsScreen() {
 
 /**
  * Educational permission screen reused for both the rationale step (before re-asking) and the
- * permanent-denial step. Pass [onOpenSettings] only for the denial variant — when null, the
- * "Open Device Settings" action is hidden (the rationale flow doesn't need it).
+ * permanent-denial step. The optional secondary action is "Not now" (cancel) on the rationale
+ * variant and "Open Device Settings" on the denial variant; omit both [secondaryActionLabel] and
+ * [onSecondaryAction] to render only the primary button.
  */
 @Composable
 fun PermissionExplanationScreen(
@@ -253,7 +257,8 @@ fun PermissionExplanationScreen(
     body: String,
     primaryActionLabel: String,
     onPrimaryAction: () -> Unit,
-    onOpenSettings: (() -> Unit)? = null
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier
@@ -332,11 +337,11 @@ fun PermissionExplanationScreen(
                 )
             }
 
-            if (onOpenSettings != null) {
+            if (secondaryActionLabel != null && onSecondaryAction != null) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Button(
-                    onClick = onOpenSettings,
+                    onClick = onSecondaryAction,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent
                     ),
@@ -347,7 +352,7 @@ fun PermissionExplanationScreen(
                         .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                 ) {
                     Text(
-                        text = "Open Device Settings",
+                        text = secondaryActionLabel,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White

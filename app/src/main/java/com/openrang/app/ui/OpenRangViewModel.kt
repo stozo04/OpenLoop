@@ -79,6 +79,16 @@ class OpenRangViewModel(
         _uiState.value = OpenRangUiState.CheckingPermissions
     }
 
+    /**
+     * User dismissed the rationale ("Not now") instead of granting. Move to the blocked-but-
+     * recoverable [OpenRangUiState.PermissionDenied] screen rather than nagging — the user can
+     * still retry or open Settings from there. Satisfies Google's "always provide the option to
+     * cancel an educational UI flow" guidance.
+     */
+    fun onRationaleDeclined() {
+        _uiState.value = OpenRangUiState.PermissionDenied
+    }
+
     private var recordingJob: Job? = null
 
     private val _recordedVideos = MutableStateFlow<List<RecordedVideo>>(emptyList())

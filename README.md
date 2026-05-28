@@ -97,7 +97,7 @@ The reviewer web-searches `developer.android.com` for the latest guidance on eve
 
 **To merge, a PR must:**
 1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
-2. Address all **WARNINGs** or document why they're accepted
+2. Address all **WARNINGS** or document why they're accepted
 3. Pass all unit tests (19+) and UI regression tests (6+)
 
 ### Fixing Review Feedback
