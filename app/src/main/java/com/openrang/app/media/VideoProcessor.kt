@@ -24,10 +24,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import kotlin.coroutines.coroutineContext
 
 /** How a boomerang loops its source clip. */
 enum class BoomerangMode { FORWARD, REVERSE, FORWARD_THEN_REVERSE, REVERSE_THEN_FORWARD }
+
+/**
+ * Whether this mode needs the reversed clip generated (everything except a pure [BoomerangMode.FORWARD]).
+ * Single source of truth shared by the editor preview, the ViewModel, and the render path.
+ */
+val BoomerangMode.needsReverse: Boolean get() = this != BoomerangMode.FORWARD
 
 /**
  * Renders a boomerang MP4 from a trimmed source clip.
@@ -110,7 +117,9 @@ class Media3VideoProcessor(
         onProgress(REVERSE_BUDGET)
 
         val speedEffects = speedEffects(speed)
-        val seamMs = frameDurationMs(source)
+        // frameDurationMs() does a blocking MediaExtractor header read — keep it off the main thread
+        // (renderBoomerang runs on viewModelScope's Main dispatcher; runTransformer hops to Main itself).
+        val seamMs = withContext(Dispatchers.IO) { frameDurationMs(source) }
         val items = specs.map { spec ->
             val dropMs = if (spec.dropLeadingFrame) seamMs else 0L
             when (spec.direction) {
@@ -228,7 +237,12 @@ class Media3VideoProcessor(
                 }
             }
             (1000L / fps.coerceAtLeast(1)).coerceAtLeast(1L)
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            // setDataSource() couldn't read the file — fall back to the 30fps seam offset.
+            1000L / DEFAULT_FRAME_RATE
+        } catch (e: IllegalArgumentException) {
+            // Malformed data source / track format — same safe fallback (never mask a real crash
+            // behind a broad catch, ANDROID_STANDARDS §3).
             1000L / DEFAULT_FRAME_RATE
         } finally {
             extractor.release()

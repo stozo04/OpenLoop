@@ -11,6 +11,7 @@ import com.openrang.app.data.UserPreferencesRepository
 import com.openrang.app.data.VideoStorageRepository
 import com.openrang.app.media.BoomerangMode
 import com.openrang.app.media.VideoProcessor
+import com.openrang.app.media.needsReverse
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -352,7 +353,7 @@ class OpenRangViewModel(
         val current = _editorTabState.value
         if (current.mode == mode) return
         _editorTabState.value = current.copy(mode = mode)
-        if (modeNeedsReverse(mode)) ensureReversedSegment()
+        if (mode.needsReverse) ensureReversedSegment()
     }
 
     /**
@@ -365,7 +366,7 @@ class OpenRangViewModel(
     fun ensureReversedSegment() {
         val trim = _editorState.value ?: return
         val tab = _editorTabState.value
-        if (!modeNeedsReverse(tab.mode)) return
+        if (!tab.mode.needsReverse) return
         if (tab.reversedFile != null || tab.isReversedFileLoading) return
 
         _editorTabState.value = tab.copy(isReversedFileLoading = true)
@@ -440,9 +441,6 @@ class OpenRangViewModel(
             }
         }
     }
-
-    /** True for any mode that needs the reversed clip (everything except a pure `FORWARD`). */
-    private fun modeNeedsReverse(mode: BoomerangMode): Boolean = mode != BoomerangMode.FORWARD
 
     /** Emit [BoomerangEvent.Failed] and route back to the editor, preserving the direction selection. */
     private suspend fun failBackToEditor(scratch: ScratchCapture) {

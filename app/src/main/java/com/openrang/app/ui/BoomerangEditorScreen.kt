@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,14 +65,18 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.openrang.app.media.BoomerangMode
 import com.openrang.app.media.boomerangOutputDurationMs
+import com.openrang.app.media.needsReverse
 import java.io.File
 import java.util.Locale
 
-/** Hit target ≥ 44 dp (Material accessibility) for the top-bar buttons and the direction chips. */
+/** Hit target ≥ 48 dp (Material / ANDROID_STANDARDS §7 minimum) for the top-bar buttons and chips. */
 private val CONTROL_SIZE = 56.dp
 
 /** Reserved bottom tab-bar height (slice 03 shows one icon; slices 04/05 fill it without reflow). */
 private val TAB_BAR_HEIGHT = 56.dp
+
+/** Max width of the direction-chip row so it stays centered (not edge-spread) on ≥ 600 dp displays. */
+private val CONTENT_MAX_WIDTH = 520.dp
 
 /**
  * Approximate one-frame seam offset for the *preview* second clip (~30 fps). The exported render
@@ -94,8 +99,6 @@ private val DIRECTION_CHIPS = listOf(
     DirectionChip(BoomerangMode.FORWARD_THEN_REVERSE, "▶◀", "F→R", "Forward then reverse"),
     DirectionChip(BoomerangMode.REVERSE_THEN_FORWARD, "◀▶", "R→F", "Reverse then forward"),
 )
-
-private fun modeNeedsReverse(mode: BoomerangMode): Boolean = mode != BoomerangMode.FORWARD
 
 /**
  * Tabbed boomerang editor (slice 03). Opens from the Trim screen's NEXT with the trimmed clip already
@@ -153,16 +156,18 @@ fun BoomerangEditorContent(
 ) {
     val context = LocalContext.current
 
-    // Back: a confirm dialog only when the user changed the direction off the default (work worth
-    // guarding); otherwise back returns silently to Trim (Lesson 015 — gate, don't always-intercept).
     var showDiscardDialog by remember { mutableStateOf(false) }
-    BackHandler {
+    // Single back path for both the gesture and the arrow: confirm only when the user changed the
+    // direction off the default (work worth guarding); otherwise return silently to Trim (Lesson 015 —
+    // gate, don't always-intercept).
+    val handleBack = {
         if (mode != BoomerangMode.FORWARD_THEN_REVERSE) showDiscardDialog = true else onBack()
     }
+    BackHandler { handleBack() }
 
     // The reversed clip is still missing for a mode that needs it → preview can't show the real
     // direction yet; cover with the shimmer and block Save until it lands.
-    val awaitingReverse = modeNeedsReverse(mode) && (reversedFile == null || isReversedFileLoading)
+    val awaitingReverse = mode.needsReverse && (reversedFile == null || isReversedFileLoading)
     val saveEnabled = !awaitingReverse
 
     val exoPlayer = remember {
@@ -202,9 +207,7 @@ fun BoomerangEditorContent(
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back to trim",
-                onClick = {
-                    if (mode != BoomerangMode.FORWARD_THEN_REVERSE) showDiscardDialog = true else onBack()
-                },
+                onClick = handleBack,
                 modifier = Modifier.align(Alignment.CenterStart).testTag("editor_back"),
             )
             SaveCheckmark(
@@ -267,30 +270,34 @@ fun BoomerangEditorContent(
                 }
             }
 
-            Text(
-                text = String.format(
-                    Locale.US,
-                    "%.1fs",
-                    boomerangOutputDurationMs(
-                        mode = mode,
-                        trimStartMs = trimStartMs,
-                        trimEndMs = trimEndMs,
-                        speed = OpenRangViewModel.DEFAULT_SPEED,
-                        repetitions = OpenRangViewModel.DEFAULT_REPS,
-                    ) / 1000f,
-                ),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 12.dp)
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(DeepCharcoal)
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                    .testTag("editor_duration_label"),
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-            )
+            // Hidden under the shimmer so the duration chip doesn't sit on top of the "Loopifying…"
+            // scrim; it returns the moment the reversed clip is ready and the preview is live.
+            if (!awaitingReverse) {
+                Text(
+                    text = String.format(
+                        Locale.US,
+                        "%.1fs",
+                        boomerangOutputDurationMs(
+                            mode = mode,
+                            trimStartMs = trimStartMs,
+                            trimEndMs = trimEndMs,
+                            speed = OpenRangViewModel.DEFAULT_SPEED,
+                            repetitions = OpenRangViewModel.DEFAULT_REPS,
+                        ) / 1000f,
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(DeepCharcoal)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .testTag("editor_duration_label"),
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
         }
 
         // ── Direction tab content panel ──
@@ -309,7 +316,9 @@ fun BoomerangEditorContent(
             )
             Spacer(Modifier.height(14.dp))
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = CONTENT_MAX_WIDTH),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 DIRECTION_CHIPS.forEach { chip ->

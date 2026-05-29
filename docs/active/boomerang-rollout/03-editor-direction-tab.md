@@ -35,7 +35,7 @@ Speed (slice 04) and Reps (slice 05) drop in without reflowing the layout.
 - Direction tab: 4 single-select chips — Forward `▶▶`, Reverse `◀◀`, Forward→Reverse `▶◀`,
   Reverse→Forward `◀▶`. Default `FORWARD_THEN_REVERSE`. Selected chip = `NeonCoral → NeonPurple`
   gradient, white glyph; unselected = `GlassWhite` fill + `GlassWhiteBorder`, `NeonPurple` glyph. Hit
-  target ≥ 44 dp.
+  target ≥ 48 dp (Material / ANDROID_STANDARDS §7 accessibility minimum).
 - Save checkmark (top-right, filled `NeonPurple` circle, white check): renders with the chosen direction
   at the still-hard-wired `speed = 2.0×`, `reps = 1`. Disabled while the reversed clip is generating.
 - Live preview reflects the chosen direction (see "Reverse preview" below).
