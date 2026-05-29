@@ -179,45 +179,20 @@ locally. Re-evaluate when detekt 2.0 ships stable; tracked in #21.
 Running `markdown-link-check` across the changed docs immediately surfaced genuine **pre-existing
 broken references on `main`** (not introduced by this work):
 
-- `README.md` and `CLAUDE.md` link to **`docs/android-16/README.md`**, which exists on no branch.
-- `README.md` links to a **`LICENSE`** file that does not exist in the repo (the project states
-  Apache 2.0).
+- `README.md` and `CLAUDE.md` linked to **`docs/android-16/README.md`**, which existed on no
+  branch — the hub had been renamed to `docs/completed/android-16/` against its documented
+  evergreen convention. **Fixed in [#23](https://github.com/stozo04/OpenRang/pull/23)** (restored to root).
+- `README.md` linked to a **`LICENSE`** file that did not exist (the project states Apache 2.0).
+  **Fixed in [#23](https://github.com/stozo04/OpenRang/pull/23)** (added verbatim Apache 2.0 text).
 
-These are out of scope for the tooling PR and are surfaced for follow-up rather than fixed here.
+### Hosting Tier 3 — GitHub Actions (active)
 
-### Hosting Tier 3 — decision for the owner
-
-Tier 3 is built and runnable locally now. The open decision (**@stozo04's call**) is whether to
-also run it automatically on PRs via **GitHub Actions** (no `.github/workflows/` exists yet). A
-ready-to-use workflow is below — it is **not yet committed** because (a) activating CI is an
-outward-facing recurring automation and (b) a GitHub Actions run can't be verified green from a
-local session. Drop it into `.github/workflows/static-analysis.yml` and validate on a test PR to
-activate.
-
-```yaml
-name: Static analysis (Tier 3)
-on:
-  pull_request:
-    paths: ['**/*.md']
-permissions:
-  contents: read
-jobs:
-  markdown:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: '22' }
-      - name: Tier 3 on changed Markdown
-        run: |
-          FILES=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }}...HEAD -- '*.md')
-          [ -z "$FILES" ] && { echo "No changed Markdown."; exit 0; }
-          echo "Checking: $FILES"
-          npx --yes markdownlint-cli2 $FILES || true        # advisory
-          npx --yes cspell --no-progress $FILES || true     # advisory
-          for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f" || true; done
-```
+Tier 3 runs in CI via **`.github/workflows/static-analysis.yml`** (`pull_request` on `**/*.md`,
+plus `workflow_dispatch` for manual runs). It uses `actions/checkout@v6` + `actions/setup-node@v6`
+(Node 24-era majors), diffs the PR's changed Markdown against the base SHA, and runs the three
+tools inside collapsible log groups. **Steps are non-blocking (`|| true`)** — findings surface in
+the job log, they don't fail the PR (advisory, per the design above). To promote a tool to a hard
+gate (e.g. fail on a newly-introduced dead link), drop its `|| true` in the workflow.
 
 ---
 
