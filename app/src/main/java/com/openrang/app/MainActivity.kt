@@ -102,87 +102,14 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-                    // Auto-trigger permission check when state reaches CheckingPermissions
-                    // (from either Initializing→CheckingPermissions for returning users,
-                    //  or Onboarding→CheckingPermissions for first-time users)
-                    LaunchedEffect(uiState) {
-                        if (uiState is OpenRangUiState.CheckingPermissions) {
-                            checkPermissions()
-                        }
-                    }
-
-                    when (uiState) {
-                        is OpenRangUiState.Initializing -> {
-                            InfinityLoadingScreen()
-                        }
-                        is OpenRangUiState.Onboarding -> {
-                            OnboardingScreen(
-                                onGetStartedClick = {
-                                    viewModel.onOnboardingCompleted()
-                                }
-                            )
-                        }
-                        is OpenRangUiState.CheckingPermissions -> {
-                            InfinityLoadingScreen()
-                        }
-                        is OpenRangUiState.PermissionRationale -> {
-                            PermissionExplanationScreen(
-                                title = "We need a quick permission",
-                                body = "OpenRang needs Camera and Audio to capture your " +
-                                    "video loops. Tap Grant to continue.",
-                                primaryActionLabel = "Grant Permissions",
-                                onPrimaryAction = { onRationaleAcknowledged() },
-                                secondaryActionLabel = "Not now",
-                                onSecondaryAction = { viewModel.onRationaleDeclined() }
-                            )
-                        }
-                        is OpenRangUiState.PermissionDenied -> {
-                            PermissionExplanationScreen(
-                                title = "Permissions Required",
-                                body = "OpenRang needs Camera and Audio recording permissions " +
-                                    "to capture high-quality speed-controlled video loops.",
-                                primaryActionLabel = "Try Again",
-                                onPrimaryAction = { checkPermissions() },
-                                secondaryActionLabel = "Open Device Settings",
-                                onSecondaryAction = { openAppSettings() }
-                            )
-                        }
-                        // ReadyToCapture and Recording MUST share this single call site. Two
-                        // separate branches make Compose dispose+rebuild CameraScreen on the
-                        // start/stop transition, which re-runs its startCamera() effect, calls
-                        // unbindAll(), and kills the in-flight recording (ERROR_SOURCE_INACTIVE).
-                        // CameraScreenHost keeps one CameraScreen instance alive across both.
-                        is OpenRangUiState.ReadyToCapture,
-                        is OpenRangUiState.Recording -> {
-                            CameraScreenHost(uiState) {
-                                CameraScreen(
-                                    viewModel = viewModel,
-                                    cameraManager = cameraManager
-                                )
-                            }
-                        }
-                        is OpenRangUiState.LoopingPreview -> {
-                            val state = uiState as OpenRangUiState.LoopingPreview
-                            PreviewScreen(
-                                videoPath = state.videoPath,
-                                onBackToCaptureClick = { viewModel.resetToCapture() }
-                            )
-                        }
-                        is OpenRangUiState.Gallery -> {
-                            GalleryScreen(
-                                viewModel = viewModel,
-                                onBackClick = { viewModel.navigateBackFromGallery() }
-                            )
-                        }
-                        else -> {
-                            // Fallback to camera preview screen for developmental support
-                            CameraScreen(
-                                viewModel = viewModel,
-                                cameraManager = cameraManager
-                            )
-                        }
-                    }
+                    OpenRangNavHost(
+                        uiState = uiState,
+                        viewModel = viewModel,
+                        cameraManager = cameraManager,
+                        onCheckPermissions = ::checkPermissions,
+                        onRationaleAcknowledged = ::onRationaleAcknowledged,
+                        onOpenAppSettings = ::openAppSettings,
+                    )
                 }
             }
         }
@@ -224,6 +151,107 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraManager.shutdown()
+    }
+}
+
+/**
+ * Stateless navigation host: maps each [OpenRangUiState] to the screen that renders it. Extracted
+ * out of [MainActivity.onCreate]'s `setContent` so the routing can be exercised in a Compose test
+ * in isolation (mirrors the project's extract-for-testability pattern, e.g. `OnboardingNavigation`).
+ *
+ * The `when` is deliberately EXHAUSTIVE with no `else` branch. [OpenRangUiState] is a sealed
+ * interface (PRD Decision Log #1) precisely so the compiler forces every state to be handled here;
+ * an `else` would defeat that and let an unrouted state (e.g. [OpenRangUiState.Processing]) silently
+ * fall through to a bare [CameraScreen]. Adding a new state must fail to compile until it is routed —
+ * do not reintroduce an `else`.
+ *
+ * Activity-bound side effects (launching the permission dialog, opening app settings) are passed in
+ * as lambdas so this composable stays free of any [ComponentActivity] reference.
+ */
+@Composable
+fun OpenRangNavHost(
+    uiState: OpenRangUiState,
+    viewModel: OpenRangViewModel,
+    cameraManager: CameraManager,
+    onCheckPermissions: () -> Unit,
+    onRationaleAcknowledged: () -> Unit,
+    onOpenAppSettings: () -> Unit,
+) {
+    // Auto-trigger permission check when state reaches CheckingPermissions (from either
+    // Initializing→CheckingPermissions for returning users, or Onboarding→CheckingPermissions
+    // for first-time users).
+    LaunchedEffect(uiState) {
+        if (uiState is OpenRangUiState.CheckingPermissions) {
+            onCheckPermissions()
+        }
+    }
+
+    when (uiState) {
+        is OpenRangUiState.Initializing -> {
+            InfinityLoadingScreen()
+        }
+        is OpenRangUiState.Onboarding -> {
+            OnboardingScreen(
+                onGetStartedClick = { viewModel.onOnboardingCompleted() }
+            )
+        }
+        is OpenRangUiState.CheckingPermissions -> {
+            InfinityLoadingScreen()
+        }
+        is OpenRangUiState.PermissionRationale -> {
+            PermissionExplanationScreen(
+                title = "We need a quick permission",
+                body = "OpenRang needs Camera and Audio to capture your " +
+                    "video loops. Tap Grant to continue.",
+                primaryActionLabel = "Grant Permissions",
+                onPrimaryAction = { onRationaleAcknowledged() },
+                secondaryActionLabel = "Not now",
+                onSecondaryAction = { viewModel.onRationaleDeclined() }
+            )
+        }
+        is OpenRangUiState.PermissionDenied -> {
+            PermissionExplanationScreen(
+                title = "Permissions Required",
+                body = "OpenRang needs Camera and Audio recording permissions " +
+                    "to capture high-quality speed-controlled video loops.",
+                primaryActionLabel = "Try Again",
+                onPrimaryAction = { onCheckPermissions() },
+                secondaryActionLabel = "Open Device Settings",
+                onSecondaryAction = { onOpenAppSettings() }
+            )
+        }
+        // ReadyToCapture and Recording MUST share this single call site (Lesson 012). Two separate
+        // branches make Compose dispose+rebuild CameraScreen on the start/stop transition, which
+        // re-runs its startCamera() effect, calls unbindAll(), and kills the in-flight recording
+        // (ERROR_SOURCE_INACTIVE). CameraScreenHost keeps one CameraScreen instance alive across both.
+        is OpenRangUiState.ReadyToCapture,
+        is OpenRangUiState.Recording -> {
+            CameraScreenHost(uiState) {
+                CameraScreen(
+                    viewModel = viewModel,
+                    cameraManager = cameraManager
+                )
+            }
+        }
+        is OpenRangUiState.Processing -> {
+            // TODO(slice-02): replace this placeholder with the real Processing surface (the
+            // Trim/reverse pipeline per 02-auto-route-trim-and-default-save.md). For now Processing
+            // renders the same neutral loader as init, so the `when` stays exhaustive and Processing
+            // never falls through to a bare CameraScreen (WARNING-1 / Lesson 012).
+            InfinityLoadingScreen()
+        }
+        is OpenRangUiState.LoopingPreview -> {
+            PreviewScreen(
+                videoPath = uiState.videoPath,
+                onBackToCaptureClick = { viewModel.resetToCapture() }
+            )
+        }
+        is OpenRangUiState.Gallery -> {
+            GalleryScreen(
+                viewModel = viewModel,
+                onBackClick = { viewModel.navigateBackFromGallery() }
+            )
+        }
     }
 }
 
