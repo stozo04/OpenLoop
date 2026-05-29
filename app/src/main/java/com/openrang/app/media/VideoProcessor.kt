@@ -195,7 +195,10 @@ class Media3VideoProcessor(
             for (i in 0 until extractor.trackCount) {
                 val format = extractor.getTrackFormat(i)
                 if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
-                    if (format.containsKey(MediaFormat.KEY_FRAME_RATE)) fps = format.getInteger(MediaFormat.KEY_FRAME_RATE)
+                    // frameRateOrDefault() is type-tolerant: KEY_FRAME_RATE is sometimes a Float, and
+                    // getInteger() would throw ClassCastException (which the broad catch below would
+                    // then mask by defaulting the WHOLE function). Reuse the shared, unit-tested util.
+                    fps = format.frameRateOrDefault()
                     break
                 }
             }

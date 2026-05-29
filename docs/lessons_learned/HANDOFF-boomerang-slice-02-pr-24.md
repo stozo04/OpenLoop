@@ -69,7 +69,7 @@ encoder/decoder. Emulator numbers are not a valid proxy and must not go in the P
 budget, so timing the phases is cheap. In `OpenRangViewModel.onNextFromTrim`, wrap the call:
 ```kotlin
 val t0 = android.os.SystemClock.elapsedRealtime()
-videoProcessor.renderBoomerang(...) { f -> _renderProgress.value = f }
+videoProcessor.renderBoomerang(/* source, trim, mode, speed, reps, outFile */) { f -> _renderProgress.value = f }
 android.util.Log.d("BoomPerf", "total=${android.os.SystemClock.elapsedRealtime() - t0}ms")
 ```
 For the pass split, log timestamps in `Media3VideoProcessor.renderBoomerang` right after

@@ -202,8 +202,11 @@ class VideoReverserTest {
                             )
                             inputDone = true
                         } else {
-                            // Ramp luma across the valid 16..235 video range.
-                            val luma = (16 + frameIndex * (219 / frameCount)).coerceIn(16, 235)
+                            // Ramp luma across the valid 16..235 video range. Multiply BEFORE
+                            // dividing — `frameIndex * (219 / frameCount)` is integer division and
+                            // collapses the step to 0 (a vacuous all-one-color clip) once frameCount
+                            // exceeds 219; `(frameIndex * 219) / frameCount` keeps a real ramp.
+                            val luma = (16 + (frameIndex * 219) / frameCount).coerceIn(16, 235)
                             val image = codec.getInputImage(inIndex)
                                 ?: return false // device isn't giving us a flexible image — skip
                             fillGray(image, luma)

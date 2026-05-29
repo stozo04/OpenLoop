@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -408,9 +409,15 @@ private fun TrimBar(
         )
 
         // Stable full-width input surface (never moves, so the gesture can't feed back on itself).
+        // It sits on TOP of the handles in z-order purely to capture pointer drags, so hide it from
+        // accessibility — otherwise this transparent overlay could intercept TalkBack focus and the
+        // labelled, adjustable TrimThumb nodes beneath it would be unreachable. hideFromAccessibility
+        // keeps its semantics for tests while making it invisible to TalkBack
+        // (developer.android.com/develop/ui/compose/accessibility/merging-clearing).
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics { hideFromAccessibility() }
                 .pointerInput(durationMs) {
                     detectDragGestures(
                         onDragStart = { pos ->

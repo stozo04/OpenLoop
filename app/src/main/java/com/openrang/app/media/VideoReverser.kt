@@ -104,9 +104,16 @@ class VideoReverser(
             val width = inputFormat.getInteger(MediaFormat.KEY_WIDTH)
             val height = inputFormat.getInteger(MediaFormat.KEY_HEIGHT)
             val frameRate = inputFormat.frameRateOrDefault()
-            // Preserve the source's rotation hint so the reversed half ends up with the same
-            // orientation metadata the forward half's source carries (Media3 honors it on both).
+            // Capture the source's rotation hint, then NEUTRALIZE it on the format handed to the
+            // decoder. In Surface-output mode MediaCodec auto-applies KEY_ROTATION, and whether the
+            // decoder->encoder-input-surface path bakes that into the pixels is device-dependent
+            // (developer.android.com/reference/android/media/MediaCodec). We re-stamp the hint on the
+            // muxer below, so an auto-rotating decoder would DOUBLE-rotate the reversed half. Clearing
+            // it forces coded-orientation pixels + a metadata-only hint — structurally identical to
+            // the source — so Media3 rotates the forward and reversed halves symmetrically. Verify on
+            // a real portrait recording (see docs/lessons_learned/HANDOFF + SECOND-REVIEW notes).
             val rotationDegrees = inputFormat.rotationDegreesOrZero()
+            inputFormat.setInteger(MediaFormat.KEY_ROTATION, 0)
             val durationUs = if (inputFormat.containsKey(MediaFormat.KEY_DURATION)) {
                 inputFormat.getLong(MediaFormat.KEY_DURATION)
             } else {
@@ -184,8 +191,11 @@ class VideoReverser(
             val height = inputFormat.getInteger(MediaFormat.KEY_HEIGHT)
             val frameRate = inputFormat.frameRateOrDefault()
             // The intermediate carries the source's rotation hint (pass 1 wrote it); forward it so
-            // the final reversed file keeps it too.
+            // the final reversed file keeps it too. Same neutralize-then-re-stamp dance as pass 1:
+            // strip KEY_ROTATION from the decoder format (no Surface-mode auto-rotate / double-rotate)
+            // and re-apply it on the muxer below.
             val rotationDegrees = inputFormat.rotationDegreesOrZero()
+            inputFormat.setInteger(MediaFormat.KEY_ROTATION, 0)
 
             // Collect every frame's presentation time (the intermediate is all-keyframe, so each is seekable).
             val frameTimesUs = ArrayList<Long>()
