@@ -34,20 +34,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -66,54 +61,6 @@ val GlassWhiteBorder = Color(0x4DFFFFFF)
 val NeonCoral = Color(0xFFFF5252)
 val NeonPurple = Color(0xFF7C4DFF)
 val DeepCharcoal = Color(0xCC1A1A1D)
-
-val SwitchCameraIcon: ImageVector
-    get() = ImageVector.Builder(
-        name = "SwitchCamera",
-        defaultWidth = 24.dp,
-        defaultHeight = 24.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f
-    ).path(
-        fill = SolidColor(Color.White)
-    ) {
-        moveTo(20f, 4f)
-        horizontalLineToRelative(-3.17f)
-        lineTo(15f, 2f)
-        horizontalLineTo(9f)
-        lineTo(7.17f, 4f)
-        horizontalLineTo(4f)
-        curveTo(2.9f, 4f, 2f, 4.9f, 2f, 6f)
-        verticalLineToRelative(12f)
-        curveTo(2f, 19.1f, 2.9f, 20f, 4f, 20f)
-        horizontalLineToRelative(16f)
-        curveTo(21.1f, 20f, 22f, 19.1f, 22f, 18f)
-        verticalLineTo(6f)
-        curveTo(22f, 4.9f, 21.1f, 4f, 20f, 4f)
-        close()
-        moveTo(12f, 18f)
-        curveTo(9.24f, 18f, 7f, 15.76f, 7f, 13f)
-        horizontalLineTo(5f)
-        lineToRelative(3.5f, -3.5f)
-        lineTo(12f, 13f)
-        horizontalLineToRelative(-2f)
-        curveTo(10f, 14.66f, 11.34f, 16f, 12f, 16f)
-        curveTo(12.8f, 16f, 13.53f, 15.68f, 14.07f, 15.16f)
-        lineToRelative(1.41f, 1.41f)
-        curveTo(15.42f, 17.48f, 13.82f, 18f, 12f, 18f)
-        close()
-        moveTo(15.5f, 16.5f)
-        lineToRelative(-3.5f, -3.5f)
-        horizontalLineToRelative(2f)
-        curveTo(14f, 11.34f, 12.66f, 10f, 11f, 10f)
-        curveTo(10.2f, 10f, 9.47f, 10.32f, 8.93f, 10.84f)
-        lineTo(7.52f, 9.43f)
-        curveTo(8.58f, 8.52f, 10.18f, 8f, 12f, 8f)
-        curveTo(14.76f, 8f, 17f, 10.24f, 17f, 13f)
-        horizontalLineToRelative(2f)
-        lineToRelative(-3.5f, 3.5f)
-        close()
-    }.build()
 
 /**
  * Single hosting call site for the two camera-bound states ([OpenRangUiState.ReadyToCapture] and
