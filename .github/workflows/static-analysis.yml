@@ -1,0 +1,62 @@
+name: Static analysis (Tier 3 — Markdown)
+
+# Advisory OSS approximation of Android Studio "Inspect Code" Engine 2, for CI where Android
+# Studio (Engine 2 / inspect.bat) can't run. Scoped to a PR's CHANGED Markdown (these tools have
+# no baseline; repo-wide is ~600 legacy hits). Steps are non-blocking (`|| true`) by design — they
+# surface findings in the (collapsible) job log, they don't fail the PR. Full design + how to
+# promote a tool to a hard gate (drop its `|| true`): docs/STATIC_ANALYSIS.md.
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+  workflow_dispatch: {}        # allow manual runs (verification / on-demand)
+
+permissions:
+  contents: read
+
+jobs:
+  markdown:
+    name: Tier 3 Markdown checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0       # need base + head history to diff changed files
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Tier 3 on changed Markdown
+        run: |
+          # Resolve the PR's changed Markdown. On manual dispatch there's no PR context, so fall
+          # back to diffing against origin/<default branch>.
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            BASE='${{ github.event.pull_request.base.sha }}'
+            HEAD='${{ github.event.pull_request.head.sha }}'
+          else
+            git fetch --no-tags --depth=1 origin "${{ github.event.repository.default_branch }}" || true
+            BASE="origin/${{ github.event.repository.default_branch }}"
+            HEAD='HEAD'
+          fi
+          FILES=$(git diff --name-only --diff-filter=d "$BASE" "$HEAD" -- '*.md' || true)
+          if [ -z "$FILES" ]; then
+            echo "No changed Markdown files — nothing to check."
+            exit 0
+          fi
+          echo "Changed Markdown:"; echo "$FILES"
+
+          echo "::group::markdownlint-cli2"
+          npx --yes markdownlint-cli2 $FILES || true
+          echo "::endgroup::"
+
+          echo "::group::cspell"
+          npx --yes cspell --no-progress $FILES || true
+          echo "::endgroup::"
+
+          echo "::group::markdown-link-check"
+          for f in $FILES; do
+            npx --yes markdown-link-check --config .markdown-link-check.json "$f" || true
+          done
+          echo "::endgroup::"

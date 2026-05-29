@@ -9,7 +9,9 @@ description: >
   asks whether their code follows best practices. This skill web-searches the latest Google
   documentation (not cached knowledge), reads the full PR diff, and posts a structured
   pass/fail/warning report as a comment directly on the GitHub PR with file-level specifics,
-  Google doc citations, and reasoning for every finding.
+  Google doc citations, and reasoning for every finding. The skill also runs Android Lint
+  (`:app:lintDebug`) as a machine gate and folds the results into the report, mirroring
+  Android Studio's "Inspect Code".
 ---
 
 # PR Reviewer — Google Android Standards Compliance Agent
@@ -82,6 +84,77 @@ Once you have the PR:
 - Get the list of changed files (`get_files`)
 - Read the full content of each changed file (use `get_file_contents` for context beyond
   the diff — you need to see surrounding code to catch architectural issues)
+
+---
+
+## Phase 3.5: Run Static Analysis — the two "Inspect Code" engines
+
+Android Studio's **Inspect Code** is two engines stacked. Reproduce them headlessly and fold
+the results into the same report. Full design + rationale: **`docs/STATIC_ANALYSIS.md`** (read
+it once per session). The short version:
+
+### Engine 1 — Android Lint (always run; this is a hard gate)
+
+Lint is fully headless and deterministic. Run it and parse the XML:
+
+```bash
+# JAVA_HOME must point at a JDK — the bundled Studio JBR works:
+#   Windows:  $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+#   macOS:    export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew :app:lintDebug
+```
+
+- Report lands at `app/build/reports/lint-results-debug.xml` (+ `.html`). Parse the XML —
+  each `<issue id= severity= category=>` is a finding with file + line.
+- A `lint-baseline.xml` is configured, so lint reports **only issues introduced by this PR**,
+  not the ~294 pre-existing repo items. **If lint reports zero new issues, that's a clean
+  pass — say so. Never regenerate the baseline to silence findings.**
+- Ignore the single informational `id="LintBaseline" severity="Hint"` entry — it just reports
+  how many pre-existing warnings the baseline filtered out; it is not a finding. A report that
+  contains *only* that entry = clean pass.
+- Map lint severity → skill severity:
+  - lint `Error`/`Fatal` → **FAIL**
+  - `Warning` in Correctness / Security / Performance (incl. `OldTargetApi`, `GradleDependency`,
+    `NewerVersionAvailable`) → **WARNING**
+  - `Warning` in Usability / i18n / icons → **RECOMMENDATION**
+- Cite the lint check's doc page (`https://googlesamples.github.io/android-custom-lint-rules/checks/<IssueId>.md.html`
+  or the Google doc the issue references) just like any other FAIL/WARNING.
+- If `./gradlew` can't run in this environment (no JDK / sandbox), **say so explicitly** in the
+  report ("Engine 1 — Lint: not run, environment lacks a JDK") rather than implying it passed.
+
+### Engine 2 — IntelliJ IDE inspections + Grazie proofreading (faithful, local-only)
+
+This is the only faithful reproduction of the Kotlin-redundancy / Markdown / **proofreading**
+findings (grammar, typos, unresolved file references, the "Annotator" markdown errors). It
+needs Android Studio installed and is slow (boots a headless IDE), so it is **not** part of the
+automated gate — it is a documented pre-merge command the author runs locally (see
+`docs/STATIC_ANALYSIS.md` and `README.md` → "Running the code inspections"). In the review:
+
+- If an IDE-inspection report was produced (the author attached one, or `inspect.bat` is
+  available and you ran it), fold its findings in at the mapped severity (IDE `ERROR` → FAIL/
+  WARNING by impact; `WARNING`/`WEAK WARNING`/typos → RECOMMENDATION).
+- If not, **state plainly that Engine 2 was not run and must be run locally before merge** —
+  don't let its absence read as a pass.
+
+### Tier 3 — OSS fallback when Engine 2 was NOT run (no Android Studio here)
+
+If Engine 2 couldn't run (cloud/CI environment with no `inspect.bat`), run the Node-based Tier 3
+tools to recover the high-value subset. They're **advisory** — fold findings in at **RECOMMENDATION**
+severity, labeled `Tier 3`, scoped to the PR's **changed Markdown files** (there's no baseline):
+
+```bash
+FILES=$(git diff --name-only --diff-filter=d origin/<base>...HEAD -- '*.md')   # or the PR's changed .md list
+npx --yes markdownlint-cli2 $FILES                                  # tables, list numbering, structure
+npx --yes cspell --no-progress $FILES                               # typos (dictionary: cspell.json)
+for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done  # broken file refs
+```
+
+- Configs are committed: `.markdownlint-cli2.jsonc`, `cspell.json`, `.markdown-link-check.json`.
+- A *modified* doc surfaces its pre-existing issues too (file-level scoping, no line baseline) — say so
+  rather than blaming the PR for legacy hits.
+- detekt (Kotlin redundancy) is **deferred** — stable detekt doesn't support Kotlin 2.3.x yet
+  (`docs/STATIC_ANALYSIS.md` → Tier 3). Don't try to add it.
+- If Node isn't available either, say Tier 3 couldn't run — same honesty rule.
 
 ---
 
@@ -193,7 +266,12 @@ Optional improvements that would raise code quality.
 | Accessibility | | | | |
 | Play Store | | | | |
 | Android Version | | | | |
+| Static Analysis (Lint + IDE Inspect) | | | | |
 | **Total** | | | | |
+
+For the **Static Analysis** row, note in the Verdict paragraph whether Engine 1 (Lint) ran and
+whether Engine 2 (IDE Inspect) was run locally or skipped — the row is not complete unless the
+reader can tell which engines actually executed.
 
 **Every row must be filled.** If a category has no findings, enter the PASS count with a
 zero for the rest. Never leave a row blank or omit a category — the developer needs to see

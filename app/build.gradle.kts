@@ -51,6 +51,28 @@ android {
             useLegacyPackaging = false
         }
     }
+
+    lint {
+        // The pr-reviewer skill runs `:app:lintDebug` as a merge gate (engine 1 of Android
+        // Studio's "Inspect Code") and parses the XML at app/build/reports/lint-results-debug.xml
+        // into PR findings. See docs/STATIC_ANALYSIS.md for the full design.
+        //
+        //  - xmlReport / htmlReport: machine-readable (skill) + human-readable (local triage).
+        //  - checkDependencies: lint included module code too, not just :app sources.
+        //  - baseline: snapshot of pre-existing issues so the gate only flags NEW regressions.
+        //    The repo carried ~294 pre-existing inspection items; without a baseline they'd
+        //    drown the signal on every PR. Regenerate deliberately (see docs/STATIC_ANALYSIS.md),
+        //    never casually — a regenerated baseline silently swallows freshly-introduced issues.
+        //  - abortOnError = false: the SKILL decides the PR verdict, not the build, so lint always
+        //    emits a full report instead of failing the build on the first error.
+        //  - warningsAsErrors = false: warnings are surfaced by the skill at WARNING/REC severity.
+        xmlReport = true
+        htmlReport = true
+        checkDependencies = true
+        baseline = file("lint-baseline.xml")
+        abortOnError = false
+        warningsAsErrors = false
+    }
 }
 
 kotlin {

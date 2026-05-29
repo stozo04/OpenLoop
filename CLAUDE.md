@@ -51,7 +51,7 @@ Before anything destructive (deleting files, overwriting code, sending communica
 
 ### Definition of Done — required before "done" or "Ready for PR"
 
-A change is **not done because it compiles.** Before calling any non-trivial change done or opening a PR, clear the verification gate in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**: baseline → clean build (debug **and** release) genuinely green → requirement checks (e.g. 16 KB `zipalign`) → unit + instrumented tests with 0 failures → **actually run the app on an emulator, launch it, and capture a screenshot as proof** → honestly state what could not be verified + a manual QA checklist → attach the screenshot to the PR. "Genuinely green" = `BUILD SUCCESSFUL` **and** exit code 0 **and** zero `e:` errors (never trust a `| tail`-masked exit code). This is the standard, not a nice-to-have.
+A change is **not done because it compiles.** Before calling any non-trivial change done or opening a PR, clear the verification gate in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**: baseline → clean build (debug **and** release) genuinely green → requirement checks (e.g. 16 KB `zipalign`) → unit + instrumented tests with 0 failures → **static analysis clean** (Android Lint reports zero *new* errors via `./gradlew :app:lintDebug`, and IDE "Inspect Code" / `inspect.bat` run locally — see **[`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md)**) → **actually run the app on an emulator, launch it, and capture a screenshot as proof** → honestly state what could not be verified + a manual QA checklist → attach the screenshot to the PR. "Genuinely green" = `BUILD SUCCESSFUL` **and** exit code 0 **and** zero `e:` errors (never trust a `| tail`-masked exit code). This is the standard, not a nice-to-have.
 
 ### Note-taking
 
@@ -130,6 +130,7 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
 | `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
+| `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenRang reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the `lint-baseline.xml` policy, and severity mapping. |
 | `docs/android-16/` | **Android 16 (API 36) upgrade knowledge hub.** Per-page summaries of Google's Android 16 docs, each with an OpenRang impact verdict and the official source URL. Durable reference for the `targetSdk 36` upgrade (Issue #7) — does not move to `completed/`. |
 | `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
 | `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
