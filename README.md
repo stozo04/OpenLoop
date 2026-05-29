@@ -158,6 +158,21 @@ This boots a headless Android Studio (takes minutes) and writes one XML per insp
 `build\inspection-results`. **Close the project in Android Studio first** and don't run a Gradle
 task at the same time — they deadlock on the Gradle build lock.
 
+**Tier 3 — OSS fallback** (for CI / machines without Android Studio): fast Node-based
+approximations of Engine 2's Markdown/typo/link checks, scoped to a PR's changed Markdown. Needs
+Node (no `npm install` — `npx` fetches on demand). Advisory only; configs live at the repo root
+(`.markdownlint-cli2.jsonc`, `cspell.json`, `.markdown-link-check.json`).
+
+```bash
+FILES=$(git diff --name-only --diff-filter=d main...HEAD -- '*.md')
+npx --yes markdownlint-cli2 $FILES                                  # tables, list numbering, structure
+npx --yes cspell --no-progress $FILES                               # typos (project dictionary in cspell.json)
+for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done  # broken links
+```
+
+(detekt for Kotlin is deferred — stable detekt doesn't support Kotlin 2.3.x yet; see
+[`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).)
+
 ## Guides
 
 Plain-English, beginner-friendly walkthroughs live in [`docs/guides/`](docs/guides/):

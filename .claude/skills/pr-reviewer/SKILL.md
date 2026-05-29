@@ -136,6 +136,26 @@ automated gate — it is a documented pre-merge command the author runs locally 
 - If not, **state plainly that Engine 2 was not run and must be run locally before merge** —
   don't let its absence read as a pass.
 
+### Tier 3 — OSS fallback when Engine 2 was NOT run (no Android Studio here)
+
+If Engine 2 couldn't run (cloud/CI environment with no `inspect.bat`), run the Node-based Tier 3
+tools to recover the high-value subset. They're **advisory** — fold findings in at **RECOMMENDATION**
+severity, labeled `Tier 3`, scoped to the PR's **changed Markdown files** (there's no baseline):
+
+```bash
+FILES=$(git diff --name-only --diff-filter=d origin/<base>...HEAD -- '*.md')   # or the PR's changed .md list
+npx --yes markdownlint-cli2 $FILES                                  # tables, list numbering, structure
+npx --yes cspell --no-progress $FILES                               # typos (dictionary: cspell.json)
+for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done  # broken file refs
+```
+
+- Configs are committed: `.markdownlint-cli2.jsonc`, `cspell.json`, `.markdown-link-check.json`.
+- A *modified* doc surfaces its pre-existing issues too (file-level scoping, no line baseline) — say so
+  rather than blaming the PR for legacy hits.
+- detekt (Kotlin redundancy) is **deferred** — stable detekt doesn't support Kotlin 2.3.x yet
+  (`docs/STATIC_ANALYSIS.md` → Tier 3). Don't try to add it.
+- If Node isn't available either, say Tier 3 couldn't run — same honesty rule.
+
 ---
 
 ## Phase 4: Review the Code

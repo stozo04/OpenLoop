@@ -115,20 +115,109 @@ locally before opening/merging a PR, and the merge policy requires it to be clea
 
 - **Slow** — minutes, because it boots a headless Studio. It's a pre-merge step, not a fast loop.
 - **Gradle/IDE lock** — do **not** run while Android Studio has this project open, or while a
-  `gradlew` task is running. Same build-lock deadlock documented in
-  [Lesson 012](lessons_learned/012-camera-bound-screen-single-call-site.md)'s hand-off notes.
+  `gradlew` task is running. Same build-lock deadlock documented in Lesson 012's hand-off notes
+  (`docs/lessons_learned/012-camera-bound-screen-single-call-site.md`, lands on `main` with the
+  slice-01 PR — referenced as a path, not a link, so this doc stays valid before that merges).
 - **Environment-gated** — if `inspect.bat` isn't present (a cloud/CI runner without Studio), the
   reviewer must state Engine 2 was **not run** rather than implying a pass. See Tier 3.
 
 ---
 
-## Tier 3 — lightweight CI fallback (not yet built — tracked in [Issue #21](https://github.com/stozo04/OpenRang/issues/21))
+## Tier 3 — lightweight OSS fallback for environments without Android Studio ([Issue #21](https://github.com/stozo04/OpenRang/issues/21))
 
-For environments where Android Studio isn't installed (cloud reviewers/CI), a fast OSS
-approximation of Engine 2's high-value subset: **detekt** (Kotlin redundancy/style),
-**markdownlint-cli** (table formatting, numbered lists), a **link-checker** (Markdown unresolved
-file references), **cspell/codespell** (typos). It misses Grazie grammar entirely, so it
-*supplements* rather than replaces Tier 2. Deferred and tracked as a follow-up issue.
+When the reviewer runs somewhere without Android Studio (a cloud runner / CI), Engine 2 can't
+run. Tier 3 is a fast, headless, **Node-based** approximation of Engine 2's high-value subset. It
+**supplements** Tier 2 — it does not replace it (it has no equivalent of Grazie grammar).
+
+> **Advisory by design.** Tier 3 findings are surfaced at **RECOMMENDATION** severity, not as a
+> hard gate. None of these tools has a lint-style baseline, so Tier 3 is **scoped to a PR's
+> changed Markdown files** rather than the whole repo (the existing docs carry ~600 legacy
+> markdownlint hits). Caveat: file-level scoping means a *modified* doc surfaces its pre-existing
+> issues too, not only the changed lines — read Tier 3 output as "worth a look," not "blocking."
+
+### The tools (all run via `npx`, no committed `node_modules`)
+
+| Tool | Config (committed) | Approximates (Engine 2 finding) |
+|------|--------------------|---------------------------------|
+| [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) | `.markdownlint-cli2.jsonc` | Markdown table formatting, ordered-list numbering, list/heading/fence spacing |
+| [`markdown-link-check`](https://github.com/tcort/markdown-link-check) | `.markdown-link-check.json` | "Unresolved file references" (validates **relative** links offline; HTTP is ignored — external-URL liveness is intentionally out of scope, it's flaky in CI) |
+| [`cspell`](https://cspell.org) | `cspell.json` | Proofreading "typos" (`words` is the project dictionary of domain/tool proper-nouns) |
+
+The configs are tuned to match what Inspect Code actually reports: `markdownlint` disables the
+opinionated prose rules IntelliJ doesn't flag (`MD013` line-length, `MD060` table pipe-spacing,
+`MD033` inline-HTML); `cspell` is seeded with `OpenRang`, `CameraX`, `ExoPlayer`, `detekt`,
+`Grazie`, etc. so real terms aren't flagged as typos.
+
+### Running it
+
+```bash
+# Scope to the Markdown this PR changed (the intended use):
+FILES=$(git diff --name-only --diff-filter=d main...HEAD -- '*.md')
+npx --yes markdownlint-cli2 $FILES
+npx --yes cspell --no-progress $FILES
+for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done
+
+# Whole-repo audit (noisy — expect the ~600 legacy markdownlint hits):
+npx --yes markdownlint-cli2 "**/*.md"
+```
+
+> Grow `cspell.json`'s `words` list when it flags a legitimate term — **don't disable the check**.
+> Same spirit as the lint baseline: keep the signal, don't silence it.
+
+### Why detekt was deferred (not in this tier yet)
+
+[Issue #21](https://github.com/stozo04/OpenRang/issues/21) originally proposed **detekt** for the
+Kotlin-redundancy class. DD finding: **stable detekt (1.23.x) does not support Kotlin 2.3.x** —
+only [detekt 2.0.0-alpha](https://detekt.dev/docs/introduction/compatibility/) does, and this
+project is on Kotlin 2.3.21. Taking an *alpha* static-analysis dependency into the build for a
+merge gate isn't worth the instability today, so detekt is deferred until detekt 2.0 is stable.
+Until then the Kotlin-redundancy class stays covered by **Tier 2** (`inspect.bat`) when run
+locally. Re-evaluate when detekt 2.0 ships stable; tracked in #21.
+
+### Real findings on the first run (this tooling already paid off)
+
+Running `markdown-link-check` across the changed docs immediately surfaced genuine **pre-existing
+broken references on `main`** (not introduced by this work):
+
+- `README.md` and `CLAUDE.md` link to **`docs/android-16/README.md`**, which exists on no branch.
+- `README.md` links to a **`LICENSE`** file that does not exist in the repo (the project states
+  Apache 2.0).
+
+These are out of scope for the tooling PR and are surfaced for follow-up rather than fixed here.
+
+### Hosting Tier 3 — decision for the owner
+
+Tier 3 is built and runnable locally now. The open decision (**@stozo04's call**) is whether to
+also run it automatically on PRs via **GitHub Actions** (no `.github/workflows/` exists yet). A
+ready-to-use workflow is below — it is **not yet committed** because (a) activating CI is an
+outward-facing recurring automation and (b) a GitHub Actions run can't be verified green from a
+local session. Drop it into `.github/workflows/static-analysis.yml` and validate on a test PR to
+activate.
+
+```yaml
+name: Static analysis (Tier 3)
+on:
+  pull_request:
+    paths: ['**/*.md']
+permissions:
+  contents: read
+jobs:
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Tier 3 on changed Markdown
+        run: |
+          FILES=$(git diff --name-only --diff-filter=d origin/${{ github.base_ref }}...HEAD -- '*.md')
+          [ -z "$FILES" ] && { echo "No changed Markdown."; exit 0; }
+          echo "Checking: $FILES"
+          npx --yes markdownlint-cli2 $FILES || true        # advisory
+          npx --yes cspell --no-progress $FILES || true     # advisory
+          for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f" || true; done
+```
 
 ---
 

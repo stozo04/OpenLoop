@@ -1,0 +1,28 @@
+// Tier-3 static analysis (Issue #21) — approximate Android Studio's Markdown inspections
+// headlessly. Run: `npx --yes markdownlint-cli2 "**/*.md"`  (see docs/STATIC_ANALYSIS.md).
+//
+// Scoped to the high-signal STRUCTURAL rules IntelliJ's Markdown inspection actually flags
+// (table formatting, ordered-list numbering, list/heading spacing). Opinionated prose rules
+// (line length, inline HTML, first-line-heading) are OFF so the output matches what Inspect
+// Code reports instead of drowning the signal — Tier 3 supplements Tier 2, it doesn't nag.
+{
+  "config": {
+    "default": true,
+    "MD013": false,                      // line-length — IntelliJ doesn't flag prose width
+    "MD060": false,                      // table pipe-spacing — opinionated; not an Inspect Code finding
+    "MD033": false,                      // inline HTML — docs intentionally use <details>, <br>
+    "MD041": false,                      // first-line-heading — some docs open with intro/blockquote
+    "MD024": { "siblings_only": true },  // repeated headings ok across different sections
+    "MD029": { "style": "ordered" }      // ordered lists must increment 1.2.3. (the "numbered list" finding)
+  },
+  // No `globs` here on purpose: callers pass the file list so Tier 3 scopes to a PR's CHANGED
+  // markdown (there is no markdownlint baseline, and the existing docs carry ~600 legacy hits).
+  //   changed files: npx --yes markdownlint-cli2 $(git diff --name-only --diff-filter=d main...HEAD -- '*.md')
+  //   whole repo:    npx --yes markdownlint-cli2 "**/*.md"
+  "ignores": [
+    "**/node_modules/**",
+    "**/build/**",
+    "**/.git/**",
+    "HEY_CLAUDE_ITS_ME.md"
+  ]
+}
