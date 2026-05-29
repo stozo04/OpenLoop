@@ -301,7 +301,7 @@ class OpenRangViewModel(
      * Render the default boomerang (`FORWARD_THEN_REVERSE`, 2×, 1 rep) from the current trim window
      * and save it. Flips to [OpenRangUiState.Processing] for the spinner, then on success promotes
      * the scratch to a persistent raw, registers the boomerang, emits [BoomerangEvent.Saved] and
-     * returns to capture. On failure it emits [BoomerangEvent.Failed] and routes back to [OpenRangUiState.Trim]
+     * returns to capture. On failure, it emits [BoomerangEvent.Failed] and routes back to [OpenRangUiState.Trim]
      * with the trim selection intact (the editor state is left untouched on the failure path).
      */
     fun onNextFromTrim() {

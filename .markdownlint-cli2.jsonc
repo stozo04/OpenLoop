@@ -16,7 +16,7 @@
     "MD029": { "style": "ordered" }      // ordered lists must increment 1.2.3. (the "numbered list" finding)
   },
   // No `globs` here on purpose: callers pass the file list so Tier 3 scopes to a PR's CHANGED
-  // markdown (there is no markdownlint baseline, and the existing docs carry ~600 legacy hits).
+  // Markdown (there is no markdownlint baseline, and the existing docs carry ~600 legacy hits).
   //   changed files: npx --yes markdownlint-cli2 $(git diff --name-only --diff-filter=d main...HEAD -- '*.md')
   //   whole repo:    npx --yes markdownlint-cli2 "**/*.md"
   "ignores": [

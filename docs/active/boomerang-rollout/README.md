@@ -35,7 +35,7 @@ Every slice below builds on top of that baseline.
 
 | # | Slice | After this ships, the user can… |
 |---|-------|-----------------------------------|
-| [01](./01-capture-variable-length.md) | **Variable-length capture (≤30 s)** | …tap shutter to start, tap again to stop, auto-cap at 30 s. Clip lands in gallery. |
+| [01](../../completed/boomerang-rollout/01-capture-variable-length.md) | **Variable-length capture (≤30 s)** | …tap shutter to start, tap again to stop, auto-cap at 30 s. Clip lands in gallery. |
 | [02](./02-auto-route-trim-and-default-save.md) | **Auto-route to Trim screen + default-render Save** | …after capture, app drops them on a Trim screen; drag start/end handles; tap `NEXT` and a default `fwd→rev` 2× 1-rep boomerang renders and saves. Back to camera. |
 | [03](./03-editor-direction-tab.md) | **Tabbed Editor + Direction tab** | …after `NEXT` on the trim screen, the editor opens with a Direction tab (4 options); pick a direction and tap the save checkmark. |
 | [04](./04-editor-speed-tab.md) | **Speed tab** | …drag a horizontal slider 0.25× – 3× (default 2×). Preview re-binds with new speed live. |

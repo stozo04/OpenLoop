@@ -25,7 +25,7 @@ the tabbed editor, share sheet, and gallery badges are all **out of scope** (sli
 - **`media/VideoProcessor.kt`** — `Media3VideoProcessor`: builds a `Composition` of the forward
   `EditedMediaItem` + the already-reversed half (1-frame seam offset), `SpeedChangeEffect(2f)`, audio
   stripped; bridges the async `Transformer` into a suspend fn. Progress budget: reverse owns `0..0.8`,
-  the encode owns `0.8..1.0`.
+  to encode owns `0.8..1.0`.
 - **`ui/TrimScreen.kt`** — `TrimScreen(viewModel)` (thin) + stateless `TrimScreenContent` (testable).
 - **`ui/ProcessingScreen.kt`** — spinner; back is consumed (no mid-render cancel this slice).
 - **`ui/OpenRangViewModel.kt`** — `onNextFromTrim()` is the orchestrator: promote scratch→raw, allocate,
