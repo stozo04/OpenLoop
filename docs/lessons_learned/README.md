@@ -24,6 +24,12 @@ Each lesson follows the same shape:
 | 009 | [TOML inline tables must be on a single line](./009-toml-inline-tables-single-line.md) | IDE inspection |
 | 010 | [Markdown code fences are parsed by the IDE; keep snippets valid](./010-markdown-code-fences-are-inspected.md) | IDE inspection |
 | 011 | [Verify 16 KB alignment on uncompressed native libs, not a "compressed" pass](./011-16kb-uncompressed-native-libs.md) | Issue #7 |
+| 012 | [A camera-bound screen must stay on ONE composable call site across state transitions](./012-camera-bound-screen-single-call-site.md) | Slice 01 |
+| 013 | [Media start calls: handle the failure return, catch only documented sync throwables, async errors come via callback](./013-media-start-failure-return-and-narrow-catch.md) | PR #19 |
+| 014 | [The UI-state router `when` must be exhaustive with no `else` (extract a testable NavHost)](./014-state-router-when-exhaustive-no-else.md) | PR #19 |
+| 015 | [Predictive back is default-on at target 36: gate a state-routed `BackHandler` on screens that can lose work](./015-predictive-back-state-routed-backhandler.md) | PR #19 |
+| 016 | [Compose: defer high-frequency state reads behind `() -> T` lambdas read in the narrowest/draw scope](./016-compose-defer-high-frequency-state-reads.md) | PR #19 |
+| 017 | [Instrumented tests can't use mockk; sweep every call site when a mock's return value gains meaning](./017-androidtest-no-mockk-and-sweep-meaningful-mock-returns.md) | PR #19 |
 
 ## Adding a new lesson
 

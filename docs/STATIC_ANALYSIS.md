@@ -87,7 +87,7 @@ baseline, every PR would re-report all of them and bury the real signal. `lint-b
 This is the **only** faithful reproduction of the Kotlin-redundancy, Markdown, and **proofreading**
 findings — because it is literally the same engine Android Studio uses, run headless against the
 committed inspection profile. It needs Android Studio installed and is slow (it boots a headless
-IDE instance), so it is **not** part of the automated skill run. Instead the author runs it
+IDE instance), so it is **not** part of the automated skill run. Instead, the author runs it
 locally before opening/merging a PR, and the merge policy requires it to be clean.
 
 ### Running it

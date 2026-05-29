@@ -20,7 +20,7 @@ reverse video effect, and if not, what's the best alternative?"*
    The `Composition` / `EditedMediaItem` APIs can sequence multiple clips and
    apply per-clip effects, but require a **pre-reversed source file** as input
    when reverse playback is desired.
-2. **FFmpegKit is dead.** Retired January 6 2025, repository archived June 23
+2. **FFmpegKit is dead.** Retired January 6, 2025, repository archived June 23,
    2025, native binaries removed from Maven Central / CocoaPods / npm April 1
    2025. No security patches, no active maintainer, no Maven artifacts that
    meet the 16 KB page-size requirement. Not viable as a v1 dependency.
@@ -88,11 +88,11 @@ So Media3 stays in the architecture; it just doesn't own the reverse step.
 ## 2. FFmpegKit — retired, do not adopt
 
 Original maintainer Taner Sener (Arthenica Ltd.) announced retirement on
-[Medium, January 6 2025](https://tanersener.medium.com/saying-goodbye-to-ffmpegkit-33ae939767e1):
+[Medium, January 6, 2025](https://tanersener.medium.com/saying-goodbye-to-ffmpegkit-33ae939767e1):
 
 - **Native binaries removed** from Maven Central, CocoaPods, and npm on
-  April 1 2025.
-- **Repository archived** on GitHub June 23 2025 (read-only; no PRs, no issues).
+  April 1, 2025.
+- **Repository archived** on GitHub June 23, 2025 (read-only; no PRs, no issues).
 - **No security patches** going forward.
 
 Stated reasons in the announcement: upstream FFmpeg maintenance burden, plus
@@ -100,7 +100,7 @@ legal uncertainty after MPEG LA's acquisition by Via-L (codec patent
 exposure). Several community forks exist but none has emerged as a clear
 successor.
 
-Additionally — even before retirement — bringing FFmpegKit into OpenRang
+Additionally, — even before retirement — bringing FFmpegKit into OpenRang
 would have meant:
 
 - **APK size:** ~35–40 MB for a full build; ~13 MB minimal. Compared to
@@ -214,7 +214,7 @@ works and the output plays smoothly.
 - Verify width/height against `MediaCodecInfo.VideoCapabilities.isSizeSupported(w, h)`
   before configuring the encoder; the reference code shows the snippet.
 - Always release: `decoder.stop() / encoder.stop() / muxer.stop()` in a
-  `finally` block. Otherwise a failed reverse leaves codec resources held and
+  `finally` block. Otherwise, a failed reverse leaves codec resources held and
   the next attempt fails on Pixel hardware.
 
 ---
@@ -279,7 +279,7 @@ class VideoReverser(
         trimStartMs: Long,
         trimEndMs: Long,
         onProgress: (Float) -> Unit = {},
-    ): File = withContext(Dispatchers.IO) { ... }
+    ): File = withContext(Dispatchers.IO) { /* ... */ }
 }
 ```
 

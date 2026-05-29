@@ -74,7 +74,7 @@ A command finishing is **not** a passed build. Confirm all three:
 2. Gradle's **exit code is `0`** — `echo $LASTEXITCODE` (PowerShell) / `echo $?` (bash), captured *right after* gradlew.
 3. **Zero `e:` lines** (Kotlin compile errors). Then skim `w:` warnings and `Unable to strip ... .so` notes (benign) and decide which matter.
 
-> **Gotcha:** piping gradle through `| tail` (or any pipe) gives you the *pipe's* exit code, not gradle's — a failed build can look like it "passed." Read the `BUILD SUCCESSFUL`/`BUILD FAILED` line itself. (This is also in the README; it bit us once.)
+> **Gotcha:** piping Gradle through `| tail` (or any pipe) gives you the *pipe's* exit code, not Gradle's — a failed build can look like it "passed." Read the `BUILD SUCCESSFUL`/`BUILD FAILED` line itself. (This is also in the README; it bit us once.)
 
 ---
 

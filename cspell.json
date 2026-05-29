@@ -32,7 +32,12 @@
     "Supabase", "Anthropic", "stozo", "Gates",
     "TalkBack", "edge-to-edge", "foldable", "Fold",
     "Bom", "ktx", "androidx", "kotlinx", "proguard", "shrinker", "R8",
-    "screencap", "logcat", "adb", "emulator", "AVD"
+    "screencap", "logcat", "adb", "emulator", "AVD",
+    "dumpsys", "sdcard", "lowmemorykiller", "armeabi", "Foldables",
+    "LASTEXITCODE", "LOCALAPPDATA",
+    "GLSL", "snackbars", "backgrounded",
+    "pushback", "repoints", "unrouted",
+    "Banuba", "arthenica", "sixo", "sisik", "Taner", "Sener", "Agam", "Koradiya"
   ],
   "flagWords": []
 }

@@ -98,18 +98,26 @@ fun PreviewScreen(
                 .padding(bottom = 24.dp, start = 28.dp, end = 28.dp, top = 32.dp),
             contentAlignment = Alignment.Center
         ) {
+            // "Loopify" is the entry point to the Trim screen — wired up in slice 02. For now, it's
+            // an intentional no-op placeholder; the BackHandler above (back gesture) returns to the
+            // camera. Styled with the NeonCoral→NeonPurple Infinity-logo gradient to match the
+            // shutter and gallery buttons.
             Button(
-                onClick = onBackToCaptureClick,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonCoral),
+                onClick = { /* no-op: routes to the Trim screen in slice 02 */ },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 520.dp)
                     .height(56.dp)
+                    .background(
+                        brush = Brush.horizontalGradient(listOf(NeonCoral, NeonPurple)),
+                        shape = RoundedCornerShape(16.dp)
+                    )
                     .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
             ) {
                 Text(
-                    text = "RETAKE LOOP",
+                    text = "Loopify",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,

@@ -43,7 +43,7 @@ wants from a CC partner (this is the real gold):
   `JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"` (it's JDK 21; fine for AGP 8.13 / Gradle 9).
 - **Build:** `.\gradlew.bat ...` (PowerShell). Capture the real result —
   `BUILD SUCCESSFUL` **and** `$LASTEXITCODE -eq 0` **and** zero `e:` lines.
-- **The `| tail` trap:** piping gradle through `| tail` gives you *tail's* exit code. A failed build
+- **The `| tail` trap:** piping Gradle through `| tail` gives you *tail's* exit code. A failed build
   will look green. It fooled me once on the baseline. Read the verdict line itself.
 - **adb on-device paths + Git Bash = pain:** MSYS rewrites `/sdcard/foo` into
   `C:/Program Files/Git/sdcard/foo` and the pull fails. Run those adb commands from **PowerShell**
@@ -61,7 +61,7 @@ wants from a CC partner (this is the real gold):
 ## Gotchas this codebase will throw at you
 
 - **16 KB native libs:** `zipalign -c -P 16` reading `(OK - compressed)` is a *fake* pass. You need
-  `useLegacyPackaging = false` so libs are uncompressed and you get a real `(OK)`. See lesson 011.
+  `useLegacyPackaging = false` so libs are uncompressed, and you get a real `(OK)`. See lesson 011.
 - **Latest AndroidX ⇒ Kotlin 2.x:** CameraX/Media3's newest releases ship Kotlin 2.1 metadata; a 1.9
   compiler can't read it. Migrating means the Compose compiler moves to the
   `kotlin.plugin.compose` Gradle plugin and `kotlinOptions` → `compilerOptions`.

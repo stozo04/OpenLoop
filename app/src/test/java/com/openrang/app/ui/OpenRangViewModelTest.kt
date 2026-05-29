@@ -1,6 +1,7 @@
 package com.openrang.app.ui
 
 import android.util.Log
+import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.data.RecordedVideo
@@ -121,6 +122,14 @@ class OpenRangViewModelTest {
     private lateinit var fakePreferencesRepository: FakeUserPreferencesRepository
     private lateinit var fakeVideoStorage: FakeVideoStorageRepository
     private val cameraManager: CameraManager = mockk(relaxed = true)
+
+    /**
+     * Stand-in for a successfully-started recording. Since REC-2, a `null` return from
+     * [CameraManager.startRecording] means "could not start" (camera not bound) and aborts the
+     * capture — so tests that expect recording to PROCEED must return this non-null handle, and
+     * only the REC-2 test returns `null`.
+     */
+    private val fakeRecording: Recording = mockk(relaxed = true)
 
     @Before
     fun setUp() {
@@ -253,41 +262,127 @@ class OpenRangViewModelTest {
     }
 
     @Test
-    fun `startBurstCapture successfully starts recording and delays automatic stop`() =
+    fun `startBurstCapture starts recording and auto-caps at 30 seconds`() =
         runTest(mainDispatcherRule.testDispatcher) {
             viewModel.onPermissionsChecked(true) // Set state to ReadyToCapture
 
-            // Mock startRecording to capture and trigger the callback
+            // Mock startRecording to capture the callback and report a successfully-started recording.
             val slot = slot<(VideoRecordEvent) -> Unit>()
-            every { cameraManager.startRecording(any(), capture(slot)) } returns null
+            every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
 
             viewModel.startBurstCapture(cameraManager)
 
             assertEquals(OpenRangUiState.Recording, viewModel.uiState.value)
             verify(exactly = 1) { cameraManager.startRecording(any(), any()) }
-            // Auto-stop is scheduled behind a delay(1500), so it must not fire yet.
+            // The 30 s auto-cap must not fire on start — only after the cap elapses.
             verify(exactly = 0) { cameraManager.stopRecording() }
 
-            // Advance virtual time past the auto-stop timer.
+            // Advance virtual time past the 30 s hard cap (Lesson 008: bound loop + advanceUntilIdle).
             advanceUntilIdle()
+
+            // Auto-cap finalized exactly once, and the ring was reset to empty.
+            verify(exactly = 1) { cameraManager.stopRecording() }
+            assertEquals(0L, viewModel.recordingElapsedMs.value)
+        }
+
+    @Test
+    fun `startBurstCapture begins emitting recordingElapsedMs`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true) // ReadyToCapture
+            every { cameraManager.startRecording(any(), any()) } returns fakeRecording
+
+            assertEquals(0L, viewModel.recordingElapsedMs.value)
+
+            viewModel.startBurstCapture(cameraManager)
+            // Advance just over three ~33 ms ticks; elapsed should have started climbing but
+            // stay well under the cap.
+            advanceTimeBy(100)
+
+            val elapsed = viewModel.recordingElapsedMs.value
+            assertTrue("elapsed should advance past 0, was $elapsed", elapsed > 0L)
+            assertTrue("elapsed should be <= 100ms, was $elapsed", elapsed <= 100L)
+
+            // Stop so the ticker doesn't run to the cap during teardown.
+            viewModel.stopBurstCapture(cameraManager)
+        }
+
+    @Test
+    fun `stopBurstCapture outside Recording is a no-op`() {
+        // Never entered Recording, so recordingJob is null — stop must not touch the camera.
+        viewModel.stopBurstCapture(cameraManager)
+        verify(exactly = 0) { cameraManager.stopRecording() }
+    }
+
+    @Test
+    fun `double stop (user tap racing the auto-cap) calls stopRecording exactly once`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true) // ReadyToCapture
+            every { cameraManager.startRecording(any(), any()) } returns fakeRecording
+
+            viewModel.startBurstCapture(cameraManager)
+            // First stop wins; the second is a no-op (recordingJob already nulled). This is the
+            // same guard that makes a user tap landing on the auto-cap tick safe.
+            viewModel.stopBurstCapture(cameraManager)
+            viewModel.stopBurstCapture(cameraManager)
 
             verify(exactly = 1) { cameraManager.stopRecording() }
         }
 
+    // ── REC-2: a recording that can't start must not wedge the UI in Recording ──
+
     @Test
-    fun `startBurstCapture failures fallback state gracefully`() {
-        viewModel.onPermissionsChecked(true) // ReadyToCapture
-        every { cameraManager.startRecording(any(), any()) } throws RuntimeException("Camera error")
+    fun `startBurstCapture reverts to ReadyToCapture when recording cannot start`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            // null = camera not bound; no Finalize will ever fire (REC-2).
+            every { cameraManager.startRecording(any(), any()) } returns null
 
-        viewModel.startBurstCapture(cameraManager)
+            viewModel.startBurstCapture(cameraManager)
+            advanceUntilIdle()
 
-        assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
-    }
+            assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
+            assertEquals(0L, viewModel.recordingElapsedMs.value)
+            // No timer coroutine should have been launched, so the auto-cap path is never reached.
+            verify(exactly = 0) { cameraManager.stopRecording() }
+        }
+
+    // ── REC-3: only the documented synchronous throwables are caught; UI recovers to idle ──
+
+    @Test
+    fun `startBurstCapture recovers to ReadyToCapture on IllegalStateException`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true) // ReadyToCapture
+            // PendingRecording.start() throws this when the Recorder has an unfinished recording.
+            every { cameraManager.startRecording(any(), any()) } throws IllegalStateException("camera busy")
+
+            viewModel.startBurstCapture(cameraManager)
+            advanceUntilIdle()
+
+            assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
+            assertEquals(0L, viewModel.recordingElapsedMs.value)
+            verify(exactly = 0) { cameraManager.stopRecording() }
+        }
+
+    @Test
+    fun `startBurstCapture recovers to ReadyToCapture on SecurityException`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true) // ReadyToCapture
+            // withAudioEnabled() throws this if RECORD_AUDIO is revoked before start().
+            every { cameraManager.startRecording(any(), any()) } throws
+                SecurityException("RECORD_AUDIO denied")
+
+            viewModel.startBurstCapture(cameraManager)
+            advanceUntilIdle()
+
+            assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
+            assertEquals(0L, viewModel.recordingElapsedMs.value)
+            verify(exactly = 0) { cameraManager.stopRecording() }
+        }
 
     @Test
     fun `stopBurstCapture cancels coroutine job and stops recording`() {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
-        every { cameraManager.startRecording(any(), any()) } returns null
+        every { cameraManager.startRecording(any(), any()) } returns fakeRecording
 
         viewModel.startBurstCapture(cameraManager)
         viewModel.stopBurstCapture(cameraManager)
@@ -300,7 +395,7 @@ class OpenRangViewModelTest {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
 
         val slot = slot<(VideoRecordEvent) -> Unit>()
-        every { cameraManager.startRecording(any(), capture(slot)) } returns null
+        every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
 
         viewModel.startBurstCapture(cameraManager)
 
@@ -325,7 +420,7 @@ class OpenRangViewModelTest {
         fakeVideoStorage.failSave = true
 
         val slot = slot<(VideoRecordEvent) -> Unit>()
-        every { cameraManager.startRecording(any(), capture(slot)) } returns null
+        every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
 
         viewModel.startBurstCapture(cameraManager)
 
@@ -347,7 +442,7 @@ class OpenRangViewModelTest {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
 
         val slot = slot<(VideoRecordEvent) -> Unit>()
-        every { cameraManager.startRecording(any(), capture(slot)) } returns null
+        every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
 
         viewModel.startBurstCapture(cameraManager)
 
