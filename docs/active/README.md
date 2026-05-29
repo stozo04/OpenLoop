@@ -7,8 +7,11 @@ This directory tracks features currently in development. Each feature gets its o
 ```
 docs/active/
 ├── README.md                          ← You are here
-├── loop-generation/
-│   └── IMPLEMENTATION.md              ← Implementation plan for this feature
+├── boomerang-editor/
+│   └── IMPLEMENTATION.md              ← Parent design doc (the "what are we building")
+├── boomerang-rollout/
+│   ├── README.md                      ← Delivery plan: the 7 thin slices
+│   └── NN-<slice>.md                  ← One PRD per slice
 └── <feature-name>/
     ├── IMPLEMENTATION.md              ← Required: at minimum, the implementation plan
     ├── RESEARCH.md                    ← Optional: background research, alternatives considered
@@ -34,8 +37,20 @@ docs/active/
 
 ## Current Active Features
 
+The **Boomerang editor rollout** is the active work — the core "loop generation" feature, delivered as
+7 thin vertical slices. The parent design lives in [`boomerang-editor/`](./boomerang-editor/IMPLEMENTATION.md);
+the slice-by-slice delivery plan and per-slice PRDs live in [`boomerang-rollout/`](./boomerang-rollout/README.md).
+
 | Feature | Branch | Status |
 |---------|--------|--------|
-| Loop Generation (Media3 Transformer) | `loop-generation` | Planned — core feature, not yet started |
+| Boomerang slice 03 — Tabbed editor + Direction tab | `feature/boomerang-slice-03-direction-tab` | Built; PR #25 open (awaiting merge) |
+| Boomerang slice 04 — Speed tab | `feature/boomerang-slice-04-speed-tab` | Next up — see `boomerang-rollout/04-editor-speed-tab.md` + the slice-04 KICKOFF |
+| Boomerang slices 05–07 — Reps / Share sheet / Gallery edit | (per slice) | Planned — specs in `boomerang-rollout/` |
 
-> Now in `docs/completed/`: VideoStorageRepository / remove Context from ViewModel (Issue #10, PR #17), Target SDK Upgrade + Android 16 Doc-Prep (combined — Issue #7, PRs #13 & #15), Jetpack DataStore Preferences (PR #5), and Permission Rationale Flow (PR #12).
+> Now in `docs/completed/`: Boomerang slice 01 (variable-length capture) & slice 02 (auto-route trim +
+> default save), VideoStorageRepository / remove Context from ViewModel (Issue #10, PR #17), Target SDK
+> Upgrade + Android 16 Doc-Prep (Issue #7, PRs #13 & #15), Jetpack DataStore Preferences (PR #5), and
+> Permission Rationale Flow (PR #12).
+>
+> The earlier monolithic `loop-generation/` and `full-feature/` plans were **superseded** by the
+> boomerang-rollout slices and removed.

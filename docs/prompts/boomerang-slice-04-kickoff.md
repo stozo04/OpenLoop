@@ -25,7 +25,8 @@ The full slice spec lives in `docs/active/boomerang-rollout/04-editor-speed-tab.
 1. **`CLAUDE.md`** — operating instructions.
 2. **Every file in `docs/lessons_learned/`** — 001 (Color literals — slider thumb color), 002 (Flow collection), 008 (test patterns) most relevant.
 3. **`docs/DEFINITION_OF_DONE.md`** — the verification gate.
-4. **`docs/active/boomerang-editor/IMPLEMENTATION.md`** — parent design doc. §6 (Media3 pipeline) confirms `SpeedChangingVideoEffect` semantics.
+4. **`docs/active/boomerang-editor/IMPLEMENTATION.md`** — parent design doc. §6 (Media3 pipeline) for the speed-effect semantics (it's `SpeedChangeEffect` in Media3 1.10.1 — see the slice-04 KICKOFF §0).
+5. **`docs/lessons_learned/KICKOFF-boomerang-slice-04-speed-tab.md`** — the hard-won deltas this PRD gets wrong (the render side is already done; the real risk is #1658). Read it before coding.
 5. **`docs/active/boomerang-rollout/README.md`** — rollout map.
 6. **`docs/active/boomerang-rollout/03-editor-direction-tab.md`** — for the `EditorTabState` and tab bar surface this slice extends.
 7. **`docs/active/boomerang-rollout/04-editor-speed-tab.md`** — your PRD. End-to-end, twice.
@@ -53,14 +54,14 @@ git checkout -b feature/boomerang-slice-04-speed-tab
 - `androidx.compose.material3.Slider` — current parameters for custom thumb / track via `track` / `thumb` slot composables.
 - `android.view.HapticFeedbackConstants.CLOCK_TICK` — confirm availability on minSdk 26.
 - `androidx.compose.runtime.snapshotFlow { ... }.debounce(...)` — current import paths.
-- `androidx.media3.effect.SpeedChangingVideoEffect(Float)` — confirm constructor still takes a single float and supports the full 0.25 – 3.0 range.
+- `androidx.media3.effect.SpeedChangeEffect(Float)` — the constant-speed effect in Media3 1.10.1 (NOT `SpeedChangingVideoEffect`, which isn't in this version). It's already wired in `Media3VideoProcessor.speedEffects(speed)`; confirm it supports the full 0.25 – 3.0 range.
 
 If anything has drifted, **stop and surface** before coding.
 
 ## Phase 3: Implement to the slice spec
 
 - **`OpenRangViewModel.kt`** — extend `EditorTabState` with `speed: Float = 2.0f` and `activeTab: EditorTab = EditorTab.DIRECTION`. Add `enum class EditorTab { DIRECTION, SPEED }` (REPS lands in slice 05). Mutators: `updateSpeed(speed: Float)` with `coerceIn(0.25f, 3.0f)`, `switchTab(tab: EditorTab)`.
-- **`media/VideoProcessor.kt`** — replace `SpeedChangingVideoEffect(2.0f)` with `SpeedChangingVideoEffect(speed)` using the parameter that was already in the interface signature from slice 02.
+- **`media/VideoProcessor.kt`** — **no change needed.** `renderBoomerang(speed=…)` already applies `SpeedChangeEffect(speed)` per clip (the `speed` param has been threaded since slice 02). The only render-side change is in `OpenRangViewModel.saveBoomerang()`: pass `speed = _editorTabState.value.speed` instead of `DEFAULT_SPEED`.
 - **`ui/BoomerangEditorScreen.kt`** — render the tab bar with 2 entries instead of 1, driven by `editorTabState.activeTab`. Add `SpeedTabContent` composable with Compose `Slider` + floating value label + haptic tick at 1.0×. Debounce slider emissions (~50 ms) before calling `player.setPlaybackSpeed(...)`. Animate tab content cross-fade with `AnimatedContent` (200 ms fade).
 - **`MainActivity.kt`** — no route changes.
 
@@ -118,7 +119,7 @@ Walk the slice 04 manual QA on emulator + Pixel 10 Pro Fold:
 
 - If the slice doc and a lesson disagree.
 - If `setPlaybackSpeed` doesn't behave as expected on reverse-composition previews (e.g., the cached reversed `MediaItem` chain ignores the player-side speed). That's a real risk worth investigating before merging.
-- If `SpeedChangingVideoEffect` has different range constraints than 0.25 – 3.0×.
+- If `SpeedChangeEffect` has different range constraints than 0.25 – 3.0×, or if #1658 (per-item effects only applying to the first clip) is live at a non-2× speed — see the slice-04 KICKOFF §1.
 - If `HapticFeedbackConstants.CLOCK_TICK` requires a higher minSdk than the current 26.
 - If the green baseline isn't green.
 - If `zipalign` regresses.
