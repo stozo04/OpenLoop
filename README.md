@@ -123,6 +123,41 @@ Then skim the output for lines starting with `e:` (errors — these stop the bui
 
 > **Gotcha:** if you pipe the build through something like `... | tail`, the exit code you see belongs to `tail`, not Gradle — so a failed build can look like it "passed." Check the `BUILD SUCCESSFUL`/`BUILD FAILED` line itself, not just whether the command returned cleanly.
 
+### Running the code inspections (Android Studio "Inspect Code", from a terminal)
+
+OpenRang reproduces Android Studio's **Analyze → Inspect Code** as a merge gate. It's **two
+engines** — full design and severity rules in [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).
+Set `JAVA_HOME` first (same as the build section above).
+
+**Engine 1 — Android Lint** (fast, automated, the hard gate):
+
+```powershell
+.\gradlew.bat :app:lintDebug
+```
+
+Report lands at `app/build/reports/lint-results-debug.xml` (+ `.html`). A committed
+`lint-baseline.xml` filters out the project's pre-existing items, so a clean run reports **only
+issues your branch introduced** — the XML will contain just the informational `LintBaseline`
+"Hint" line. The [`pr-reviewer`](.claude/skills/pr-reviewer/SKILL.md) skill runs this automatically
+and folds the findings into its PR comment.
+
+> Regenerating the baseline (`app/lint-baseline.xml`) silently swallows *all* current issues,
+> including newly-introduced ones — only do it deliberately. See `docs/STATIC_ANALYSIS.md`.
+
+**Engine 2 — IDE inspections + proofreading** (faithful Kotlin/Markdown/grammar pass; slow, local):
+
+```powershell
+& "C:\Program Files\Android\Android Studio\bin\inspect.bat" `
+  "C:\Users\gates\Personal\OpenRang" `
+  ".idea\inspectionProfiles\Project_Default.xml" `
+  "build\inspection-results" `
+  -v2 -d "C:\Users\gates\Personal\OpenRang"
+```
+
+This boots a headless Android Studio (takes minutes) and writes one XML per inspection into
+`build\inspection-results`. **Close the project in Android Studio first** and don't run a Gradle
+task at the same time — they deadlock on the Gradle build lock.
+
 ## Guides
 
 Plain-English, beginner-friendly walkthroughs live in [`docs/guides/`](docs/guides/):
@@ -143,10 +178,23 @@ Architecture, DataStore, Permissions, Compose, CameraX, Media & Audio, Coroutine
 
 The reviewer web-searches `developer.android.com` for the latest guidance on every run — no stale rules. It posts a structured PASS/FAIL/WARNING report directly on the PR with file-level specifics, Google doc citations, and reasoning for every finding.
 
+On top of the standards review, every PR must also pass **code inspection** — the same checks
+Android Studio's *Analyze → Inspect Code* produces, run headlessly. There are two engines (see
+[`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md) for the full design and the exact commands):
+
+- **Engine 1 — Android Lint** (`./gradlew :app:lintDebug`): automated, run by the reviewer skill,
+  a hard gate — **zero new lint errors** to merge. A committed `lint-baseline.xml` means only
+  issues *introduced by the PR* are reported, not the project's pre-existing items.
+- **Engine 2 — IDE inspections + proofreading** (`inspect.bat`): the faithful Kotlin-redundancy /
+  Markdown / grammar-and-typo pass. Run **locally before merge** (it needs Android Studio and is
+  slow); the reviewer notes whether it was run.
+
 **To merge, a PR must:**
 1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
 2. Address all **WARNINGS** or document why they're accepted
 3. Pass all unit tests (19+) and UI regression tests (6+)
+4. Show **zero new Android Lint errors** (Engine 1), and have **IDE Code Inspection** (Engine 2)
+   run locally with its findings addressed or accepted
 
 ### Fixing Review Feedback
 
