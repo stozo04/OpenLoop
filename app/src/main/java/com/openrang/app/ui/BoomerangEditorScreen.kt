@@ -133,19 +133,21 @@ private val SPEED_DETENTS = listOf(1.0f, 2.0f)
  */
 private const val PREVIEW_SEAM_MS = 33L
 
-/** The four direction chips, in display order, with the reference-Boomerang glyph + short label. */
+/**
+ * The four direction chips, in display order, with the reference-Boomerang glyph. No visible caption —
+ * the glyph carries the meaning; [accessibilityLabel] is the spoken label for TalkBack.
+ */
 private data class DirectionChip(
     val mode: BoomerangMode,
     val glyph: String,
-    val label: String,
     val accessibilityLabel: String,
 )
 
 private val DIRECTION_CHIPS = listOf(
-    DirectionChip(BoomerangMode.FORWARD, "▶▶", "Fwd", "Forward"),
-    DirectionChip(BoomerangMode.REVERSE, "◀◀", "Rev", "Reverse"),
-    DirectionChip(BoomerangMode.FORWARD_THEN_REVERSE, "▶◀", "F→R", "Forward then reverse"),
-    DirectionChip(BoomerangMode.REVERSE_THEN_FORWARD, "◀▶", "R→F", "Reverse then forward"),
+    DirectionChip(BoomerangMode.FORWARD, "▶▶", "Forward"),
+    DirectionChip(BoomerangMode.REVERSE, "◀◀", "Reverse"),
+    DirectionChip(BoomerangMode.FORWARD_THEN_REVERSE, "▶◀", "Forward then reverse"),
+    DirectionChip(BoomerangMode.REVERSE_THEN_FORWARD, "◀▶", "Reverse then forward"),
 )
 
 /**
@@ -755,8 +757,9 @@ private fun TabBarItem(
 }
 
 /**
- * A single direction chip: a glyph tile with a caption below. Selected → `NeonCoral → NeonPurple`
- * gradient with a white glyph; unselected → glassmorphic outline with a [NeonPurple] glyph.
+ * A single direction chip: a glyph tile (no caption — the glyph speaks for itself, and the spoken
+ * label rides in `contentDescription`). Selected → `NeonCoral → NeonPurple` gradient with a white
+ * glyph; unselected → glassmorphic outline with a [NeonPurple] glyph.
  */
 @Composable
 private fun DirectionChipButton(
@@ -764,44 +767,32 @@ private fun DirectionChipButton(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(64.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(CONTROL_SIZE)
-                .clip(RoundedCornerShape(14.dp))
-                .then(
-                    if (selected) {
-                        Modifier.background(Brush.horizontalGradient(listOf(NeonCoral, NeonPurple)))
-                    } else {
-                        Modifier
-                            .background(GlassWhite)
-                            .border(1.dp, GlassWhiteBorder, RoundedCornerShape(14.dp))
-                    },
-                )
-                .clickable(role = Role.Button) { onClick() }
-                .semantics {
-                    contentDescription = chip.accessibilityLabel
-                    this.selected = selected
-                }
-                .testTag("direction_chip_${chip.mode.name}"),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = chip.glyph,
-                color = if (selected) Color.White else NeonPurple,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
+    Box(
+        modifier = Modifier
+            .size(CONTROL_SIZE)
+            .clip(RoundedCornerShape(14.dp))
+            .then(
+                if (selected) {
+                    Modifier.background(Brush.horizontalGradient(listOf(NeonCoral, NeonPurple)))
+                } else {
+                    Modifier
+                        .background(GlassWhite)
+                        .border(1.dp, GlassWhiteBorder, RoundedCornerShape(14.dp))
+                },
             )
-        }
-        Spacer(Modifier.height(6.dp))
+            .clickable(role = Role.Button) { onClick() }
+            .semantics {
+                contentDescription = chip.accessibilityLabel
+                this.selected = selected
+            }
+            .testTag("direction_chip_${chip.mode.name}"),
+        contentAlignment = Alignment.Center,
+    ) {
         Text(
-            text = chip.label,
-            color = if (selected) Color.White else Color.White.copy(alpha = 0.6f),
-            fontSize = 11.sp,
-            textAlign = TextAlign.Center,
+            text = chip.glyph,
+            color = if (selected) Color.White else NeonPurple,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
