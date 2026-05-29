@@ -9,7 +9,7 @@
 ```kotlin
 val recordingElapsedMs by viewModel.recordingElapsedMs.collectAsStateWithLifecycle()
 val progress = (recordingElapsedMs.toFloat() / MAX).coerceIn(0f, 1f)   // read at root
-val elapsedLabel = "%02d:%02d".format(...)                              // read at root
+val elapsedLabel = "%02d:%02d".format(min, sec)                        // read at root
 ```
 
 `recordingElapsedMs` re-emits ~every 33 ms (~30×/s). Because `.value` was read in the composable's

@@ -21,7 +21,7 @@ The trap on #2: it's tempting to "play it safe" and list speculative exceptions
 are not thrown synchronously here at all** — so catching them is dead code that signals a
 misunderstanding of the API.
 
-## The verified facts (CameraX `androidx.camera.video`, source javadoc, checked this session)
+## The verified facts (CameraX `androidx.camera.video`, source Javadoc, checked this session)
 
 The `startRecording` chain is `Recorder.prepareRecording(ctx, FileOutputOptions)` →
 `PendingRecording.withAudioEnabled()` → `PendingRecording.start(executor, listener)`:

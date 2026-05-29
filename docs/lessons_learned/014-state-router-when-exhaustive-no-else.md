@@ -9,7 +9,7 @@ The state router in `MainActivity.setContent` ended with a catch-all:
 ```kotlin
 when (uiState) {
     is OpenRangUiState.ReadyToCapture,
-    is OpenRangUiState.Recording -> CameraScreenHost(uiState) { CameraScreen(...) }
+    is OpenRangUiState.Recording -> CameraScreenHost(uiState) { CameraScreen(viewModel, cameraManager) }
     // … other states …
     else -> {                      // ← the problem
         CameraScreen(viewModel = viewModel, cameraManager = cameraManager)
