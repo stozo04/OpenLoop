@@ -1,5 +1,7 @@
 package com.openrang.app.ui
 
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
@@ -8,11 +10,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -47,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -56,10 +62,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -90,9 +100,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoFilter
 import com.openrang.app.media.boomerangOutputDurationMs
 import com.openrang.app.media.needsReverse
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
@@ -175,11 +188,13 @@ fun BoomerangEditorScreen(
         trimEndMs = editor.trimEndMs,
         mode = tab.mode,
         speed = tab.speed,
+        filter = tab.filter,
         activeTab = tab.activeTab,
         reversedFile = tab.reversedFile,
         isReversedFileLoading = tab.isReversedFileLoading,
         onSelectMode = viewModel::updateMode,
         onSpeedChange = viewModel::updateSpeed,
+        onFilterChange = viewModel::updateFilter,
         onSwitchTab = viewModel::switchTab,
         onSave = viewModel::saveBoomerang,
         onBack = viewModel::backToTrim,
@@ -209,18 +224,30 @@ fun BoomerangEditorContent(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     speed: Float = OpenRangViewModel.DEFAULT_SPEED,
+    filter: VideoFilter = VideoFilter.ORIGINAL,
     activeTab: EditorTab = EditorTab.DIRECTION,
     onSpeedChange: (Float) -> Unit = {},
+    onFilterChange: (VideoFilter) -> Unit = {},
     onSwitchTab: (EditorTab) -> Unit = {},
 ) {
     val context = LocalContext.current
 
+    // One representative frame from the trim, decoded off the main thread and cached for the Looks
+    // tab's filter thumbnails. Extracted at the content level (not inside the tab panel) so it survives
+    // tab switches and is ready the instant the user opens Looks; null while loading / on failure.
+    val thumbnailFrame by produceState<Bitmap?>(null, sourceFile, trimStartMs, trimEndMs) {
+        value = withContext(Dispatchers.IO) { extractRepresentativeFrame(sourceFile, trimStartMs, trimEndMs) }
+    }
+
     var showDiscardDialog by remember { mutableStateOf(false) }
-    // Single back path for both the gesture and the arrow: confirm only when the user changed the
-    // direction off the default (work worth guarding); otherwise return silently to Trim (Lesson 015 —
-    // gate, don't always-intercept).
+    // Single back path for both the gesture and the arrow: confirm only when the user changed *any*
+    // selection off its default (direction, speed, or look — all worth guarding); otherwise return
+    // silently to Trim (Lesson 015 — gate, don't always-intercept).
+    val hasEdits = mode != BoomerangMode.FORWARD_THEN_REVERSE ||
+        speed != OpenRangViewModel.DEFAULT_SPEED ||
+        filter != VideoFilter.ORIGINAL
     val handleBack = {
-        if (mode != BoomerangMode.FORWARD_THEN_REVERSE) showDiscardDialog = true else onBack()
+        if (hasEdits) showDiscardDialog = true else onBack()
     }
     BackHandler { handleBack() }
 
@@ -241,8 +268,10 @@ fun BoomerangEditorContent(
     // Rebind the playlist whenever the direction, the reversed file, or the trim changes. setMediaItems
     // replaces the whole playlist (no in-place re-clip of a same-URI item, which ExoPlayer dedupes —
     // slice-02 HANDOFF), then prepare() restarts playback of the new cycle. PlaybackParameters (speed)
-    // are player-wide and survive this rebind, so we don't re-apply speed here.
+    // are player-wide and survive this rebind, so we don't re-apply speed here. We DO re-apply the
+    // look here (before prepare) so it's guaranteed baked into the rebuilt pipeline.
     LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs) {
+        exoPlayer.setVideoEffects(filter.toMediaEffects())
         val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile)
         if (items.isEmpty()) {
             exoPlayer.clearMediaItems()
@@ -250,6 +279,13 @@ fun BoomerangEditorContent(
             exoPlayer.setMediaItems(items)
             exoPlayer.prepare()
         }
+    }
+
+    // Apply the color look live (the Looks tab's whole point). setVideoEffects is ExoPlayer's preview
+    // path for effects (same Effect objects as the render), so tapping a look re-tints the running
+    // preview without a re-render. Independent of speed (a player setting) — they compose.
+    LaunchedEffect(filter) {
+        exoPlayer.setVideoEffects(filter.toMediaEffects())
     }
 
     // Apply speed to the preview, debounced: re-keying on `speed` cancels the prior pending delay, so a
@@ -386,11 +422,16 @@ fun BoomerangEditorContent(
                 when (tab) {
                     EditorTab.DIRECTION -> DirectionTabContent(mode = mode, onSelectMode = onSelectMode)
                     EditorTab.SPEED -> SpeedTabContent(speed = speed, onSpeedChange = onSpeedChange)
+                    EditorTab.LOOKS -> LooksTabContent(
+                        filter = filter,
+                        thumbnailFrame = thumbnailFrame,
+                        onFilterChange = onFilterChange,
+                    )
                 }
             }
         }
 
-        // ── Tab bar: Direction + Speed interactive, Reps a disabled stub (slice 05 enables it) ──
+        // ── Tab bar: Direction + Speed + Looks, all interactive (slice 05 lit up the third slot) ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -419,12 +460,12 @@ fun BoomerangEditorContent(
             )
             Spacer(Modifier.width(TAB_PILL_SPACING))
             TabBarItem(
-                icon = Icons.Filled.Timer,
-                contentDescription = "Repetitions tab, coming soon",
-                active = false,
-                enabled = false,
-                onClick = {},
-                modifier = Modifier.testTag("tab_reps"),
+                icon = Icons.Filled.AutoAwesome,
+                contentDescription = "Looks tab",
+                active = activeTab == EditorTab.LOOKS,
+                enabled = true,
+                onClick = { onSwitchTab(EditorTab.LOOKS) },
+                modifier = Modifier.testTag("tab_looks"),
             )
         }
     }
@@ -433,7 +474,7 @@ fun BoomerangEditorContent(
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard changes?") },
-            text = { Text("Your direction choice will be lost and you'll return to trimming.") },
+            text = { Text("Your edits will be lost and you'll return to trimming.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -801,4 +842,144 @@ private fun DirectionChipButton(
 private fun formatSpeedLabel(speed: Float): String {
     val number = String.format(Locale.US, "%.2f", speed).trimEnd('0').trimEnd('.')
     return "$number times speed"
+}
+
+/** Looks tab content: a caption over a horizontally-scrolling strip of live-preview filter chips. */
+@Composable
+private fun LooksTabContent(
+    filter: VideoFilter,
+    thumbnailFrame: Bitmap?,
+    onFilterChange: (VideoFilter) -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "Choose a look",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+        )
+        Spacer(Modifier.height(14.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        ) {
+            VideoFilter.entries.forEach { look ->
+                LookChip(
+                    look = look,
+                    thumbnailFrame = thumbnailFrame,
+                    selected = look == filter,
+                    onClick = {
+                        if (look != filter) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        onFilterChange(look)
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One filter chip: the trim's representative frame ([thumbnailFrame]) rendered in [look] via a
+ * [ColorFilter], with a label below and a [NeonPurple] ring when selected. While the frame is still
+ * decoding (or failed), the chip shows its glass tile so the strip never looks broken.
+ */
+@Composable
+private fun LookChip(
+    look: VideoFilter,
+    thumbnailFrame: Bitmap?,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(72.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(GlassWhite)
+                .then(
+                    if (selected) {
+                        Modifier.border(2.dp, NeonPurple, RoundedCornerShape(12.dp))
+                    } else {
+                        Modifier.border(1.dp, GlassWhiteBorder, RoundedCornerShape(12.dp))
+                    },
+                )
+                .clickable(role = Role.Button) { onClick() }
+                .semantics {
+                    contentDescription = look.label
+                    this.selected = selected
+                }
+                .testTag("look_chip_${look.name}"),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (thumbnailFrame != null) {
+                Image(
+                    bitmap = thumbnailFrame.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    colorFilter = look.thumbnailColorFilter(),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = look.label,
+            color = if (selected) Color.White else Color.White.copy(alpha = 0.6f),
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * Compose [ColorFilter] for [VideoFilter]'s chip thumbnail, derived from the SAME per-look params as
+ * [VideoFilter.toMediaEffects] so the chip matches the live preview / export (no "preview lies about
+ * export"). An all-default look ([VideoFilter.ORIGINAL]) → `null` (draw the frame untouched).
+ */
+private fun VideoFilter.thumbnailColorFilter(): ColorFilter? {
+    val matrix = when {
+        grayscale -> ColorMatrix().apply { setToSaturation(0f) }
+        saturation != 0f -> ColorMatrix().apply { setToSaturation(1f + saturation / 100f) }
+        redScale != 1f || blueScale != 1f -> ColorMatrix(
+            floatArrayOf(
+                redScale, 0f, 0f, 0f, 0f,
+                0f, 1f, 0f, 0f, 0f,
+                0f, 0f, blueScale, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        else -> return null
+    }
+    return ColorFilter.colorMatrix(matrix)
+}
+
+/**
+ * Decode one representative frame (the trim midpoint) from [file] for the Looks chips. Best-effort:
+ * returns `null` on a decode failure (the chips then show their glass placeholder). MUST run off the
+ * main thread (ANDROID_STANDARDS §9) — callers wrap it in `Dispatchers.IO`.
+ */
+private fun extractRepresentativeFrame(file: File, trimStartMs: Long, trimEndMs: Long): Bitmap? {
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(file.absolutePath)
+        val midUs = ((trimStartMs + trimEndMs) / 2L) * 1000L
+        retriever.getFrameAtTime(midUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+    } catch (e: IllegalArgumentException) {
+        null // unreadable / unsupported source path
+    } catch (e: IllegalStateException) {
+        null // retriever not configured (setDataSource failed)
+    } finally {
+        retriever.release()
+    }
 }

@@ -10,6 +10,7 @@ import com.openrang.app.data.ScratchCapture
 import com.openrang.app.data.UserPreferencesRepository
 import com.openrang.app.data.VideoStorageRepository
 import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoFilter
 import com.openrang.app.media.VideoProcessor
 import com.openrang.app.media.needsReverse
 import kotlinx.coroutines.CancellationException
@@ -369,7 +370,18 @@ class OpenRangViewModel(
         _editorTabState.value = current.copy(speed = clamped)
     }
 
-    /** Switch the editor's active tab (Direction ↔ Speed); pure UI state, no side effects. */
+    /**
+     * Set the color look from the editor's Looks tab (slice 05). Like [updateSpeed] it's a pure
+     * effect selection — applied live in the preview via `setVideoEffects` and baked into the render;
+     * it never touches the cached [EditorTabState.reversedFile] or the output duration.
+     */
+    fun updateFilter(filter: VideoFilter) {
+        val current = _editorTabState.value
+        if (current.filter == filter) return
+        _editorTabState.value = current.copy(filter = filter)
+    }
+
+    /** Switch the editor's active tab (Direction / Speed / Looks); pure UI state, no side effects. */
     fun switchTab(tab: EditorTab) {
         val current = _editorTabState.value
         if (current.activeTab == tab) return
@@ -407,8 +419,8 @@ class OpenRangViewModel(
     }
 
     /**
-     * Save the boomerang in the editor's current direction + speed (1 rep is still hard-wired until
-     * slice 05). Flips to [OpenRangUiState.Processing]; on success promotes the scratch to a persistent
+     * Save the boomerang in the editor's current direction + speed + look (reps stays hard-wired at 1
+     * — the reps tab was dropped for the Looks tab). Flips to [OpenRangUiState.Processing]; on success promotes the scratch to a persistent
      * raw, registers the boomerang, emits [BoomerangEvent.Saved] and returns to capture. The render
      * sources the **scratch** file — the same path the preview reversed — so a reverse-containing mode
      * hits the cached reversed clip instead of regenerating it (speed is applied per clip at render and
@@ -438,6 +450,7 @@ class OpenRangViewModel(
                     trimEndMs = editor.trimEndMs,
                     mode = mode,
                     speed = tab.speed,
+                    filter = tab.filter,
                     repetitions = DEFAULT_REPS,
                     outputFile = output,
                 ) { fraction -> _renderProgress.value = fraction }

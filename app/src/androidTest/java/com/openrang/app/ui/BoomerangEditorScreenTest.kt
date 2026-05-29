@@ -3,7 +3,6 @@ package com.openrang.app.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -16,9 +15,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoFilter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,11 +43,13 @@ class BoomerangEditorScreenTest {
         trimEndMs: Long = 5_000L,
         mode: BoomerangMode = BoomerangMode.FORWARD_THEN_REVERSE,
         speed: Float = 2.0f,
+        filter: VideoFilter = VideoFilter.ORIGINAL,
         activeTab: EditorTab = EditorTab.DIRECTION,
         reversedFile: File? = dummyReversed,
         isReversedFileLoading: Boolean = false,
         onSelectMode: (BoomerangMode) -> Unit = {},
         onSpeedChange: (Float) -> Unit = {},
+        onFilterChange: (VideoFilter) -> Unit = {},
         onSwitchTab: (EditorTab) -> Unit = {},
         onSave: () -> Unit = {},
         onBack: () -> Unit = {},
@@ -60,11 +61,13 @@ class BoomerangEditorScreenTest {
                 trimEndMs = trimEndMs,
                 mode = mode,
                 speed = speed,
+                filter = filter,
                 activeTab = activeTab,
                 reversedFile = reversedFile,
                 isReversedFileLoading = isReversedFileLoading,
                 onSelectMode = onSelectMode,
                 onSpeedChange = onSpeedChange,
+                onFilterChange = onFilterChange,
                 onSwitchTab = onSwitchTab,
                 onSave = onSave,
                 onBack = onBack,
@@ -158,17 +161,7 @@ class BoomerangEditorScreenTest {
         setContent()
         composeTestRule.onNodeWithTag("tab_direction").assertIsDisplayed()
         composeTestRule.onNodeWithTag("tab_speed").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("tab_reps").assertIsDisplayed()
-    }
-
-    @Test
-    fun repsTab_isDisabledStub() {
-        var switched: EditorTab? = null
-        setContent(onSwitchTab = { switched = it })
-        composeTestRule.onNodeWithTag("tab_reps").assertIsNotEnabled()
-        // Tapping the disabled stub must not switch tabs.
-        composeTestRule.onNodeWithTag("tab_reps").performClick()
-        assertNull("disabled Reps stub must not switch tabs", switched)
+        composeTestRule.onNodeWithTag("tab_looks").assertIsDisplayed()
     }
 
     @Test
@@ -215,5 +208,39 @@ class BoomerangEditorScreenTest {
         // F→R over a 5 s trim: cycle = 10 s. At 0.5× → 20.0 s output (10 s / 0.5).
         setContent(trimStartMs = 0L, trimEndMs = 5_000L, mode = BoomerangMode.FORWARD_THEN_REVERSE, speed = 0.5f)
         composeTestRule.onNodeWithText("20.0s").assertIsDisplayed()
+    }
+
+    // ── Looks tab (slice 05) ──
+
+    @Test
+    fun tappingLooksTab_invokesOnSwitchTabWithLooks() {
+        var switched: EditorTab? = null
+        setContent(onSwitchTab = { switched = it })
+        composeTestRule.onNodeWithTag("tab_looks").performClick()
+        assertEquals(EditorTab.LOOKS, switched)
+    }
+
+    @Test
+    fun looksTabActive_showsAllFilterChips_notSlider() {
+        setContent(activeTab = EditorTab.LOOKS)
+        // All five looks present; the speed slider is gone.
+        VideoFilter.entries.forEach { look ->
+            composeTestRule.onNodeWithTag("look_chip_${look.name}").assertIsDisplayed()
+        }
+        composeTestRule.onNodeWithTag("speed_slider").assertDoesNotExist()
+    }
+
+    @Test
+    fun tappingLookChip_invokesOnFilterChange() {
+        var changed: VideoFilter? = null
+        setContent(activeTab = EditorTab.LOOKS, onFilterChange = { changed = it })
+        composeTestRule.onNodeWithTag("look_chip_NOIR").performClick()
+        assertEquals(VideoFilter.NOIR, changed)
+    }
+
+    @Test
+    fun selectedLook_reportsSelectedSemantics() {
+        setContent(activeTab = EditorTab.LOOKS, filter = VideoFilter.WARM)
+        composeTestRule.onNodeWithTag("look_chip_WARM").assertIsSelected()
     }
 }

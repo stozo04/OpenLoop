@@ -39,7 +39,7 @@ Every slice below builds on top of that baseline.
 | [02](./02-auto-route-trim-and-default-save.md) | **Auto-route to Trim screen + default-render Save** | …after capture, app drops them on a Trim screen; drag start/end handles; tap `NEXT` and a default `fwd→rev` 2× 1-rep boomerang renders and saves. Back to camera. |
 | [03](./03-editor-direction-tab.md) | **Tabbed Editor + Direction tab** | …after `NEXT` on the trim screen, the editor opens with a Direction tab (4 options); pick a direction and tap the save checkmark. |
 | [04](./04-editor-speed-tab.md) | **Speed tab** | …drag a horizontal slider 0.25× – 3× (default 2×). Preview re-binds with new speed live. |
-| [05](./05-editor-repetitions-tab.md) | **Repetitions tab** | …pick 1 / 2 / 3 / 4. Preview loops the cycle that many times. |
+| [05](./05-editor-looks-tab.md) | **Looks tab (filters)** | …tap a color look (B&W / Warm / Cool / Vibrant). Preview re-tints live; the look bakes into the saved file. *(Replaced the planned Repetitions tab — see that doc's scope-pivot note.)* |
 | [06](./06-share-sheet-and-return.md) | **Share sheet + return-to-camera** | …Save now pops the Android share sheet on the rendered MP4; on dismiss, snackbar "Saved — view in gallery" → back to camera. |
 | [07](./07-gallery-tap-to-edit.md) | **Gallery tap-to-edit + raw/boomerang distinction** | …tap a raw clip in the gallery to enter the same Trim → Editor flow. Filter chip All / Boomerangs / Raw. Long-press boomerang to re-edit from its source raw. |
 
@@ -67,11 +67,14 @@ Each slice's doc is structured the same way: **Problem → Scope (this slice onl
 ## What ships when the rollout is complete
 
 After slice 07 merges, OpenRang has feature parity with the proprietary Boomerang
-app's core editor (capture → trim → direction / speed / reps → save → share) —
+app's core editor (capture → trim → direction / speed / looks → save → share) —
 minus the ads, IAP, watermark, and PRO-locked options. Out of scope for this
 rollout (deliberate): audio handling beyond strip, multi-clip composition, cloud
-sync, filters/stickers, auto-detection of best loop point. Those become candidates
-for a v1.5 rollout once v1 is dogfooded.
+sync, stickers / text overlays, multi-loop repetitions, auto-detection of best loop
+point. Those become candidates for a v1.5 rollout once v1 is dogfooded. (Slice 05
+pivoted from a Repetitions tab to a **Looks/filters** tab — filters moved *into* v1
+because they're visible live and high-impact for sharing; reps moved out because it
+only changes the exported file length, never the in-app loop.)
 
 ---
 

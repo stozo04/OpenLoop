@@ -55,6 +55,7 @@ interface VideoProcessor {
         trimEndMs: Long,
         mode: BoomerangMode,
         speed: Float,
+        filter: VideoFilter = VideoFilter.ORIGINAL,
         repetitions: Int,
         outputFile: File,
         onProgress: (Float) -> Unit = {},
@@ -99,6 +100,7 @@ class Media3VideoProcessor(
         trimEndMs: Long,
         mode: BoomerangMode,
         speed: Float,
+        filter: VideoFilter,
         repetitions: Int,
         outputFile: File,
         onProgress: (Float) -> Unit,
@@ -116,15 +118,17 @@ class Media3VideoProcessor(
         coroutineContext.ensureActive()
         onProgress(REVERSE_BUDGET)
 
-        val speedEffects = speedEffects(speed)
+        // Speed (SpeedChangeEffect) + the chosen color look (RgbFilter / RgbAdjustment / HslAdjustment)
+        // compose in one videoEffects list, applied identically to every clip in the sequence.
+        val clipEffects = videoEffects(speed, filter)
         // frameDurationMs() does a blocking MediaExtractor header read — keep it off the main thread
         // (renderBoomerang runs on viewModelScope's Main dispatcher; runTransformer hops to Main itself).
         val seamMs = withContext(Dispatchers.IO) { frameDurationMs(source) }
         val items = specs.map { spec ->
             val dropMs = if (spec.dropLeadingFrame) seamMs else 0L
             when (spec.direction) {
-                ClipDirection.FORWARD -> forwardItem(source, trimStartMs, trimEndMs, dropMs, speedEffects)
-                ClipDirection.REVERSED -> reverseItem(reversedFile!!, dropMs, speedEffects)
+                ClipDirection.FORWARD -> forwardItem(source, trimStartMs, trimEndMs, dropMs, clipEffects)
+                ClipDirection.REVERSED -> reverseItem(reversedFile!!, dropMs, clipEffects)
             }
         }
 
@@ -167,13 +171,18 @@ class Media3VideoProcessor(
         return EditedMediaItem.Builder(item).setRemoveAudio(true).setEffects(effects).build()
     }
 
-    private fun speedEffects(speed: Float): Effects {
+    private fun videoEffects(speed: Float, filter: VideoFilter): Effects {
         // SpeedChangingVideoEffect does not exist in Media3 1.10.1; the (deprecated) float-constructor
         // SpeedChangeEffect is the only constant-speed video effect — there is no public constant
         // SpeedProvider factory. Verified against the 1.10.1 source tag.
         @Suppress("DEPRECATION")
         val speedEffect: Effect = androidx.media3.effect.SpeedChangeEffect(speed)
-        return Effects(/* audioProcessors = */ emptyList(), /* videoEffects = */ listOf(speedEffect))
+        // Speed first, then the color look (order is cosmetic — the look is a per-pixel matrix).
+        // ORIGINAL contributes no effects, so a no-filter render is byte-for-byte the slice-04 path.
+        return Effects(
+            /* audioProcessors = */ emptyList(),
+            /* videoEffects = */ listOf(speedEffect) + filter.toMediaEffects(),
+        )
     }
 
     /** Run [composition] → [outputFile], bridging the async [Transformer] callbacks into a suspend call. */
