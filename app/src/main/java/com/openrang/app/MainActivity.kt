@@ -59,6 +59,7 @@ import com.openrang.app.data.dataStore
 import com.openrang.app.media.Media3VideoProcessor
 import com.openrang.app.media.VideoProcessor
 import com.openrang.app.media.VideoReverser
+import com.openrang.app.ui.BoomerangEditorScreen
 import com.openrang.app.ui.BoomerangEvent
 import com.openrang.app.ui.CameraScreen
 import com.openrang.app.ui.CameraScreenHost
@@ -293,6 +294,9 @@ fun OpenRangNavHost(
         }
         is OpenRangUiState.Trim -> {
             TrimScreen(viewModel = viewModel)
+        }
+        is OpenRangUiState.BoomerangEditor -> {
+            BoomerangEditorScreen(viewModel = viewModel)
         }
         is OpenRangUiState.Processing -> {
             // Render progress drives the spinner caption; read via a lambda so only the percentage

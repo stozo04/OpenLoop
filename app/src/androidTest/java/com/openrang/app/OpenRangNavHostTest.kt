@@ -106,5 +106,12 @@ class OpenRangNavHostTest {
             outputFile: File,
             onProgress: (Float) -> Unit,
         ): File = outputFile
+
+        override suspend fun ensureReversed(
+            source: File,
+            trimStartMs: Long,
+            trimEndMs: Long,
+            onProgress: (Float) -> Unit,
+        ): File = source
     }
 }

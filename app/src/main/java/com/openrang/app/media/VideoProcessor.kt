@@ -52,15 +52,29 @@ interface VideoProcessor {
         outputFile: File,
         onProgress: (Float) -> Unit = {},
     ): File
+
+    /**
+     * Produce (or cache-hit) the reversed clip for [source] over `[trimStartMs, trimEndMs]`, returning
+     * the reversed [File]. The editor preview calls this so the reversed file is generated ONCE and
+     * reused by [renderBoomerang] on save — both go through the same processor's reverser, so they hit
+     * the same trim-keyed cache and never reverse the same window twice. Suspends and is cancellable.
+     */
+    suspend fun ensureReversed(
+        source: File,
+        trimStartMs: Long,
+        trimEndMs: Long,
+        onProgress: (Float) -> Unit = {},
+    ): File
 }
 
 /**
  * Media3 [Transformer] implementation of [VideoProcessor].
  *
- * The reversed half of a `*_REVERSE` mode is produced up front by [VideoReverser] (Media3 1.10.x has
- * no reverse effect), so each half is just a plain forward [EditedMediaItem] — the reversed one built
- * from the already-reversed file. The two halves are concatenated in a single
- * [EditedMediaItemSequence] and exported with a constant 2× speed effect; audio is stripped.
+ * The reversed clip of a `*_REVERSE` mode is produced up front by [VideoReverser] (Media3 1.10.x has
+ * no reverse effect), so every clip is just a plain forward [EditedMediaItem] — the reversed ones
+ * built from the already-reversed file. [boomerangSequence] resolves the clip order and per-clip seam
+ * drops; the clips are concatenated in that order into one [EditedMediaItemSequence] and exported with
+ * a constant speed effect; audio is stripped.
  *
  * [Context] is injected via the ViewModel `Factory` (never passed to a ViewModel method — Lesson 004).
  *
@@ -82,7 +96,11 @@ class Media3VideoProcessor(
         outputFile: File,
         onProgress: (Float) -> Unit,
     ): File {
-        val needsReverse = mode != BoomerangMode.FORWARD
+        // The ordered clip plan, with seam-frame drops resolved by sequence POSITION (see
+        // boomerangSequence): only a clip that turns direction from the one before it drops its
+        // duplicated leading frame — a lone clip and same-direction repeats never drop.
+        val specs = boomerangSequence(mode, repetitions)
+        val needsReverse = specs.any { it.direction == ClipDirection.REVERSED }
         val reversedFile: File? = if (needsReverse) {
             reverser.reverse(source, trimStartMs, trimEndMs) { frac -> onProgress(frac * REVERSE_BUDGET) }
         } else {
@@ -92,18 +110,14 @@ class Media3VideoProcessor(
         onProgress(REVERSE_BUDGET)
 
         val speedEffects = speedEffects(speed)
-        val forward = forwardItem(source, trimStartMs, trimEndMs, speedEffects)
-        // Skip the reversed half's first frame: it duplicates the forward half's last frame at the seam
-        // (parent IMPLEMENTATION.md §6.4). Offset by one source frame's duration.
-        val reversed = reversedFile?.let { reverseItem(it, frameDurationMs(source), speedEffects) }
-
-        val ordered = when (mode) {
-            BoomerangMode.FORWARD -> listOf(forward)
-            BoomerangMode.REVERSE -> listOf(reversed!!)
-            BoomerangMode.FORWARD_THEN_REVERSE -> listOf(forward, reversed!!)
-            BoomerangMode.REVERSE_THEN_FORWARD -> listOf(reversed!!, forward)
+        val seamMs = frameDurationMs(source)
+        val items = specs.map { spec ->
+            val dropMs = if (spec.dropLeadingFrame) seamMs else 0L
+            when (spec.direction) {
+                ClipDirection.FORWARD -> forwardItem(source, trimStartMs, trimEndMs, dropMs, speedEffects)
+                ClipDirection.REVERSED -> reverseItem(reversedFile!!, dropMs, speedEffects)
+            }
         }
-        val items = (0 until repetitions.coerceAtLeast(1)).flatMap { ordered }
 
         val sequence = EditedMediaItemSequence.withVideoFrom(items)
         val composition = Composition.Builder(sequence).build()
@@ -115,19 +129,30 @@ class Media3VideoProcessor(
         return outputFile
     }
 
-    private fun forwardItem(source: File, startMs: Long, endMs: Long, effects: Effects): EditedMediaItem {
+    override suspend fun ensureReversed(
+        source: File,
+        trimStartMs: Long,
+        trimEndMs: Long,
+        onProgress: (Float) -> Unit,
+    ): File = reverser.reverse(source, trimStartMs, trimEndMs, onProgress)
+
+    /** Forward clip over `[startMs, endMs]`; [dropLeadingMs] (>0 at a turn seam) skips its first frame. */
+    private fun forwardItem(source: File, startMs: Long, endMs: Long, dropLeadingMs: Long, effects: Effects): EditedMediaItem {
         val clip = MediaItem.ClippingConfiguration.Builder()
-            .setStartPositionMs(startMs)
+            .setStartPositionMs(startMs + dropLeadingMs)
             .setEndPositionMs(endMs)
             .build()
         val item = MediaItem.Builder().setUri(source.toUri()).setClippingConfiguration(clip).build()
         return EditedMediaItem.Builder(item).setRemoveAudio(true).setEffects(effects).build()
     }
 
-    private fun reverseItem(reversedFile: File, seamOffsetMs: Long, effects: Effects): EditedMediaItem {
-        // The reversed file already spans only the trim window, so just trim the 1-frame seam off its head.
+    /**
+     * Reversed clip; the file already spans only the trim window, so [dropLeadingMs] (>0 at a turn
+     * seam) skips its first frame and `0` plays it whole (e.g. a standalone `REVERSE`).
+     */
+    private fun reverseItem(reversedFile: File, dropLeadingMs: Long, effects: Effects): EditedMediaItem {
         val clip = MediaItem.ClippingConfiguration.Builder()
-            .setStartPositionMs(seamOffsetMs)
+            .setStartPositionMs(dropLeadingMs)
             .build()
         val item = MediaItem.Builder().setUri(reversedFile.toUri()).setClippingConfiguration(clip).build()
         return EditedMediaItem.Builder(item).setRemoveAudio(true).setEffects(effects).build()

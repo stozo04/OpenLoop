@@ -1,5 +1,6 @@
 package com.openrang.app.ui
 
+import com.openrang.app.media.BoomerangMode
 import java.io.File
 
 sealed interface OpenRangUiState {
@@ -24,6 +25,15 @@ sealed interface OpenRangUiState {
      * `editorState` flow, so this routed state stays a slim discriminator (no [File] in the router).
      */
     data class Trim(val source: EditorSource) : OpenRangUiState
+
+    /**
+     * The tabbed boomerang editor (slice 03), opened from the Trim screen's NEXT. Like [Trim] this is
+     * a slim discriminator: the trim window stays in [OpenRangViewModel]'s `editorState` and the
+     * editor's tab selections live in its sibling `editorTabState` flow, so the routed state carries
+     * only the source identity. (The slice-03 PRD sketched `BoomerangEditor(source, trim)`; we keep
+     * the established slim-discriminator-plus-sibling-flow shape that `Trim` already uses.)
+     */
+    data class BoomerangEditor(val source: EditorSource) : OpenRangUiState
 
     /** Full-screen spinner shown while [OpenRangViewModel] renders the boomerang (slice 02). */
     object Processing : OpenRangUiState
@@ -54,4 +64,19 @@ data class TrimState(
     val sourceDurationMs: Long,
     val trimStartMs: Long = 0L,
     val trimEndMs: Long = sourceDurationMs,
+)
+
+/**
+ * The boomerang editor's tab selections, held by [OpenRangViewModel] in a sibling flow to the routed
+ * [OpenRangUiState.BoomerangEditor] (same slim-discriminator split as [TrimState] is to
+ * [OpenRangUiState.Trim]). Slice 03 only exposes the Direction tab; [mode] is its single control.
+ *
+ * [reversedFile] caches the reversed clip the preview plays for any reverse-containing [mode]; it is
+ * produced once per trim (shared with the render via the same `VideoProcessor`) and is `null` until
+ * generated. [isReversedFileLoading] drives the "Preparing reverse…" shimmer over the preview.
+ */
+data class EditorTabState(
+    val mode: BoomerangMode = BoomerangMode.FORWARD_THEN_REVERSE,
+    val reversedFile: File? = null,
+    val isReversedFileLoading: Boolean = false,
 )

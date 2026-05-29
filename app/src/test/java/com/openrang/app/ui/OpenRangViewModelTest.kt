@@ -155,6 +155,12 @@ class FakeVideoProcessor : VideoProcessor {
     var failRender: Boolean = false
     var renderCount: Int = 0
 
+    /** Counts [ensureReversed] calls so tests can assert the reversed clip is generated once + reused. */
+    var ensureReversedCount: Int = 0
+
+    /** Stub reversed file returned by [ensureReversed]; a real temp file so File handles behave. */
+    val reversedStub: File = File.createTempFile("fake_reversed_", ".mp4").apply { writeBytes(ByteArray(4)) }
+
     override suspend fun renderBoomerang(
         source: File,
         trimStartMs: Long,
@@ -171,6 +177,17 @@ class FakeVideoProcessor : VideoProcessor {
         outputFile.parentFile?.mkdirs()
         outputFile.writeBytes(ByteArray(4))
         return outputFile
+    }
+
+    override suspend fun ensureReversed(
+        source: File,
+        trimStartMs: Long,
+        trimEndMs: Long,
+        onProgress: (Float) -> Unit,
+    ): File {
+        ensureReversedCount++
+        onProgress(1f)
+        return reversedStub
     }
 }
 
@@ -528,14 +545,83 @@ class OpenRangViewModelTest {
         assertEquals(3_000L, viewModel.editorState.value!!.trimEndMs)
     }
 
+    // ── Boomerang editor (slice 03) ──
+
     @Test
-    fun `onNextFromTrim renders saves and returns to capture, emitting Saved`() =
+    fun `onNextFromTrim opens the editor and pre-generates the default reversed clip`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
+
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertTrue("expected BoomerangEditor, was $state", state is OpenRangUiState.BoomerangEditor)
+            // Editor opens on the default direction; the reversed clip is generated eagerly for preview.
+            assertEquals(BoomerangMode.FORWARD_THEN_REVERSE, viewModel.editorTabState.value.mode)
+            assertEquals(1, fakeVideoProcessor.ensureReversedCount)
+            assertNotNull(viewModel.editorTabState.value.reversedFile)
+            // Nothing rendered or promoted yet — saving happens from the editor's checkmark.
+            assertEquals(0, fakeVideoProcessor.renderCount)
+            assertTrue(fakeVideoStorage.saved.isEmpty())
+        }
+
+    @Test
+    fun `updateMode to FORWARD does not generate a reversed clip`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim() // default FORWARD_THEN_REVERSE → one generation
+            advanceUntilIdle()
+            val baseline = fakeVideoProcessor.ensureReversedCount
+
+            viewModel.updateMode(BoomerangMode.FORWARD)
+            advanceUntilIdle()
+
+            assertEquals(BoomerangMode.FORWARD, viewModel.editorTabState.value.mode)
+            assertEquals("FORWARD needs no reverse", baseline, fakeVideoProcessor.ensureReversedCount)
+        }
+
+    @Test
+    fun `reversed clip is generated once and reused across reverse-containing modes`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim() // FORWARD_THEN_REVERSE → generate once
+            advanceUntilIdle()
+
+            viewModel.updateMode(BoomerangMode.REVERSE)
+            viewModel.updateMode(BoomerangMode.REVERSE_THEN_FORWARD)
+            advanceUntilIdle()
+
+            // The cached reversedFile is reused (guard in ensureReversedSegment) — no re-generation.
+            assertEquals(1, fakeVideoProcessor.ensureReversedCount)
+        }
+
+    @Test
+    fun `backToTrim returns to Trim preserving the trim selection`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.updateTrim(500L, 2_500L)
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value is OpenRangUiState.BoomerangEditor)
+
+            viewModel.backToTrim()
+
+            assertTrue("expected Trim, was ${viewModel.uiState.value}", viewModel.uiState.value is OpenRangUiState.Trim)
+            assertEquals(500L, viewModel.editorState.value!!.trimStartMs)
+            assertEquals(2_500L, viewModel.editorState.value!!.trimEndMs)
+        }
+
+    @Test
+    fun `saveBoomerang renders the chosen direction, saves, returns to capture emitting Saved`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
             val events = mutableListOf<BoomerangEvent>()
             val job = backgroundScope.launch { viewModel.events.toList(events) }
 
-            viewModel.onNextFromTrim()
+            viewModel.saveBoomerang()
             advanceUntilIdle()
 
             assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
@@ -553,24 +639,25 @@ class OpenRangViewModelTest {
         }
 
     @Test
-    fun `onNextFromTrim on render failure returns to Trim with selection preserved, emitting Failed`() =
+    fun `saveBoomerang on render failure returns to the editor with direction preserved, emitting Failed`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
-            viewModel.updateTrim(500L, 2_500L)
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            viewModel.updateMode(BoomerangMode.REVERSE_THEN_FORWARD)
             fakeVideoProcessor.failRender = true
             val events = mutableListOf<BoomerangEvent>()
             val job = backgroundScope.launch { viewModel.events.toList(events) }
 
-            viewModel.onNextFromTrim()
+            viewModel.saveBoomerang()
             advanceUntilIdle()
 
             val state = viewModel.uiState.value
-            assertTrue("expected Trim after failure, was $state", state is OpenRangUiState.Trim)
+            assertTrue("expected BoomerangEditor after failure, was $state", state is OpenRangUiState.BoomerangEditor)
             assertTrue(events.contains(BoomerangEvent.Failed))
-            // No boomerang registered; trim selection intact.
+            // No boomerang registered; the chosen direction survives the failure.
             assertTrue(fakeVideoStorage.saved.none { it.kind == VideoKind.BOOMERANG })
-            assertEquals(500L, viewModel.editorState.value!!.trimStartMs)
-            assertEquals(2_500L, viewModel.editorState.value!!.trimEndMs)
+            assertEquals(BoomerangMode.REVERSE_THEN_FORWARD, viewModel.editorTabState.value.mode)
 
             job.cancel()
         }
