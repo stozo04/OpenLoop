@@ -1,0 +1,38 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "$comment": "Tier-3 static analysis (Issue #21) — approximate Android Studio's proofreading/typo inspection headlessly. Run scoped to a PR's changed markdown: npx --yes cspell --no-progress $(git diff --name-only --diff-filter=d main...HEAD -- '*.md'). 'words' is the project dictionary of domain/tool proper-nouns that are not typos; grow it deliberately rather than disabling the check. See docs/STATIC_ANALYSIS.md.",
+  "useGitignore": true,
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/build/**",
+    "**/.git/**",
+    "**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.webp", "**/*.svg", "**/*.ico",
+    "**/lint-baseline.xml",
+    "gradle/wrapper/**",
+    "cspell.json"
+  ],
+  "ignoreRegExpList": [
+    "/\\b[0-9a-f]{7,40}\\b/",
+    "/0x[0-9A-Fa-f]+/"
+  ],
+  "words": [
+    "OpenRang", "boomerang", "boomerangs", "Loopify",
+    "vaporwave", "glassmorphic", "Neon", "Coral", "charcoal",
+    "Jetpack", "Kotlin", "Gradle", "gradlew", "Kts", "AGP", "zipalign",
+    "minSdk", "compileSdk", "targetSdk", "sdk", "anydpi", "mipmap", "dpi",
+    "CameraX", "ExoPlayer", "Media3", "Transformer", "muxer", "transcode", "transcoding",
+    "datastore", "ViewModel", "ViewModels", "composable", "composables", "recompose",
+    "recomposition", "recompositions", "Compose", "Composables",
+    "coroutine", "coroutines", "viewModelScope", "lifecycleScope", "StateFlow",
+    "MutableStateFlow", "suspendable", "dispatcher", "dispatchers",
+    "MockK", "Espresso", "JUnit", "JBR", "testTag",
+    "detekt", "markdownlint", "cspell", "codespell", "lychee", "Grazie",
+    "headlessly", "headless", "lifecycle", "lifecycles", "predictive",
+    "Supabase", "Anthropic", "stozo", "Gates",
+    "TalkBack", "edge-to-edge", "foldable", "Fold",
+    "Bom", "ktx", "androidx", "kotlinx", "proguard", "shrinker", "R8",
+    "screencap", "logcat", "adb", "emulator", "AVD"
+  ],
+  "flagWords": []
+}

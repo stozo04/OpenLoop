@@ -29,7 +29,14 @@ Verify the things a build alone doesn't prove. Example for this app — **16 KB 
 # .so lines must read "(OK)" at 16384-multiple offsets — NOT "(OK - compressed)"
 ```
 
-### 3. Automated tests — unit and instrumented
+### 3. Static analysis — code inspection (Android Studio "Inspect Code", headless)
+Reproduce both Inspect Code engines and clear them. Full design + severity rules: **[`docs/STATIC_ANALYSIS.md`](STATIC_ANALYSIS.md)**.
+```powershell
+.\gradlew.bat :app:lintDebug --console=plain        # Engine 1 — Android Lint (the automated gate)
+```
+`app/lint-baseline.xml` filters out the project's pre-existing items, so the report must show **zero *new* errors** — a genuinely clean run's XML contains only the informational `LintBaseline` "Hint" line. Then run **Engine 2** (IDE inspections + proofreading) locally via `inspect.bat` (command in `STATIC_ANALYSIS.md`) — it's slow and needs Android Studio closed. **Never regenerate `lint-baseline.xml` to silence findings** — that swallows newly-introduced issues too.
+
+### 4. Automated tests — unit and instrumented
 ```powershell
 .\gradlew.bat testDebugUnitTest --console=plain                 # JVM, no device
 $env:ANDROID_SERIAL = "emulator-XXXX"                            # pin the device if more than one is attached
@@ -37,7 +44,7 @@ $env:ANDROID_SERIAL = "emulator-XXXX"                            # pin the devic
 ```
 Read the actual counts (`tests=".." failures=".." errors=".."` in `app/build/.../*-results/`); confirm **0 failures**, not just `BUILD SUCCESSFUL`.
 
-### 4. Run it for real — boot, install, launch, screenshot
+### 5. Run it for real — boot, install, launch, screenshot
 This is the step that separates "should work" from "works." Automated tests miss crashes-on-launch, missing/mislabeled assets, and layout breakage. Boot an emulator, install the APK, launch the app, and capture a screenshot as **proof**.
 ```
 EMU=<sdk>/emulator/emulator.exe ; ADB=<sdk>/platform-tools/adb.exe
@@ -52,11 +59,11 @@ EMU=<sdk>/emulator/emulator.exe ; ADB=<sdk>/platform-tools/adb.exe
 ```
 > AGP uninstalls the app after `connectedAndroidTest`, so re-`install` before launching. `pm clear com.openrang.app` first if you need a fresh first-run (e.g. to see onboarding).
 
-### 5. Be honest about what you could NOT verify
+### 6. Be honest about what you could NOT verify
 State the coverage gaps plainly and hand off a manual QA checklist. Camera capture (simulated on emulators), specific-API-level runtime behavior, and large-screen (>=600dp) layout often need a real device or a specific emulator + a human. **Never claim success for something you didn't actually exercise** (Lesson 007's spirit).
 
-### 6. Attach the proof to the PR
-Put the screenshot(s) from step 4 in the PR description, alongside the build/test results. Visual proof + green build + test counts = a reviewable "done."
+### 7. Attach the proof to the PR
+Put the screenshot(s) from step 5 in the PR description, alongside the build/test results. Visual proof + green build + test counts = a reviewable "done."
 
 ---
 
@@ -85,6 +92,7 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] Baseline green before changes (clean assembleDebug)
 - [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
+- [ ] Static analysis: Android Lint 0 new errors (lintDebug); IDE Inspect Code run locally + findings addressed
 - [ ] Unit tests: 0 failures (count: __)
 - [ ] Instrumented tests: 0 failures (count: __)
 - [ ] App installed + launched on an emulator; no FATAL in logcat
