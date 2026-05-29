@@ -98,12 +98,13 @@ fun PreviewScreen(
                 .padding(bottom = 24.dp, start = 28.dp, end = 28.dp, top = 32.dp),
             contentAlignment = Alignment.Center
         ) {
-            // "Loopify" is the entry point to the Trim screen — wired up in slice 02. For now, it's
-            // an intentional no-op placeholder; the BackHandler above (back gesture) returns to the
-            // camera. Styled with the NeonCoral→NeonPurple Infinity-logo gradient to match the
-            // shutter and gallery buttons.
+            // Slice 02 auto-routes capture → Trim directly, so this screen is no longer the
+            // post-capture pad; it is retained only as the gallery playback target (wired up in
+            // slice 07, which will make "Loopify" re-enter the Trim → editor flow). For now, it's an
+            // intentional no-op; the BackHandler above returns to the camera. Styled with the
+            // NeonCoral→NeonPurple Infinity-logo gradient to match the shutter and gallery buttons.
             Button(
-                onClick = { /* no-op: routes to the Trim screen in slice 02 */ },
+                onClick = { /* no-op: gallery tap-to-edit arrives in slice 07 */ },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier

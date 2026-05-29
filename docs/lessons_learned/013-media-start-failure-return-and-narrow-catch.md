@@ -57,7 +57,7 @@ Media3 `Transformer` and `MediaCodec` work):
    }
    ```
 
-2. **Catch only the documented synchronous throwables; let the rest propagate.** Kotlin has no
+2. **Catch only the documented synchronous throwable; let the rest propagate.** Kotlin has no
    multi-catch, so use one block per type (delegating to a shared recovery fn):
    ```kotlin
    try {
@@ -81,7 +81,7 @@ Media3 `Transformer` and `MediaCodec` work):
 - Grep for a media start whose result is discarded: a `startRecording(`/`prepareRecording(` /
   `transformer.start(` line that is **not** assigned to a `val` and null/began-checked.
 - Grep for `catch (e: Exception)` / `catch (e: Throwable)` in any ViewModel/media class — each is
-  a candidate to narrow to the API's documented throwables.
+  a candidate to narrow to the API's documented throwable.
 - For every exception type you *do* catch, you must be able to point to the `@throws` in the
   API source/reference. If you can't, you're guessing — remove it.
 - Covering tests (`OpenRangViewModelTest`): null-return → ReadyToCapture, `elapsed == 0`,

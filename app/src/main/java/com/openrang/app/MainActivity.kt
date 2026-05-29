@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
@@ -23,18 +24,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,10 +51,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.util.UnstableApi
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.data.UserPreferencesRepositoryImpl
 import com.openrang.app.data.VideoStorageRepositoryImpl
 import com.openrang.app.data.dataStore
+import com.openrang.app.media.Media3VideoProcessor
+import com.openrang.app.media.VideoProcessor
+import com.openrang.app.media.VideoReverser
+import com.openrang.app.ui.BoomerangEvent
 import com.openrang.app.ui.CameraScreen
 import com.openrang.app.ui.CameraScreenHost
 import com.openrang.app.ui.GalleryScreen
@@ -57,10 +67,13 @@ import com.openrang.app.ui.OnboardingScreen
 import com.openrang.app.ui.OpenRangUiState
 import com.openrang.app.ui.OpenRangViewModel
 import com.openrang.app.ui.PreviewScreen
+import com.openrang.app.ui.ProcessingScreen
+import com.openrang.app.ui.TrimScreen
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val viewModel: OpenRangViewModel by viewModels {
-        // Bridge Context → repositories here, once. applicationContext is the long-lived,
+        // Bridge Context → repositories + media here, once. applicationContext is the long-lived,
         // safe Context to read dataStore / cacheDir / filesDir from; nothing downstream
         // (Factory, ViewModel) ever sees a Context.
         OpenRangViewModel.Factory(
@@ -69,9 +82,22 @@ class MainActivity : ComponentActivity() {
                 cacheDir = applicationContext.cacheDir,
                 filesDir = applicationContext.filesDir,
             ),
+            buildVideoProcessor(),
         )
     }
     private lateinit var cameraManager: CameraManager
+
+    // Constructing the @UnstableApi Media3VideoProcessor needs an opt-in; a function-level @OptIn
+    // reliably covers its body (a property-delegate annotation doesn't propagate into the
+    // `viewModels { … }` lambda where the construction would otherwise live).
+    @OptIn(UnstableApi::class)
+    private fun buildVideoProcessor(): VideoProcessor =
+        Media3VideoProcessor(
+            context = applicationContext,
+            reverser = VideoReverser(
+                scratchDir = File(applicationContext.cacheDir, "scratch/reversed"),
+            ),
+        )
 
     private val requiredPermissions = arrayOf(
         Manifest.permission.CAMERA,
@@ -97,11 +123,37 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             OpenRangTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val snackbarHostState = remember { SnackbarHostState() }
+
+                // Collect one-shot boomerang events → snackbars (the app's first SnackbarHost).
+                LaunchedEffect(Unit) {
+                    viewModel.events.collect { event ->
+                        when (event) {
+                            BoomerangEvent.Saved -> {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "Saved — view in gallery",
+                                    actionLabel = "View",
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.navigateToGallery()
+                                }
+                            }
+                            BoomerangEvent.Failed -> snackbarHostState.showSnackbar(
+                                message = "Couldn't save boomerang. Try again.",
+                            )
+                        }
+                    }
+                }
+
+                // No Scaffold: every screen draws edge-to-edge and owns its system-bar insets, so a
+                // Scaffold's content-padding contract doesn't apply. The SnackbarHost is overlaid
+                // directly and floats above the navigation bar.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
                 ) {
-                    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                     OpenRangNavHost(
                         uiState = uiState,
                         viewModel = viewModel,
@@ -109,6 +161,12 @@ class MainActivity : ComponentActivity() {
                         onCheckPermissions = ::checkPermissions,
                         onRationaleAcknowledged = ::onRationaleAcknowledged,
                         onOpenAppSettings = ::openAppSettings,
+                    )
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding(),
                     )
                 }
             }
@@ -233,12 +291,14 @@ fun OpenRangNavHost(
                 )
             }
         }
+        is OpenRangUiState.Trim -> {
+            TrimScreen(viewModel = viewModel)
+        }
         is OpenRangUiState.Processing -> {
-            // TODO(slice-02): replace this placeholder with the real Processing surface (the
-            // Trim/reverse pipeline per 02-auto-route-trim-and-default-save.md). For now Processing
-            // renders the same neutral loader as init, so the `when` stays exhaustive and Processing
-            // never falls through to a bare CameraScreen (WARNING-1 / Lesson 012).
-            InfinityLoadingScreen()
+            // Render progress drives the spinner caption; read via a lambda so only the percentage
+            // text recomposes as progress ticks (Lesson 016).
+            val progress = viewModel.renderProgress.collectAsStateWithLifecycle()
+            ProcessingScreen(progress = { progress.value })
         }
         is OpenRangUiState.LoopingPreview -> {
             PreviewScreen(

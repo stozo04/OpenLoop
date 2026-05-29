@@ -16,7 +16,7 @@ Your knowledge cutoff could be a year old. **Do not assume** you know the curren
 
 ## What slice 06 ships (one-paragraph summary)
 
-Add a `FileProvider` configured for `filesDir/boomerangs/` only (raws and scratch stay private). On `saveBoomerang()` success, the ViewModel emits a `ShareBoomerang(file)` UI effect; `MainActivity` consumes it and launches `Intent.createChooser(ACTION_SEND, ...)` with the rendered MP4 as `EXTRA_STREAM` + `FLAG_GRANT_READ_URI_PERMISSION`. After the chooser dismisses (shared or cancelled), the user lands on `ReadyToCapture` with a `Snackbar` ("Saved — view in gallery") hosted at the `Scaffold` level; tapping "View" routes to `Gallery`. No copy to public `DCIM` / `MediaStore` in this slice (parent doc D-6).
+Add a `FileProvider` configured for `filesDir/boomerangs/` only (raws and scratch stay private). On `saveBoomerang()` success, the ViewModel emits a `ShareBoomerang(file)` UI effect; `MainActivity` consumes it and launches `Intent.createChooser(ACTION_SEND, ...)` with the rendered MP4 as `EXTRA_STREAM` + `FLAG_GRANT_READ_URI_PERMISSION`. After the chooser dismisses (shared or canceled), the user lands on `ReadyToCapture` with a `Snackbar` ("Saved — view in gallery") hosted at the `Scaffold` level; tapping "View" routes to `Gallery`. No copy to public `DCIM` / `MediaStore` in this slice (parent doc D-6).
 
 The full slice spec lives in `docs/active/boomerang-rollout/06-share-sheet-and-return.md`. **That doc is your PRD for this PR.** Treat it as authoritative.
 

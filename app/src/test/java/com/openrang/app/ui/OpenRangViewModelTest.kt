@@ -5,13 +5,19 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.data.RecordedVideo
+import com.openrang.app.data.ScratchCapture
 import com.openrang.app.data.UserPreferencesRepository
+import com.openrang.app.data.VideoKind
 import com.openrang.app.data.VideoStorageRepository
+import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoProcessor
 import io.mockk.*
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
@@ -71,8 +77,8 @@ class FailingWritePreferencesRepository : UserPreferencesRepository {
 
 /**
  * In-memory fake of [VideoStorageRepository] (lesson 004: fakes over mocking Context/File).
- * Holds an in-memory list of saved videos and a single real scratch file for [rawCaptureFile],
- * so tests can assert on storage behavior without touching the Android framework.
+ * Backed by a real temp directory so [File] handles behave; tracks scratch / promote / register
+ * operations so tests can assert on storage behavior without touching the Android framework.
  */
 class FakeVideoStorageRepository : VideoStorageRepository {
 
@@ -83,32 +89,88 @@ class FakeVideoStorageRepository : VideoStorageRepository {
         f
     }
 
-    /** Saved videos, exposed for assertions. */
+    /** Saved videos (raws + boomerangs), exposed for assertions. */
     val saved = mutableListOf<RecordedVideo>()
 
-    /** Toggle to simulate a save failure (e.g. copy error) — [saveFinalizedVideo] returns null. */
-    var failSave: Boolean = false
+    /** UUIDs passed to [discardScratch], for assertions. */
+    val discardedScratches = mutableListOf<String>()
 
-    override val rawCaptureFile: File = File(tempRoot, "raw_capture.mp4")
+    /** Toggles to simulate failure paths. */
+    var failPromote: Boolean = false
+    var failRegister: Boolean = false
 
-    override fun saveFinalizedVideo(rawCapture: File): File? {
-        if (failSave) return null
-        val id = (saved.maxOfOrNull { it.id } ?: 0L) + 1
-        val dest = File(tempRoot, "clip_$id.mp4")
-        saved.add(
-            RecordedVideo(
-                id = id,
-                videoPath = dest.absolutePath,
-                thumbnailPath = File(tempRoot, "clip_$id.jpg").absolutePath
-            )
-        )
-        return dest
+    /** Fixed duration [durationOf] reports for any file. */
+    var fixedDurationMs: Long = 3_000L
+
+    private var nextId = 1L
+
+    override fun createScratchCapture(): ScratchCapture {
+        val uuid = "uuid-${nextId++}"
+        return ScratchCapture(uuid, File(tempRoot, "raw_$uuid.mp4"))
     }
 
-    override fun loadRecordedVideos(): List<RecordedVideo> = saved.sortedByDescending { it.id }
+    override suspend fun promoteScratchToRaw(scratch: ScratchCapture): RecordedVideo? {
+        if (failPromote) return null
+        val id = nextId++
+        return RecordedVideo(
+            id = id,
+            videoPath = File(tempRoot, "clip_$id.mp4").absolutePath,
+            thumbnailPath = File(tempRoot, "clip_$id.jpg").absolutePath,
+            kind = VideoKind.RAW,
+        ).also { saved.add(it) }
+    }
 
-    override fun deleteVideo(video: RecordedVideo) {
+    override fun discardScratch(scratch: ScratchCapture) {
+        discardedScratches.add(scratch.uuid)
+    }
+
+    override fun allocateBoomerangFile(sourceRawId: Long): File =
+        File(tempRoot, "boom_${nextId++}_from_$sourceRawId.mp4")
+
+    override suspend fun registerBoomerang(file: File, sourceRawId: Long): RecordedVideo? {
+        if (failRegister) return null
+        val id = nextId++
+        return RecordedVideo(
+            id = id,
+            videoPath = file.absolutePath,
+            thumbnailPath = File(tempRoot, "${file.nameWithoutExtension}.jpg").absolutePath,
+            kind = VideoKind.BOOMERANG,
+            sourceRawId = sourceRawId,
+        ).also { saved.add(it) }
+    }
+
+    override suspend fun durationOf(file: File): Long = fixedDurationMs
+
+    override suspend fun loadRecordedVideos(): List<RecordedVideo> = saved.sortedByDescending { it.id }
+
+    override suspend fun deleteVideo(video: RecordedVideo) {
         saved.remove(video)
+    }
+}
+
+/**
+ * Fake [VideoProcessor] that writes a stub output file (or throws) without invoking Media3/MediaCodec.
+ */
+class FakeVideoProcessor : VideoProcessor {
+    var failRender: Boolean = false
+    var renderCount: Int = 0
+
+    override suspend fun renderBoomerang(
+        source: File,
+        trimStartMs: Long,
+        trimEndMs: Long,
+        mode: BoomerangMode,
+        speed: Float,
+        repetitions: Int,
+        outputFile: File,
+        onProgress: (Float) -> Unit,
+    ): File {
+        renderCount++
+        onProgress(1f)
+        if (failRender) throw RuntimeException("simulated render failure")
+        outputFile.parentFile?.mkdirs()
+        outputFile.writeBytes(ByteArray(4))
+        return outputFile
     }
 }
 
@@ -121,6 +183,7 @@ class OpenRangViewModelTest {
     private lateinit var viewModel: OpenRangViewModel
     private lateinit var fakePreferencesRepository: FakeUserPreferencesRepository
     private lateinit var fakeVideoStorage: FakeVideoStorageRepository
+    private lateinit var fakeVideoProcessor: FakeVideoProcessor
     private val cameraManager: CameraManager = mockk(relaxed = true)
 
     /**
@@ -141,7 +204,8 @@ class OpenRangViewModelTest {
         // Default: onboarding NOT completed (first-time user)
         fakePreferencesRepository = FakeUserPreferencesRepository(initialOnboardingCompleted = false)
         fakeVideoStorage = FakeVideoStorageRepository()
-        viewModel = OpenRangViewModel(fakePreferencesRepository, fakeVideoStorage)
+        fakeVideoProcessor = FakeVideoProcessor()
+        viewModel = OpenRangViewModel(fakePreferencesRepository, fakeVideoStorage, fakeVideoProcessor)
     }
 
     @After
@@ -162,7 +226,8 @@ class OpenRangViewModelTest {
     fun `returning user resolves to CheckingPermissions after init`() {
         // Create a ViewModel where onboarding was already completed
         val returningUserRepo = FakeUserPreferencesRepository(initialOnboardingCompleted = true)
-        val returningViewModel = OpenRangViewModel(returningUserRepo, FakeVideoStorageRepository())
+        val returningViewModel =
+            OpenRangViewModel(returningUserRepo, FakeVideoStorageRepository(), FakeVideoProcessor())
 
         assertEquals(OpenRangUiState.CheckingPermissions, returningViewModel.uiState.value)
     }
@@ -178,7 +243,7 @@ class OpenRangViewModelTest {
     fun `onOnboardingCompleted handles IOException gracefully`() {
         // Use the failing repository that throws IOException on write
         val failingViewModel =
-            OpenRangViewModel(FailingWritePreferencesRepository(), FakeVideoStorageRepository())
+            OpenRangViewModel(FailingWritePreferencesRepository(), FakeVideoStorageRepository(), FakeVideoProcessor())
 
         // Should not crash — state should still transition to CheckingPermissions
         failingViewModel.onOnboardingCompleted()
@@ -390,55 +455,39 @@ class OpenRangViewModelTest {
         verify(exactly = 1) { cameraManager.stopRecording() }
     }
 
-    @Test
-    fun `video record event finalize transitions to LoopingPreview using saved video path`() {
+    /** Drive a successful capture so the ViewModel lands on the Trim screen with an editor session. */
+    private fun enterTrimState() {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
-
         val slot = slot<(VideoRecordEvent) -> Unit>()
         every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
-
         viewModel.startBurstCapture(cameraManager)
-
-        // Mock a success Finalize event
         val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
         every { finalizeEvent.hasError() } returns false
-
         slot.captured.invoke(finalizeEvent)
-
-        val state = viewModel.uiState.value
-        assertTrue(state is OpenRangUiState.LoopingPreview)
-        val previewState = state as OpenRangUiState.LoopingPreview
-        // saveFinalizedVideo succeeded, so the preview points at the persisted clip path.
-        val persisted = fakeVideoStorage.saved.single()
-        assertEquals(persisted.videoPath, previewState.videoPath)
-        assertEquals(1.5f, previewState.playbackSpeed)
     }
 
     @Test
-    fun `video record event finalize falls back to raw capture path when save fails`() {
-        viewModel.onPermissionsChecked(true) // ReadyToCapture
-        fakeVideoStorage.failSave = true
-
-        val slot = slot<(VideoRecordEvent) -> Unit>()
-        every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
-
-        viewModel.startBurstCapture(cameraManager)
-
-        val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
-        every { finalizeEvent.hasError() } returns false
-
-        slot.captured.invoke(finalizeEvent)
+    fun `finalize success auto-routes to Trim with a ScratchClip and initialized editorState`() {
+        enterTrimState()
 
         val state = viewModel.uiState.value
-        assertTrue(state is OpenRangUiState.LoopingPreview)
-        val previewState = state as OpenRangUiState.LoopingPreview
-        // Save returned null → ViewModel falls back to the raw scratch capture path.
-        assertEquals(fakeVideoStorage.rawCaptureFile.absolutePath, previewState.videoPath)
+        assertTrue("expected Trim, was $state", state is OpenRangUiState.Trim)
+        val source = (state as OpenRangUiState.Trim).source
+        assertTrue(source is EditorSource.ScratchClip)
+
+        // editorState initializes to the full clip (duration from the fake = 3000ms).
+        val editor = viewModel.editorState.value
+        assertNotNull(editor)
+        assertEquals(0L, editor!!.trimStartMs)
+        assertEquals(3_000L, editor.trimEndMs)
+        assertEquals(3_000L, editor.sourceDurationMs)
+
+        // The scratch is NOT promoted yet — saving happens on NEXT.
         assertTrue(fakeVideoStorage.saved.isEmpty())
     }
 
     @Test
-    fun `video record event finalize transitions back to ReadyToCapture on error`() {
+    fun `finalize error discards the scratch and returns to ReadyToCapture`() {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
 
         val slot = slot<(VideoRecordEvent) -> Unit>()
@@ -454,6 +503,87 @@ class OpenRangViewModelTest {
         slot.captured.invoke(finalizeEvent)
 
         assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
+        assertEquals(1, fakeVideoStorage.discardedScratches.size) // scratch cleaned up on error
+        assertNull(viewModel.editorState.value)
+    }
+
+    // ── Trim screen mutators (slice 02) ──
+
+    @Test
+    fun `updateTrim clamps to bounds and enforces the minimum window`() {
+        enterTrimState()
+
+        viewModel.updateTrim(500L, 2_500L)
+        assertEquals(500L, viewModel.editorState.value!!.trimStartMs)
+        assertEquals(2_500L, viewModel.editorState.value!!.trimEndMs)
+
+        // Sub-400ms window is rejected (no change).
+        viewModel.updateTrim(1_000L, 1_200L)
+        assertEquals(500L, viewModel.editorState.value!!.trimStartMs)
+        assertEquals(2_500L, viewModel.editorState.value!!.trimEndMs)
+
+        // Out-of-range values clamp to [0, duration].
+        viewModel.updateTrim(-100L, 9_000L)
+        assertEquals(0L, viewModel.editorState.value!!.trimStartMs)
+        assertEquals(3_000L, viewModel.editorState.value!!.trimEndMs)
+    }
+
+    @Test
+    fun `onNextFromTrim renders saves and returns to capture, emitting Saved`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+
+            assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
+            assertTrue("expected a Saved event, got $events", events.contains(BoomerangEvent.Saved))
+            assertEquals(1, fakeVideoProcessor.renderCount)
+
+            // One RAW (promoted) + one BOOMERANG (registered), boomerang points at the raw.
+            val raw = fakeVideoStorage.saved.single { it.kind == VideoKind.RAW }
+            val boomerang = fakeVideoStorage.saved.single { it.kind == VideoKind.BOOMERANG }
+            assertEquals(raw.id, boomerang.sourceRawId)
+            assertEquals(1, fakeVideoStorage.discardedScratches.size) // scratch cleaned up after save
+            assertNull(viewModel.editorState.value)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `onNextFromTrim on render failure returns to Trim with selection preserved, emitting Failed`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.updateTrim(500L, 2_500L)
+            fakeVideoProcessor.failRender = true
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertTrue("expected Trim after failure, was $state", state is OpenRangUiState.Trim)
+            assertTrue(events.contains(BoomerangEvent.Failed))
+            // No boomerang registered; trim selection intact.
+            assertTrue(fakeVideoStorage.saved.none { it.kind == VideoKind.BOOMERANG })
+            assertEquals(500L, viewModel.editorState.value!!.trimStartMs)
+            assertEquals(2_500L, viewModel.editorState.value!!.trimEndMs)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `discardTrim discards the scratch and returns to ReadyToCapture`() {
+        enterTrimState()
+
+        viewModel.discardTrim()
+
+        assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
+        assertEquals(1, fakeVideoStorage.discardedScratches.size)
+        assertNull(viewModel.editorState.value)
     }
 
     // ── Gallery Navigation Tests ──
@@ -466,15 +596,17 @@ class OpenRangViewModelTest {
     }
 
     @Test
-    fun `navigateToGallery loads videos from storage`() {
-        // Seed storage with a saved clip, then enter the gallery.
-        fakeVideoStorage.saveFinalizedVideo(fakeVideoStorage.rawCaptureFile)
+    fun `navigateToGallery loads videos from storage`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            // Seed storage with a saved clip, then enter the gallery.
+            fakeVideoStorage.promoteScratchToRaw(fakeVideoStorage.createScratchCapture())
 
-        viewModel.navigateToGallery()
+            viewModel.navigateToGallery()
+            advanceUntilIdle() // the gallery load now runs on a launched coroutine
 
-        assertEquals(OpenRangUiState.Gallery, viewModel.uiState.value)
-        assertEquals(1, viewModel.recordedVideos.value.size)
-    }
+            assertEquals(OpenRangUiState.Gallery, viewModel.uiState.value)
+            assertEquals(1, viewModel.recordedVideos.value.size)
+        }
 
     @Test
     fun `navigateBackFromGallery transitions state to ReadyToCapture`() {
@@ -493,19 +625,22 @@ class OpenRangViewModelTest {
     }
 
     @Test
-    fun `deleteVideo removes video from storage and reloads list`() {
-        // Seed two clips so the delete leaves a non-trivial remainder.
-        fakeVideoStorage.saveFinalizedVideo(fakeVideoStorage.rawCaptureFile)
-        fakeVideoStorage.saveFinalizedVideo(fakeVideoStorage.rawCaptureFile)
-        viewModel.loadRecordedVideos()
-        assertEquals(2, viewModel.recordedVideos.value.size)
+    fun `deleteVideo removes video from storage and reloads list`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            // Seed two clips so the delete leaves a non-trivial remainder.
+            fakeVideoStorage.promoteScratchToRaw(fakeVideoStorage.createScratchCapture())
+            fakeVideoStorage.promoteScratchToRaw(fakeVideoStorage.createScratchCapture())
+            viewModel.loadRecordedVideos()
+            advanceUntilIdle()
+            assertEquals(2, viewModel.recordedVideos.value.size)
 
-        val toDelete = viewModel.recordedVideos.value.first()
-        viewModel.deleteVideo(toDelete)
+            val toDelete = viewModel.recordedVideos.value.first()
+            viewModel.deleteVideo(toDelete)
+            advanceUntilIdle()
 
-        assertEquals(1, viewModel.recordedVideos.value.size)
-        assertFalse(viewModel.recordedVideos.value.contains(toDelete))
-    }
+            assertEquals(1, viewModel.recordedVideos.value.size)
+            assertFalse(viewModel.recordedVideos.value.contains(toDelete))
+        }
 
     @Test
     fun `recordedVideos flow starts as empty list`() {

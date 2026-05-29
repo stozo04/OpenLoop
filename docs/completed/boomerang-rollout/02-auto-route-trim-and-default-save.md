@@ -15,7 +15,7 @@ introduces:
 1. **Auto-route**: after capture finalizes, the user is dropped onto a dedicated
    **Trim screen** with their clip loaded — no button to press, no decision to
    make. This is what reference Boomerang does and matches Steven's "remove
-   hurdles between witnessing and creating" framing.
+   hurdles between witnessing and creating" framing. Image reference (`docs\current-boomerang-ui\editor-tab-3.png`)
 2. **First boomerang output**: the Trim screen's `NEXT` button renders a
    **default** boomerang (`fwd→rev`, 2× speed, 1 rep, no extra trim if the user
    left the handles alone) and saves it. The user gets a real boomerang from a
@@ -160,7 +160,7 @@ sealed interface EditorSource {
 
 ### `VideoStorageRepository` (interface + impl)
 
-Add the four methods listed in the parent IMPLEMENTATION.md §7.2:
+Add the five methods listed in the parent IMPLEMENTATION.md §7.2:
 
 ```kotlin
 fun createScratchCapture(): ScratchCapture
@@ -335,8 +335,9 @@ centered spinner + caption (small composable).
 - End-to-end (slowest test): record a 3 s capture on an emulator, drag handles
   to a 1.5 s range, tap `NEXT`, assert that:
   - A file appears under `filesDir/boomerangs/`.
-  - The file's duration is `≈ 1.5 s` (one fwd + one rev cycle at 1× speed) /
-    `2.0` (speed) = `≈ 1.5 s`. (i.e. `cycle_ms × reps / speed`.)
+  - The file's duration is `≈ 1.5 s` for a 1.5 s trim: the fwd+rev cycle is
+    `2 × 1.5 s = 3.0 s` at 1×, divided by the `2.0` speed = `≈ 1.5 s`
+    (i.e. `cycle_ms × reps / speed`).
   - `loadRecordedVideos()` returns the new boomerang with `kind = BOOMERANG`.
   - A raw also exists with `kind = RAW`.
   - The `cacheDir/scratch/reversed/` cache contains exactly one file (the

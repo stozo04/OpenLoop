@@ -6,21 +6,41 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.openrang.app.camera.CameraManager
 import com.openrang.app.data.RecordedVideo
+import com.openrang.app.data.ScratchCapture
 import com.openrang.app.data.UserPreferencesRepository
 import com.openrang.app.data.VideoStorageRepository
+import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoProcessor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.IOException
 import androidx.camera.video.VideoRecordEvent
+
+/**
+ * One-shot events the [OpenRangViewModel] emits for transient UI (snackbars). Delivered over a
+ * [Channel] (not a StateFlow) so they fire exactly once and never replay on recomposition.
+ */
+sealed interface BoomerangEvent {
+    /** Boomerang rendered + saved. Snackbar offers a "View" action into the gallery. */
+    object Saved : BoomerangEvent
+    /** Boomerang render failed. Snackbar invites a retry; the trim selection is preserved. */
+    object Failed : BoomerangEvent
+}
 
 class OpenRangViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val videoStorage: VideoStorageRepository,
+    private val videoProcessor: VideoProcessor,
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -96,12 +116,40 @@ class OpenRangViewModel(
     private val _recordedVideos = MutableStateFlow<List<RecordedVideo>>(emptyList())
     val recordedVideos: StateFlow<List<RecordedVideo>> = _recordedVideos.asStateFlow()
 
+    /**
+     * The Trim screen's working state (source file, duration, handle positions), or `null` when no
+     * clip is being edited. Held alongside (not inside) [OpenRangUiState.Trim] so the routed state
+     * stays a slim discriminator and the trim selection survives a failed render.
+     */
+    private val _editorState = MutableStateFlow<TrimState?>(null)
+    val editorState: StateFlow<TrimState?> = _editorState.asStateFlow()
+
+    /** Render progress (0f..1f) for the [OpenRangUiState.Processing] spinner. */
+    private val _renderProgress = MutableStateFlow(0f)
+    val renderProgress: StateFlow<Float> = _renderProgress.asStateFlow()
+
+    /** One-shot snackbar events (see [BoomerangEvent]); collected once by MainActivity. */
+    private val _events = Channel<BoomerangEvent>(Channel.BUFFERED)
+    val events: Flow<BoomerangEvent> = _events.receiveAsFlow()
+
+    /** The in-flight capture's scratch file; non-null between capture start and Trim discard/save. */
+    private var activeScratch: ScratchCapture? = null
+
+    /** The raw the active scratch was promoted to (cached so a failed-render retry doesn't re-promote). */
+    private var promotedRaw: RecordedVideo? = null
+
     fun startBurstCapture(cameraManager: CameraManager) {
         if (_uiState.value != OpenRangUiState.ReadyToCapture) return
 
         _uiState.value = OpenRangUiState.Recording
 
-        val outputFile = videoStorage.rawCaptureFile
+        // Per-capture scratch file (cacheDir/scratch/raw_<uuid>.mp4) instead of a single fixed path,
+        // so the captured clip has a stable identity for the Trim screen and back-to-back captures
+        // can't clobber each other.
+        val scratch = videoStorage.createScratchCapture()
+        activeScratch = scratch
+        promotedRaw = null
+        val outputFile = scratch.file
         if (outputFile.exists()) {
             outputFile.delete()
         }
@@ -117,17 +165,26 @@ class OpenRangViewModel(
                         clearRecordingTimers()
                         if (event.hasError()) {
                             Log.e("OpenRangViewModel", "Video burst recording failed: ${event.error}")
+                            videoStorage.discardScratch(scratch)
+                            activeScratch = null
                             _uiState.value = OpenRangUiState.ReadyToCapture
                         } else {
-                            val savedFile = videoStorage.saveFinalizedVideo(outputFile)
-                            val finalPath = savedFile?.absolutePath ?: outputFile.absolutePath
-                            Log.d("OpenRangViewModel", "Video burst recording finalized successfully: $finalPath")
-
-                            // Transition to LoopingPreview state for verification
-                            _uiState.value = OpenRangUiState.LoopingPreview(
-                                videoPath = finalPath,
-                                playbackSpeed = 1.5f
-                            )
+                            // Auto-route straight to the Trim screen (no LoopingPreview landing pad).
+                            // The scratch stays in cache until the user saves (promote→raw) or discards.
+                            // durationOf does a MediaMetadataRetriever decode and this callback runs on
+                            // CameraX's main executor, so read it on a coroutine (Dispatchers.IO inside the
+                            // repo) before routing — never block the main thread (ANDROID_STANDARDS §9).
+                            viewModelScope.launch {
+                                val durationMs = videoStorage.durationOf(outputFile)
+                                Log.d("OpenRangViewModel", "Capture finalized (${durationMs}ms): ${outputFile.absolutePath}")
+                                _editorState.value = TrimState(
+                                    sourceFile = outputFile,
+                                    sourceDurationMs = durationMs,
+                                    trimStartMs = 0L,
+                                    trimEndMs = durationMs,
+                                )
+                                _uiState.value = OpenRangUiState.Trim(EditorSource.ScratchClip(scratch.uuid))
+                            }
                         }
                     }
                 }
@@ -182,12 +239,18 @@ class OpenRangViewModel(
     }
 
     fun loadRecordedVideos() {
-        _recordedVideos.value = videoStorage.loadRecordedVideos()
+        // Directory scan + lazy thumbnail decode runs on Dispatchers.IO inside the repo; launch so
+        // the read never blocks the caller's (main) thread (ANDROID_STANDARDS §9).
+        viewModelScope.launch {
+            _recordedVideos.value = videoStorage.loadRecordedVideos()
+        }
     }
 
     fun deleteVideo(video: RecordedVideo) {
-        videoStorage.deleteVideo(video)
-        loadRecordedVideos()
+        viewModelScope.launch {
+            videoStorage.deleteVideo(video)
+            _recordedVideos.value = videoStorage.loadRecordedVideos()
+        }
     }
 
     fun navigateToGallery() {
@@ -224,6 +287,94 @@ class OpenRangViewModel(
         _uiState.value = OpenRangUiState.ReadyToCapture
     }
 
+    // ── Trim screen (slice 02) ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Update the trim handles. Positions are clamped to `[0, sourceDuration]`; an update that would
+     * shrink the window below [MIN_TRIM_MS] is ignored (the handles can't cross within the minimum).
+     */
+    fun updateTrim(startMs: Long, endMs: Long) {
+        val current = _editorState.value ?: return
+        val start = startMs.coerceIn(0L, current.sourceDurationMs)
+        val end = endMs.coerceIn(0L, current.sourceDurationMs)
+        if (end - start < MIN_TRIM_MS) return
+        _editorState.value = current.copy(trimStartMs = start, trimEndMs = end)
+    }
+
+    /** Discard the scratch clip and return to capture (the Trim back-arrow / confirm-discard path). */
+    fun discardTrim() {
+        activeScratch?.let { videoStorage.discardScratch(it) }
+        clearEditorSession()
+        _uiState.value = OpenRangUiState.ReadyToCapture
+    }
+
+    /**
+     * Render the default boomerang (`FORWARD_THEN_REVERSE`, 2×, 1 rep) from the current trim window
+     * and save it. Flips to [OpenRangUiState.Processing] for the spinner, then on success promotes
+     * the scratch to a persistent raw, registers the boomerang, emits [BoomerangEvent.Saved] and
+     * returns to capture. On failure, it emits [BoomerangEvent.Failed] and routes back to [OpenRangUiState.Trim]
+     * with the trim selection intact (the editor state is left untouched on the failure path).
+     */
+    fun onNextFromTrim() {
+        val editor = _editorState.value ?: return
+        val scratch = activeScratch ?: return
+
+        _uiState.value = OpenRangUiState.Processing
+        _renderProgress.value = 0f
+
+        viewModelScope.launch {
+            try {
+                // Promote once and cache it, so a retry after a failed render doesn't create a 2nd raw.
+                val raw = promotedRaw
+                    ?: (videoStorage.promoteScratchToRaw(scratch)?.also { promotedRaw = it }
+                        ?: throw IOException("Failed to promote scratch ${scratch.uuid} to a raw"))
+
+                val output = videoStorage.allocateBoomerangFile(raw.id)
+                videoProcessor.renderBoomerang(
+                    source = File(raw.videoPath),
+                    trimStartMs = editor.trimStartMs,
+                    trimEndMs = editor.trimEndMs,
+                    mode = BoomerangMode.FORWARD_THEN_REVERSE,
+                    speed = DEFAULT_SPEED,
+                    repetitions = DEFAULT_REPS,
+                    outputFile = output,
+                ) { fraction -> _renderProgress.value = fraction }
+
+                videoStorage.registerBoomerang(output, raw.id)
+                    ?: throw IOException("Failed to register boomerang ${output.name}")
+
+                videoStorage.discardScratch(scratch)
+                clearEditorSession()
+                loadRecordedVideos()
+                _events.send(BoomerangEvent.Saved)
+                _uiState.value = OpenRangUiState.ReadyToCapture
+            } catch (e: CancellationException) {
+                throw e // never swallow cancellation (Lesson 013)
+            } catch (e: IOException) {
+                Log.e("OpenRangViewModel", "Boomerang save failed (IO)", e)
+                failBackToTrim(scratch)
+            } catch (e: RuntimeException) {
+                // Media3 / MediaCodec surface render failures as runtime exceptions; recover the UI.
+                Log.e("OpenRangViewModel", "Boomerang render failed", e)
+                failBackToTrim(scratch)
+            }
+        }
+    }
+
+    /** Emit [BoomerangEvent.Failed] and route back to Trim, preserving the (untouched) trim selection. */
+    private suspend fun failBackToTrim(scratch: ScratchCapture) {
+        _events.send(BoomerangEvent.Failed)
+        _uiState.value = OpenRangUiState.Trim(EditorSource.ScratchClip(scratch.uuid))
+    }
+
+    /** Clear the active editing session (after a save or discard). Does NOT touch on-disk files. */
+    private fun clearEditorSession() {
+        activeScratch = null
+        promotedRaw = null
+        _editorState.value = null
+        _renderProgress.value = 0f
+    }
+
     /**
      * Factory for creating [OpenRangViewModel] with its repository dependencies.
      * Used in MainActivity since we don't have a DI framework. Note it takes the
@@ -236,16 +387,24 @@ class OpenRangViewModel(
 
         /** Elapsed-time emit cadence (~30 fps) for a smooth progress ring without over-emitting. */
         const val TICK_MS = 33L
+
+        /** Minimum trimmed duration; below this the NEXT action is disabled (slice 02). */
+        const val MIN_TRIM_MS = 400L
+
+        /** Hard-wired default boomerang config for slice 02 (direction/speed/reps pickers arrive 03–05). */
+        const val DEFAULT_SPEED = 2.0f
+        const val DEFAULT_REPS = 1
     }
 
     class Factory(
         private val userPreferencesRepository: UserPreferencesRepository,
         private val videoStorage: VideoStorageRepository,
+        private val videoProcessor: VideoProcessor,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(OpenRangViewModel::class.java)) {
-                return OpenRangViewModel(userPreferencesRepository, videoStorage) as T
+                return OpenRangViewModel(userPreferencesRepository, videoStorage, videoProcessor) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

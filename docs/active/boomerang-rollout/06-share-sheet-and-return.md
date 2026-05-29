@@ -25,7 +25,7 @@ sheet gives users single-tap distribution.
 - `FileProvider` configuration in `AndroidManifest.xml` + `res/xml/file_paths.xml`.
 - On successful render in `saveBoomerang()`, launch `Intent.ACTION_SEND`
   via `Intent.createChooser(...)` for the rendered MP4.
-- After the chooser dismisses (shared, cancelled, or backed out), route to
+- After the chooser dismisses (shared, canceled, or backed out), route to
   `ReadyToCapture` (the camera) and show a snackbar **"Saved — view in gallery"**
   with a `View` action that navigates to `Gallery`.
 - Snackbar auto-dismisses at 4 s.
