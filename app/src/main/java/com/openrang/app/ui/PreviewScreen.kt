@@ -98,7 +98,7 @@ fun PreviewScreen(
                 .padding(bottom = 24.dp, start = 28.dp, end = 28.dp, top = 32.dp),
             contentAlignment = Alignment.Center
         ) {
-            // "Loopify" is the entry point to the Trim screen — wired up in slice 02. For now it's
+            // "Loopify" is the entry point to the Trim screen — wired up in slice 02. For now, it's
             // an intentional no-op placeholder; the BackHandler above (back gesture) returns to the
             // camera. Styled with the NeonCoral→NeonPurple Infinity-logo gradient to match the
             // shutter and gallery buttons.

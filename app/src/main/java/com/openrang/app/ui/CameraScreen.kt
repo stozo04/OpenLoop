@@ -104,13 +104,13 @@ fun CameraScreen(
 
     // REC-1: keep the high-frequency elapsed flow as a raw State and DO NOT read `.value` here in
     // the screen root. Reading it at the top would re-subscribe this whole composable (AndroidView
-    // viewfinder included) and recompose it ~30×/s. Instead the read is deferred into the lambdas
+    // viewfinder included) and recompose it ~30×/s. Instead, the read is deferred into the lambdas
     // below, so only the consumers (progress ring in the draw phase, countdown chip) react to ticks.
     val recordingElapsedState = viewModel.recordingElapsedMs.collectAsStateWithLifecycle()
 
     // Predictive back is default-on at targetSdk 36, so a mid-record back gesture would otherwise
     // finish the Activity → onDestroy → shutdown(), silently discarding the in-flight clip. Route it
-    // through the state machine instead: while recording, back stops & finalizes (same as the stop
+    // through the state machine instead: while recording, backstops & finalizes (same as the stop
     // shutter). Disabled when not recording so back exits the home screen normally (WARNING-2).
     BackHandler(enabled = isRecording) {
         viewModel.stopBurstCapture(cameraManager)

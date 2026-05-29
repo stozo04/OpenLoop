@@ -202,8 +202,7 @@ internal fun OnboardingNavigation(
                 contentAlignment = Alignment.Center
             ) {
                 ArrowRightIcon(
-                    modifier = Modifier.size(24.dp),
-                    color = Color.White
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -252,8 +251,7 @@ internal fun OnboardingNavigation(
                     contentAlignment = Alignment.Center
                 ) {
                     ArrowRightIcon(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -369,15 +367,18 @@ fun ArrowLeftIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
 }
 
 @Composable
-fun ArrowRightIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
+fun ArrowRightIcon(modifier: Modifier = Modifier) {
+    // The right arrow is only ever drawn white (page-0 / page-1 "next"). It intentionally takes no
+    // `color` param — IDE "parameter always has the same value". ArrowLeftIcon keeps its param
+    // because the back arrow is themed NeonPurple.
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         val sw = 2.dp.toPx()
 
-        drawLine(color, Offset(w * 0.25f, h * 0.5f), Offset(w * 0.75f, h * 0.5f), sw, StrokeCap.Round)
-        drawLine(color, Offset(w * 0.75f, h * 0.5f), Offset(w * 0.55f, h * 0.3f), sw, StrokeCap.Round)
-        drawLine(color, Offset(w * 0.75f, h * 0.5f), Offset(w * 0.55f, h * 0.7f), sw, StrokeCap.Round)
+        drawLine(Color.White, Offset(w * 0.25f, h * 0.5f), Offset(w * 0.75f, h * 0.5f), sw, StrokeCap.Round)
+        drawLine(Color.White, Offset(w * 0.75f, h * 0.5f), Offset(w * 0.55f, h * 0.3f), sw, StrokeCap.Round)
+        drawLine(Color.White, Offset(w * 0.75f, h * 0.5f), Offset(w * 0.55f, h * 0.7f), sw, StrokeCap.Round)
     }
 }
 

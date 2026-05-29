@@ -16,11 +16,11 @@ to create a more consistent, intuitive user experience.
 ### Edge to edge opt-out going away
 
 [Android 15 enforced edge-to-edge](https://developer.android.com/about/versions/15/behavior-changes-15#edge-to-edge) for apps targeting Android 15 (API
-level 35), but your app could opt-out by setting
+level 35), but your app could opt out by setting
 [`R.attr#windowOptOutEdgeToEdgeEnforcement`](https://developer.android.com/reference/android/R.attr#windowOptOutEdgeToEdgeEnforcement) to `true`. For apps
 targeting Android 16 (API level 36),
 `R.attr#windowOptOutEdgeToEdgeEnforcement` is deprecated and disabled, and your
-app can't opt-out of going edge-to-edge.
+app can't opt out of going edge-to-edge.
 
 - If your app targets Android 16 (API level 36) and is running on an Android 15 device, `R.attr#windowOptOutEdgeToEdgeEnforcement` continues to work.
 - If your app targets Android 16 (API level 36) and is running on an Android 16 device, `R.attr#windowOptOutEdgeToEdgeEnforcement` is disabled.
@@ -38,7 +38,7 @@ Android 16 or higher device, the predictive back system animations
 Additionally, `onBackPressed` is not called and
 [`KeyEvent.KEYCODE_BACK`](https://developer.android.com/reference/android/view/KeyEvent#KEYCODE_BACK) is not dispatched anymore.
 
-If your app intercepts the back event and you haven't migrated to predictive
+If your app intercepts the back event, and you haven't migrated to predictive
 back yet, [update your app to use supported back navigation APIs](https://developer.android.com/guide/navigation/custom-back/predictive-back-gesture#update-custom), or
 temporarily opt out by setting the
 [`android:enableOnBackInvokedCallback`](https://developer.android.com/guide/topics/manifest/activity-element#enableOnBackInvokedCallback) attribute to `false` in the
@@ -57,7 +57,7 @@ Android 16 deprecates the
 [`elegantTextHeight`](https://developer.android.com/reference/android/R.attr#elegantTextHeight) attribute,
 and the attribute will be ignored once your app targets Android 16. The "UI
 fonts" controlled by these APIs are being discontinued, so you should adapt any
-layouts to ensure consistent and future proof text rendering in Arabic, Lao,
+layouts to ensure consistent and future-proof text rendering in Arabic, Lao,
 Myanmar, Tamil, Gujarati, Kannada, Malayalam, Odia, Telugu or Thai.
 ![](https://developer.android.com/static/about/versions/15/images/elegant-text-height-before.png) `elegantTextHeight` behavior for apps targeting Android 14 (API level 34) and lower, or for apps targeting Android 15 (API level 35) that overrode the default by setting the `elegantTextHeight` attribute to `false`. ![](https://developer.android.com/static/about/versions/15/images/elegant-text-height-after.png) `elegantTextHeight` behavior for apps targeting Android 16 (API level 36), or for apps targeting Android 15 (API level 35) that didn't override the default by setting the `elegantTextHeight` attribute to `false`.
 
@@ -97,7 +97,7 @@ today's multidevice world.
 #### Ignore orientation, resizability, and aspect ratio restrictions
 
 For apps targeting Android 16 (API level 36), orientation, resizability,
-and aspect ratio restrictions no longer apply on displays with smallest width \>=
+and aspect ratio restrictions no longer apply on displays with the smallest width \>=
 600dp. Apps fill the entire display window, regardless of aspect ratio or a
 user's preferred orientation, and pillarboxing isn't used.
 
@@ -119,7 +119,7 @@ layouts locked in portrait orientation: for example, issues like stretched
 layouts and off-screen animations and components. Any assumptions about aspect
 ratio or orientation can cause visual issues with your app.
 [Learn more](https://developer.android.com/develop/ui/compose/layouts/adaptive) about how to avoid them and improve your app's adaptive
-behaviour.
+behavior.
 
 Allowing device rotation results in more activity re-creation, which can result
 in losing user state if not properly preserved. Learn how to correctly save UI
@@ -300,13 +300,13 @@ additional information that is beyond the intended scope of this API.
 
 ### Safer Intents
 
-The Safer Intents feature is a multi-phase security initiative designed to
+The Safer Intents feature is a multiphase security initiative designed to
 improve the security of Android's intent resolution mechanism.
 The goal is to protect apps from malicious actions by adding checks during
 intent processing and filtering intents that don't meet specific criteria.
 
 In [Android 15](https://developer.android.com/about/versions/15/behavior-changes-15#safer-intents) the feature focused on the sending app, now with Android 16,
-shifts control to the receiving app, allowing developers to opt-in to strict
+shifts control to the receiving app, allowing developers to opt in to strict
 intent resolution using their app manifest.
 
 Two key changes are being implemented:
@@ -427,7 +427,7 @@ to android-partner-security@google.com.
 
 2. **Is it mandatory to make changes in the OEM codebase to implement this, or does it come with a new AOSP release by default?**
    The platform-level change will come with a new AOSP release by default. Vendors
-   may opt-in to this change in their codebase if they would like to apply it.
+   may opt in to this change in their codebase if they would like to apply it.
 
 3. **Are SoCs responsible for keeping the IOCTL list up to date? For example, if my device uses an ARM Mali GPU, would I need to reach out to ARM for any of the changes?**
    Individual SoCs must update their IOCTL lists per device upon driver release.
@@ -461,7 +461,7 @@ Android 16 (API level 36) includes the following privacy changes.
 ### Local Network Permission
 
 Devices on the LAN can be accessed by any app that has the `INTERNET` permission.
-This makes it easy for apps to connect to local devices but it also has privacy
+This makes it easy for apps to connect to local devices, but it also has privacy
 implications such as forming a fingerprint of the user, and being a proxy for
 location.
 
@@ -532,7 +532,7 @@ To opt into local network restrictions, do the following:
 
 Now your app's access to the local network is restricted and any attempt to
 access the local network will lead to socket errors. If you are using APIs that
-perform local network operations outside of your app process (ex: NsdManager),
+perform local network operations outside your app process (ex: NsdManager),
 **they won't be impacted during the opt-in phase.**
 
 To restore access, you must grant your app permission to `NEARBY_WIFI_DEVICES`.

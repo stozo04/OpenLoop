@@ -40,7 +40,7 @@ If Steven is unavailable, build the recommended defaults and clearly flag the as
 
 ### Phase 2 — Verify each finding is still valid
 
-For every item below, web-search the cited doc to confirm the standard before fixing. If a finding is stale or you disagree after reading the code, **say so with reasoning** rather than making a change you can't justify.
+For every item below, web-search the cited doc to confirm the standard before fixing. If a finding is stale, or you disagree after reading the code, **say so with reasoning** rather than making a change you can't justify.
 
 ---
 

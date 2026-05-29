@@ -92,7 +92,7 @@ Sometimes you just want to build from a terminal — to check it compiles or to 
   export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
   ```
 
-(If `java -version` already prints a version in your terminal, Java is set up and you can skip this step.)
+(If `java -version` already prints a version in your terminal, Java is set up, and you can skip this step.)
 
 **2. Build the app.** Use `.\gradlew.bat` on Windows, or `./gradlew` on macOS/Linux:
 

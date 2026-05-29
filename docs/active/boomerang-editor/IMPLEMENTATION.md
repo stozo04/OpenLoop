@@ -35,7 +35,7 @@ review:
   escape valve). Storage cost ~80 MB at 1080p is acceptable.
 - **Editor entry pattern:** **no buttons.** After capture finalizes, the app
   auto-routes into the editor flow (no "Make Boomerang" button anywhere). Same
-  pattern for gallery items: tap a raw clip → auto-loads into the editor flow.
+  pattern for gallery items: tap a raw clip → autoloads into the editor flow.
 - **Trim is its own screen** before the tabbed editor, not a section *inside*
   the editor. Inspired by reference Boomerang's flow: Capture → **Trim** (with
   `NEXT`) → **Tabbed Editor** (with checkmark save). The §4 editor layout in

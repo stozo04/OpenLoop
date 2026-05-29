@@ -160,7 +160,7 @@ class OpenRangViewModel(
             }
         } catch (e: IllegalStateException) {
             // prepareRecording/start: the Recorder already has an unfinished active recording
-            // (PendingRecording.start docs). Also the path withAudioEnabled() takes when the
+            // (PendingRecording.start docs). Also, the path withAudioEnabled() takes when the
             // Recorder doesn't support audio. Recover to idle rather than wedging in Recording.
             recoverFromFailedStart(e)
         } catch (e: SecurityException) {

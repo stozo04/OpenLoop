@@ -27,7 +27,7 @@ up-to-30 s in-flight clip** with no save and no prompt.
   `PreviewScreen.kt` already uses the unconditional form (`BackHandler { onBackToCaptureClick() }`)
   — match the surrounding pattern; gate only when "do nothing extra" is a valid back outcome.
 - **Decide finalize-vs-discard explicitly with the owner** before coding (this is a UX/data
-  choice, not a default). D1 here was *finalize*.
+  choice, not a default). D1 here was *finalized*.
 
 ### Testing the gating (instrumented — and the gotchas)
 

@@ -56,13 +56,13 @@ adb -s <serial> shell run-as com.openrang.app sh -c 'ls -1 files/videos 2>/dev/n
 - **0 videos** → the keep-vs-delete choice is moot (nothing to lose). Skip the question and proceed
   surgically (Mode A). Tell the user you're doing so and why.
 - **>0 videos** → if the user's request already made it explicit (e.g. "reset onboarding but keep my
-  clips" → keep; "wipe the whole app" → delete), honor that. Otherwise **ask** before touching anything:
+  clips" → keep; "wipe the whole app" → delete), honor that. Otherwise, **ask** before touching anything:
   - **Keep videos (default, recommended)** — reset onboarding only. Deletes just the DataStore file;
     recorded clips and thumbnails survive.
   - **Delete everything** — full app-data wipe (onboarding, videos, thumbnails, all preferences).
 
 Don't assume — destroying someone's recorded clips is not reversible, so when in doubt, ask and
-default to keeping them.
+default to keep them.
 
 ## Step 3 — Execute the chosen reset
 
@@ -75,7 +75,7 @@ adb -s <serial> shell run-as com.openrang.app rm -f files/datastore/openrang_pre
 ```
 `run-as` works on **debuggable** builds without root. If it fails with
 "run-as: package not debuggable" (a release build is installed), say so and offer Mode B (full
-wipe) or a reinstall of the debug build — don't silently fall through.
+wipe) or a reinstallation of the debug build — don't silently fall through.
 
 ### Mode B — Delete everything (full wipe)
 `pm clear` stops the app and erases all of its data in one step:

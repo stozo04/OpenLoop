@@ -84,11 +84,11 @@ back into per-state branches.** More generally: any composable that binds the ca
 
 - [`VideoRecordEvent.Finalize.ERROR_SOURCE_INACTIVE`](https://developer.android.com/reference/androidx/camera/video/VideoRecordEvent.Finalize#ERROR_SOURCE_INACTIVE) — "the video frame producer stops sending frames" (e.g. the camera was unbound).
 - [`ProcessCameraProvider.unbindAll` / `bindToLifecycle`](https://developer.android.com/reference/androidx/camera/lifecycle/ProcessCameraProvider) — `startCamera()` calls these.
-- [Compose lifecycle & side-effects](https://developer.android.com/develop/ui/compose/side-effects) — `LaunchedEffect` runs on (re)entry to composition; distinct `when` branches are distinct call sites.
+- [Compose lifecycle & side effects](https://developer.android.com/develop/ui/compose/side-effects) — `LaunchedEffect` runs on (re)entry to composition; distinct `when` branches are distinct call sites.
 
 ---
 
-## Hand-off notes to my future self starting slice 02
+## Hand-off notes to my future self-starting slice 02
 
 Slice 02 (`02-auto-route-trim-and-default-save.md`) **rewires the exact routing that caused the
 bug above**: `Finalize(success)` will go to `Trim(ScratchClip)` instead of `LoopingPreview`, and
@@ -121,7 +121,7 @@ adds `Trim` + `Processing` states. Tread carefully:
 
 5. **Environment gotchas that cost real time this session:**
    - `connectedDebugAndroidTest` **OOMs a default-RAM AVD**: `lowmemorykiller` kills the
-     instrumentation process and you get `Starting 0 tests … Process crashed` — which is **not** a
+     instrumentation process, and you get `Starting 0 tests … Process crashed` — which is **not** a
      test or code failure. Boot the AVD with `-memory 4096`.
    - **Don't run `gradlew` while Android Studio is building/syncing the same project** — they
      deadlock on the Gradle build lock (a `connectedDebugAndroidTest` hung ~7 min from this). To

@@ -125,13 +125,13 @@ Lint is fully headless and deterministic. Run it and parse the XML:
 ### Engine 2 — IntelliJ IDE inspections + Grazie proofreading (faithful, local-only)
 
 This is the only faithful reproduction of the Kotlin-redundancy / Markdown / **proofreading**
-findings (grammar, typos, unresolved file references, the "Annotator" markdown errors). It
+findings (grammar, typos, unresolved file references, the "Annotator" Markdown errors). It
 needs Android Studio installed and is slow (boots a headless IDE), so it is **not** part of the
 automated gate — it is a documented pre-merge command the author runs locally (see
 `docs/STATIC_ANALYSIS.md` and `README.md` → "Running the code inspections"). In the review:
 
 - If an IDE-inspection report was produced (the author attached one, or `inspect.bat` is
-  available and you ran it), fold its findings in at the mapped severity (IDE `ERROR` → FAIL/
+  available, and you ran it), fold its findings in at the mapped severity (IDE `ERROR` → FAIL/
   WARNING by impact; `WARNING`/`WEAK WARNING`/typos → RECOMMENDATION).
 - If not, **state plainly that Engine 2 was not run and must be run locally before merge** —
   don't let its absence read as a pass.

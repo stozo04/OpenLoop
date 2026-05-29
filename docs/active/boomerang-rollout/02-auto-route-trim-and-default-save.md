@@ -71,7 +71,7 @@ Finalize (error)         → ReadyToCapture  (unchanged)
 ```
 
 `LoopingPreview` is **not deleted** — it remains as the playback target for
-finished boomerangs tapped from the gallery (slice 07 wires this up). It just
+finished boomerangs tapped from the gallery (slice 07 wires this up). Its just
 stops being the post-capture landing pad.
 
 ### Trim screen layout

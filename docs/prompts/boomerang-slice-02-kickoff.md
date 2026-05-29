@@ -66,7 +66,7 @@ git checkout -b feature/boomerang-slice-02-trim-and-default-save
 .\gradlew.bat clean assembleDebug --console=plain
 ```
 
-Confirm `BUILD SUCCESSFUL`, `$LASTEXITCODE -eq 0`, zero `e:` lines. **Do not pipe gradle through `| tail`** — that gives you the tail's exit code, not gradle's. A green baseline now means any later failure is unambiguously yours.
+Confirm `BUILD SUCCESSFUL`, `$LASTEXITCODE -eq 0`, zero `e:` lines. **Do not pipe Gradle through `| tail`** — that gives you the tail's exit code, not gradle's. A green baseline now means any later failure is unambiguously yours.
 
 ## Phase 2: Web-verify the moving pieces (before writing any code)
 

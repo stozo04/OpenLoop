@@ -25,7 +25,7 @@ The page frames the work as two phases that can run concurrently:
 
 ### Ensure compatibility with Android 16
 
-The goal of this phase is to confirm that your existing app keeps working on Android 16. You can usually adjust the app and publish it **without changing `targetSdkVersion`**, and you shouldn't need to use new APIs or change `compileSdkVersion` (whether you do depends on your build approach and the platform functionality your app uses).
+The goal of this phase is to confirm that your existing app keeps working on Android 16. You can usually adjust the app and publish it **without changing `targetSdkVersion`**, and you shouldn't need to use new APIs or change `compileSdkVersion` (whether you do depend on your build approach and the platform functionality your app uses).
 
 Before testing, familiarize yourself with the **behavior changes for all apps**. These changes can affect your app even if you don't change `targetSdkVersion`.
 
