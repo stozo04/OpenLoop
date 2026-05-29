@@ -76,7 +76,7 @@ Two viable paths (the PRD leaves it open — decide deliberately):
   vs. the exported Transformer `Composition`. Preview/export fidelity drift is a real QA risk.
 - **`CompositionPlayer`** (`androidx.media3.transformer.CompositionPlayer`, exists in 1.10.x) previews
   the *same* `Composition` the renderer exports → preview == export, no drift. Heavier, newer, and has
-  setup quirks ([androidx/media #1983](https://github.com/androidx/media/issues/1983)).
+  set up quirks ([androidx/media #1983](https://github.com/androidx/media/issues/1983)).
 
 My lean: if you want WYSIWYG, `CompositionPlayer` is worth the cost because it kills the drift class of
 bugs outright. But prototype it early — if it fights you, `ConcatenatingMediaSource2` is the safe

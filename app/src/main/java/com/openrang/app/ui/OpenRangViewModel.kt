@@ -11,6 +11,7 @@ import com.openrang.app.data.UserPreferencesRepository
 import com.openrang.app.data.VideoStorageRepository
 import com.openrang.app.media.BoomerangMode
 import com.openrang.app.media.VideoProcessor
+import com.openrang.app.media.needsReverse
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -22,7 +23,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
-import java.io.File
 import java.io.IOException
 import androidx.camera.video.VideoRecordEvent
 
@@ -123,6 +123,17 @@ class OpenRangViewModel(
      */
     private val _editorState = MutableStateFlow<TrimState?>(null)
     val editorState: StateFlow<TrimState?> = _editorState.asStateFlow()
+
+    /**
+     * The boomerang editor's tab selections (slice 03: direction only). Held alongside [editorState]
+     * so [OpenRangUiState.BoomerangEditor] stays a slim discriminator. Reset to defaults each time the
+     * editor opens (see [onNextFromTrim]).
+     */
+    private val _editorTabState = MutableStateFlow(EditorTabState())
+    val editorTabState: StateFlow<EditorTabState> = _editorTabState.asStateFlow()
+
+    /** In-flight reverse-generation for the preview; cancelled when the editing session ends. */
+    private var reverseJob: Job? = null
 
     /** Render progress (0f..1f) for the [OpenRangUiState.Processing] spinner. */
     private val _renderProgress = MutableStateFlow(0f)
@@ -309,15 +320,85 @@ class OpenRangViewModel(
     }
 
     /**
-     * Render the default boomerang (`FORWARD_THEN_REVERSE`, 2×, 1 rep) from the current trim window
-     * and save it. Flips to [OpenRangUiState.Processing] for the spinner, then on success promotes
-     * the scratch to a persistent raw, registers the boomerang, emits [BoomerangEvent.Saved] and
-     * returns to capture. On failure, it emits [BoomerangEvent.Failed] and routes back to [OpenRangUiState.Trim]
-     * with the trim selection intact (the editor state is left untouched on the failure path).
+     * NEXT on the Trim screen: open the tabbed boomerang editor over the current trim (slice 03).
+     * Resets the editor tabs to defaults (`FORWARD_THEN_REVERSE`), routes to
+     * [OpenRangUiState.BoomerangEditor], and eagerly kicks off reverse generation so the default
+     * direction's preview is ready ASAP. The actual save now happens from the editor's checkmark
+     * ([saveBoomerang]); slice 02's default-render-on-NEXT is gone.
      */
     fun onNextFromTrim() {
+        val scratch = activeScratch ?: return
+        if (_editorState.value == null) return
+        _editorTabState.value = EditorTabState()
+        _uiState.value = OpenRangUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
+        ensureReversedSegment()
+    }
+
+    /** Back arrow / back gesture from the editor: return to Trim, preserving the trim selection. */
+    fun backToTrim() {
+        val scratch = activeScratch ?: run {
+            _uiState.value = OpenRangUiState.ReadyToCapture
+            return
+        }
+        cancelReverseJob()
+        _uiState.value = OpenRangUiState.Trim(EditorSource.ScratchClip(scratch.uuid))
+    }
+
+    /**
+     * Select a boomerang direction in the editor's Direction tab. Updating to a reverse-containing
+     * mode kicks off [ensureReversedSegment] (idempotent — a no-op if the reversed file is already
+     * ready or in flight); `FORWARD` needs no reversed clip.
+     */
+    fun updateMode(mode: BoomerangMode) {
+        val current = _editorTabState.value
+        if (current.mode == mode) return
+        _editorTabState.value = current.copy(mode = mode)
+        if (mode.needsReverse) ensureReversedSegment()
+    }
+
+    /**
+     * Ensure the reversed clip for the current trim exists (for the preview, and reused by the render).
+     * Serialized against fast chip-taps: once the reversed file is ready or a generation is already in
+     * flight, further calls are ignored (KICKOFF §4 — the trim is fixed for the session, so one run
+     * per session suffices). Failure clears the loading flag and leaves [EditorTabState.reversedFile]
+     * null; the preview then falls back to forward playback and the user can retry by reselecting.
+     */
+    fun ensureReversedSegment() {
+        val trim = _editorState.value ?: return
+        val tab = _editorTabState.value
+        if (!tab.mode.needsReverse) return
+        if (tab.reversedFile != null || tab.isReversedFileLoading) return
+
+        _editorTabState.value = tab.copy(isReversedFileLoading = true)
+        reverseJob = viewModelScope.launch {
+            try {
+                val reversed = videoProcessor.ensureReversed(trim.sourceFile, trim.trimStartMs, trim.trimEndMs)
+                _editorTabState.value = _editorTabState.value.copy(
+                    reversedFile = reversed,
+                    isReversedFileLoading = false,
+                )
+            } catch (e: CancellationException) {
+                throw e // never swallow cancellation (Lesson 013)
+            } catch (e: Exception) {
+                Log.e("OpenRangViewModel", "Reverse generation for preview failed", e)
+                _editorTabState.value = _editorTabState.value.copy(isReversedFileLoading = false)
+            }
+        }
+    }
+
+    /**
+     * Save the boomerang in the editor's current direction (speed 2× / 1 rep are hard-wired this
+     * slice). Flips to [OpenRangUiState.Processing]; on success promotes the scratch to a persistent
+     * raw, registers the boomerang, emits [BoomerangEvent.Saved] and returns to capture. The render
+     * sources the **scratch** file — the same path the preview reversed — so a reverse-containing mode
+     * hits the cached reversed clip instead of regenerating it. On failure it emits
+     * [BoomerangEvent.Failed] and routes back to [OpenRangUiState.BoomerangEditor] with the direction
+     * selection intact.
+     */
+    fun saveBoomerang() {
         val editor = _editorState.value ?: return
         val scratch = activeScratch ?: return
+        val mode = _editorTabState.value.mode
 
         _uiState.value = OpenRangUiState.Processing
         _renderProgress.value = 0f
@@ -331,10 +412,10 @@ class OpenRangViewModel(
 
                 val output = videoStorage.allocateBoomerangFile(raw.id)
                 videoProcessor.renderBoomerang(
-                    source = File(raw.videoPath),
+                    source = scratch.file, // same path the preview reversed → shared reverse cache
                     trimStartMs = editor.trimStartMs,
                     trimEndMs = editor.trimEndMs,
-                    mode = BoomerangMode.FORWARD_THEN_REVERSE,
+                    mode = mode,
                     speed = DEFAULT_SPEED,
                     repetitions = DEFAULT_REPS,
                     outputFile = output,
@@ -352,26 +433,34 @@ class OpenRangViewModel(
                 throw e // never swallow cancellation (Lesson 013)
             } catch (e: IOException) {
                 Log.e("OpenRangViewModel", "Boomerang save failed (IO)", e)
-                failBackToTrim(scratch)
+                failBackToEditor(scratch)
             } catch (e: RuntimeException) {
                 // Media3 / MediaCodec surface render failures as runtime exceptions; recover the UI.
                 Log.e("OpenRangViewModel", "Boomerang render failed", e)
-                failBackToTrim(scratch)
+                failBackToEditor(scratch)
             }
         }
     }
 
-    /** Emit [BoomerangEvent.Failed] and route back to Trim, preserving the (untouched) trim selection. */
-    private suspend fun failBackToTrim(scratch: ScratchCapture) {
+    /** Emit [BoomerangEvent.Failed] and route back to the editor, preserving the direction selection. */
+    private suspend fun failBackToEditor(scratch: ScratchCapture) {
         _events.send(BoomerangEvent.Failed)
-        _uiState.value = OpenRangUiState.Trim(EditorSource.ScratchClip(scratch.uuid))
+        _uiState.value = OpenRangUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
+    }
+
+    /** Cancel any in-flight reverse generation (editor left or session cleared). */
+    private fun cancelReverseJob() {
+        reverseJob?.cancel()
+        reverseJob = null
     }
 
     /** Clear the active editing session (after a save or discard). Does NOT touch on-disk files. */
     private fun clearEditorSession() {
+        cancelReverseJob()
         activeScratch = null
         promotedRaw = null
         _editorState.value = null
+        _editorTabState.value = EditorTabState()
         _renderProgress.value = 0f
     }
 

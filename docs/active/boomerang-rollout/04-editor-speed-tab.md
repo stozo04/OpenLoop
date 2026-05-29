@@ -11,7 +11,7 @@
 After slice 03 the editor has a Direction tab and a save checkmark — but the
 boomerang's playback speed is still hard-coded at 2.0×. That's a fine default
 but not a feature. Users want to dial in slow-motion boomerangs (a kid running,
-played at 0.5×) and fast pings (a high-five, played at 3×).
+played at 0.25×) and fast pings (a high-five, played at 3×).
 
 This slice introduces:
 

@@ -99,7 +99,7 @@ class TrimScreenTest {
     }
 
     // ── Accessibility: the custom trim handles must expose adjustable semantics (not be invisible
-    //    to TalkBack). Each handle is a labelled, range-valued node with a SetProgress action. ──
+    //    to TalkBack). Each handle is a labeled, range-valued node with a SetProgress action. ──
 
     @Test
     fun trimHandles_exposeAdjustableRangeSemantics() {

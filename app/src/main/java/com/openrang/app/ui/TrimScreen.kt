@@ -411,7 +411,7 @@ private fun TrimBar(
         // Stable full-width input surface (never moves, so the gesture can't feed back on itself).
         // It sits on TOP of the handles in z-order purely to capture pointer drags, so hide it from
         // accessibility — otherwise this transparent overlay could intercept TalkBack focus and the
-        // labelled, adjustable TrimThumb nodes beneath it would be unreachable. hideFromAccessibility
+        // labeled, adjustable TrimThumb nodes beneath it would be unreachable. hideFromAccessibility
         // keeps its semantics for tests while making it invisible to TalkBack
         // (developer.android.com/develop/ui/compose/accessibility/merging-clearing).
         Box(
@@ -449,7 +449,7 @@ private fun TrimBar(
 /**
  * A trim handle. Visually a rounded white thumb; for accessibility it declares its own semantics —
  * "When adding custom low-level composables, you have to manually provide semantics"
- * (developer.android.com/develop/ui/compose/accessibility/semantics). It exposes a labelled,
+ * (developer.android.com/develop/ui/compose/accessibility/semantics). It exposes a labeled,
  * adjustable value ([ProgressBarRangeInfo]) and a `setProgress` action so a TalkBack user can both
  * read the current handle position and move it (the visual drag lives on the overlay above, which is
  * pointer-only). The action clamps + commits via [onSetValueMs].

@@ -53,6 +53,14 @@ Verify that API exists in 1.10.1 **first** (cross-check the `reference-media3-1-
 memory + the source tag — do **not** guess). This compounds in slice 05 when N repetitions mean N copies
 of each clip, all relying on the per-item effect.
 
+**The trap that makes #1658 dangerous: the preview cannot catch it — the preview will LIE.** The editor
+preview is a *single* ExoPlayer with `setPlaybackSpeed(speed)`, which is a **player-global** setting —
+it always speeds up *every* playlist item uniformly. The export is different: it applies
+`SpeedChangeEffect(speed)` **per `EditedMediaItem`**. So if #1658 is live, the preview shows both halves
+at 0.5× (correct-looking) while the *saved file* plays the second half at 1×. **A perfect preview does
+not prove a correct export.** You must validate the **saved file** in the gallery at a non-2× speed, not
+the editor preview. This is the single most important thing in this slice.
+
 ---
 
 ## 2. The Speed tab is NOT "just add a slider" — you're building the tab-switching scaffold the placeholder deferred
@@ -87,8 +95,18 @@ that calls `setPlaybackSpeed`. **Do NOT** add `speed` to the playlist `LaunchedE
 rebuild the entire playlist and `prepare()` on every slider tick (jank, and a flash). Keep the rebind
 keyed on mode/file/trim only; let speed ride the player.
 
-This is also a Lesson 016 situation: the slider value ticks fast; read it in the narrowest scope and
-don't let the drag recompose the preview `AndroidView`.
+This is also a Lesson 016 situation: the slider value ticks fast (every drag frame). If the screen root
+reads `tab.speed` and threads it into the preview subtree, **every tick recomposes the `AndroidView`**
+(the ExoPlayer surface) → jank and possibly a flash. Keep speed *out* of the preview's recomposition: do
+**not** add `speed` to the preview `LaunchedEffect` key, do **not** pass `speed` into the `AndroidView`
+block. Speed reaches the player only through the debounced `setPlaybackSpeed` effect. Read `speed` only
+in the slider + the value label + the duration label (ideally via `() -> Float` lambdas).
+
+**Mute the preview.** The forward clip is the raw *source*, which still has audio — so at a non-1× speed
+ExoPlayer **pitch-shifts** it (chipmunk at 3×, drone at 0.25×), while the reversed clip is silent (audio
+stripped). That mismatch is jarring and the exported boomerang is silent anyway (D-3). Set
+`exoPlayer.volume = 0f` on the editor preview. (At slice 03's constant 2× this was barely noticeable;
+variable speed makes it obvious — that's why it lands here.)
 
 ---
 
@@ -138,7 +156,48 @@ math, no new function.
 
 ---
 
-## 7. One-line summary for the impatient
+## 7. Implementation gotchas the PRD glosses over
+
+- **Haptic at 1.0× — don't reach for Compose's `LocalHapticFeedback`.** It only exposes `LongPress` /
+  `TextHandleMove`, not `CLOCK_TICK`. Use the platform view:
+  `LocalView.current.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)`. And **edge-detect the
+  crossing** — fire only when the value passes *through* 1.0× (track the previous value), not on every
+  frame it sits at 1.0×, or it buzzes continuously.
+
+- **The custom Slider is a time sink — mostly avoid it.** Material3 `Slider`'s `thumb`/`track` slot
+  lambdas take a `SliderState` and the signature has drifted across Compose versions. You get ~90% of the
+  PRD's look for near-zero risk with the stock slider + `SliderDefaults.colors(thumbColor = NeonCoral,
+  activeTrackColor = NeonPurple, inactiveTrackColor = GlassWhite)`. The genuinely hard part is the
+  **floating value label** — there's no built-in; you must compute the thumb's x from the value fraction
+  and track width (same math as `TrimBar.leftPx` in `TrimScreen.kt`). For v1, consider an
+  **always-visible centered "1.75×"** label instead and only add the floating one if it feels worth it.
+  Don't sink hours into custom slots.
+
+- **Testing reality (same shape as slice 03):**
+  - The PRD's *"`VideoProcessorTest` (JVM): for each speed, render produces duration ≈ cycle/speed"* can't
+    be a JVM test — `Transformer` needs a device. The speed→duration **math** is the pure
+    `boomerangOutputDurationMs(...)` (already JVM-tested in `BoomerangSequenceTest`) — add the per-speed
+    cases *there*; leave the real encoded-duration check to the instrumented smoke path.
+  - `FakeVideoProcessor` today records only `renderCount` — it does **not** capture the `speed` it was
+    called with. The *"saveBoomerang passes the current speed"* test has nothing to assert against until
+    you add a `lastSpeed` (and `lastMode`) field to the fake (Lesson 017 — when a test needs an arg,
+    the fake must capture it).
+  - Extract **`formatSpeedLabel(speed): String`** (the "up to 2 decimals, strip trailing zeros →
+    `2×` / `1.75×` / `0.5×`" logic) as a pure function and JVM-test it. The PRD's wording ("2 decimal
+    places … trim trailing zeros") is self-contradictory; a tested helper settles it.
+
+- **Plan gap — output duration is now unbounded, with no guard yet.** Speed *divides* duration, so at
+  **0.25×** a long trim explodes: a 30 s trim in `F→R` is a 60 s cycle → **240 s** output. The parent's
+  D-5 warning (>30 s) / hard-error (>60 s) UI is **not built until slice 05** (it landed there because
+  reps was the obvious multiplier — but 0.25× gets there first). So slice 04 can already save a 4-minute
+  "boomerang." Decide with Steven: just **note the longest duration in the PR** (the acceptance criterion
+  already asks for it) and accept it for now, or pull a minimal duration guard forward. Either way,
+  **watch encoder time + file size on the Fold at the 0.25× + long-trim extreme** — that's where a slow
+  or failed export will first show up.
+
+---
+
+## 8. One-line summary for the impatient
 
 The render is already done (speed is threaded + applied via `SpeedChangeEffect(speed)`; just stop
 hard-coding `DEFAULT_SPEED` in `saveBoomerang`). The real work is **UI tab-switching scaffold + a slider
