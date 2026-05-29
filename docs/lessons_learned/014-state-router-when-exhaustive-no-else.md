@@ -23,7 +23,7 @@ Two compounding harms:
    specifically (PRD Decision Log #1) so the compiler forces every state to be handled. An `else`
    silently absorbs any state you forgot to route — exactly what sealed types exist to prevent.
 
-2. **It re-opened the Lesson 012 bug.** The unrouted `Processing` state fell through `else` into a
+2. **It re-opened the Lesson 012 bug.** The unhandled `Processing` state fell through `else` into a
    **bare `CameraScreen(...)`** — a *second* camera call site with no `CameraScreenHost`. That is
    the precise seam the `ERROR_SOURCE_INACTIVE` fix closed. `grep "CameraScreen(" MainActivity.kt`
    returned **2**, breaking Lesson 012's own detection check.
