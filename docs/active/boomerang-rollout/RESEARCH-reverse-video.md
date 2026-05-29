@@ -48,7 +48,8 @@ From the package summary on developer.android.com:
 - **Color filters:** brightness, contrast, saturation, RGB matrix manipulation.
 - **Matrix transformations:** rotation, scaling, crop, `Presentation` (canvas
   resize).
-- **Speed adjustment:** `SpeedChangingVideoEffect` (and the audio counterpart
+- **Speed adjustment:** `SpeedChangeEffect` (the constant-speed video effect present in Media3
+  1.10.1 — *not* `SpeedChangingVideoEffect`, which isn't in this version; the audio counterpart is
   `SpeedChangingAudioProcessor`). Media3 1.10 specifically improved speed
   adjustment when exporting via Transformer.
 - **Frame drop:** drops frames at intervals — does NOT reverse.
@@ -78,7 +79,7 @@ else in the boomerang pipeline:
   feature — preview also honors it).
 - **`Composition` of `EditedMediaItem`s** to concatenate `[trimmed, reversed]`
   for `FORWARD_THEN_REVERSE`, or N copies of the same cycle for repetitions.
-- **`SpeedChangingVideoEffect`** for speed.
+- **`SpeedChangeEffect`** for speed.
 - **`Transformer`** to encode the final MP4 in a single pass.
 
 So Media3 stays in the architecture; it just doesn't own the reverse step.
@@ -247,7 +248,7 @@ only if v1.5 adds multiple filter-heavy features (vignette / film grain / 3D
 LUTs / etc.) where FFmpeg's filter graph would pay for itself many times over.
 
 ### Media3 `Composition` with a "negative speed" trick
-Speculative; no API support. `SpeedChangingVideoEffect` takes a positive float
+Speculative; no API support. `SpeedChangeEffect` takes a positive float
 and is documented as such. There's no `setReverse(true)` on `MediaItem` or
 `EditedMediaItem` in 1.10.x. Rejected on absence.
 

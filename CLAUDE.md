@@ -90,32 +90,43 @@ com.openrang.app/
 ├── camera/
 │   └── CameraManager.kt         # CameraX lifecycle, recording, lens toggle
 ├── data/
-│   ├── UserPreferencesRepository.kt    # Interface: Flow-based preference reads + suspend writes
-│   └── UserPreferencesRepositoryImpl.kt # DataStore wrapper + Context.dataStore singleton
+│   ├── UserPreferencesRepository.kt(+Impl)   # DataStore: onboarding flag (Flow reads + suspend writes)
+│   └── VideoStorageRepository.kt(+Impl)       # scratch / raw / boomerang files + thumbnails
+├── media/
+│   ├── VideoReverser.kt         # Two-pass MediaCodec reverse (Media3 has no reverse effect)
+│   ├── VideoProcessor.kt        # Media3 Transformer: Composition + SpeedChangeEffect; ensureReversed() (shared reverse cache)
+│   ├── BoomerangSequence.kt     # Pure: clip order + position-based seam + output-duration math (JVM-tested)
+│   └── MediaFormatUtils.kt      # Type-tolerant frame-rate / rotation reads
 ├── ui/
-│   ├── OpenRangUiState.kt       # Sealed interface: state machine (incl. Initializing)
-│   ├── OpenRangViewModel.kt     # MVVM hub: state, video storage, navigation, preferences
-│   ├── CameraScreen.kt          # Live viewfinder, shutter, home button
-│   ├── OnboardingScreen.kt      # 3-page carousel, animations, ArrowIcons
-│   ├── PreviewScreen.kt         # Full-screen looping ExoPlayer preview
-│   └── GalleryScreen.kt         # 3-col grid, thumbnails, delete, video overlay
-├── MainActivity.kt              # Permissions, state routing, theme, ViewModelFactory
-└── (planned)
-    └── media/
-        └── VideoProcessor.kt    # Media3 Transformer: reversal, concat, speed burn-in
+│   ├── OpenRangUiState.kt       # Sealed state machine + TrimState / EditorTabState
+│   ├── OpenRangViewModel.kt     # MVVM hub: state, storage, editor, preferences
+│   ├── CameraScreen.kt          # Live viewfinder, shutter (+ shared design tokens)
+│   ├── OnboardingScreen.kt      # 3-page carousel
+│   ├── TrimScreen.kt            # Post-capture trim (two-handle bar, NEXT)
+│   ├── BoomerangEditorScreen.kt # Tabbed editor — Direction tab (slice 03); Speed/Reps tabs land 04/05
+│   ├── ProcessingScreen.kt      # Render spinner
+│   ├── PreviewScreen.kt         # Looping ExoPlayer playback (gallery target, slice 07)
+│   └── GalleryScreen.kt         # 3-col grid, thumbnails, delete
+└── MainActivity.kt              # Permissions, OpenRangNavHost routing, theme, ViewModel Factory
 ```
 
 ### State Machine
 
 ```
 Initializing → Onboarding → CheckingPermissions → ReadyToCapture ↔ Recording
-           ↘                 ↕                      ↓
-        CheckingPermissions  Gallery            LoopingPreview
-         (returning user)      ↕
-                          ReadyToCapture
+   (returning user ↗)         (PermissionRationale / PermissionDenied)   │ finalize
+                                                                          ▼
+                                                                        Trim ──NEXT──▶ BoomerangEditor
+                                                                          ▲                  │  save ✓
+                                                                          └──back────────────┤
+                                                                                             ▼
+                                                       ReadyToCapture ◀──success── Processing
+                                                                                   (failure ▶ BoomerangEditor)
+
+Gallery ↔ ReadyToCapture        LoopingPreview — retained as the gallery playback target (slice 07)
 ```
 
-States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Navigation is conditional composable routing in `MainActivity.kt`.
+States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Post-capture the app auto-routes `Recording → Trim → BoomerangEditor → Processing → ReadyToCapture` (no `LoopingPreview` landing pad). The routed states are slim discriminators; the trim window (`TrimState`) and editor selections (`EditorTabState`) live in sibling flows in the ViewModel. Navigation is the exhaustive `OpenRangNavHost` `when` in `MainActivity.kt` (no `else` — Lesson 014).
 
 ### Design System, Storage, Testing & Engineering Decisions
 

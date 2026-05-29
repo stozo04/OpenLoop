@@ -245,7 +245,7 @@ data class RecordedVideo(
 
 **Purpose:** Burn selected speed into final video and save to device gallery.
 
-- Transformer with `SpeedChangingVideoEffect` + `SpeedChangingAudioProcessor`
+- Transformer with `SpeedChangeEffect` (Media3 1.10.1's constant-speed video effect; audio is stripped per the boomerang pipeline, Decision D-3)
 - Output to `MediaStore.Video.Media` (public gallery)
 - Filename: `OpenRang_Capture_<timestamp>.mp4`
 - Completion toast, return to viewfinder

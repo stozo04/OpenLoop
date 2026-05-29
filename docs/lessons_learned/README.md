@@ -30,6 +30,8 @@ Each lesson follows the same shape:
 | 015 | [Predictive back is default-on at target 36: gate a state-routed `BackHandler` on screens that can lose work](./015-predictive-back-state-routed-backhandler.md) | PR #19 |
 | 016 | [Compose: defer high-frequency state reads behind `() -> T` lambdas read in the narrowest/draw scope](./016-compose-defer-high-frequency-state-reads.md) | PR #19 |
 | 017 | [Instrumented tests can't use mockk; sweep every call site when a mock's return value gains meaning](./017-androidtest-no-mockk-and-sweep-meaningful-mock-returns.md) | PR #19 |
+| 018 | [The boomerang seam-frame drop follows sequence position, not clip identity](./018-boomerang-seam-drop-follows-sequence-position.md) | Slice 03 |
+| 019 | [Reversing through a decoder→encoder Surface: strip `KEY_ROTATION` on the decoder, re-stamp on the muxer](./019-reverse-rotation-strip-decoder-restamp-muxer.md) | Slice 02 |
 
 ## Adding a new lesson
 

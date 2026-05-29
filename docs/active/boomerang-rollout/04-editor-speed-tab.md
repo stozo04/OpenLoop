@@ -34,8 +34,9 @@ This slice introduces:
 - ExoPlayer `setPlaybackSpeed(speed)` called on every slider change so the
   preview reflects the new speed live (this is native and free — no
   re-rendering).
-- `VideoProcessor.renderBoomerang(..., speed = state.speed, ...)` — replaces
-  the hard-coded 2.0×.
+- `saveBoomerang()` passes `speed = state.speed` to
+  `VideoProcessor.renderBoomerang(...)` — replaces the hard-coded `DEFAULT_SPEED`.
+  (The processor itself already applies the `speed` parameter; see the note below.)
 - Output duration indicator above the tab bar updates live as speed changes
   (`cycle_ms × reps / speed`).
 
@@ -155,9 +156,13 @@ fun switchTab(tab: EditorTab) {
 
 ### `media/VideoProcessor.kt`
 
-Replace `SpeedChangingVideoEffect(2.0f)` with
-`SpeedChangingVideoEffect(speed)`. The `speed` parameter was already in the
-interface in slice 02; just connect it. Audio remains stripped.
+**No change needed.** `renderBoomerang(...)` already takes a `speed: Float` parameter
+(since slice 02) and `Media3VideoProcessor` already applies it per clip via
+`SpeedChangeEffect(speed)` — the constant-speed effect in Media3 1.10.1 (**not**
+`SpeedChangingVideoEffect`, which isn't in this version). There is no `2.0f`
+literal in the processor to replace. The only render-side change is in
+`OpenRangViewModel.saveBoomerang()` (pass `state.speed` instead of `DEFAULT_SPEED`).
+Audio remains stripped.
 
 ### `ui/BoomerangEditorScreen.kt`
 

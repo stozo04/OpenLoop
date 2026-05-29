@@ -115,7 +115,7 @@ ReadyToCapture (camera viewfinder)
    │ tap shutter, record
    ▼
 Recording
-   │ tap stop, OR auto-stop at 10 s (Decision D1)
+   │ tap stop, OR auto-stop at 30 s (Decision D-1)
    ▼
 [raw written to cacheDir/scratch/raw_<uuid>.mp4 — survives process kill]
    │
@@ -311,9 +311,9 @@ Transformer passes — chaining doubles I/O and re-encodes per pass.
    - `FORWARD_THEN_REVERSE`  → `[trimmed, reversed]`
    - `REVERSE_THEN_FORWARD`  → `[reversed, trimmed]`
 4. **Repeat cycle**: append the assembled cycle `repetitions` times to the `Composition`.
-5. **Speed**: apply `SpeedChangingVideoEffect(speed)` and `SpeedChangingAudioProcessor(speed)`
-   on the composition. **Audio is stripped on render** (Decision D-3) — the speed processor
-   is included only to keep the API surface ready if D-3 flips.
+5. **Speed**: apply `SpeedChangeEffect(speed)` on the composition — the constant-speed video effect
+   in Media3 1.10.1 (**not** `SpeedChangingVideoEffect`, which isn't in this version). **Audio is
+   stripped on render** (Decision D-3), so no audio speed processor is applied.
 6. **Output**: H.264 / AAC-stripped, MP4 container, matching source dimensions and orientation
    (no normalization in v1).
 
@@ -452,7 +452,7 @@ site:
 
 1. `startBurstCapture` allocates a `ScratchCapture` via `videoStorage.createScratchCapture()`
    instead of overwriting the singleton `rawCaptureFile`.
-2. The 1.5 s self-stop timer is replaced with a **10 s cap** (Decision D-1); user-driven stop
+2. The 1.5 s self-stop timer is replaced with a **30 s cap** (Decision D-1); user-driven stop
    is the expected path.
 3. On `VideoRecordEvent.Finalize` success, transition to
    `BoomerangEditor(ScratchClip(scratch.uuid))` instead of `LoopingPreview`.

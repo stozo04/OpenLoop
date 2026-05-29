@@ -6,9 +6,12 @@ This directory tracks features currently in development. Each feature gets its o
 
 ```
 docs/active/
-├── README.md                          ← You are here
-├── loop-generation/
-│   └── IMPLEMENTATION.md              ← Implementation plan for this feature
+├── README.md                          ← Index of active features (single source of truth)
+├── boomerang-editor/
+│   └── IMPLEMENTATION.md              ← Parent design doc
+├── boomerang-rollout/
+│   ├── README.md                      ← Delivery plan: the 7 thin slices
+│   └── NN-<slice>.md                  ← One PRD per slice
 └── <feature-name>/
     ├── IMPLEMENTATION.md              ← Required: at minimum, the implementation plan
     ├── RESEARCH.md                    ← Optional: background research, alternatives considered
@@ -34,8 +37,8 @@ docs/active/
 
 ## Current Active Features
 
-| Feature | Branch | Status |
-|---------|--------|--------|
-| Loop Generation (Media3 Transformer) | `loop-generation` | Planned — core feature, not yet started |
-
-> Now in `docs/completed/`: VideoStorageRepository / remove Context from ViewModel (Issue #10, PR #17), Target SDK Upgrade + Android 16 Doc-Prep (combined — Issue #7, PRs #13 & #15), Jetpack DataStore Preferences (PR #5), and Permission Rationale Flow (PR #12).
+See [`README.md`](./README.md) for the live active-features table (kept in one place to avoid drift).
+In short: the active work is the **Boomerang editor rollout** —
+[`boomerang-editor/`](./boomerang-editor/IMPLEMENTATION.md) (parent design) +
+[`boomerang-rollout/`](./boomerang-rollout/README.md) (the 7 slices). Slices 01–02 are shipped (in
+`docs/completed/`); slice 03 is built (PR #25); slice 04 (Speed) is next.
