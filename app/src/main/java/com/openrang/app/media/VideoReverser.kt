@@ -430,7 +430,7 @@ class VideoReverser(
     /**
      * Ask the decoder to tone-map an HDR (HLG/PQ, 10-bit) source down to 8-bit SDR as it decodes onto
      * the encoder's input [Surface]. Without this, an imported HDR clip's 10-bit frames reach the
-     * SDR-only AVC encoder and it fails with "AVC does not support 10-bit input" (codec err 22), which
+     * SDR-only AVC encoder, and it fails with "AVC does not support 10-bit input" (codec err 22), which
      * is what wedged the editor on "Loopifying…" for HDR imports.
      *
      * [MediaFormat.KEY_COLOR_TRANSFER_REQUEST] is API 31+ (verified on developer.android.com — added
