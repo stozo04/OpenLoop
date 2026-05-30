@@ -1,16 +1,21 @@
 package com.openrang.app.ui
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertRangeInfoEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoFilter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Rule
@@ -37,9 +42,15 @@ class BoomerangEditorScreenTest {
         trimStartMs: Long = 0L,
         trimEndMs: Long = 5_000L,
         mode: BoomerangMode = BoomerangMode.FORWARD_THEN_REVERSE,
+        speed: Float = 2.0f,
+        filter: VideoFilter = VideoFilter.ORIGINAL,
+        activeTab: EditorTab = EditorTab.DIRECTION,
         reversedFile: File? = dummyReversed,
         isReversedFileLoading: Boolean = false,
         onSelectMode: (BoomerangMode) -> Unit = {},
+        onSpeedChange: (Float) -> Unit = {},
+        onFilterChange: (VideoFilter) -> Unit = {},
+        onSwitchTab: (EditorTab) -> Unit = {},
         onSave: () -> Unit = {},
         onBack: () -> Unit = {},
     ) {
@@ -49,9 +60,15 @@ class BoomerangEditorScreenTest {
                 trimStartMs = trimStartMs,
                 trimEndMs = trimEndMs,
                 mode = mode,
+                speed = speed,
+                filter = filter,
+                activeTab = activeTab,
                 reversedFile = reversedFile,
                 isReversedFileLoading = isReversedFileLoading,
                 onSelectMode = onSelectMode,
+                onSpeedChange = onSpeedChange,
+                onFilterChange = onFilterChange,
+                onSwitchTab = onSwitchTab,
                 onSave = onSave,
                 onBack = onBack,
             )
@@ -135,5 +152,95 @@ class BoomerangEditorScreenTest {
         // FORWARD over a 5 s trim at 2× → 2.5 s output (single cycle clip).
         setContent(trimStartMs = 0L, trimEndMs = 5_000L, mode = BoomerangMode.FORWARD, reversedFile = null)
         composeTestRule.onNodeWithText("2.5s").assertIsDisplayed()
+    }
+
+    // ── Speed tab (slice 04) ──
+
+    @Test
+    fun tabBar_showsThreeSlots() {
+        setContent()
+        composeTestRule.onNodeWithTag("tab_direction").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_speed").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_looks").assertIsDisplayed()
+    }
+
+    @Test
+    fun tappingSpeedTab_invokesOnSwitchTabWithSpeed() {
+        var switched: EditorTab? = null
+        setContent(onSwitchTab = { switched = it })
+        composeTestRule.onNodeWithTag("tab_speed").performClick()
+        assertEquals(EditorTab.SPEED, switched)
+    }
+
+    @Test
+    fun directionTabActive_showsChips_notSlider() {
+        setContent(activeTab = EditorTab.DIRECTION)
+        composeTestRule.onNodeWithTag("direction_chip_FORWARD").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("speed_slider").assertDoesNotExist()
+    }
+
+    @Test
+    fun speedTabActive_showsSlider_notChips() {
+        setContent(activeTab = EditorTab.SPEED)
+        composeTestRule.onNodeWithTag("speed_slider").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("direction_chip_FORWARD").assertDoesNotExist()
+    }
+
+    @Test
+    fun slider_reportsCurrentSpeedAsRangeInfo() {
+        setContent(activeTab = EditorTab.SPEED, speed = 1.75f)
+        composeTestRule.onNodeWithTag("speed_slider")
+            .assertRangeInfoEquals(ProgressBarRangeInfo(1.75f, 0.25f..3.0f))
+    }
+
+    @Test
+    fun draggingSlider_invokesOnSpeedChange() {
+        var changed: Float? = null
+        setContent(activeTab = EditorTab.SPEED, speed = 2.0f, onSpeedChange = { changed = it })
+        // Drive the slider via its SetProgress semantics action (stable across the custom drawing).
+        composeTestRule.onNodeWithTag("speed_slider")
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0.5f) }
+        assertEquals(0.5f, changed!!, 0.0001f)
+    }
+
+    @Test
+    fun durationLabel_reflectsTheSelectedSpeed() {
+        // F→R over a 5 s trim: cycle = 10 s. At 0.5× → 20.0 s output (10 s / 0.5).
+        setContent(trimStartMs = 0L, trimEndMs = 5_000L, mode = BoomerangMode.FORWARD_THEN_REVERSE, speed = 0.5f)
+        composeTestRule.onNodeWithText("20.0s").assertIsDisplayed()
+    }
+
+    // ── Looks tab (slice 05) ──
+
+    @Test
+    fun tappingLooksTab_invokesOnSwitchTabWithLooks() {
+        var switched: EditorTab? = null
+        setContent(onSwitchTab = { switched = it })
+        composeTestRule.onNodeWithTag("tab_looks").performClick()
+        assertEquals(EditorTab.LOOKS, switched)
+    }
+
+    @Test
+    fun looksTabActive_showsAllFilterChips_notSlider() {
+        setContent(activeTab = EditorTab.LOOKS)
+        // All five looks present; the speed slider is gone.
+        VideoFilter.entries.forEach { look ->
+            composeTestRule.onNodeWithTag("look_chip_${look.name}").assertIsDisplayed()
+        }
+        composeTestRule.onNodeWithTag("speed_slider").assertDoesNotExist()
+    }
+
+    @Test
+    fun tappingLookChip_invokesOnFilterChange() {
+        var changed: VideoFilter? = null
+        setContent(activeTab = EditorTab.LOOKS, onFilterChange = { changed = it })
+        composeTestRule.onNodeWithTag("look_chip_NOIR").performClick()
+        assertEquals(VideoFilter.NOIR, changed)
+    }
+
+    @Test
+    fun selectedLook_reportsSelectedSemantics() {
+        setContent(activeTab = EditorTab.LOOKS, filter = VideoFilter.WARM)
+        composeTestRule.onNodeWithTag("look_chip_WARM").assertIsSelected()
     }
 }

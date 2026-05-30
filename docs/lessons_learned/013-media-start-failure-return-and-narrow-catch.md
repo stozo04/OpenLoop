@@ -26,12 +26,12 @@ misunderstanding of the API.
 The `startRecording` chain is `Recorder.prepareRecording(ctx, FileOutputOptions)` →
 `PendingRecording.withAudioEnabled()` → `PendingRecording.start(executor, listener)`:
 
-| Call | Declared **synchronous** throw | Condition |
-|------|--------------------------------|-----------|
-| `prepareRecording(Context, FileOutputOptions)` | **none** | — |
-| `withAudioEnabled()` | `IllegalStateException` | Recorder doesn't support audio |
-| `withAudioEnabled()` | `SecurityException` | `RECORD_AUDIO` denied at call time |
-| `start(executor, listener)` | `IllegalStateException` | Recorder already has an unfinished active recording |
+| Call                                           | Declared **synchronous** throw | Condition                                           |
+|------------------------------------------------|--------------------------------|-----------------------------------------------------|
+| `prepareRecording(Context, FileOutputOptions)` | **none**                       | —                                                   |
+| `withAudioEnabled()`                           | `IllegalStateException`        | Recorder doesn't support audio                      |
+| `withAudioEnabled()`                           | `SecurityException`            | `RECORD_AUDIO` denied at call time                  |
+| `start(executor, listener)`                    | `IllegalStateException`        | Recorder already has an unfinished active recording |
 
 **Errors that occur *while* recording (source inactive, disk full, encoder failure, GC of the
 `Recording`) are NOT thrown.** They arrive asynchronously as a `VideoRecordEvent.Finalize` event

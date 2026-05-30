@@ -43,7 +43,7 @@ class CameraManager(private val context: Context) {
                 val preview = Preview.Builder()
                     .build()
                     .also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
+                        it.surfaceProvider = previewView.surfaceProvider
                     }
 
                 val cameraSelector = CameraSelector.Builder()

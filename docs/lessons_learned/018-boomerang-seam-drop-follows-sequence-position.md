@@ -48,7 +48,7 @@ internal fun boomerangSequence(mode: BoomerangMode, repetitions: Int): List<Clip
 }
 ```
 
-The first clip never drops (nothing precedes it); same-direction neighbours (`FORWARD`×N, `REVERSE`×N)
+The first clip never drops (nothing precedes it); same-direction neighbors (`FORWARD`×N, `REVERSE`×N)
 never drop (no shared boundary frame); the two-part modes drop every clip after the first. The render
 maps each `ClipSpec` to its `EditedMediaItem`, applying the one-frame `setStartPositionMs` offset only
 when `dropLeadingFrame` is true. The preview applies the same rule.
@@ -68,4 +68,4 @@ when `dropLeadingFrame` is true. The preview applies the same rule.
 
 - Parent design `docs/active/boomerang-editor/IMPLEMENTATION.md` §6.4 (seam handling).
 - `app/src/main/java/com/openrang/app/media/BoomerangSequence.kt` + `BoomerangSequenceTest.kt`.
-- Related: [[008-jvm-test-file-and-dispatcher-pitfalls]] / [[017-androidtest-no-mockk-and-sweep-meaningful-mock-returns]] (why the seam math is pure-JVM but the encode is instrumented).
+- Related: [[008-jvm-test-file-and-dispatcher-pitfalls]] / [[017-androidtest-no-mockk-and-sweep-meaningful-mock-returns]] (why the seam math is pure-JVM but the encoded is instrumented).

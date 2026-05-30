@@ -28,15 +28,15 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 
 ## Architecture & Tech Stack
 
-| Layer | Technology | What It Does |
-|-------|-----------|-------------|
-| **Language** | Kotlin | Modern, concise, Google's preferred language for Android |
-| **UI** | Jetpack Compose | Declarative UI — no XML layouts, no fragments |
-| **Camera** | AndroidX CameraX | Device-agnostic camera API that works across 1000+ Android devices |
-| **Media** | AndroidX Media3 | ExoPlayer for looping playback, Transformer for video reversal & export |
-| **Preferences** | Jetpack DataStore | Async, coroutine-based key-value storage (replaces SharedPreferences) |
-| **State** | MVVM + StateFlow | Single ViewModel, sealed-interface state machine, unidirectional data flow |
-| **Testing** | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
+| Layer           | Technology                        | What It Does                                                                        |
+|-----------------|-----------------------------------|-------------------------------------------------------------------------------------|
+| **Language**    | Kotlin                            | Modern, concise, Google's preferred language for Android                            |
+| **UI**          | Jetpack Compose                   | Declarative UI — no XML layouts, no fragments                                       |
+| **Camera**      | AndroidX CameraX                  | Device-agnostic camera API that works across 1000+ Android devices                  |
+| **Media**       | AndroidX Media3                   | ExoPlayer for looping playback, Transformer for video reversal & export             |
+| **Preferences** | Jetpack DataStore                 | Async, coroutine-based key-value storage (replaces SharedPreferences)               |
+| **State**       | MVVM + StateFlow                  | Single ViewModel, sealed-interface state machine, unidirectional data flow          |
+| **Testing**     | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
 
 **SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 36` · `targetSdk 36` — upgraded to **API 36 (Android 16)** for Google Play readiness (`minSdk` stays 26), tracked in [Issue #7](https://github.com/stozo04/OpenRang/issues/7), with the full behavior-change breakdown in [`docs/android-16/`](docs/android-16/README.md). Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
@@ -104,13 +104,13 @@ The finished app lands at `app/build/outputs/apk/debug/app-debug.apk`.
 
 **Other handy commands** (drop them in place of `assembleDebug`):
 
-| Command | What it does |
-|---------|--------------|
-| `clean` | Deletes old build output — run it first if a build is acting weird |
-| `assembleDebug` | Builds the normal debug APK (everyday "does it compile and run?") |
-| `assembleRelease` | Builds the optimized, shrunk release APK (the kind that goes to Google Play) |
-| `testDebugUnitTest` | Runs the fast unit tests — no phone needed |
-| `connectedDebugAndroidTest` | Runs the UI tests — needs a connected device or emulator |
+| Command                     | What it does                                                                 |
+|-----------------------------|------------------------------------------------------------------------------|
+| `clean`                     | Deletes old build output — run it first if a build is acting weird           |
+| `assembleDebug`             | Builds the normal debug APK (everyday "does it compile and run?")            |
+| `assembleRelease`           | Builds the optimized, shrunk release APK (the kind that goes to Google Play) |
+| `testDebugUnitTest`         | Runs the fast unit tests — no phone needed                                   |
+| `connectedDebugAndroidTest` | Runs the UI tests — needs a connected device or emulator                     |
 
 You can chain them, e.g. `.\gradlew.bat clean assembleDebug`.
 

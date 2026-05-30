@@ -7,6 +7,7 @@ import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.view.Surface
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -247,7 +248,7 @@ class VideoReverser(
             var emitted = 0
 
             while (!outputDone) {
-                coroutineContext.ensureActive()
+                currentCoroutineContext().ensureActive()
 
                 if (!inputDone) {
                     val inIndex = decoder.dequeueInputBuffer(DEQUEUE_TIMEOUT_US)
@@ -325,13 +326,13 @@ class VideoReverser(
         val timeoutUs = DEQUEUE_TIMEOUT_US
 
         while (!decoderDone) {
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
 
             if (!inputDone) {
                 val inIndex = decoder.dequeueInputBuffer(timeoutUs)
                 if (inIndex >= 0) {
                     val sampleUs = extractor.sampleTime
-                    if (sampleUs < 0L || sampleUs > endUs) {
+                    if (sampleUs !in 0L..endUs) {
                         decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                         inputDone = true
                     } else {

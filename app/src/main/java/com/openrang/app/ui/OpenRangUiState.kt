@@ -1,6 +1,7 @@
 package com.openrang.app.ui
 
 import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoFilter
 import java.io.File
 
 sealed interface OpenRangUiState {
@@ -66,10 +67,32 @@ data class TrimState(
     val trimEndMs: Long = sourceDurationMs,
 )
 
+/** The interactive tabs in the boomerang editor's bottom tab bar. */
+enum class EditorTab {
+    /** Direction chips (slice 03). */
+    DIRECTION,
+
+    /** Speed slider (slice 04). */
+    SPEED,
+
+    /** Color looks / filters (slice 05) — the third tab, repurposed from the disabled Reps stub. */
+    LOOKS,
+}
+
 /**
  * The boomerang editor's tab selections, held by [OpenRangViewModel] in a sibling flow to the routed
  * [OpenRangUiState.BoomerangEditor] (same slim-discriminator split as [TrimState] is to
- * [OpenRangUiState.Trim]). Slice 03 only exposes the Direction tab; [mode] is its single control.
+ * [OpenRangUiState.Trim]). Slice 03 added the Direction tab ([mode]); slice 04 the Speed tab
+ * ([speed]); slice 05 the Looks tab ([filter]); plus the [activeTab] selector that switches the
+ * content panel between them.
+ *
+ * [speed] is the playback speed multiplier (0.25×–3.0×, default 2.0×): a player-side effect on the
+ * preview (`setPlaybackSpeed`) and a per-clip render effect at save (`SpeedChangeEffect`). It is *not*
+ * baked into [reversedFile], so changing speed never invalidates the cached reverse.
+ *
+ * [filter] is the color look (default [VideoFilter.ORIGINAL]): a Media3 video effect applied live in
+ * the preview (`setVideoEffects`) and baked into the render. Like [speed] it's an effect, not a
+ * re-trim, so it never touches [reversedFile] or the output duration.
  *
  * [reversedFile] caches the reversed clip the preview plays for any reverse-containing [mode]; it is
  * produced once per trim (shared with the render via the same `VideoProcessor`) and is `null` until
@@ -77,6 +100,9 @@ data class TrimState(
  */
 data class EditorTabState(
     val mode: BoomerangMode = BoomerangMode.FORWARD_THEN_REVERSE,
+    val speed: Float = 2.0f,
+    val filter: VideoFilter = VideoFilter.ORIGINAL,
+    val activeTab: EditorTab = EditorTab.DIRECTION,
     val reversedFile: File? = null,
     val isReversedFileLoading: Boolean = false,
 )

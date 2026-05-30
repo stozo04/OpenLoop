@@ -27,12 +27,12 @@ The full slice spec lives in `docs/active/boomerang-rollout/04-editor-speed-tab.
 3. **`docs/DEFINITION_OF_DONE.md`** — the verification gate.
 4. **`docs/active/boomerang-editor/IMPLEMENTATION.md`** — parent design doc. §6 (Media3 pipeline) for the speed-effect semantics (it's `SpeedChangeEffect` in Media3 1.10.1 — see the slice-04 KICKOFF §0).
 5. **`docs/lessons_learned/KICKOFF-boomerang-slice-04-speed-tab.md`** — the hard-won deltas this PRD gets wrong (the render side is already done; the real risk is #1658). Read it before coding.
-5. **`docs/active/boomerang-rollout/README.md`** — rollout map.
-6. **`docs/active/boomerang-rollout/03-editor-direction-tab.md`** — for the `EditorTabState` and tab bar surface this slice extends.
-7. **`docs/active/boomerang-rollout/04-editor-speed-tab.md`** — your PRD. End-to-end, twice.
-8. **`docs/PRD-mission-control.md`** §3 (Design System Tokens) — for slider track / thumb colors.
-9. **`docs/ANDROID_STANDARDS.md`** — consult before adding new patterns.
-10. **`docs/TEST_COVERAGE.md`** — test conventions.
+6. **`docs/active/boomerang-rollout/README.md`** — rollout map.
+7. **`docs/active/boomerang-rollout/03-editor-direction-tab.md`** — for the `EditorTabState` and tab bar surface this slice extends.
+8. **`docs/active/boomerang-rollout/04-editor-speed-tab.md`** — your PRD. End-to-end, twice.
+9. **`docs/PRD-mission-control.md`** §3 (Design System Tokens) — for slider track / thumb colors.
+10. **`docs/ANDROID_STANDARDS.md`** — consult before adding new patterns.
+11. **`docs/TEST_COVERAGE.md`** — test conventions.
 
 **Read all of these before touching any code.**
 

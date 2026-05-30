@@ -96,6 +96,7 @@ com.openrang.app/
 │   ├── VideoReverser.kt         # Two-pass MediaCodec reverse (Media3 has no reverse effect)
 │   ├── VideoProcessor.kt        # Media3 Transformer: Composition + SpeedChangeEffect; ensureReversed() (shared reverse cache)
 │   ├── BoomerangSequence.kt     # Pure: clip order + position-based seam + output-duration math (JVM-tested)
+│   ├── VideoFilter.kt           # Color "looks" enum → Media3 effects (RgbFilter/RgbAdjustment/HslAdjustment)
 │   └── MediaFormatUtils.kt      # Type-tolerant frame-rate / rotation reads
 ├── ui/
 │   ├── OpenRangUiState.kt       # Sealed state machine + TrimState / EditorTabState
@@ -103,7 +104,7 @@ com.openrang.app/
 │   ├── CameraScreen.kt          # Live viewfinder, shutter (+ shared design tokens)
 │   ├── OnboardingScreen.kt      # 3-page carousel
 │   ├── TrimScreen.kt            # Post-capture trim (two-handle bar, NEXT)
-│   ├── BoomerangEditorScreen.kt # Tabbed editor — Direction tab (slice 03); Speed/Reps tabs land 04/05
+│   ├── BoomerangEditorScreen.kt # Tabbed editor — Direction / Speed / Looks(filters) tabs (slice 03–05)
 │   ├── ProcessingScreen.kt      # Render spinner
 │   ├── PreviewScreen.kt         # Looping ExoPlayer playback (gallery target, slice 07)
 │   └── GalleryScreen.kt         # 3-col grid, thumbnails, delete

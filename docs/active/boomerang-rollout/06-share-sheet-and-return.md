@@ -1,14 +1,14 @@
 # Slice 06 — Share sheet + return-to-camera
 
 > **Branch:** `feature/boomerang-slice-06-share-sheet`
-> **Depends on:** slice 05 (Reps tab — editor is feature-complete).
+> **Depends on:** slice 05 (Looks tab — editor is feature-complete).
 > **Unblocks:** slice 07 (Gallery tap-to-edit).
 
 ---
 
 ## Problem
 
-Through slice 05 the editor is feature-complete (direction, speed, reps,
+Through slice 05 the editor is feature-complete (direction, speed, looks,
 trim) and saves rendered boomerangs to internal storage. But saving today
 just shows a snackbar — the user has no fast path to **share** the
 boomerang to messaging, social, or cloud apps without first navigating to
