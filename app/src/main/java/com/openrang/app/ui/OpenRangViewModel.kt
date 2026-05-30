@@ -494,8 +494,9 @@ class OpenRangViewModel(
     /**
      * The share sheet for a just-saved boomerang has returned control (the user shared, canceled, or
      * backed out — all the same to us). Emit [BoomerangEvent.Saved] so the "Saved — view in gallery"
-     * snackbar shows now that the user is back on the camera. Called by MainActivity from a
-     * `lifecycle.withResumed { }` block after the chooser dismisses (slice 06).
+     * snackbar shows now that the user is back on the camera. Called by MainActivity from its next
+     * `onResume()` after the chooser dismisses — not `withResumed { }`, which would fire immediately
+     * because the activity is still RESUMED at the moment the chooser is launched (slice 06).
      */
     fun onShareSheetClosed() {
         viewModelScope.launch { _events.send(BoomerangEvent.Saved) }

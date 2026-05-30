@@ -66,7 +66,7 @@ class ShareBoomerangTest {
     fun buildBoomerangShareIntent_hasSendActionTypeStreamSubjectAndReadGrant() {
         val uri = Uri.parse("content://$authority/boomerangs/boom_test_from_1.mp4")
 
-        val intent = buildBoomerangShareIntent(uri)
+        val intent = buildBoomerangShareIntent(uri, "OpenRang boomerang")
 
         assertEquals(Intent.ACTION_SEND, intent.action)
         assertEquals("video/mp4", intent.type)

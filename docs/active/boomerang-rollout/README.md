@@ -41,7 +41,7 @@ Every slice below builds on top of that baseline.
 | [04](./04-editor-speed-tab.md) | **Speed tab** | …drag a horizontal slider 0.25× – 3× (default 2×). Preview re-binds with new speed live. |
 | [05](./05-editor-looks-tab.md) | **Looks tab (filters)** | …tap a color look (B&W / Warm / Cool / Vibrant). Preview re-tints live; the look bakes into the saved file. *(Replaced the planned Repetitions tab — see that doc's scope-pivot note.)* |
 | [06](./06-share-sheet-and-return.md) | **Share sheet + return-to-camera** | …Save now pops the Android share sheet on the rendered MP4; on dismiss, snackbar "Saved — view in gallery" → back to camera. |
-| [07](./07-gallery-tap-to-edit.md) | **Gallery tap-to-edit + raw/boomerang distinction** | …tap a raw clip in the gallery to enter the same Trim → Editor flow. Filter chip All / Boomerangs / Raw. Long-press boomerang to re-edit from its source raw. |
+| [07](./07-import-from-library.md) | **Import a video from the phone library** | …tap an Import button in the gallery, pick a video (≤30 s) from the phone library, and land on the Trim screen as if they'd just recorded it — then the existing Trim → Editor → Render → Share flow. *(Re-scoped from the originally-planned "gallery tap-to-edit / raw-vs-boomerang" slice, now [deferred to v1.5](./07-gallery-tap-to-edit.md).)* |
 
 Each slice's doc is structured the same way: **Problem → Scope (this slice only)
 → UX deltas → Technical deltas (file-level) → Testing plan → Acceptance criteria.**

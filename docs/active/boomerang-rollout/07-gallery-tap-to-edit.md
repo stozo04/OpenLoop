@@ -1,8 +1,14 @@
 # Slice 07 — Gallery tap-to-edit + raw/boomerang distinction
 
-> **Branch:** `feature/boomerang-slice-07-gallery-tap-to-edit`
+> ⚠️ **DEFERRED to v1.5 — not the v1 slice 07.** The owner re-scoped the final v1 slice to
+> **library import** instead; see **[`07-import-from-library.md`](./07-import-from-library.md)**.
+> This internal re-edit feature (tap a raw to edit, raw/boomerang badges, filter chips, re-edit a
+> boomerang from its source) is a strong v1.5 candidate and the design below is preserved intact for
+> when it's picked up. Do **not** implement this as v1's slice 07.
+
+> **Branch (if revived):** `feature/boomerang-slice-07-gallery-tap-to-edit`
 > **Depends on:** slice 06 (share sheet).
-> **Unblocks:** v1 ship.
+> **Status:** deferred (v1.5).
 
 ---
 

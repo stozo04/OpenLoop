@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">OpenRang</string>
+
+    <!-- Share sheet (slice 06) -->
+    <string name="share_chooser_title">Share boomerang</string>
+    <string name="share_subject">OpenRang boomerang</string>
+
+    <!-- Post-save snackbars (slice 06) -->
+    <string name="snackbar_saved">Saved — view in gallery</string>
+    <string name="snackbar_view_action">View</string>
+    <string name="snackbar_save_failed">Couldn\'t save boomerang. Try again.</string>
 </resources>

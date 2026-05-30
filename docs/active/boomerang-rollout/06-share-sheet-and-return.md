@@ -211,6 +211,15 @@ both deliberately:
 - **No new gradle dependency.** `FileProvider` comes from `androidx.core`; the share-intent shape
   and provider scope are covered by an instrumented `ShareBoomerangTest` using the real
   `FileProvider`/`Intent`, so `espresso-intents` was not needed.
+- **`awaitingShareReturn` survives recreation.** The deferred-share flag is persisted in
+  `onSaveInstanceState` and restored in `onCreate`, so a rotation (orientation is unlocked at target
+  36 — see ANDROID_STANDARDS §11) or process death while the chooser is on top doesn't drop the
+  "Saved" snackbar on the next `onResume()`.
+- **User-facing strings extracted to `strings.xml`.** The chooser title (`share_chooser_title`),
+  share subject (`share_subject`), and the three post-save snackbar strings (`snackbar_saved`,
+  `snackbar_view_action`, `snackbar_save_failed`) are resources rather than literals, so they
+  localize. `buildBoomerangShareIntent(uri, subject)` takes the subject as a parameter to stay
+  Context-free (and unit-testable).
 
 ## Acceptance criteria
 
