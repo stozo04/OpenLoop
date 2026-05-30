@@ -38,8 +38,9 @@ IDs, etc.) is therefore declared as **not collected and not shared**.
 
 ### Privacy policy
 
-The Data safety form requires a **privacy policy URL**. Host `privacy-policy.md` (see that file's
-footer) and enter the URL in the form.
+The Data safety form requires a **privacy policy URL**. Enter:
+**https://stozo04.github.io/OpenLoop/privacy-policy.html** (served via GitHub Pages from
+`docs/privacy-policy.html`).
 
 ### Keep this honest
 

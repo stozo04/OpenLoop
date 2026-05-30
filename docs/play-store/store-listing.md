@@ -56,7 +56,7 @@ Made for people who just want to point, tap, and loop.
 | App category | **Video Players & Editors** (alt: Photography) |
 | Tags | boomerang, video loop, slow motion, video editor (pick from Console's tag list) |
 | Contact email | gates.steven@gmail.com |
-| Privacy policy URL | *(host `privacy-policy.md` — see its footer — and paste the URL)* |
+| Privacy policy URL | `https://stozo04.github.io/OpenLoop/privacy-policy.html` |
 | Website (optional) | https://github.com/stozo04/OpenLoop |
 
 ---

@@ -6,7 +6,7 @@ in**. Keep these in sync if the app's behavior changes.
 
 | Doc | What it's for | Where it goes in the Console |
 |---|---|---|
-| [`privacy-policy.md`](privacy-policy.md) | The privacy policy (host it; paste the URL) | App content → Privacy policy + store listing |
+| [`privacy-policy.md`](privacy-policy.md) + [`../privacy-policy.html`](../privacy-policy.html) | Privacy policy (live at the Pages URL) | App content → Privacy policy + store listing |
 | [`data-safety.md`](data-safety.md) | Data safety answers (no data collected/shared) | App content → Data safety |
 | [`content-rating.md`](content-rating.md) | IARC questionnaire answers (expected: Everyone/PEGI 3) | App content → Content ratings |
 | [`store-listing.md`](store-listing.md) | Title, descriptions, asset specs, screenshot checklist | Store presence → Main store listing |
@@ -31,7 +31,7 @@ in**. Keep these in sync if the app's behavior changes.
 ### You do — Play Console (paste from these docs)
 - [ ] Create the app: name **OpenLoop**, default language, **App**, **Free**.
 - [ ] Enable **Play App Signing**.
-- [ ] **Privacy policy** URL (host `privacy-policy.md`).
+- [ ] **Privacy policy** URL -> `https://stozo04.github.io/OpenLoop/privacy-policy.html` (auto-hosted via GitHub Pages from docs/privacy-policy.html).
 - [ ] **Data safety** → "No data collected or shared" (`data-safety.md`).
 - [ ] **Content rating** questionnaire (`content-rating.md`).
 - [ ] **Store listing**: title, short + full description (`store-listing.md`), **app icon 512×512**, **feature graphic 1024×500**, **≥2 phone screenshots** (capture during device QA — checklist in `store-listing.md`).

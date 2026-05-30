@@ -73,11 +73,10 @@ Questions about this policy: **gates.steven@gmail.com**
 
 ---
 
-> **How to publish this (so you can paste a URL into the Play Console):**
-> The Play Console requires a publicly reachable **URL**, not a file. Easiest options:
-> 1. **GitHub Pages** — enable Pages for the `OpenLoop` repo and host this page, e.g.
->    `https://stozo04.github.io/OpenLoop/privacy-policy`.
-> 2. **Direct GitHub link** — the rendered file URL on the default branch also works as a stop-gap:
->    `https://github.com/stozo04/OpenLoop/blob/main/docs/play-store/privacy-policy.md`.
-> Paste whichever URL you host into **Play Console → Policy → App content → Privacy policy**, and into
-> the **store listing** Privacy Policy field.
+> **Live URL (paste this into the Play Console):**
+> **https://stozo04.github.io/OpenLoop/privacy-policy.html**
+>
+> This Markdown file is the readable source; the page actually served to users is the self-contained
+> `docs/privacy-policy.html`, published via **GitHub Pages** (main branch, `/docs` folder). Keep the two
+> in sync if you edit the policy. Paste the URL above into **Play Console → Policy → App content →
+> Privacy policy** and into the **store listing** Privacy Policy field.
