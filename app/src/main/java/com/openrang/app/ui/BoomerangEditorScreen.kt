@@ -532,7 +532,8 @@ fun BoomerangEditorContent(
 
     if (showDiscardDialog) {
         AlertDialog(
-            onDismissRequest = { },
+            // Back press / scrim tap == "Keep editing" (the safe choice): just close the dialog.
+            onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard changes?") },
             text = { Text("Your edits will be lost and you'll return to trimming.") },
             confirmButton = {
@@ -544,7 +545,9 @@ fun BoomerangEditorContent(
                 ) { Text("Discard") }
             },
             dismissButton = {
-                TextButton(onClick = { }) { Text("Keep editing") }
+                // "Keep editing" must dismiss the dialog so the user stays in the editor — previously a
+                // no-op, which trapped them in the dialog with no way to continue.
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
             },
         )
     }

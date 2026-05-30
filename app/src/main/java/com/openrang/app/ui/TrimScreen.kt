@@ -301,7 +301,8 @@ fun TrimScreenContent(
 
     if (showDiscardDialog) {
         AlertDialog(
-            onDismissRequest = { },
+            // Back press / scrim tap == "Keep" (the safe, non-destructive choice): just close the dialog.
+            onDismissRequest = { showDiscardDialog = false },
             title = { Text("Discard this clip?") },
             text = { Text("Your captured clip will be deleted and you'll return to the camera.") },
             confirmButton = {
@@ -313,7 +314,9 @@ fun TrimScreenContent(
                 ) { Text("Discard") }
             },
             dismissButton = {
-                TextButton(onClick = { }) { Text("Keep") }
+                // "Keep" must dismiss the dialog so the user returns to trimming — previously a no-op,
+                // which trapped them in the dialog with no way to continue.
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep") }
             },
         )
     }
