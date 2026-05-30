@@ -402,7 +402,11 @@ class VideoReverser(
         while (true) {
             val outIndex = encoder.dequeueOutputBuffer(bufferInfo, DEQUEUE_TIMEOUT_US)
             when {
-                outIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> if (!endOfStream) return started else { /* keep draining at EOS */ }
+                // Nothing ready from the encoder this poll. Before EOS, return so the caller's loop can
+                // feed/decode more. At EOS we fall through to the explicit exit just below — the old
+                // `else { /* keep draining */ }` was a no-op; draining actually continues across the
+                // caller's outer loop, not inside this function.
+                outIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> if (!endOfStream) return started
                 outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                     if (!started) started = onTrackReady(encoder.outputFormat)
                 }

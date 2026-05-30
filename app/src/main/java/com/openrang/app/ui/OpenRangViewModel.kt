@@ -667,8 +667,9 @@ class OpenRangViewModel(
         /** Minimum trimmed duration; below this the NEXT action is disabled (slice 02). */
         const val MIN_TRIM_MS = 400L
 
-        /** Default boomerang config. Direction picker shipped slice 03, speed slider slice 04; reps (1) is
-         *  still hard-wired until slice 05. [DEFAULT_SPEED] is the slider's starting value. */
+        /** Default boomerang config. Direction picker shipped slice 03, speed slider slice 04, Looks
+         *  (filters) slice 05 — the Reps tab was dropped in favor of Looks, so [DEFAULT_REPS] stays
+         *  hard-wired at 1. [DEFAULT_SPEED] is the speed slider's starting value. */
         const val DEFAULT_SPEED = 2.0f
         const val DEFAULT_REPS = 1
 
