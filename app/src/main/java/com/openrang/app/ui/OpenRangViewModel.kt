@@ -133,7 +133,7 @@ class OpenRangViewModel(
     private val _editorTabState = MutableStateFlow(EditorTabState())
     val editorTabState: StateFlow<EditorTabState> = _editorTabState.asStateFlow()
 
-    /** In-flight reverse-generation for the preview; cancelled when the editing session ends. */
+    /** In-flight reverse-generation for the preview; canceled when the editing session ends. */
     private var reverseJob: Job? = null
 
     /** Render progress (0f..1f) for the [OpenRangUiState.Processing] spinner. */
@@ -393,7 +393,7 @@ class OpenRangViewModel(
      * Serialized against fast chip-taps: once the reversed file is ready or a generation is already in
      * flight, further calls are ignored (KICKOFF §4 — the trim is fixed for the session, so one run
      * per session suffices). Failure clears the loading flag and leaves [EditorTabState.reversedFile]
-     * null; the preview then falls back to forward playback and the user can retry by reselecting.
+     * null; the preview then falls back to forward playback and the user can retry by reelecting.
      */
     fun ensureReversedSegment() {
         val trim = _editorState.value ?: return
@@ -424,7 +424,7 @@ class OpenRangViewModel(
      * raw, registers the boomerang, emits [BoomerangEvent.Saved] and returns to capture. The render
      * sources the **scratch** file — the same path the preview reversed — so a reverse-containing mode
      * hits the cached reversed clip instead of regenerating it (speed is applied per clip at render and
-     * doesn't invalidate that cache). On failure it emits [BoomerangEvent.Failed] and routes back to
+     * doesn't invalidate that cache). On failure, it emits [BoomerangEvent.Failed] and routes back to
      * [OpenRangUiState.BoomerangEditor] with the direction + speed selection intact.
      */
     fun saveBoomerang() {

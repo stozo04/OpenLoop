@@ -80,7 +80,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -342,7 +341,7 @@ fun BoomerangEditorContent(
 
             if (awaitingReverse) {
                 // Soft dark scrim (the dimmed preview frame still shows through) + a glassmorphic card,
-                // rather than a flat colour wash — matches the app's DeepCharcoal/GlassWhite surfaces.
+                // rather than a flat color wash — matches the app's DeepCharcoal/GlassWhite surfaces.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -472,20 +471,19 @@ fun BoomerangEditorContent(
 
     if (showDiscardDialog) {
         AlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
+            onDismissRequest = { },
             title = { Text("Discard changes?") },
             text = { Text("Your edits will be lost and you'll return to trimming.") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showDiscardDialog = false
                         onBack()
                     },
                     modifier = Modifier.testTag("discard_changes_confirm"),
                 ) { Text("Discard") }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
+                TextButton(onClick = { }) { Text("Keep editing") }
             },
         )
     }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -115,7 +116,7 @@ class Media3VideoProcessor(
         } else {
             null
         }
-        coroutineContext.ensureActive()
+        currentCoroutineContext().ensureActive()
         onProgress(REVERSE_BUDGET)
 
         // Speed (SpeedChangeEffect) + the chosen color look (RgbFilter / RgbAdjustment / HslAdjustment)

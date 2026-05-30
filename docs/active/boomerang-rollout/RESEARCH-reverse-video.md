@@ -22,7 +22,7 @@ reverse video effect, and if not, what's the best alternative?"*
    when reverse playback is desired.
 2. **FFmpegKit is dead.** Retired January 6, 2025, repository archived June 23,
    2025, native binaries removed from Maven Central / CocoaPods / npm April 1
-   2025. No security patches, no active maintainer, no Maven artifacts that
+   1. No security patches, no active maintainer, no Maven artifacts that
    meet the 16 KB page-size requirement. Not viable as a v1 dependency.
 3. **The path forward is hand-rolled MediaCodec + MediaExtractor + MediaMuxer.**
    This is the documented, working, standard-Android-API approach. A reference
