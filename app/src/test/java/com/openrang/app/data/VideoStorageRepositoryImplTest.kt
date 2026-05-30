@@ -282,18 +282,23 @@ class VideoStorageRepositoryImplTest {
     }
 
     @Test
-    fun `pruneStaleScratch leaves the reversed subdirectory untouched`() = runBlocking {
+    fun `pruneStaleScratch also prunes stale reversed clips but keeps fresh ones and the directory`() = runBlocking {
         val scratch = scratchDir().apply { mkdirs() }
-        // VideoReverser writes into scratch/reversed/; the prune targets files only, not this dir.
+        // VideoReverser caches reversed clips in scratch/reversed/ (one per trim window, never
+        // overwritten — the heaviest orphans), so the prune must reach them too (review W2).
         val reversed = File(scratch, "reversed").apply { mkdirs() }
-        val reversedClip = File(reversed, "rev_old.mp4").apply { writeBytes(ByteArray(4)) }
-        reversed.setLastModified(System.currentTimeMillis() - 48L * 60 * 60 * 1_000)
+        val staleClip = File(reversed, "stale_rev.mp4").apply { writeBytes(ByteArray(4)) }
+        val freshClip = File(reversed, "fresh_rev.mp4").apply { writeBytes(ByteArray(4)) }
+        val now = System.currentTimeMillis()
+        staleClip.setLastModified(now - 48L * 60 * 60 * 1_000) // 48 h old
+        freshClip.setLastModified(now - 1L * 60 * 60 * 1_000)  //  1 h old
 
         val deleted = repository.pruneStaleScratch(24L * 60 * 60 * 1_000)
 
-        assertEquals(0, deleted)
-        assertTrue("reversed subdirectory must survive", reversed.exists())
-        assertTrue(reversedClip.exists())
+        assertEquals(1, deleted)
+        assertFalse("stale reversed clip should be deleted", staleClip.exists())
+        assertTrue("fresh reversed clip should survive", freshClip.exists())
+        assertTrue("reversed subdirectory itself must survive (only files are pruned)", reversed.exists())
     }
 
     @Test

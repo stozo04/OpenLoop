@@ -79,9 +79,11 @@ interface VideoStorageRepository {
      * Delete scratch files under `cacheDir/scratch/` whose `lastModified()` is older than
      * [olderThanMs] (i.e. age > [olderThanMs]); returns the count deleted (parent D-8). Best-effort
      * cleanup of orphaned captures/imports left behind by an interrupted session — imports raise this
-     * churn since an abandoned copy can be a whole library video. Younger files (a session possibly
-     * still in flight) and the `reversed/` subdirectory are left untouched. `suspend` + off the main
-     * thread (filesystem scan).
+     * churn since an abandoned copy can be a whole library video. Sweeps both the top-level scratch
+     * captures/imports AND the cached reversed clips in `scratch/reversed/` (one ≤1080p MP4 per
+     * distinct trim window, never overwritten — the heaviest orphans), so the reclaim reaches the
+     * cache that actually grows. Younger files (a session possibly still in flight) are left
+     * untouched. `suspend` + off the main thread (filesystem scan).
      */
     suspend fun pruneStaleScratch(olderThanMs: Long): Int
 

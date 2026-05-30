@@ -90,9 +90,27 @@ class VideoStorageRepositoryImpl(
 
     override suspend fun pruneStaleScratch(olderThanMs: Long): Int = withContext(Dispatchers.IO) {
         val cutoff = System.currentTimeMillis() - olderThanMs
-        // Only regular files directly under scratch/ (the raw_<uuid>.mp4 captures/imports); the
-        // reversed/ subdirectory is a directory, so isFile skips it.
-        val files = scratchDir.listFiles() ?: return@withContext 0
+        // Prune BOTH the per-capture/import scratch files directly under scratch/ (raw_<uuid>.mp4)
+        // AND the cached reversed clips under scratch/reversed/. The reversed cache is where the
+        // heaviest orphans accumulate — one ≤1080p reversed MP4 per distinct trim window, written
+        // once and never overwritten (keyed by sha1(path_trimStart_trimEnd) in VideoReverser) — so
+        // D-8's reclaim must reach it. The prior sweep only looked at the top level and skipped the
+        // reversed/ directory entirely (isFile == false for it), leaving it to grow until opaque OS
+        // cache eviction. (Dir name mirrors VideoReverser's scratchDir = cacheDir/scratch/reversed.)
+        val deleted = pruneStaleFilesIn(scratchDir, cutoff) +
+            pruneStaleFilesIn(File(scratchDir, REVERSED_SUBDIR), cutoff)
+        if (deleted > 0) Log.d(TAG, "Pruned $deleted stale scratch file(s)")
+        deleted
+    }
+
+    /**
+     * Delete regular files directly in [dir] whose `lastModified()` is older than [cutoff]; returns
+     * the count deleted. Shallow by design (the `isFile` guard skips any nested directory), and
+     * tolerant of a missing [dir] (`listFiles()` → null). A per-file `SecurityException` is logged
+     * and skipped rather than aborting the whole sweep.
+     */
+    private fun pruneStaleFilesIn(dir: File, cutoff: Long): Int {
+        val files = dir.listFiles() ?: return 0
         var deleted = 0
         for (file in files) {
             try {
@@ -101,8 +119,7 @@ class VideoStorageRepositoryImpl(
                 Log.e(TAG, "Failed to prune stale scratch ${file.name}", e)
             }
         }
-        if (deleted > 0) Log.d(TAG, "Pruned $deleted stale scratch file(s)")
-        deleted
+        return deleted
     }
 
     override fun allocateBoomerangFile(sourceRawId: Long): File {
@@ -228,5 +245,8 @@ class VideoStorageRepositoryImpl(
 
     private companion object {
         const val TAG = "VideoStorageRepository"
+
+        /** Subdirectory of scratch/ holding VideoReverser's cached reversed clips (see MainActivity). */
+        const val REVERSED_SUBDIR = "reversed"
     }
 }
