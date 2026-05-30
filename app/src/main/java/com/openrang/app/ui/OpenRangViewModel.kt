@@ -361,6 +361,13 @@ class OpenRangViewModel(
                         failImport()
                         return@launch
                     }
+                    // Defensive: replacing activeScratch must not orphan a previous session's scratch
+                    // copy. In practice it's already null here — the import action lives only on the
+                    // gallery, and you can't reach the gallery mid-edit (save/discard both run
+                    // clearEditorSession) — but if one ever lingered we'd otherwise leak a whole
+                    // library-video-sized file until the 24h prune. discardScratch is a no-op on a
+                    // missing file, so this is safe even in the normal null case.
+                    activeScratch?.let { videoStorage.discardScratch(it) }
                     activeScratch = scratch
                     promotedRaw = null
                     importedSession = true // saving/discarding returns to the gallery, not the camera
