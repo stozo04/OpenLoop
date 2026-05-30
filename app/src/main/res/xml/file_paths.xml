@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider path map (slice 06). The <files-path> root is Context.getFilesDir(), so this exposes
+  ONLY filesDir/boomerangs/ — the rendered, shareable boomerangs. Raw captures (filesDir/videos/)
+  and scratch clips (cacheDir/scratch/) are deliberately NOT listed, so FileProvider.getUriForFile
+  throws IllegalArgumentException for them and they can never leak through the share sheet.
+-->
+<paths>
+    <files-path name="boomerangs" path="boomerangs/" />
+</paths>

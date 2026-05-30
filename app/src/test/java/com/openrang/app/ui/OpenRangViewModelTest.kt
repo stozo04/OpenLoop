@@ -623,7 +623,7 @@ class OpenRangViewModelTest {
         }
 
     @Test
-    fun `saveBoomerang renders the chosen direction, saves, returns to capture emitting Saved`() =
+    fun `saveBoomerang renders the chosen direction, saves, returns to capture emitting Share with the rendered file`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim()
@@ -635,7 +635,6 @@ class OpenRangViewModelTest {
             advanceUntilIdle()
 
             assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
-            assertTrue("expected a Saved event, got $events", events.contains(BoomerangEvent.Saved))
             assertEquals(1, fakeVideoProcessor.renderCount)
 
             // One RAW (promoted) + one BOOMERANG (registered), boomerang points at the raw.
@@ -645,6 +644,26 @@ class OpenRangViewModelTest {
             assertEquals(1, fakeVideoStorage.discardedScratches.size) // scratch cleaned up after save
             assertNull(viewModel.editorState.value)
 
+            // Success now emits Share(file) — the rendered boomerang handed to the share sheet (slice
+            // 06) — and NOT Saved. The Saved snackbar is deferred until the share sheet returns
+            // (onShareSheetClosed). The shared file must be the registered boomerang's path.
+            val share = events.filterIsInstance<BoomerangEvent.Share>().single()
+            assertEquals(boomerang.videoPath, share.file.absolutePath)
+            assertFalse("Saved must be deferred, not emitted during save", events.contains(BoomerangEvent.Saved))
+
+            job.cancel()
+        }
+
+    @Test
+    fun `onShareSheetClosed emits the deferred Saved snackbar event`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            viewModel.onShareSheetClosed()
+            advanceUntilIdle()
+
+            assertTrue("expected a Saved event, got $events", events.contains(BoomerangEvent.Saved))
             job.cancel()
         }
 

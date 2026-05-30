@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.provider.Settings
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -88,6 +90,14 @@ class MainActivity : ComponentActivity() {
     }
     private lateinit var cameraManager: CameraManager
 
+    /**
+     * Set when a boomerang share sheet is launched (slice 06); consumed on the next [onResume]. The
+     * "Saved — view in gallery" snackbar is deferred until then so it shows when the user is actually
+     * back on the camera — not behind the chooser or the share target. (A `withResumed { }` right after
+     * startActivity would fire immediately, because the activity is still RESUMED at that point.)
+     */
+    private var awaitingShareReturn = false
+
     // Constructing the @UnstableApi Media3VideoProcessor needs an opt-in; a function-level @OptIn
     // reliably covers its body (a property-delegate annotation doesn't propagate into the
     // `viewModels { … }` lambda where the construction would otherwise live).
@@ -127,14 +137,20 @@ class MainActivity : ComponentActivity() {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val snackbarHostState = remember { SnackbarHostState() }
 
-                // Collect one-shot boomerang events → snackbars (the app's first SnackbarHost).
+                // Collect one-shot boomerang events → share sheet + snackbars (the app's only
+                // SnackbarHost). `when` stays exhaustive with no `else` (Lesson 014) so a new event
+                // must be handled here to compile.
                 LaunchedEffect(Unit) {
                     viewModel.events.collect { event ->
                         when (event) {
+                            is BoomerangEvent.Share -> launchShareSheet(event.file)
                             BoomerangEvent.Saved -> {
+                                // Explicit Short (~4 s) auto-dismiss: with a non-null actionLabel the
+                                // Material3 default is Indefinite, which would never time out.
                                 val result = snackbarHostState.showSnackbar(
                                     message = "Saved — view in gallery",
                                     actionLabel = "View",
+                                    duration = SnackbarDuration.Short,
                                 )
                                 if (result == SnackbarResult.ActionPerformed) {
                                     viewModel.navigateToGallery()
@@ -207,11 +223,48 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Pop the Android share sheet for a just-rendered boomerang [file] (slice 06). The file lives in
+     * `filesDir/boomerangs/`, exposed by the manifest's FileProvider; [FileProvider.getUriForFile]
+     * mints a `content://` URI and the [Intent.FLAG_GRANT_READ_URI_PERMISSION] set in
+     * [buildBoomerangShareIntent] grants the chosen receiver temporary read access. We flag
+     * [awaitingShareReturn] so the "Saved" snackbar fires on the next [onResume] (when the user is
+     * back on the camera), not now (while the chooser is about to cover the screen).
+     */
+    private fun launchShareSheet(file: File) {
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        awaitingShareReturn = true
+        startActivity(Intent.createChooser(buildBoomerangShareIntent(uri), "Share boomerang"))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Returned from a share chooser (shared, canceled, or backed out — all the same): now that the
+        // user is looking at the camera again, ask the ViewModel to emit the deferred "Saved" snackbar.
+        if (awaitingShareReturn) {
+            awaitingShareReturn = false
+            viewModel.onShareSheetClosed()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         cameraManager.shutdown()
     }
 }
+
+/**
+ * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] (slice 06).
+ * Extracted as a pure function so the intent's shape (action / MIME type / extras / read-grant flag)
+ * is unit-testable without launching the chooser. The caller wraps it in [Intent.createChooser].
+ */
+fun buildBoomerangShareIntent(uri: Uri): Intent =
+    Intent(Intent.ACTION_SEND).apply {
+        type = "video/mp4"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, "OpenRang boomerang")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
 
 /**
  * Stateless navigation host: maps each [OpenRangUiState] to the screen that renders it. Extracted

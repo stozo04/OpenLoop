@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.IOException
 import androidx.camera.video.VideoRecordEvent
 
@@ -32,7 +33,17 @@ import androidx.camera.video.VideoRecordEvent
  * [Channel] (not a StateFlow) so they fire exactly once and never replay on recomposition.
  */
 sealed interface BoomerangEvent {
-    /** Boomerang rendered + saved. Snackbar offers a "View" action into the gallery. */
+    /**
+     * Boomerang rendered + saved; carries the rendered [file] (a `filesDir/boomerangs/` MP4) so the
+     * UI can hand it to the Android share sheet (slice 06). The "Saved — view in gallery" snackbar is
+     * deferred until the share sheet is dismissed (see [BoomerangEvent.Saved] / [onShareSheetClosed]).
+     */
+    data class Share(val file: File) : BoomerangEvent
+    /**
+     * Show the "Saved — view in gallery" snackbar (with a "View" action into the gallery). Emitted
+     * *after* the share sheet returns control — see [onShareSheetClosed] — so the snackbar isn't wasted
+     * behind the chooser.
+     */
     object Saved : BoomerangEvent
     /** Boomerang render failed. Snackbar invites a retry; the trim selection is preserved. */
     object Failed : BoomerangEvent
@@ -421,7 +432,8 @@ class OpenRangViewModel(
     /**
      * Save the boomerang in the editor's current direction + speed + look (reps stays hard-wired at 1
      * — the reps tab was dropped for the Looks tab). Flips to [OpenRangUiState.Processing]; on success promotes the scratch to a persistent
-     * raw, registers the boomerang, emits [BoomerangEvent.Saved] and returns to capture. The render
+     * raw, registers the boomerang, emits [BoomerangEvent.Share] (handing the rendered file to the
+     * share sheet — slice 06) and returns to capture. The render
      * sources the **scratch** file — the same path the preview reversed — so a reverse-containing mode
      * hits the cached reversed clip instead of regenerating it (speed is applied per clip at render and
      * doesn't invalidate that cache). On failure, it emits [BoomerangEvent.Failed] and routes back to
@@ -461,7 +473,10 @@ class OpenRangViewModel(
                 videoStorage.discardScratch(scratch)
                 clearEditorSession()
                 loadRecordedVideos()
-                _events.send(BoomerangEvent.Saved)
+                // Hand the rendered file to the share sheet (slice 06). `output` was captured before
+                // clearEditorSession(), so it survives the session reset. The "Saved" snackbar is NOT
+                // emitted here — it's deferred until the share sheet returns (onShareSheetClosed).
+                _events.send(BoomerangEvent.Share(output))
                 _uiState.value = OpenRangUiState.ReadyToCapture
             } catch (e: CancellationException) {
                 throw e // never swallow cancellation (Lesson 013)
@@ -474,6 +489,16 @@ class OpenRangViewModel(
                 failBackToEditor(scratch)
             }
         }
+    }
+
+    /**
+     * The share sheet for a just-saved boomerang has returned control (the user shared, canceled, or
+     * backed out — all the same to us). Emit [BoomerangEvent.Saved] so the "Saved — view in gallery"
+     * snackbar shows now that the user is back on the camera. Called by MainActivity from a
+     * `lifecycle.withResumed { }` block after the chooser dismisses (slice 06).
+     */
+    fun onShareSheetClosed() {
+        viewModelScope.launch { _events.send(BoomerangEvent.Saved) }
     }
 
     /** Emit [BoomerangEvent.Failed] and route back to the editor, preserving the direction selection. */
