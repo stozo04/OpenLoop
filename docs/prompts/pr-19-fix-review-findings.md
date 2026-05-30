@@ -2,7 +2,7 @@
 
 Copy everything below the line into a **fresh Claude Code session** with the OpenRang folder mounted and the branch `feature/boomerang-slice-01-variable-length` checked out.
 
-This prompt is a **finding-specific** companion to `docs/prompts/PR-FEEDBACK-RESOLUTION.md`. That file is the generic "address feedback + re-review" harness; **this** file enumerates the exact 7 findings from the automated review on PR #19 that are in scope (3 WARNINGs + 4 RECOMMENDATIONs), each with file:line, the fix, and the **covering test** that must prove it. Use both: the steps below for *what* to change, the generic doc's Phase 4/5 for the response comment + re-review.
+This prompt is a **finding-specific** companion to `docs/prompts/PR-FEEDBACK-RESOLUTION.md`. That file is the generic "address feedback + re-review" harness; **this** file enumerates the exact 7 findings from the automated review on PR #19 that are in scope (3 WARNINGs + 4 Recommendations), each with file:line, the fix, and the **covering test** that must prove it. Use both: the steps below for *what* to change, the generic doc's Phase 4/5 for the response comment + re-review.
 
 > **Deliberately out of scope:** the review's REC about the "Loopify" no-op button (`PreviewScreen.kt`) is **intentional** — it's a placeholder that slice 02 repoints to the Trim screen (`docs/prompts/boomerang-slice-02-kickoff.md` → `02-auto-route-trim-and-default-save.md`, which routes `Finalize` success to `Trim(ScratchClip)`). **Do not change it.** Acknowledge it as intentional/deferred in the PR response comment; do not "fix" it.
 

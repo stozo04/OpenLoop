@@ -169,7 +169,7 @@ fun GalleryScreen(
     selectedVideo?.let { video ->
         LoopingVideoOverlay(
             videoPath = video.videoPath,
-            onDismiss = { selectedVideo = null }
+            onDismiss = { }
         )
     }
 }

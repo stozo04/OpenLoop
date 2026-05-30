@@ -301,20 +301,19 @@ fun TrimScreenContent(
 
     if (showDiscardDialog) {
         AlertDialog(
-            onDismissRequest = { showDiscardDialog = false },
+            onDismissRequest = { },
             title = { Text("Discard this clip?") },
             text = { Text("Your captured clip will be deleted and you'll return to the camera.") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showDiscardDialog = false
                         onDiscard()
                     },
                     modifier = Modifier.testTag("discard_confirm"),
                 ) { Text("Discard") }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep") }
+                TextButton(onClick = { }) { Text("Keep") }
             },
         )
     }

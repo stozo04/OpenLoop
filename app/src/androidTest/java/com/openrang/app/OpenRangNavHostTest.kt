@@ -12,6 +12,7 @@ import com.openrang.app.data.ScratchCapture
 import com.openrang.app.data.UserPreferencesRepository
 import com.openrang.app.data.VideoStorageRepository
 import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoFilter
 import com.openrang.app.media.VideoProcessor
 import com.openrang.app.ui.EditorSource
 import com.openrang.app.ui.OpenRangUiState
@@ -102,6 +103,7 @@ class OpenRangNavHostTest {
             trimEndMs: Long,
             mode: BoomerangMode,
             speed: Float,
+            filter: VideoFilter,
             repetitions: Int,
             outputFile: File,
             onProgress: (Float) -> Unit,

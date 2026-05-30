@@ -10,6 +10,7 @@ import com.openrang.app.data.UserPreferencesRepository
 import com.openrang.app.data.VideoKind
 import com.openrang.app.data.VideoStorageRepository
 import com.openrang.app.media.BoomerangMode
+import com.openrang.app.media.VideoFilter
 import com.openrang.app.media.VideoProcessor
 import io.mockk.*
 import kotlinx.coroutines.flow.toList
@@ -158,6 +159,9 @@ class FakeVideoProcessor : VideoProcessor {
     /** The speed passed to the most recent [renderBoomerang] call, for asserting save wiring (slice 04). */
     var lastRenderSpeed: Float = Float.NaN
 
+    /** The filter passed to the most recent [renderBoomerang] call, for asserting save wiring (slice 05). */
+    var lastRenderFilter: VideoFilter? = null
+
     /** Counts [ensureReversed] calls so tests can assert the reversed clip is generated once + reused. */
     var ensureReversedCount: Int = 0
 
@@ -170,12 +174,14 @@ class FakeVideoProcessor : VideoProcessor {
         trimEndMs: Long,
         mode: BoomerangMode,
         speed: Float,
+        filter: VideoFilter,
         repetitions: Int,
         outputFile: File,
         onProgress: (Float) -> Unit,
     ): File {
         renderCount++
         lastRenderSpeed = speed
+        lastRenderFilter = filter
         onProgress(1f)
         if (failRender) throw RuntimeException("simulated render failure")
         outputFile.parentFile?.mkdirs()
@@ -718,6 +724,38 @@ class OpenRangViewModelTest {
             advanceUntilIdle()
 
             assertEquals(0.5f, fakeVideoProcessor.lastRenderSpeed, 0f)
+        }
+
+    // ── Looks tab (slice 05) ──
+
+    @Test
+    fun `updateFilter updates editorTabState filter`() {
+        viewModel.updateFilter(VideoFilter.WARM)
+        assertEquals(VideoFilter.WARM, viewModel.editorTabState.value.filter)
+    }
+
+    @Test
+    fun `editor opens on the Original look`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+
+            assertEquals(VideoFilter.ORIGINAL, viewModel.editorTabState.value.filter)
+        }
+
+    @Test
+    fun `saveBoomerang passes the selected filter to the processor`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            viewModel.updateFilter(VideoFilter.NOIR)
+
+            viewModel.saveBoomerang()
+            advanceUntilIdle()
+
+            assertEquals(VideoFilter.NOIR, fakeVideoProcessor.lastRenderFilter)
         }
 
     @Test
