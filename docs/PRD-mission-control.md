@@ -175,7 +175,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Layout:**
 - Header: back button (64dp, glass + NeonPurple border, ArrowLeftIcon) + "YOUR BURSTS" title
 - Empty state: "NO BURSTS YET" message
-- Grid: `LazyVerticalGrid(GridCells.Fixed(3))`, 9:16 aspect ratio cards
+- Grid: `LazyVerticalGrid(GridCells.Adaptive(minSize = 110.dp))`, 9:16 aspect ratio cards (Decision Log #14)
 - Cards: `BitmapFactory.decodeFile` thumbnail, press-scale animation (0.93x), delete button (coral circle, top-right)
 - Playback overlay: full-screen `Dialog` with ExoPlayer loop + "CLOSE PREVIEW" gradient capsule button
 
@@ -368,6 +368,7 @@ Real-filesystem tests via JUnit `TemporaryFolder` (lesson 008); the Android-only
 | 11 | **Onboarding persistence via Jetpack DataStore** | Replaced the intentional deferral — DataStore now persists `has_completed_onboarding` flag. Returning users skip straight to permission check. Uses Preferences DataStore (not SharedPreferences) with repository pattern for testability. | Added `Initializing` state to sealed interface for async DataStore read at startup |
 | 12 | **No skip button on onboarding (intentional)** | 3 pages is short enough; forced traversal ensures users see all value props | Mild friction for power users; revisit post-launch |
 | 13 | **`VideoStorageRepository` extracted; ViewModel is Context-free** (Issue #10) | Filesystem work moved behind a repository interface so `OpenRangViewModel` holds no `Context` (Google ViewModel rule, lesson 004). Mirrors `UserPreferencesRepository`; `MainActivity` is the single Context→repository bridge. Tests use a fake, not `mockk<Context>`. | Two constructor deps instead of one; `RecordedVideo` moved from the `ui` to the `data` package |
+| 14 | **Gallery grid uses `GridCells.Adaptive(minSize = 110.dp)`, not `Fixed(3)`** (slice 07) | The app targets foldables / large screens (slice-07 device pass ran on a Pixel 10 Pro Fold). A fixed 3-column grid produces oversized cards on a wide/unfolded display; an adaptive grid keeps each thumbnail cell ~110dp and fills the available width — 3 columns on a phone, more when unfolded — which Google recommends for adaptive layouts. | Column count is no longer fixed/predictable, so any layout regression test must assert by cell size, not by a hard-coded column count. |
 
 ---
 
