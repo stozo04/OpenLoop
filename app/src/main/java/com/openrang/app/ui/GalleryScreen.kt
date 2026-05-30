@@ -49,6 +49,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -260,22 +263,34 @@ private fun VideoThumbnailCard(
             }
         }
 
-        // Delete button — top-right corner
+        // Delete button — top-right corner. A 48dp touch target (Android's accessibility minimum)
+        // wraps the 28dp coral circle: the visual stays small to suit the dense grid cell, but the
+        // tappable/focusable area meets the guideline so it's usable for people with motor or
+        // precision difficulties. The previous control was only 28dp — below the minimum. It also
+        // had no spoken label; give it one (Role.Button + contentDescription) so TalkBack can
+        // identify and activate it. developer.android.com/guide/topics/ui/accessibility/apps
+        val deleteLabel = stringResource(R.string.gallery_delete)
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(6.dp)
-                .size(28.dp)
-                .clip(CircleShape)
-                .background(NeonCoral.copy(alpha = 0.85f))
-                .clickable { onDelete() },
+                .size(48.dp)
+                .clickable(role = Role.Button) { onDelete() }
+                .semantics { contentDescription = deleteLabel },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "🗑", // 🗑
-                fontSize = 13.sp,
-                color = Color.White
-            )
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(NeonCoral.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🗑", // 🗑
+                    fontSize = 13.sp,
+                    color = Color.White
+                )
+            }
         }
     }
 }

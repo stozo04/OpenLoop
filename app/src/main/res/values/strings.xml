@@ -10,6 +10,9 @@
     <string name="snackbar_view_action">View</string>
     <string name="snackbar_save_failed">Couldn\'t save boomerang. Try again.</string>
 
+    <!-- Gallery -->
+    <string name="gallery_delete">Delete loop</string>
+
     <!-- Import from library (slice 07) -->
     <string name="gallery_import">Import a video</string>
     <string name="gallery_import_empty_state">…or import one</string>
