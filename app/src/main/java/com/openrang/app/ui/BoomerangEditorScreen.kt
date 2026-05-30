@@ -260,6 +260,10 @@ fun BoomerangEditorContent(
             repeatMode = Player.REPEAT_MODE_ALL // loop the concatenated boomerang cycle
             playWhenReady = true
             setPlaybackSpeed(speed) // start at the chosen speed so the preview never flashes 1× first
+            // Mute: the exported boomerang is silent (parent doc D-3), and at non-1× speed the raw
+            // forward clip's audio pitch-shifts (chipmunk/drone) while the reversed half is already
+            // stripped — a jarring artifact with no payoff. Slice-04 kickoff §3 requirement.
+            volume = 0f
         }
     }
     DisposableEffect(Unit) { onDispose { exoPlayer.release() } }
