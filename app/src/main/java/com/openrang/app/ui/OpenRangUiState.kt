@@ -46,8 +46,6 @@ sealed interface OpenRangUiState {
      */
     object ImportingVideo : OpenRangUiState
 
-    /** Looping playback of a finished clip. Retained as the gallery playback target (slice 07). */
-    data class LoopingPreview(val videoPath: String, val playbackSpeed: Float) : OpenRangUiState
     object Gallery : OpenRangUiState
 }
 

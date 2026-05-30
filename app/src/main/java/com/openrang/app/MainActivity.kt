@@ -83,7 +83,6 @@ import com.openrang.app.ui.NeonPurple
 import com.openrang.app.ui.OnboardingScreen
 import com.openrang.app.ui.OpenRangUiState
 import com.openrang.app.ui.OpenRangViewModel
-import com.openrang.app.ui.PreviewScreen
 import com.openrang.app.ui.ProcessingScreen
 import com.openrang.app.ui.TrimScreen
 import java.io.File
@@ -451,12 +450,6 @@ fun OpenRangNavHost(
             // routes itself to Trim (success) or Gallery (too-long / failure) without user input.
             BackHandler { /* intentionally ignored: import copy in flight, don't finish the Activity */ }
             InfinityLoadingScreen()
-        }
-        is OpenRangUiState.LoopingPreview -> {
-            PreviewScreen(
-                videoPath = uiState.videoPath,
-                onBackToCaptureClick = { viewModel.resetToCapture() }
-            )
         }
         is OpenRangUiState.Gallery -> {
             GalleryScreen(

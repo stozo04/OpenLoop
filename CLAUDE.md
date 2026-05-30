@@ -106,8 +106,7 @@ com.openrang.app/
 │   ├── TrimScreen.kt            # Post-capture trim (two-handle bar, NEXT)
 │   ├── BoomerangEditorScreen.kt # Tabbed editor — Direction / Speed / Looks(filters) tabs (slice 03–05)
 │   ├── ProcessingScreen.kt      # Render spinner
-│   ├── PreviewScreen.kt         # Looping ExoPlayer playback (gallery target, slice 07)
-│   └── GalleryScreen.kt         # 3-col grid, thumbnails, delete
+│   └── GalleryScreen.kt         # Adaptive grid, thumbnails, delete, tap-to-play overlay, import
 └── MainActivity.kt              # Permissions, OpenRangNavHost routing, theme, ViewModel Factory
 ```
 
@@ -124,10 +123,10 @@ Initializing → Onboarding → CheckingPermissions → ReadyToCapture ↔ Recor
                                                        ReadyToCapture ◀──success── Processing
                                                                                    (failure ▶ BoomerangEditor)
 
-Gallery ↔ ReadyToCapture        LoopingPreview — retained as the gallery playback target (slice 07)
+Gallery ↔ ReadyToCapture        (gallery plays a tapped clip in an in-screen Dialog overlay)
 ```
 
-States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Post-capture the app auto-routes `Recording → Trim → BoomerangEditor → Processing → ReadyToCapture` (no `LoopingPreview` landing pad). The routed states are slim discriminators; the trim window (`TrimState`) and editor selections (`EditorTabState`) live in sibling flows in the ViewModel. Navigation is the exhaustive `OpenRangNavHost` `when` in `MainActivity.kt` (no `else` — Lesson 014).
+States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Post-capture the app auto-routes `Recording → Trim → BoomerangEditor → Processing → ReadyToCapture` (no preview landing pad). The routed states are slim discriminators; the trim window (`TrimState`) and editor selections (`EditorTabState`) live in sibling flows in the ViewModel. Navigation is the exhaustive `OpenRangNavHost` `when` in `MainActivity.kt` (no `else` — Lesson 014).
 
 ### Design System, Storage, Testing & Engineering Decisions
 

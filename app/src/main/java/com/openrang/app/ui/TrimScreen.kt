@@ -85,7 +85,7 @@ private val HANDLE_SIZE = 48.dp // ≥ 44 dp Material accessibility minimum touc
  * Post-capture Trim screen (slice 02): the captured clip loops at the top (~75% height), a two-handle
  * trim bar + full-width NEXT sit at the bottom (~25%).
  *
- * - The preview reuses the [PreviewScreen] ExoPlayer-in-[AndroidView] pattern: a single remembered
+ * - The preview uses the ExoPlayer-in-[AndroidView] pattern: a single remembered
  *   player, released in [DisposableEffect], re-clipped + re-prepared whenever the trim window changes.
  * - Handle drags update local state for a responsive UI + live duration readout, and commit to the
  *   ViewModel on drag-end (which re-binds the preview to the new clip range).

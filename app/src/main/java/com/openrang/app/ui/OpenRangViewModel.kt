@@ -231,7 +231,7 @@ class OpenRangViewModel(
                             activeScratch = null
                             _uiState.value = OpenRangUiState.ReadyToCapture
                         } else {
-                            // Auto-route straight to the Trim screen (no LoopingPreview landing pad).
+                            // Auto-route straight to the Trim screen (no preview landing pad).
                             // The scratch stays in cache until the user saves (promote→raw) or discards.
                             // durationOf does a MediaMetadataRetriever decode and this callback runs on
                             // CameraX's main executor, so read it on a coroutine (Dispatchers.IO inside the
@@ -416,6 +416,7 @@ class OpenRangViewModel(
         _recordingElapsedMs.value = 0L
     }
 
+    /** Return to the live camera ([OpenRangUiState.ReadyToCapture]) — a generic "start over" reset. */
     fun resetToCapture() {
         _uiState.value = OpenRangUiState.ReadyToCapture
     }
