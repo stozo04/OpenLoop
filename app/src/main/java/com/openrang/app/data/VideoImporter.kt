@@ -42,7 +42,14 @@ class VideoImporterImpl(private val contentResolver: ContentResolver) : VideoImp
         try {
             // openAssetFileDescriptor keeps this class Context-free (vs setDataSource(context, uri)).
             contentResolver.openAssetFileDescriptor(source, "r")?.use { afd ->
-                retriever.setDataSource(afd.fileDescriptor)
+                // Use the offset-aware overload. An AssetFileDescriptor can describe a region of a
+                // larger file (a non-zero startOffset is legal — some providers pack media inside a
+                // container), and setDataSource(FileDescriptor) reads from position 0, which would
+                // misread the duration of such a clip. Since this probe is the gate for the entire
+                // import (a misread → wrongly reject or silently drop a valid pick), pass the AFD's
+                // own offset + length — the same idiom MediaPlayer.setDataSource(afd) uses internally.
+                // The (FileDescriptor, long, long) overload exists since API 10, so it's safe at minSdk 26.
+                retriever.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
             } ?: 0L
         } catch (e: IllegalArgumentException) {
