@@ -1,7 +1,8 @@
 package com.openrang.app
 
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.core.app.ApplicationProvider
@@ -21,6 +22,7 @@ import com.openrang.app.ui.OpenRangUiState
 import com.openrang.app.ui.OpenRangViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,8 +38,14 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class OpenRangNavHostTest {
 
+    // ComponentActivity (not the plain compose rule) so the host gets a real OnBackPressedDispatcher
+    // — required to dispatch Back for the predictive-back swallow tests below (Lessons 015 / 017).
+    // The v1 factory is the API Lesson 015 documents; the newer v2 variant flips the test dispatcher
+    // (Standard vs Unconfined), which changes effect-execution timing across the whole class — that
+    // migration is a separate, codebase-wide change, so the deprecation is deliberately suppressed here.
+    @Suppress("DEPRECATION")
     @get:Rule
-    val composeTestRule = createComposeRule()
+    val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     private fun setContent(uiState: OpenRangUiState) {
         composeTestRule.setContent {
@@ -78,6 +86,36 @@ class OpenRangNavHostTest {
         composeTestRule.onNodeWithContentDescription("Start recording").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Stop recording").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Gallery").assertDoesNotExist()
+    }
+
+    @Test
+    fun processing_swallowsBack_andDoesNotFinishTheActivity() {
+        // Back during an in-flight render must NOT finish the Activity (which would discard the
+        // boomerang mid-encode); the BackHandler in the Processing branch swallows it (review R1 /
+        // Lesson 015). Dispatch synchronously on the UI thread (onBackPressed runs callbacks inline).
+        setContent(OpenRangUiState.Processing)
+
+        composeTestRule.runOnUiThread {
+            composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
+        }
+        composeTestRule.waitForIdle()
+
+        assertFalse("Back must be swallowed mid-render, not finish the Activity", composeTestRule.activity.isFinishing)
+        composeTestRule.onNodeWithTag("processing_screen").assertIsDisplayed()
+    }
+
+    @Test
+    fun importingVideo_swallowsBack_andDoesNotFinishTheActivity() {
+        // Same guarantee for the import copy: Back can't finish the Activity mid-copy (review R1).
+        setContent(OpenRangUiState.ImportingVideo)
+
+        composeTestRule.runOnUiThread {
+            composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
+        }
+        composeTestRule.waitForIdle()
+
+        assertFalse("Back must be swallowed mid-import, not finish the Activity", composeTestRule.activity.isFinishing)
+        composeTestRule.onNodeWithContentDescription("Loading").assertIsDisplayed()
     }
 
     // ── Minimal fakes (androidTest can't see the JVM-unit fakes or mockk — Lesson 017) ──

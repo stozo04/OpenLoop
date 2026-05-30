@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
@@ -428,6 +429,14 @@ fun OpenRangNavHost(
             BoomerangEditorScreen(viewModel = viewModel)
         }
         is OpenRangUiState.Processing -> {
+            // Swallow Back during the render. At target 36 predictive back is default-on and the
+            // platform's fallback for an unhandled back is "finish the Activity" — which here would
+            // tear down the in-flight Transformer encode, discarding the boomerang (and orphaning the
+            // already-promoted raw) with no prompt (Lesson 015). There is no partial render to salvage
+            // and no cancel-to-editor path wired, so the deliberate decision is to ignore Back for the
+            // few seconds the encode runs; it routes itself onward (success → camera/gallery, failure →
+            // editor) without user input.
+            BackHandler { /* intentionally ignored: render in flight, don't finish the Activity */ }
             // Render progress drives the spinner caption; read via a lambda so only the percentage
             // text recomposes as progress ticks (Lesson 016).
             val progress = viewModel.renderProgress.collectAsStateWithLifecycle()
@@ -436,6 +445,11 @@ fun OpenRangNavHost(
         // Probing + copying a picked library video (slice 07): a neutral loader, never the
         // camera-bound screen (Lessons 012/014).
         is OpenRangUiState.ImportingVideo -> {
+            // Same rationale as Processing: swallow Back so a predictive-back gesture can't finish the
+            // Activity mid-copy — that would cancel the viewModelScope copy and leave a partial scratch
+            // file behind (reclaimed later by the D-8 prune, but still a needless orphan). The import
+            // routes itself to Trim (success) or Gallery (too-long / failure) without user input.
+            BackHandler { /* intentionally ignored: import copy in flight, don't finish the Activity */ }
             InfinityLoadingScreen()
         }
         is OpenRangUiState.LoopingPreview -> {
