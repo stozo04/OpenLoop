@@ -1,9 +1,19 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+// Release signing is driven by a gitignored keystore.properties at the repo root (never commit
+// the keystore or its passwords — see keystore.properties.template + docs/play-store/release-signing-and-aab.md).
+// When the file is absent (CI, a fresh clone, debug-only work) the release build stays unsigned-by-config
+// so every other task still runs; you sign for Play by providing the upload keystore locally.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) keystorePropertiesFile.inputStream().use { load(it) }
 }
 
 android {
@@ -23,6 +33,20 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            // Populated only when keystore.properties exists, so configuring the project without
+            // the keystore (CI / fresh clone) doesn't fail. Use the Play *upload* key here; Google
+            // re-signs with the app key under Play App Signing.
+            if (keystorePropertiesFile.exists()) {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -31,6 +55,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Sign the release (APK/AAB) only when the keystore is present; otherwise leave it
+            // unsigned so non-publishing tasks still build.
+            signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else null
         }
     }
     compileOptions {
