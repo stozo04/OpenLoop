@@ -1,4 +1,4 @@
-# CLAUDE.md — OpenRang Operating Instructions
+# CLAUDE.md — OpenLoop Operating Instructions
 
 ## Owner
 
@@ -7,9 +7,9 @@ Solo developer. Android/Kotlin. Comfortable making architecture decisions, revie
 
 Tools: Android Studio, Git/GitHub, Supabase, Google services (Gmail, Calendar, Drive).
 
-## What is OpenRang
+## What is OpenLoop
 
-Open-source Android camera app for creating custom, speed-controlled video loops ("Boomerangs"). Unlike proprietary apps with rigid speed configs, OpenRang gives users real-time playback speed control with 100% on-device processing.
+Open-source Android camera app for creating custom, speed-controlled video loops ("Boomerangs"). Unlike proprietary apps with rigid speed configs, OpenLoop gives users real-time playback speed control with 100% on-device processing.
 
 Apache 2.0 licensed. Early-stage — concept spike through gallery feature complete, core "loop" generation still ahead.
 
@@ -86,7 +86,7 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 ### Source Layout
 
 ```
-com.openrang.app/
+io.github.stozo04.openloop/
 ├── camera/
 │   └── CameraManager.kt         # CameraX lifecycle, recording, lens toggle
 ├── data/
@@ -99,15 +99,15 @@ com.openrang.app/
 │   ├── VideoFilter.kt           # Color "looks" enum → Media3 effects (RgbFilter/RgbAdjustment/HslAdjustment)
 │   └── MediaFormatUtils.kt      # Type-tolerant frame-rate / rotation reads
 ├── ui/
-│   ├── OpenRangUiState.kt       # Sealed state machine + TrimState / EditorTabState
-│   ├── OpenRangViewModel.kt     # MVVM hub: state, storage, editor, preferences
+│   ├── OpenLoopUiState.kt       # Sealed state machine + TrimState / EditorTabState
+│   ├── OpenLoopViewModel.kt     # MVVM hub: state, storage, editor, preferences
 │   ├── CameraScreen.kt          # Live viewfinder, shutter (+ shared design tokens)
 │   ├── OnboardingScreen.kt      # 3-page carousel
 │   ├── TrimScreen.kt            # Post-capture trim (two-handle bar, NEXT)
 │   ├── BoomerangEditorScreen.kt # Tabbed editor — Direction / Speed / Looks(filters) tabs (slice 03–05)
 │   ├── ProcessingScreen.kt      # Render spinner
 │   └── GalleryScreen.kt         # Adaptive grid, thumbnails, delete, tap-to-play overlay, import
-└── MainActivity.kt              # Permissions, OpenRangNavHost routing, theme, ViewModel Factory
+└── MainActivity.kt              # Permissions, OpenLoopNavHost routing, theme, ViewModel Factory
 ```
 
 ### State Machine
@@ -126,7 +126,7 @@ Initializing → Onboarding → CheckingPermissions → ReadyToCapture ↔ Recor
 Gallery ↔ ReadyToCapture        (gallery plays a tapped clip in an in-screen Dialog overlay)
 ```
 
-States are modeled as a sealed interface (`OpenRangUiState`) and driven by `MutableStateFlow<OpenRangUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Post-capture the app auto-routes `Recording → Trim → BoomerangEditor → Processing → ReadyToCapture` (no preview landing pad). The routed states are slim discriminators; the trim window (`TrimState`) and editor selections (`EditorTabState`) live in sibling flows in the ViewModel. Navigation is the exhaustive `OpenRangNavHost` `when` in `MainActivity.kt` (no `else` — Lesson 014).
+States are modeled as a sealed interface (`OpenLoopUiState`) and driven by `MutableStateFlow<OpenLoopUiState>` in the ViewModel. `Initializing` reads DataStore to decide the first real screen. Post-capture the app auto-routes `Recording → Trim → BoomerangEditor → Processing → ReadyToCapture` (no preview landing pad). The routed states are slim discriminators; the trim window (`TrimState`) and editor selections (`EditorTabState`) live in sibling flows in the ViewModel. Navigation is the exhaustive `OpenLoopNavHost` `when` in `MainActivity.kt` (no `else` — Lesson 014).
 
 ### Design System, Storage, Testing & Engineering Decisions
 
@@ -141,8 +141,8 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
 | `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
-| `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenRang reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the `lint-baseline.xml` policy, and severity mapping. |
-| `docs/android-16/` | **Android 16 (API 36) upgrade knowledge hub.** Per-page summaries of Google's Android 16 docs, each with an OpenRang impact verdict and the official source URL. Durable reference for the `targetSdk 36` upgrade (Issue #7) — does not move to `completed/`. |
+| `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the `lint-baseline.xml` policy, and severity mapping. |
+| `docs/android-16/` | **Android 16 (API 36) upgrade knowledge hub.** Per-page summaries of Google's Android 16 docs, each with an OpenLoop impact verdict and the official source URL. Durable reference for the `targetSdk 36` upgrade (Issue #7) — does not move to `completed/`. |
 | `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
 | `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
 | `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs of project concepts (e.g. `jetpack-datastore-explained.md` — what DataStore is and how to inspect/reset it on a device). |

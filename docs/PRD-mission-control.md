@@ -1,4 +1,4 @@
-# PRD-mission-control.md — OpenRang Architecture & Component Specs
+# PRD-mission-control.md — OpenLoop Architecture & Component Specs
 
 **Status:** Living document — update as the system evolves.
 **Owner:** Steven Gates
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-OpenRang is an open-source Android camera app for creating custom, speed-controlled video loops. The system captures 1.5-second video bursts, generates seamless forward-backward loops via Media3 Transformer, and gives users real-time speed control (0.5x–3.0x) before exporting. All processing is 100% on-device.
+OpenLoop is an open-source Android camera app for creating custom, speed-controlled video loops. The system captures 1.5-second video bursts, generates seamless forward-backward loops via Media3 Transformer, and gives users real-time speed control (0.5x–3.0x) before exporting. All processing is 100% on-device.
 
 The architecture follows MVVM with Jetpack Compose, a sealed-interface state machine, and a local file-based storage pipeline for videos and thumbnails. The app is designed to be device-agnostic (CameraX) and privacy-first (zero network requirements).
 
@@ -51,8 +51,8 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 │  GalleryScreen · MainActivity                   │
 ├─────────────────────────────────────────────────┤
 │  Domain Layer (ViewModel + Processor)           │
-│  OpenRangViewModel · VideoProcessor (planned)   │
-│  OpenRangUiState (sealed interface)             │
+│  OpenLoopViewModel · VideoProcessor (planned)   │
+│  OpenLoopUiState (sealed interface)             │
 ├─────────────────────────────────────────────────┤
 │  Data Layer (Preferences + Storage)              │
 │  UserPreferencesRepository · DataStore           │
@@ -66,7 +66,7 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 
 ### State Machine
 
-All navigation is driven by a single `MutableStateFlow<OpenRangUiState>` in `OpenRangViewModel`. States:
+All navigation is driven by a single `MutableStateFlow<OpenLoopUiState>` in `OpenLoopViewModel`. States:
 
 | State | Description | Transitions to |
 |-------|-------------|---------------|
@@ -109,13 +109,13 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 | `stopRecording()` | Stops active recording |
 | `shutdown()` | Releases executor resources |
 
-### 4.2 OpenRangViewModel.kt
+### 4.2 OpenLoopViewModel.kt
 
 **Purpose:** MVVM hub. Owns UI state, recording lifecycle, and gallery navigation. Delegates all filesystem work to `VideoStorageRepository` (see §4.8).
 
 **Dependencies (constructor-injected, no `Context`):** `UserPreferencesRepository`, `VideoStorageRepository`. The `Factory` takes both already-constructed repositories; `MainActivity` is the single place that bridges `Context` → repositories. The ViewModel holds **zero** references to `Context` (lesson 004 — enforceable by `grep`).
 
-**State:** `MutableStateFlow<OpenRangUiState>` exposed as `StateFlow`.
+**State:** `MutableStateFlow<OpenLoopUiState>` exposed as `StateFlow`.
 
 **Key flows:**
 
@@ -164,7 +164,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Purpose:** Full-screen looping video playback after capture.
 
 - ExoPlayer with `REPEAT_MODE_ALL`, no player controls visible
-- Top banner: "OPENRANG" title + "RAW BURST PREVIEW (1.5S)" subtitle
+- Top banner: "OPENLOOP" title + "RAW BURST PREVIEW (1.5S)" subtitle
 - Bottom: "RETAKE BURST" button → `viewModel.resetToCapture()`
 - (Planned) Speed slider integration in Phase 4
 
@@ -186,7 +186,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 - Permission launcher: `CAMERA` + `RECORD_AUDIO` via `ActivityResultContracts.RequestMultiplePermissions`
 - `checkPermissions()` is a 3-state `when`: all-granted → proceed; `shouldShowRequestPermissionRationale` → `PermissionRationale`; else → launch the system dialog. The rationale "Grant" action launches the dialog directly (bypassing `checkPermissions()`) to avoid re-entering the rationale branch.
 - Routing: `when (uiState)` dispatches to the appropriate screen composable
-- Theme: `OpenRangTheme` wrapping `darkColorScheme(primary = NeonCoral, secondary = NeonPurple, background = #121212)`
+- Theme: `OpenLoopTheme` wrapping `darkColorScheme(primary = NeonCoral, secondary = NeonPurple, background = #121212)`
 - Includes `CheckingPermissionsScreen` and `PermissionExplanationScreen` inline composables. `PermissionExplanationScreen` is shared by `PermissionRationale` (secondary action "Not now" → `PermissionDenied`) and `PermissionDenied` (secondary action "Open Device Settings") via a parameterized `secondaryActionLabel` / `onSecondaryAction`.
 
 ### 4.8 VideoStorageRepository.kt (data layer)
@@ -224,7 +224,7 @@ data class RecordedVideo(
 **Pipeline:**
 1. Input: `raw_capture.mp4` (1.5s forward clip)
 2. Reversal: Transformer with reversed frame timestamps → `reversed_capture.mp4`
-3. Concatenation: `Composition` / `EditedMediaItem` joining forward + reversed → `openrang_output.mp4`
+3. Concatenation: `Composition` / `EditedMediaItem` joining forward + reversed → `openloop_output.mp4`
 4. Output: seamless loop file ready for preview
 
 **Constraints:**
@@ -247,7 +247,7 @@ data class RecordedVideo(
 
 - Transformer with `SpeedChangeEffect` (Media3 1.10.1's constant-speed video effect; audio is stripped per the boomerang pipeline, Decision D-3)
 - Output to `MediaStore.Video.Media` (public gallery)
-- Filename: `OpenRang_Capture_<timestamp>.mp4`
+- Filename: `OpenLoop_Capture_<timestamp>.mp4`
 - Completion toast, return to viewfinder
 
 ---
@@ -367,7 +367,7 @@ Real-filesystem tests via JUnit `TemporaryFolder` (lesson 008); the Android-only
 | 10 | **Dark-only theme** | Matches vaporwave aesthetic; camera apps benefit from dark UI (less screen glare on subjects) | No light mode for accessibility preferences |
 | 11 | **Onboarding persistence via Jetpack DataStore** | Replaced the intentional deferral — DataStore now persists `has_completed_onboarding` flag. Returning users skip straight to permission check. Uses Preferences DataStore (not SharedPreferences) with repository pattern for testability. | Added `Initializing` state to sealed interface for async DataStore read at startup |
 | 12 | **No skip button on onboarding (intentional)** | 3 pages is short enough; forced traversal ensures users see all value props | Mild friction for power users; revisit post-launch |
-| 13 | **`VideoStorageRepository` extracted; ViewModel is Context-free** (Issue #10) | Filesystem work moved behind a repository interface so `OpenRangViewModel` holds no `Context` (Google ViewModel rule, lesson 004). Mirrors `UserPreferencesRepository`; `MainActivity` is the single Context→repository bridge. Tests use a fake, not `mockk<Context>`. | Two constructor deps instead of one; `RecordedVideo` moved from the `ui` to the `data` package |
+| 13 | **`VideoStorageRepository` extracted; ViewModel is Context-free** (Issue #10) | Filesystem work moved behind a repository interface so `OpenLoopViewModel` holds no `Context` (Google ViewModel rule, lesson 004). Mirrors `UserPreferencesRepository`; `MainActivity` is the single Context→repository bridge. Tests use a fake, not `mockk<Context>`. | Two constructor deps instead of one; `RecordedVideo` moved from the `ui` to the `data` package |
 | 14 | **Gallery grid uses `GridCells.Adaptive(minSize = 110.dp)`, not `Fixed(3)`** (slice 07) | The app targets foldables / large screens (slice-07 device pass ran on a Pixel 10 Pro Fold). A fixed 3-column grid produces oversized cards on a wide/unfolded display; an adaptive grid keeps each thumbnail cell ~110dp and fills the available width — 3 columns on a phone, more when unfolded — which Google recommends for adaptive layouts. | Column count is no longer fixed/predictable, so any layout regression test must assert by cell size, not by a hard-coded column count. |
 
 ---
@@ -379,7 +379,7 @@ Real-filesystem tests via JUnit `TemporaryFolder` (lesson 008); the Android-only
 | Block | What gets built | Who | Output | Done when |
 |-------|----------------|-----|--------|----------|
 | 3.1 | Create `VideoProcessor.kt` with Transformer reversal pipeline | Cowork | `reversed_capture.mp4` generated from any input | Reversed file plays backward correctly |
-| 3.2 | Add concatenation (forward + reversed) | Cowork | `openrang_output.mp4` = seamless loop | Loop plays without stutter or black flash at inflection |
+| 3.2 | Add concatenation (forward + reversed) | Cowork | `openloop_output.mp4` = seamless loop | Loop plays without stutter or black flash at inflection |
 | 3.3 | Wire into ViewModel: `Recording` → `Processing` → `LoopingPreview` | Cowork | State transitions work end-to-end | Capture → loop preview in one tap |
 | 3.4 | Unit tests for VideoProcessor + updated ViewModel tests | Cowork | Tests pass | Processing state, error handling, output file assertions |
 

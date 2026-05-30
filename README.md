@@ -1,10 +1,10 @@
-# OpenRang
+# OpenLoop
 
 **The open-source Boomerang camera app that should have existed years ago.**
 
 No subscriptions. No ads. No data harvesting. Just point, tap, and loop.
 
-OpenRang is a free Android camera app for creating speed-controlled video loops — the kind of thing Big Tech locks behind paywalls and cluttered UIs. We're leveraging the power of AI and open-source tooling to bring the coolest creative toys to everyone, for free, forever.
+OpenLoop is a free Android camera app for creating speed-controlled video loops — the kind of thing Big Tech locks behind paywalls and cluttered UIs. We're leveraging the power of AI and open-source tooling to bring the coolest creative toys to everyone, for free, forever.
 
 Built with Google's latest Android libraries. Runs entirely on your device. Your videos never leave your phone.
 
@@ -16,9 +16,9 @@ Built with Google's latest Android libraries. Runs entirely on your device. Your
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
 - **100% Private** — Zero network calls. Zero tracking. Everything stays on your phone
 
-## Why OpenRang?
+## Why OpenLoop?
 
-Every boomerang/loop app on the Play Store either costs money, runs ads, or sends your videos to a server you don't control. OpenRang is the alternative:
+Every boomerang/loop app on the Play Store either costs money, runs ads, or sends your videos to a server you don't control. OpenLoop is the alternative:
 
 - **Open source** (Apache 2.0) — read every line, fork it, improve it
 - **No accounts** — no sign-up, no login, no profile
@@ -50,12 +50,12 @@ Initializing → Onboarding → CheckingPermissions → ReadyToCapture <-> Recor
                             ReadyToCapture
 ```
 
-All navigation is driven by a single `MutableStateFlow<OpenRangUiState>` — no Jetpack Navigation needed at this scale. The `Initializing` state reads from DataStore to determine whether to show onboarding or skip straight to the camera.
+All navigation is driven by a single `MutableStateFlow<OpenLoopUiState>` — no Jetpack Navigation needed at this scale. The `Initializing` state reads from DataStore to determine whether to show onboarding or skip straight to the camera.
 
 ### Project Structure
 
 ```
-com.openrang.app/
+io.github.stozo04.openloop/
 ├── camera/          CameraX lifecycle, recording, lens toggle
 ├── data/            DataStore preferences, repository pattern
 ├── ui/              Compose screens, ViewModel, state machine
@@ -125,7 +125,7 @@ Then skim the output for lines starting with `e:` (errors — these stop the bui
 
 ### Running the code inspections (Android Studio "Inspect Code", from a terminal)
 
-OpenRang reproduces Android Studio's **Analyze → Inspect Code** as a merge gate. It's **two
+OpenLoop reproduces Android Studio's **Analyze → Inspect Code** as a merge gate. It's **two
 engines** — full design and severity rules in [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).
 Set `JAVA_HOME` first (same as the build section above).
 
@@ -148,10 +148,10 @@ and folds the findings into its PR comment.
 
 ```powershell
 & "C:\Program Files\Android\Android Studio\bin\inspect.bat" `
-  "C:\Users\gates\Personal\OpenRang" `
+  "C:\Users\gates\Personal\OpenLoop" `
   ".idea\inspectionProfiles\Project_Default.xml" `
   "build\inspection-results" `
-  -v2 -d "C:\Users\gates\Personal\OpenRang"
+  -v2 -d "C:\Users\gates\Personal\OpenLoop"
 ```
 
 This boots a headless Android Studio (takes minutes) and writes one XML per inspection into
@@ -213,7 +213,7 @@ Android Studio's *Analyze → Inspect Code* produces, run headlessly. There are 
 
 ### Fixing Review Feedback
 
-When a PR gets review feedback, open a new Cowork session with the OpenRang folder mounted and say:
+When a PR gets review feedback, open a new Cowork session with the OpenLoop folder mounted and say:
 
 > Start addressing PR feedback following `docs/prompts/PR-FEEDBACK-RESOLUTION.md` — here is the PR: https://github.com/stozo04/OpenRang/pull/XX
 
@@ -239,7 +239,7 @@ Replace `XX` with your PR number. The agent will read the review comments, web-s
 
 ## Contributing
 
-OpenRang is early-stage and built by a solo developer with AI assistance. Contributions are welcome — check the issues tab or open a discussion if you want to help.
+OpenLoop is early-stage and built by a solo developer with AI assistance. Contributions are welcome — check the issues tab or open a discussion if you want to help.
 
 ## License
 
