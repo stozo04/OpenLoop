@@ -31,10 +31,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,7 +66,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -80,6 +79,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.data.RecordedVideo
+import io.github.stozo04.openloop.ui.components.BackButton
+import io.github.stozo04.openloop.ui.components.PrimaryButton
 import io.github.stozo04.openloop.ui.theme.Canvas
 import io.github.stozo04.openloop.ui.theme.CoralRed
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -247,24 +248,13 @@ private fun GalleryTopBar(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // Back button — neutral glass circle with a true back arrow (navigation, not an accent).
-        Box(
+        BackButton(
+            contentDescription = "Back to camera",
+            onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(OverlayWhite)
-                .border(1.dp, OverlayWhiteBorder, CircleShape)
-                .clickable(role = Role.Button) { onBackClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back to camera",
-                modifier = Modifier.size(24.dp),
-                tint = Color.White
-            )
-        }
+                .testTag("gallery_back"),
+        )
 
         // Import button — the primary action on this screen, so it gets the flat-lime accent.
         Box(
@@ -459,9 +449,11 @@ private fun VideoThumbnailCard(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "🎬", // 🎬
-                    fontSize = 28.sp
+                Icon(
+                    imageVector = Icons.Outlined.Movie,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.5f),
+                    modifier = Modifier.size(32.dp),
                 )
             }
         }
@@ -552,23 +544,14 @@ private fun LoopingVideoOverlay(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Close button at the bottom
-            Box(
+            PrimaryButton(
+                text = "CLOSE PREVIEW",
+                onClick = onDismiss,
+                trailingIcon = Icons.Filled.Close,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 48.dp)
-                    .clip(MaterialTheme.shapes.extraLarge)
-                    .background(ElectricLime)
-                    .clickable { onDismiss() }
-                    .padding(horizontal = 28.dp, vertical = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "CLOSE PREVIEW ✕", // ✕
-                    style = MaterialTheme.typography.labelLarge,
-                    color = LimeInk,
-                )
-            }
+                    .padding(bottom = 48.dp),
+            )
         }
     }
 }

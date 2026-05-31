@@ -4,9 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,12 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,11 +45,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
@@ -70,13 +62,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import io.github.stozo04.openloop.ui.components.BackButton
+import io.github.stozo04.openloop.ui.components.PrimaryButton
 import io.github.stozo04.openloop.ui.theme.ElectricLime
-import io.github.stozo04.openloop.ui.theme.LimeInk
 import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
 import io.github.stozo04.openloop.ui.theme.OutlineVariant
 import io.github.stozo04.openloop.ui.theme.OverlayScrim
-import io.github.stozo04.openloop.ui.theme.OverlayWhite
-import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextSecondary
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
@@ -216,24 +207,13 @@ fun TrimScreenContent(
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Box(
+            BackButton(
+                contentDescription = "Discard clip",
+                onClick = { showDiscardDialog = true },
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .size(HANDLE_SIZE)
-                    .clip(CircleShape)
-                    .background(OverlayWhite)
-                    .border(1.dp, OverlayWhiteBorder, CircleShape)
-                    .testTag("trim_back")
-                    .clickable { showDiscardDialog = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Discard clip",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+                    .testTag("trim_back"),
+            )
             // Save checkmark is HIDDEN in slice 02 — placeholder reserved for slice 03's editor.
         }
 
@@ -289,30 +269,15 @@ fun TrimScreenContent(
                 onDragEnd = { onCommitTrim(startMs, endMs) },
             )
 
-            Box(
+            PrimaryButton(
+                text = "NEXT",
+                onClick = onNext,
+                enabled = nextEnabled,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 520.dp)
-                    .height(56.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(if (nextEnabled) ElectricLime else OverlayWhite)
-                    .clickable(
-                        enabled = nextEnabled,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { onNext() }
-                    // Box+clickable carries no implicit role; tell TalkBack this is a button (the
-                    // "NEXT" Text supplies the label).
-                    .semantics { role = Role.Button }
-                    .testTag("next_button"),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "NEXT",
-                    color = if (nextEnabled) LimeInk else Color.White.copy(alpha = 0.4f),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
+                    .widthIn(max = 520.dp),
+                testTag = "next_button",
+            )
         }
         }
     }

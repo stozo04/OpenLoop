@@ -36,7 +36,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FastForward
@@ -85,10 +84,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -98,6 +95,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import io.github.stozo04.openloop.ui.components.BackButton
+import io.github.stozo04.openloop.ui.components.DirectionChipIcon
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.LimeInk
 import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
@@ -158,15 +157,14 @@ private const val PREVIEW_SEAM_MS = 33L
  */
 private data class DirectionChip(
     val mode: BoomerangMode,
-    val glyph: String,
     val accessibilityLabel: String,
 )
 
 private val DIRECTION_CHIPS = listOf(
-    DirectionChip(BoomerangMode.FORWARD, "▶▶", "Forward"),
-    DirectionChip(BoomerangMode.REVERSE, "◀◀", "Reverse"),
-    DirectionChip(BoomerangMode.FORWARD_THEN_REVERSE, "▶◀", "Forward then reverse"),
-    DirectionChip(BoomerangMode.REVERSE_THEN_FORWARD, "◀▶", "Reverse then forward"),
+    DirectionChip(BoomerangMode.FORWARD, "Forward"),
+    DirectionChip(BoomerangMode.REVERSE, "Reverse"),
+    DirectionChip(BoomerangMode.FORWARD_THEN_REVERSE, "Forward then reverse"),
+    DirectionChip(BoomerangMode.REVERSE_THEN_FORWARD, "Reverse then forward"),
 )
 
 /**
@@ -326,8 +324,7 @@ fun BoomerangEditorContent(
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            CircleIconButton(
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
+            BackButton(
                 contentDescription = "Back to trim",
                 onClick = handleBack,
                 modifier = Modifier.align(Alignment.CenterStart).testTag("editor_back"),
@@ -766,26 +763,6 @@ private fun previewPlaylist(
     }
 }
 
-@Composable
-private fun CircleIconButton(
-    icon: ImageVector,
-    contentDescription: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(CONTROL_SIZE)
-            .clip(CircleShape)
-            .background(OverlayWhite)
-            .border(1.dp, OverlayWhiteBorder, CircleShape)
-            .clickable(role = Role.Button) { onClick() },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(22.dp))
-    }
-}
-
 /** Save checkmark: a filled [ElectricLime] circle; dimmed + non-clickable while the reverse isn't ready. */
 @Composable
 private fun SaveCheckmark(
@@ -859,9 +836,9 @@ private fun TabBarItem(
 }
 
 /**
- * A single direction chip: a glyph tile (no caption — the glyph speaks for itself, and the spoken
- * label rides in `contentDescription`). Selected → flat [ElectricLime] fill with a dark glyph;
- * unselected → glassmorphic outline with a white glyph.
+ * A single direction chip: vector glyph tile (no caption — [DirectionChipIcon] carries the meaning;
+ * the spoken label rides in `contentDescription`). Selected → flat [ElectricLime] fill with a dark
+ * glyph; unselected → glassmorphic outline with a white glyph.
  */
 @Composable
 private fun DirectionChipButton(
@@ -890,11 +867,9 @@ private fun DirectionChipButton(
             .testTag("direction_chip_${chip.mode.name}"),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = chip.glyph,
-            color = if (selected) LimeInk else Color.White,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
+        DirectionChipIcon(
+            mode = chip.mode,
+            tint = if (selected) LimeInk else Color.White,
         )
     }
 }

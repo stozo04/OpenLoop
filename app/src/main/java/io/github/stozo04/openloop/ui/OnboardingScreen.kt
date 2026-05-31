@@ -52,8 +52,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.ui.theme.Canvas
+import io.github.stozo04.openloop.ui.components.PrimaryButton
 import io.github.stozo04.openloop.ui.theme.ElectricLime
-import io.github.stozo04.openloop.ui.theme.LimeInk
 import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerLow
@@ -122,7 +122,10 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            GetStartedButton(onClick = onGetStartedClick)
+            GetStartedButton(
+                onClick = onGetStartedClick,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -133,22 +136,12 @@ fun OnboardingScreen(
 
 @Composable
 internal fun GetStartedButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .clip(MaterialTheme.shapes.extraLarge)
-            .background(ElectricLime)
-            .clickable { onClick() }
-            .testTag("onboarding_cta"),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "LET'S GO!",
-            style = MaterialTheme.typography.labelLarge,
-            color = LimeInk,
-        )
-    }
+    PrimaryButton(
+        text = "LET'S GO!",
+        onClick = onClick,
+        modifier = modifier,
+        testTag = "onboarding_cta",
+    )
 }
 
 // ── Full-bleed page media ──
