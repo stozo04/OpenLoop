@@ -1,22 +1,23 @@
 package io.github.stozo04.openloop.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
+import io.github.stozo04.openloop.ui.theme.OverlayWhite
 
 /**
  * Full-screen "rendering" surface shown while the boomerang is being created
@@ -37,32 +38,31 @@ fun ProcessingScreen(
 ) {
     BackHandler(enabled = true) { /* consume: no mid-render cancel in slice 02 */ }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .testTag("processing_screen"),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(64.dp),
-            color = NeonPurple,
-            trackColor = GlassWhite,
-        )
-        Text(
-            text = "Loopifying…",
-            modifier = Modifier.padding(top = 24.dp),
-            color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp,
-        )
-        Text(
-            text = "${(progress().coerceIn(0f, 1f) * 100).toInt()}%",
-            modifier = Modifier.padding(top = 8.dp),
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 13.sp,
-        )
+    OpenLoopBackground(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("processing_screen"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(64.dp),
+                color = ElectricLime,
+                trackColor = OverlayWhite,
+            )
+            Text(
+                text = "Loopifying…",
+                modifier = Modifier.padding(top = 24.dp),
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "${(progress().coerceIn(0f, 1f) * 100).toInt()}%",
+                modifier = Modifier.padding(top = 8.dp),
+                color = Color.White.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }

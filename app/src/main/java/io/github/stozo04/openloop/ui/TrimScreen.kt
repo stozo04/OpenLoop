@@ -4,9 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,18 +19,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,23 +40,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,6 +62,15 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import io.github.stozo04.openloop.ui.components.BackButton
+import io.github.stozo04.openloop.ui.components.PrimaryButton
+import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
+import io.github.stozo04.openloop.ui.theme.OutlineVariant
+import io.github.stozo04.openloop.ui.theme.OverlayScrim
+import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
+import io.github.stozo04.openloop.ui.theme.TextSecondary
+import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import java.io.File
 import java.util.Locale
 import kotlin.math.abs
@@ -77,7 +78,7 @@ import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 private val HANDLE_SIZE = 48.dp // ≥ 44 dp Material accessibility minimum touch target
-private val HANDLE_LABEL_STRIP = 22.dp // strip above the thumb row holding each handle's live time
+private val HANDLE_LABEL_STRIP = 46.dp // strip above the thumb row holding each handle's value bubble
 
 /**
  * Post-capture Trim screen (slice 02): the captured clip loops at the top (~75% height), a two-handle
@@ -193,12 +194,12 @@ fun TrimScreenContent(
 
     val nextEnabled = (endMs - startMs) >= OpenLoopViewModel.MIN_TRIM_MS
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .testTag("trim_screen"),
-    ) {
+    OpenLoopBackground(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("trim_screen"),
+        ) {
         // ── Top bar: back arrow + (hidden) save checkmark ──
         Box(
             modifier = Modifier
@@ -206,24 +207,13 @@ fun TrimScreenContent(
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            Box(
+            BackButton(
+                contentDescription = "Discard clip",
+                onClick = { showDiscardDialog = true },
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .size(HANDLE_SIZE)
-                    .clip(CircleShape)
-                    .background(GlassWhite)
-                    .border(1.dp, GlassWhiteBorder, CircleShape)
-                    .testTag("trim_back")
-                    .clickable { showDiscardDialog = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Discard clip",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+                    .testTag("trim_back"),
+            )
             // Save checkmark is HIDDEN in slice 02 — placeholder reserved for slice 03's editor.
         }
 
@@ -250,13 +240,11 @@ fun TrimScreenContent(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 12.dp)
                     .clip(RoundedCornerShape(percent = 50))
-                    .background(DeepCharcoal)
+                    .background(OverlayScrim)
                     .padding(horizontal = 14.dp, vertical = 6.dp)
                     .testTag("trim_duration_label"),
                 color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
+                style = TimerTextStyle,
             )
         }
 
@@ -266,7 +254,7 @@ fun TrimScreenContent(
                 .fillMaxWidth()
                 .weight(0.25f)
                 .background(
-                    Brush.verticalGradient(listOf(Color.Transparent, DeepCharcoal))
+                    Brush.verticalGradient(listOf(Color.Transparent, OverlayScrim))
                 )
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 12.dp),
@@ -281,38 +269,16 @@ fun TrimScreenContent(
                 onDragEnd = { onCommitTrim(startMs, endMs) },
             )
 
-            Box(
+            PrimaryButton(
+                text = "NEXT",
+                onClick = onNext,
+                enabled = nextEnabled,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 520.dp)
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (nextEnabled) {
-                            Brush.horizontalGradient(listOf(NeonCoral, NeonPurple))
-                        } else {
-                            Brush.horizontalGradient(listOf(GlassWhite, GlassWhite))
-                        }
-                    )
-                    .clickable(
-                        enabled = nextEnabled,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { onNext() }
-                    // Box+clickable carries no implicit role; tell TalkBack this is a button (the
-                    // "NEXT" Text supplies the label).
-                    .semantics { role = Role.Button }
-                    .testTag("next_button"),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "NEXT",
-                    color = if (nextEnabled) Color.White else Color.White.copy(alpha = 0.4f),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                )
-            }
+                    .widthIn(max = 520.dp),
+                testTag = "next_button",
+            )
+        }
         }
     }
 
@@ -391,17 +357,28 @@ private fun TrimBar(
 
         var dragging by remember { mutableStateOf(TrimTarget.NONE) }
 
-        // Live per-handle time readouts, centered over each thumb. They read startMs/endMs in
-        // composition so they track the handle as it drags (the value the user is selecting), unlike
-        // the duration pill which shows the resulting window length.
-        HandleTimeLabel(
+        // Live per-handle value bubbles: a labelled "START" / "END" tooltip floating above each
+        // thumb, showing the exact timestamp the handle currently points at. They read startMs/endMs
+        // in composition so the time tracks the handle as it drags (the value the user is selecting),
+        // distinct from the centre duration pill, which shows the resulting window length. The bubble
+        // sizes to its content and clamps inside the track, so the readout can never clip or run off
+        // the edge (the failure mode of the old fixed-width pill).
+        HandleValueBubble(
+            caption = "START",
             timeMs = startMs,
-            offsetXPx = { leftPx(startMs).roundToInt() },
+            handleLeftPx = { leftPx(startMs).roundToInt() },
+            handlePx = handlePx,
+            trackPx = trackPx,
+            active = dragging == TrimTarget.START,
             testTag = "trim_label_start",
         )
-        HandleTimeLabel(
+        HandleValueBubble(
+            caption = "END",
             timeMs = endMs,
-            offsetXPx = { leftPx(endMs).roundToInt() },
+            handleLeftPx = { leftPx(endMs).roundToInt() },
+            handlePx = handlePx,
+            trackPx = trackPx,
+            active = dragging == TrimTarget.END,
             testTag = "trim_label_end",
         )
 
@@ -413,7 +390,7 @@ private fun TrimBar(
                 .height(HANDLE_SIZE)
                 .padding(vertical = 18.dp)
                 .background(
-                    Brush.horizontalGradient(listOf(NeonCoral, NeonPurple)),
+                    ElectricLime,
                     RoundedCornerShape(4.dp),
                 ),
         )
@@ -505,9 +482,9 @@ private fun TrimThumb(
         modifier = Modifier
             .offset { IntOffset(offsetPx(), topOffsetPx) }
             .size(HANDLE_SIZE)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(MaterialTheme.shapes.extraSmall)
             .background(Color.White)
-            .border(2.dp, NeonPurple, RoundedCornerShape(8.dp))
+            .border(2.dp, ElectricLime, MaterialTheme.shapes.extraSmall)
             .semantics(mergeDescendants = true) {
                 contentDescription = label
                 stateDescription = String.format(Locale.US, "%.1f seconds", valueMs / 1000f)
@@ -519,36 +496,55 @@ private fun TrimThumb(
 }
 
 /**
- * A small live time readout that floats in the label strip, horizontally centered over its handle so
- * it tracks the thumb as the user drags. Shows the handle's absolute position (seconds), which is the
- * timestamp the user is selecting — distinct from the center duration pill (the window length). The
- * box is the handle's width so the centered pill sits directly above the thumb; [offsetXPx] mirrors
- * the thumb's own x-offset so the two move together. Purely visual — the pointer overlay above it
- * owns all input, so it carries no semantics of its own.
+ * Live value tooltip that floats in the label strip above its thumb (the dual-thumb range-slider
+ * pattern). A muted [caption] ("START" / "END") tells the user which frame the handle controls, with
+ * the exact timestamp below it in the mono [TimerTextStyle], so the readout is unambiguous as either
+ * handle drags. Reads [timeMs] in composition so the value tracks the thumb live.
+ *
+ * Sizing/position rules that fix the old fixed-width pill (which clipped everything after the
+ * decimal): the bubble WRAPS its content — no fixed width — and its x-offset centres it over the
+ * handle but is clamped into `[0, trackPx - bubbleWidth]`, so the pill can never clip its own text
+ * nor slide off either edge of the track. The active handle's bubble is accented in [ElectricLime].
+ * Purely visual — the pointer overlay above owns all input, so it carries no semantics of its own.
  */
 @Composable
-private fun HandleTimeLabel(
+private fun HandleValueBubble(
+    caption: String,
     timeMs: Long,
-    offsetXPx: () -> Int,
+    handleLeftPx: () -> Int,
+    handlePx: Float,
+    trackPx: Float,
+    active: Boolean,
     testTag: String,
 ) {
-    Box(
+    var bubbleWidthPx by remember { mutableIntStateOf(0) }
+    val shape = MaterialTheme.shapes.small
+    Column(
         modifier = Modifier
-            .offset { IntOffset(offsetXPx(), 0) }
-            .width(HANDLE_SIZE),
-        contentAlignment = Alignment.Center,
+            // Centre over the handle, then clamp so the (content-sized) bubble stays fully on-track.
+            // Read in the offset lambda so a drag only re-lays-out this bubble, not the whole bar.
+            .offset {
+                val center = handleLeftPx() + handlePx / 2f
+                val maxX = (trackPx - bubbleWidthPx).coerceAtLeast(0f)
+                IntOffset((center - bubbleWidthPx / 2f).coerceIn(0f, maxX).roundToInt(), 0)
+            }
+            .onSizeChanged { bubbleWidthPx = it.width }
+            .clip(shape)
+            .background(SurfaceContainerHigh)
+            .border(1.dp, if (active) ElectricLime else OutlineVariant, shape)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .testTag(testTag),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
+            text = caption,
+            style = MaterialTheme.typography.labelSmall,
+            color = TextSecondary,
+        )
+        Text(
             text = String.format(Locale.US, "%.1fs", timeMs / 1000f),
-            modifier = Modifier
-                .clip(RoundedCornerShape(percent = 50))
-                .background(DeepCharcoal)
-                .padding(horizontal = 8.dp, vertical = 2.dp)
-                .testTag(testTag),
-            color = Color.White,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace,
+            style = TimerTextStyle,
+            color = if (active) ElectricLime else Color.White,
         )
     }
 }

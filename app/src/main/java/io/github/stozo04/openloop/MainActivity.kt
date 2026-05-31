@@ -31,19 +31,18 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,14 +77,21 @@ import io.github.stozo04.openloop.ui.BoomerangEvent
 import io.github.stozo04.openloop.ui.CameraScreen
 import io.github.stozo04.openloop.ui.CameraScreenHost
 import io.github.stozo04.openloop.ui.GalleryScreen
-import io.github.stozo04.openloop.ui.GlassWhite
-import io.github.stozo04.openloop.ui.NeonCoral
-import io.github.stozo04.openloop.ui.NeonPurple
 import io.github.stozo04.openloop.ui.OnboardingScreen
 import io.github.stozo04.openloop.ui.OpenLoopUiState
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
 import io.github.stozo04.openloop.ui.ProcessingScreen
 import io.github.stozo04.openloop.ui.TrimScreen
+import io.github.stozo04.openloop.ui.theme.Canvas
+import io.github.stozo04.openloop.ui.theme.CoralRed
+import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.LimeInk
+import io.github.stozo04.openloop.ui.theme.OpenLoopTheme
+import io.github.stozo04.openloop.ui.theme.Outline
+import io.github.stozo04.openloop.ui.theme.OutlineVariant
+import io.github.stozo04.openloop.ui.theme.SurfaceContainer
+import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
+import io.github.stozo04.openloop.ui.theme.TextPrimary
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -185,6 +192,12 @@ class MainActivity : ComponentActivity() {
                 val viewAction = stringResource(R.string.snackbar_view_action)
                 val saveFailedMessage = stringResource(R.string.snackbar_save_failed)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
+                val undoAction = stringResource(R.string.undo)
+                // The "N loops deleted" plural is count-dependent, so we capture resources here (in a
+                // composable scope) and resolve the quantity string inside the collect lambda below.
+                // LocalResources (not LocalContext.current.resources) so the read is invalidated on a
+                // Configuration change (lint LocalContextResourcesRead).
+                val resources = LocalResources.current
 
                 // Collect one-shot boomerang events → share sheet + snackbars (the app's only
                 // SnackbarHost). `when` stays exhaustive with no `else` (Lesson 014) so a new event
@@ -216,6 +229,26 @@ class MainActivity : ComponentActivity() {
                             // Picked clip was too long (slice 07): a friendly dialog reads as guidance,
                             // not an error. The ViewModel has already returned the user to the gallery.
                             BoomerangEvent.ImportTooLong -> showTooLongDialog = true
+                            // Loops marked for deletion (Issue #35): show an Undo snackbar. The real
+                            // file delete is deferred — Undo restores the tiles, any other dismissal
+                            // (timeout, swipe, or a superseding delete) commits the delete to disk.
+                            is BoomerangEvent.LoopsDeleted -> {
+                                val message = resources.getQuantityString(
+                                    R.plurals.gallery_loops_deleted,
+                                    event.count,
+                                    event.count,
+                                )
+                                val result = snackbarHostState.showSnackbar(
+                                    message = message,
+                                    actionLabel = undoAction,
+                                    duration = SnackbarDuration.Short,
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.undoPendingDeletion()
+                                } else {
+                                    viewModel.commitPendingDeletion()
+                                }
+                            }
                         }
                     }
                 }
@@ -237,12 +270,26 @@ class MainActivity : ComponentActivity() {
                         onOpenAppSettings = ::openAppSettings,
                         onImportVideo = ::importVideo,
                     )
+                    // App-styled snackbar (single host for Saved / Undo / failures): a rounded
+                    // SurfaceContainerHigh card with the Electric-Lime action accent, floating above
+                    // the nav bar — matching the app's card + accent language instead of the stock
+                    // Material slab. The data overload keeps the action button's a11y wiring intact.
                     SnackbarHost(
                         hostState = snackbarHostState,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding(),
-                    )
+                    ) { data ->
+                        Snackbar(
+                            snackbarData = data,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            shape = MaterialTheme.shapes.medium,
+                            containerColor = SurfaceContainerHigh,
+                            contentColor = TextPrimary,
+                            actionColor = ElectricLime,
+                            actionContentColor = ElectricLime,
+                        )
+                    }
 
                     // Friendly "too long" guidance over the gallery (slice 07).
                     if (showTooLongDialog) {
@@ -503,7 +550,7 @@ fun PermissionExplanationScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1F1C2C), Color(0xFF3A3B45))
+                    colors = listOf(SurfaceContainer, Canvas)
                 )
             ),
         contentAlignment = Alignment.Center
@@ -512,9 +559,9 @@ fun PermissionExplanationScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(28.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xCC1A1A1D))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+                .clip(MaterialTheme.shapes.large)
+                .background(SurfaceContainerHigh)
+                .border(1.dp, OutlineVariant, MaterialTheme.shapes.large)
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -523,15 +570,15 @@ fun PermissionExplanationScreen(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(Color(0x1AFF5252))
-                    .border(2.dp, Color(0xFFFF5252), androidx.compose.foundation.shape.CircleShape),
+                    .background(CoralRed.copy(alpha = 0.12f))
+                    .border(2.dp, CoralRed, androidx.compose.foundation.shape.CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "!",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFF5252)
+                    color = CoralRed
                 )
             }
             
@@ -539,20 +586,17 @@ fun PermissionExplanationScreen(
             
             Text(
                 text = title,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
-                letterSpacing = 1.sp
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = body,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -560,18 +604,17 @@ fun PermissionExplanationScreen(
             Button(
                 onClick = onPrimaryAction,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFF5252)
+                    containerColor = ElectricLime
                 ),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
                 Text(
                     text = primaryActionLabel,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    style = MaterialTheme.typography.labelLarge,
+                    color = LimeInk
                 )
             }
 
@@ -583,16 +626,15 @@ fun PermissionExplanationScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
-                        .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .border(1.dp, Outline, MaterialTheme.shapes.medium)
                 ) {
                     Text(
                         text = secondaryActionLabel,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.labelLarge,
                         color = Color.White
                     )
                 }
@@ -614,9 +656,9 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xCC1A1A1D))
-                .border(1.dp, GlassWhite, RoundedCornerShape(24.dp))
+                .clip(MaterialTheme.shapes.large)
+                .background(SurfaceContainerHigh)
+                .border(1.dp, OutlineVariant, MaterialTheme.shapes.large)
                 .padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -624,15 +666,15 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(NeonPurple.copy(alpha = 0.12f))
-                    .border(2.dp, NeonPurple, CircleShape),
+                    .background(ElectricLime.copy(alpha = 0.12f))
+                    .border(2.dp, ElectricLime, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Timer,
                     contentDescription = null,
                     modifier = Modifier.size(30.dp),
-                    tint = NeonPurple
+                    tint = ElectricLime
                 )
             }
 
@@ -640,8 +682,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
 
             Text(
                 text = stringResource(R.string.import_too_long_title),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
                 textAlign = TextAlign.Center
             )
@@ -650,41 +691,28 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
 
             Text(
                 text = stringResource(R.string.import_too_long_body),
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
             )
 
             Spacer(modifier = Modifier.height(28.dp))
 
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
-                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ElectricLime),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
                 Text(
                     text = stringResource(R.string.import_too_long_button),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    style = MaterialTheme.typography.labelLarge,
+                    color = LimeInk
                 )
             }
         }
     }
 }
 
-@Composable
-fun OpenLoopTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Color(0xFFFF5252),
-            secondary = Color(0xFF7C4DFF),
-            background = Color(0xFF121212)
-        ),
-        content = content
-    )
-}
