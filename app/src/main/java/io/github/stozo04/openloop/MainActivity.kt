@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
@@ -284,7 +283,7 @@ class MainActivity : ComponentActivity() {
                         Snackbar(
                             snackbarData = data,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.medium,
                             containerColor = SurfaceContainerHigh,
                             contentColor = TextPrimary,
                             actionColor = ElectricLime,
@@ -560,9 +559,9 @@ fun PermissionExplanationScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(28.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(SurfaceContainerHigh)
-                .border(1.dp, OutlineVariant, RoundedCornerShape(24.dp))
+                .border(1.dp, OutlineVariant, MaterialTheme.shapes.large)
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -587,20 +586,17 @@ fun PermissionExplanationScreen(
             
             Text(
                 text = title,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
-                letterSpacing = 1.sp
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = body,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -610,15 +606,14 @@ fun PermissionExplanationScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ElectricLime
                 ),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
                 Text(
                     text = primaryActionLabel,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge,
                     color = LimeInk
                 )
             }
@@ -631,16 +626,15 @@ fun PermissionExplanationScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
-                        .border(1.dp, Outline, RoundedCornerShape(12.dp))
+                        .border(1.dp, Outline, MaterialTheme.shapes.medium)
                 ) {
                     Text(
                         text = secondaryActionLabel,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
+                        style = MaterialTheme.typography.labelLarge,
                         color = Color.White
                     )
                 }
@@ -662,9 +656,9 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(SurfaceContainerHigh)
-                .border(1.dp, OutlineVariant, RoundedCornerShape(24.dp))
+                .border(1.dp, OutlineVariant, MaterialTheme.shapes.large)
                 .padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -688,8 +682,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
 
             Text(
                 text = stringResource(R.string.import_too_long_title),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
                 textAlign = TextAlign.Center
             )
@@ -698,10 +691,9 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
 
             Text(
                 text = stringResource(R.string.import_too_long_body),
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
-                lineHeight = 22.sp
             )
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -709,15 +701,14 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
             Button(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = ElectricLime),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
                 Text(
                     text = stringResource(R.string.import_too_long_button),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge,
                     color = LimeInk
                 )
             }

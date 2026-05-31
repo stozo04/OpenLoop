@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -38,11 +38,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -139,7 +137,7 @@ internal fun GetStartedButton(onClick: () -> Unit, modifier: Modifier = Modifier
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
-            .clip(RoundedCornerShape(32.dp))
+            .clip(MaterialTheme.shapes.extraLarge)
             .background(ElectricLime)
             .clickable { onClick() }
             .testTag("onboarding_cta"),
@@ -147,10 +145,8 @@ internal fun GetStartedButton(onClick: () -> Unit, modifier: Modifier = Modifier
     ) {
         Text(
             text = "LET'S GO!",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.ExtraBold,
+            style = MaterialTheme.typography.labelLarge,
             color = LimeInk,
-            letterSpacing = 0.5.sp
         )
     }
 }
@@ -210,10 +206,8 @@ private fun OnboardingTitle(page: OnboardingPage) {
     ) {
         Text(
             text = page.headline,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Black,
+            style = MaterialTheme.typography.displayMedium,
             color = Color.White,
-            letterSpacing = 0.5.sp,
             textAlign = TextAlign.Center
         )
         page.badges.forEach { badge ->
@@ -238,10 +232,8 @@ private fun BenefitBadge(text: String) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.labelLarge,
             color = Color.White,
-            letterSpacing = 0.5.sp
         )
     }
 }

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -99,6 +100,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.LimeInk
+import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
 import io.github.stozo04.openloop.ui.theme.OverlayScrim
 import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
@@ -311,12 +313,12 @@ fun BoomerangEditorContent(
         exoPlayer.setPlaybackSpeed(speed)
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .testTag("editor_screen"),
-    ) {
+    OpenLoopBackground(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("editor_screen"),
+        ) {
         // ── Top bar: back (left) + save checkmark (right) ──
         Box(
             modifier = Modifier
@@ -368,9 +370,9 @@ fun BoomerangEditorContent(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(OverlayScrim)
-                            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(20.dp))
+                            .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.medium)
                             .padding(horizontal = 28.dp, vertical = 22.dp),
                     ) {
                         CircularProgressIndicator(
@@ -382,9 +384,7 @@ fun BoomerangEditorContent(
                         Text(
                             text = "Loopifying…",
                             color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 0.5.sp,
+                            style = MaterialTheme.typography.titleSmall,
                         )
                     }
                 }
@@ -404,33 +404,30 @@ fun BoomerangEditorContent(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(OverlayScrim)
-                            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(20.dp))
+                            .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.medium)
                             .padding(horizontal = 28.dp, vertical = 22.dp),
                     ) {
                         Text(
                             text = "Couldn't loop that clip",
                             color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium,
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = "Try again, or pick the Forward direction.",
                             color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 13.sp,
+                            style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
                             text = "TRY AGAIN",
                             color = LimeInk,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
+                            style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(MaterialTheme.shapes.small)
                                 .background(ElectricLime)
                                 .clickable { onRetryReverse() }
                                 .padding(horizontal = 24.dp, vertical = 10.dp)
@@ -531,6 +528,7 @@ fun BoomerangEditorContent(
                 modifier = Modifier.testTag("tab_looks"),
             )
         }
+        }
     }
 
     if (showDiscardDialog) {
@@ -571,8 +569,7 @@ private fun DirectionTabContent(
         Text(
             text = "Select video direction",
             color = Color.White.copy(alpha = 0.7f),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium,
         )
         Spacer(Modifier.height(14.dp))
         Row(
@@ -607,8 +604,7 @@ private fun SpeedTabContent(
         Text(
             text = "Slow down or speed up the video",
             color = Color.White.copy(alpha = 0.85f),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(20.dp))
@@ -876,14 +872,14 @@ private fun DirectionChipButton(
     Box(
         modifier = Modifier
             .size(CONTROL_SIZE)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(MaterialTheme.shapes.small)
             .then(
                 if (selected) {
                     Modifier.background(ElectricLime)
                 } else {
                     Modifier
                         .background(OverlayWhite)
-                        .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(14.dp))
+                        .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.small)
                 },
             )
             .clickable(role = Role.Button) { onClick() }
@@ -926,8 +922,7 @@ private fun LooksTabContent(
         Text(
             text = "Choose a look",
             color = Color.White.copy(alpha = 0.7f),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyMedium,
         )
         Spacer(Modifier.height(14.dp))
         Row(
@@ -974,13 +969,13 @@ private fun LookChip(
         Box(
             modifier = Modifier
                 .size(64.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(MaterialTheme.shapes.small)
                 .background(OverlayWhite)
                 .then(
                     if (selected) {
-                        Modifier.border(2.dp, ElectricLime, RoundedCornerShape(12.dp))
+                        Modifier.border(2.dp, ElectricLime, MaterialTheme.shapes.small)
                     } else {
-                        Modifier.border(1.dp, OverlayWhiteBorder, RoundedCornerShape(12.dp))
+                        Modifier.border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.small)
                     },
                 )
                 .clickable(role = Role.Button) { onClick() }
@@ -1005,7 +1000,7 @@ private fun LookChip(
         Text(
             text = look.label,
             color = if (selected) Color.White else Color.White.copy(alpha = 0.6f),
-            fontSize = 11.sp,
+            style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center,
         )
     }

@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -65,7 +64,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -368,27 +366,24 @@ private fun EmptyGalleryState(onImportVideo: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "NO LOOPS YET",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
                 color = Color.White.copy(alpha = 0.6f),
-                letterSpacing = 2.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "Record your first loop to see it here!",
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.35f),
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = stringResource(R.string.gallery_import_empty_state),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelLarge,
                 color = ElectricLime,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.small)
                     .clickable(role = Role.Button) { onImportVideo() }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             )
@@ -428,7 +423,7 @@ private fun VideoThumbnailCard(
         }
     }
 
-    val shape = RoundedCornerShape(12.dp)
+    val shape = MaterialTheme.shapes.small
     Box(
         modifier = Modifier
             .aspectRatio(9f / 16f)
@@ -562,7 +557,7 @@ private fun LoopingVideoOverlay(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 48.dp)
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(MaterialTheme.shapes.extraLarge)
                     .background(ElectricLime)
                     .clickable { onDismiss() }
                     .padding(horizontal = 28.dp, vertical = 14.dp),
@@ -570,10 +565,8 @@ private fun LoopingVideoOverlay(
             ) {
                 Text(
                     text = "CLOSE PREVIEW ✕", // ✕
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge,
                     color = LimeInk,
-                    letterSpacing = 1.sp
                 )
             }
         }
