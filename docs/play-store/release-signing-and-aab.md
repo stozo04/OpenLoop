@@ -73,6 +73,6 @@ local checks, not for upload).
   currently `1`). Bump it for each new build you upload; `versionName` (`1.0.0`) is the
   human-facing string.
 - The app already meets Play's technical bars: `targetSdk 36` (≥ the API-35 floor), 16 KB-aligned
-  native libs, minimal permissions (`CAMERA`, `RECORD_AUDIO`).
+  native libs, minimal permissions (`CAMERA` only).
 - R8 minification + resource shrinking are on for release; if a future dependency needs keep rules,
   add them to `app/proguard-rules.pro`.

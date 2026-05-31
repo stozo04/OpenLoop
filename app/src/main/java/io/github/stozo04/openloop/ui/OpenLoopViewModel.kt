@@ -314,16 +314,11 @@ class OpenLoopViewModel(
             }
         } catch (e: IllegalStateException) {
             // prepareRecording/start: the Recorder already has an unfinished active recording
-            // (PendingRecording.start docs). Also, the path withAudioEnabled() takes when the
-            // Recorder doesn't support audio. Recover to idle rather than wedging in Recording.
-            recoverFromFailedStart(e)
-        } catch (e: SecurityException) {
-            // withAudioEnabled() throws this if RECORD_AUDIO was revoked between our permission
-            // check and start() (PendingRecording.withAudioEnabled docs). Recover to idle.
+            // (PendingRecording.start docs). Recover to idle rather than wedging in Recording.
             recoverFromFailedStart(e)
         }
         // NOTE: deliberately NOT catching Exception broadly (REC-3 / ANDROID_STANDARDS §3). The
-        // synchronous start path only declares IllegalStateException + SecurityException; CameraX
+        // synchronous start path only declares IllegalStateException; CameraX
         // surfaces IO/encoder failures asynchronously via VideoRecordEvent.Finalize (handled above),
         // not as a throw. Letting any other throwable propagate keeps real programming errors visible.
     }

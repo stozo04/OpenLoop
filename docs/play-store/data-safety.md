@@ -27,7 +27,7 @@ IDs, etc.) is therefore declared as **not collected and not shared**.
 
 ### Notes for the reviewer-facing rationale (keep for your records)
 
-- **Camera / microphone** are used only on-device to record into app-private storage; the captured
+- **Camera** is used only on-device to record video into app-private storage; the captured
   media is never transmitted by the app.
 - **Imported videos** are chosen via the Android Photo Picker (no storage permission) and copied only
   into app-private storage for editing.

@@ -2,9 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permissions needed for the Boomerang functionality -->
+    <!-- Video-only capture — no microphone; exported loops are silent. -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Declare camera hardware usage -->
     <uses-feature android:name="android.hardware.camera" android:required="true" />

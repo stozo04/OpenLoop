@@ -19,15 +19,13 @@ request the `INTERNET` permission, so it is technically incapable of sending you
 **None.** OpenLoop does not collect or transmit any personal or usage data off your device. There is
 no sign-up, no account, no login, and no analytics or crash-reporting service in the app.
 
-## Camera and microphone
+## Camera
 
-OpenLoop uses the following device permissions, solely on your device, only while you use the
+OpenLoop uses the following device permission, solely on your device, only while you use the
 relevant feature:
 
 - **Camera (`CAMERA`)** — to record video in the app's viewfinder. Video is written only to the
-  app's private storage on your device.
-- **Microphone (`RECORD_AUDIO`)** — to capture audio while you record a clip. (Exported boomerang
-  loops have their audio removed.)
+  app's private storage on your device. Exported boomerang loops are silent (video only).
 
 Captured and imported video never leaves your device through OpenLoop. It is not uploaded, backed up
 to any OpenLoop server (there are none), or shared with us or any third party.
