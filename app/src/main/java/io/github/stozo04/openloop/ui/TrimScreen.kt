@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -71,8 +70,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import java.io.File
 import java.util.Locale
 import kotlin.math.abs
@@ -80,6 +77,7 @@ import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 private val HANDLE_SIZE = 48.dp // ≥ 44 dp Material accessibility minimum touch target
+private val HANDLE_LABEL_STRIP = 22.dp // strip above the thumb row holding each handle's live time
 
 /**
  * Post-capture Trim screen (slice 02): the captured clip loops at the top (~75% height), a two-handle
@@ -148,30 +146,49 @@ fun TrimScreenContent(
 
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
-            repeatMode = Player.REPEAT_MODE_OFF // we loop the trimmed window manually, below
+            repeatMode = Player.REPEAT_MODE_OFF // looped via the STATE_ENDED listener below
             playWhenReady = true
         }
     }
     DisposableEffect(Unit) {
         onDispose { exoPlayer.release() }
     }
-    // Load the FULL clip once per source.
-    LaunchedEffect(sourceFile) {
-        exoPlayer.setMediaItem(MediaItem.fromUri(sourceFile.toUri()))
+    // Frame-accurate window: hand ExoPlayer a ClippingConfiguration so the *player itself* enforces
+    // [start, end] (developer.android.com/media/media3/exoplayer/media-items). Rebuilding the
+    // MediaItem + prepare() on every committed-bound change forces a fresh ClippingMediaSource (the
+    // earlier same-URI re-clip looked "unchanged" because the timeline wasn't rebuilt). This replaces
+    // the previous manual seek-loop, which polled position every 40 ms and so always overshot the end
+    // before snapping back — visibly so on heavy clips. Re-keys on the committed bounds (drag-end).
+    LaunchedEffect(sourceFile, committedStartMs, committedEndMs) {
+        exoPlayer.setMediaItem(
+            MediaItem.Builder()
+                .setUri(sourceFile.toUri())
+                .setClippingConfiguration(
+                    MediaItem.ClippingConfiguration.Builder()
+                        .setStartPositionMs(committedStartMs)
+                        .setEndPositionMs(committedEndMs)
+                        .build()
+                )
+                .build()
+        )
         exoPlayer.prepare()
+        exoPlayer.playWhenReady = true
     }
-    // Loop the committed [start, end] window by seeking — robust against ExoPlayer treating a
-    // re-clipped same-URI MediaItem as unchanged (which left the preview showing the full clip).
-    // Re-keys on the committed bounds (they change on drag-end), so the preview reflects the trim.
-    LaunchedEffect(committedStartMs, committedEndMs) {
-        exoPlayer.seekTo(committedStartMs)
-        while (isActive) {
-            delay(40L)
-            val pos = exoPlayer.currentPosition
-            if (pos >= committedEndMs || pos + 50L < committedStartMs) {
-                exoPlayer.seekTo(committedStartMs)
+    // Loop the clipped window without overshoot: the clip ends exactly at [end], firing STATE_ENDED;
+    // restart from the clip's start (position 0 of the clipped timeline). Event-driven (no polling),
+    // so the preview never runs past the end handle. REPEAT_MODE_ALL is deliberately avoided — it has
+    // known stalls looping a single clipped item (github.com/androidx/media/issues/845).
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    exoPlayer.seekTo(0)
+                    exoPlayer.play()
+                }
             }
         }
+        exoPlayer.addListener(listener)
+        onDispose { exoPlayer.removeListener(listener) }
     }
 
     val nextEnabled = (endMs - startMs) >= OpenLoopViewModel.MIN_TRIM_MS
@@ -346,13 +363,15 @@ private fun TrimBar(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(HANDLE_SIZE)
+            .height(HANDLE_LABEL_STRIP + HANDLE_SIZE)
             .testTag("trim_bar"),
     ) {
         val handlePx = with(density) { HANDLE_SIZE.toPx() }
         val trackPx = constraints.maxWidth.toFloat()
         val available = (trackPx - handlePx).coerceAtLeast(1f)
         val minGapMs = OpenLoopViewModel.MIN_TRIM_MS
+        // The thumb row sits below a strip that holds each handle's live time readout.
+        val rowTopPx = with(density) { HANDLE_LABEL_STRIP.toPx() }.roundToInt()
 
         // Fresh views of the boundaries + callbacks for the pointerInput block: it is keyed on
         // durationMs and so does NOT restart on every recomposition, so reading the params directly
@@ -372,12 +391,26 @@ private fun TrimBar(
 
         var dragging by remember { mutableStateOf(TrimTarget.NONE) }
 
-        // Selected-range fill between the two handle centers.
+        // Live per-handle time readouts, centered over each thumb. They read startMs/endMs in
+        // composition so they track the handle as it drags (the value the user is selecting), unlike
+        // the duration pill which shows the resulting window length.
+        HandleTimeLabel(
+            timeMs = startMs,
+            offsetXPx = { leftPx(startMs).roundToInt() },
+            testTag = "trim_label_start",
+        )
+        HandleTimeLabel(
+            timeMs = endMs,
+            offsetXPx = { leftPx(endMs).roundToInt() },
+            testTag = "trim_label_end",
+        )
+
+        // Selected-range fill between the two handle centers (in the thumb row, below the labels).
         Box(
             modifier = Modifier
-                .offset { IntOffset((leftPx(startMs) + handlePx / 2f).roundToInt(), 0) }
+                .offset { IntOffset((leftPx(startMs) + handlePx / 2f).roundToInt(), rowTopPx) }
                 .width(with(density) { (leftPx(endMs) - leftPx(startMs)).toDp() })
-                .fillMaxHeight()
+                .height(HANDLE_SIZE)
                 .padding(vertical = 18.dp)
                 .background(
                     Brush.horizontalGradient(listOf(NeonCoral, NeonPurple)),
@@ -387,6 +420,7 @@ private fun TrimBar(
 
         TrimThumb(
             offsetPx = { leftPx(startMs).roundToInt() },
+            topOffsetPx = rowTopPx,
             testTag = "trim_handle_start",
             label = "Trim start",
             valueMs = startMs,
@@ -399,6 +433,7 @@ private fun TrimBar(
         )
         TrimThumb(
             offsetPx = { leftPx(endMs).roundToInt() },
+            topOffsetPx = rowTopPx,
             testTag = "trim_handle_end",
             label = "Trim end",
             valueMs = endMs,
@@ -459,6 +494,7 @@ private fun TrimBar(
 @Composable
 private fun TrimThumb(
     offsetPx: () -> Int,
+    topOffsetPx: Int,
     testTag: String,
     label: String,
     valueMs: Long,
@@ -467,7 +503,7 @@ private fun TrimThumb(
 ) {
     Box(
         modifier = Modifier
-            .offset { IntOffset(offsetPx(), 0) }
+            .offset { IntOffset(offsetPx(), topOffsetPx) }
             .size(HANDLE_SIZE)
             .clip(RoundedCornerShape(8.dp))
             .background(Color.White)
@@ -480,4 +516,39 @@ private fun TrimThumb(
             }
             .testTag(testTag),
     )
+}
+
+/**
+ * A small live time readout that floats in the label strip, horizontally centered over its handle so
+ * it tracks the thumb as the user drags. Shows the handle's absolute position (seconds), which is the
+ * timestamp the user is selecting — distinct from the center duration pill (the window length). The
+ * box is the handle's width so the centered pill sits directly above the thumb; [offsetXPx] mirrors
+ * the thumb's own x-offset so the two move together. Purely visual — the pointer overlay above it
+ * owns all input, so it carries no semantics of its own.
+ */
+@Composable
+private fun HandleTimeLabel(
+    timeMs: Long,
+    offsetXPx: () -> Int,
+    testTag: String,
+) {
+    Box(
+        modifier = Modifier
+            .offset { IntOffset(offsetXPx(), 0) }
+            .width(HANDLE_SIZE),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = String.format(Locale.US, "%.1fs", timeMs / 1000f),
+            modifier = Modifier
+                .clip(RoundedCornerShape(percent = 50))
+                .background(DeepCharcoal)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .testTag(testTag),
+            color = Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+        )
+    }
 }
