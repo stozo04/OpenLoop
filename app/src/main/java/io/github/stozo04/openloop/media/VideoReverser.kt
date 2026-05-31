@@ -7,6 +7,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.os.Build
+import android.util.Log
 import android.view.Surface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -106,11 +107,17 @@ class VideoReverser(
 
             val srcWidth = inputFormat.getInteger(MediaFormat.KEY_WIDTH)
             val srcHeight = inputFormat.getInteger(MediaFormat.KEY_HEIGHT)
-            // Downscale a 4K/8K source to a ≤1080p short side (cappedToShortSide). The decoder renders
-            // its native-size frames onto the smaller encoder input Surface, which scales them down —
-            // so the encode stays fast + within the encoder's level limit, and matches the render's
-            // resolution cap (so the forward and reversed halves are the same size).
-            val (width, height) = cappedToShortSide(srcWidth, srcHeight)
+            // Encode at the source's NATIVE size (only evened for 4:2:0). We must NOT downscale here:
+            // the decoder renders its native-size frames onto the encoder's input Surface, and if that
+            // Surface is a different size the producer→consumer scale is device-/codec-dependent and on
+            // the software-codec fallback path it corrupts the reversed frames to green macroblocks
+            // (camera clips never hit this — they're already ≤ the cap, so the old cappedToShortSide()
+            // returned the SAME dims and there was no mismatch; a >1080p import is the first to exercise
+            // the downscale). The resolution cap now lives ONLY in the Media3 render (Presentation),
+            // which downscales the forward AND reversed clips together via a correct GL pipeline — so the
+            // halves still match. See docs/lessons_learned (reverse-downscale-surface-mismatch).
+            val width = evenDown(srcWidth)
+            val height = evenDown(srcHeight)
             val frameRate = inputFormat.frameRateOrDefault()
             // Capture the source's rotation hint, then NEUTRALIZE it on the format handed to the
             // decoder. In Surface-output mode MediaCodec auto-applies KEY_ROTATION, and whether the
@@ -211,15 +218,21 @@ class VideoReverser(
 
             // Collect every frame's presentation time (the intermediate is all-keyframe, so each is seekable).
             val frameTimesUs = ArrayList<Long>()
+            var syncCount = 0
             run {
                 extractor.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
                 while (true) {
                     val t = extractor.sampleTime
                     if (t < 0L) break
                     frameTimesUs.add(t)
+                    if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) syncCount++
                     if (!extractor.advance()) break
                 }
             }
+            // Pass 2 seeks to and decodes each frame standalone, which is only correct if EVERY frame is
+            // a sync sample (pass 1 requested KEY_I_FRAME_INTERVAL=0). If syncCount < total the encoder
+            // didn't honor all-keyframe and the reverse will stutter/corrupt — log it so we can tell.
+            Log.d(TAG, "reverse pass2: ${width}x$height, frames=${frameTimesUs.size}, sync=$syncCount")
             require(frameTimesUs.isNotEmpty()) { "Intermediate ${source.name} has no frames" }
             val endUs = frameTimesUs.last()
 
@@ -471,6 +484,9 @@ class VideoReverser(
             }
             (hardware ?: supporting.firstOrNull())?.name
         }.getOrNull()
+        val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else -1
+        val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else -1
+        Log.d(TAG, "selectAvcEncoder: ${name ?: "<default createEncoderByType>"} for ${w}x$h")
         return if (name != null) MediaCodec.createByCodecName(name)
         else MediaCodec.createEncoderByType(MIME_AVC)
     }
@@ -493,6 +509,7 @@ class VideoReverser(
     }
 
     private companion object {
+        const val TAG = "VideoReverser"
         const val MIME_AVC = MediaFormat.MIMETYPE_VIDEO_AVC
         const val DEFAULT_I_FRAME_INTERVAL = 1
         const val DEQUEUE_TIMEOUT_US = 10_000L
