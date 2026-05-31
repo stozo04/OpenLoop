@@ -26,6 +26,7 @@
     <!-- Import from library (slice 07) -->
     <string name="gallery_import">Import a video</string>
     <string name="gallery_import_empty_state">…or import one</string>
+    <string name="gallery_record_loop">RECORD A LOOP</string>
     <string name="snackbar_import_failed">Couldn\'t import that video.</string>
     <string name="import_too_long_title">That clip\'s a bit long</string>
     <string name="import_too_long_body">OpenLoop makes loops from videos up to 30 seconds. Pick a shorter clip and we\'ll loop it.</string>

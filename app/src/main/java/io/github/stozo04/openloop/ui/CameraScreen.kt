@@ -2,11 +2,13 @@ package io.github.stozo04.openloop.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +33,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -47,6 +52,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.stozo04.openloop.camera.CameraManager
+import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.CoralRed
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.LimeInk
@@ -286,6 +292,14 @@ fun ShutterButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) PrimaryButtonPressedScale else 1f,
+        label = "shutter_scale",
+    )
+
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // Progress ring — drawn just outside the 86.dp button, recording only.
         if (isRecording) {
@@ -310,6 +324,7 @@ fun ShutterButton(
 
         Box(
             modifier = Modifier
+                .scale(scale)
                 .size(86.dp)
                 .clip(CircleShape)
                 .background(if (isRecording) CoralRed.copy(alpha = 0.2f) else OverlayWhite)
@@ -320,9 +335,14 @@ fun ShutterButton(
                 )
                 .padding(if (isRecording) 12.dp else 6.dp)
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = interactionSource,
                     indication = null,
-                    onClick = onClick
+                    onClick = {
+                        if (!isRecording) {
+                            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        }
+                        onClick()
+                    },
                 )
                 .semantics {
                     contentDescription = if (isRecording) "Stop recording" else "Start recording"

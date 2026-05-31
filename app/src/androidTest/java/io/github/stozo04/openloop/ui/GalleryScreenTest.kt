@@ -50,6 +50,7 @@ class GalleryScreenTest {
                 onPlay = {},
                 onRequestDelete = {},
                 onBackClick = {},
+                onRecordLoop = {},
                 onImportVideo = {},
             )
         }
@@ -71,6 +72,7 @@ class GalleryScreenTest {
                 onPlay = {},
                 onRequestDelete = {},
                 onBackClick = {},
+                onRecordLoop = {},
                 onImportVideo = {},
             )
         }
@@ -90,6 +92,7 @@ class GalleryScreenTest {
                 onPlay = { played = it.id },
                 onRequestDelete = {},
                 onBackClick = {},
+                onRecordLoop = {},
                 onImportVideo = {},
             )
         }
@@ -115,6 +118,7 @@ class GalleryScreenTest {
                     videos.removeAll(batch)
                 },
                 onBackClick = {},
+                onRecordLoop = {},
                 onImportVideo = {},
             )
         }
@@ -130,6 +134,29 @@ class GalleryScreenTest {
     }
 
     @Test
+    fun emptyState_recordLoopNavigatesToCamera_andImportStillAvailable() {
+        var recordLoopCalls = 0
+        var importCalls = 0
+        composeTestRule.setContent {
+            GalleryContent(
+                videos = emptyList(),
+                onPlay = {},
+                onRequestDelete = {},
+                onBackClick = {},
+                onRecordLoop = { recordLoopCalls++ },
+                onImportVideo = { importCalls++ },
+            )
+        }
+
+        composeTestRule.onNodeWithTag("gallery_empty_record").assertIsDisplayed()
+        composeTestRule.onNodeWithText("RECORD A LOOP").performClick()
+        assertEquals(1, recordLoopCalls)
+
+        composeTestRule.onNodeWithText("…or import one").performClick()
+        assertEquals(1, importCalls)
+    }
+
+    @Test
     fun exitSelection_clearsSelectionWithoutDeleting() {
         var deleteCalls = 0
         composeTestRule.setContent {
@@ -138,6 +165,7 @@ class GalleryScreenTest {
                 onPlay = {},
                 onRequestDelete = { deleteCalls++ },
                 onBackClick = {},
+                onRecordLoop = {},
                 onImportVideo = {},
             )
         }

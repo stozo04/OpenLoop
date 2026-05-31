@@ -122,6 +122,7 @@ fun GalleryScreen(
         onPlay = { selectedVideo = it },
         onRequestDelete = viewModel::requestDeleteVideos,
         onBackClick = onBackClick,
+        onRecordLoop = onBackClick,
         onImportVideo = onImportVideo,
         // While the preview overlay is open its Dialog consumes Back to close itself, so the
         // gallery-level Back (exit selection / leave gallery) must stand down (Lesson 015).
@@ -154,6 +155,7 @@ fun GalleryContent(
     onPlay: (RecordedVideo) -> Unit,
     onRequestDelete: (List<RecordedVideo>) -> Unit,
     onBackClick: () -> Unit,
+    onRecordLoop: () -> Unit,
     onImportVideo: () -> Unit,
     backEnabledWhenIdle: Boolean = true,
 ) {
@@ -200,7 +202,10 @@ fun GalleryContent(
 
             // ── Content: Grid or Empty State ──
             if (videos.isEmpty()) {
-                EmptyGalleryState(onImportVideo = onImportVideo)
+                EmptyGalleryState(
+                    onRecordLoop = onRecordLoop,
+                    onImportVideo = onImportVideo,
+                )
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 110.dp),
@@ -344,16 +349,27 @@ private fun SelectionActionBar(
     }
 }
 
-/** Empty state: no loops yet, with an import affordance (slice 07). */
+/** Empty state: no loops yet — record CTA + import affordance (Issue #35 §3). */
 @Composable
-private fun EmptyGalleryState(onImportVideo: () -> Unit) {
+internal fun EmptyGalleryState(
+    onRecordLoop: () -> Unit,
+    onImportVideo: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Outlined.VideoLibrary,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.35f),
+                modifier = Modifier.size(64.dp),
+            )
+            Spacer(modifier = Modifier.height(20.dp))
             Text(
                 text = "NO LOOPS YET",
                 style = MaterialTheme.typography.headlineSmall,
@@ -365,6 +381,12 @@ private fun EmptyGalleryState(onImportVideo: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.35f),
                 textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(28.dp))
+            PrimaryButton(
+                text = stringResource(R.string.gallery_record_loop),
+                onClick = onRecordLoop,
+                testTag = "gallery_empty_record",
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
