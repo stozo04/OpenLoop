@@ -34,6 +34,7 @@ Each lesson follows the same shape:
 | 019 | [Reversing through a decoder→encoder Surface: strip `KEY_ROTATION` on the decoder, re-stamp on the muxer](./019-reverse-rotation-strip-decoder-restamp-muxer.md) | Slice 02 |
 | 020 | [Imported clips exercise codecs the camera never produces: tone-map HDR, prefer a HW encoder, cap resolution; a failed reverse must never wedge the editor](./020-imported-clips-hdr-codec-and-reverse-failure-recovery.md) | Slice 07 |
 | 021 | [Don't downscale inside a decode→encode-Surface transcode by sizing the encoder Surface smaller than the decoder output (green corruption on the SW path); cap resolution in the Media3 render instead](./021-reverse-downscale-surface-mismatch.md) | Onboarding video |
+| 022 | [Release CameraX when the PreviewView leaves composition, not only when the Activity stops](./022-release-camera-when-preview-leaves-composition.md) | Issue #36 |
 
 ## Adding a new lesson
 
