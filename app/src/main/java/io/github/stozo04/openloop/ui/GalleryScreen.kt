@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
@@ -313,6 +314,14 @@ private fun LoopingVideoOverlay(
             prepare()
             playWhenReady = true
         }
+    }
+
+    // Lifecycle-aware playback: pause on ON_STOP so a backgrounded app isn't decoding/playing this
+    // preview (developer.android.com/media/implement/playback-app — stop playback in onStop on API
+    // 24+); resume on ON_START. The player is released on leave-composition by the DisposableEffect.
+    LifecycleStartEffect(Unit) {
+        exoPlayer.playWhenReady = true
+        onStopOrDispose { exoPlayer.playWhenReady = false }
     }
 
     DisposableEffect(Unit) {
