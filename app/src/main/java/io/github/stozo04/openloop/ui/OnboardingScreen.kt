@@ -1,5 +1,7 @@
 package io.github.stozo04.openloop.ui
 
+import android.content.ContentResolver
+import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -32,7 +34,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,13 +47,26 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
+import androidx.lifecycle.compose.LifecycleStartEffect
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.R
 import kotlinx.coroutines.launch
 
@@ -66,14 +83,19 @@ private val FrostedGlassBorder = Color.White.copy(alpha = 0.15f)
 private data class OnboardingPage(
     val title: String,
     val drawableRes: Int,
-    val glowColor: Color
+    val glowColor: Color,
+    // When set, the card autoplays this looping raw-resource video instead of [drawableRes].
+    // [drawableRes] is still required: in inspection mode (Compose @Preview) the card falls back to it,
+    // since an ExoPlayer can't render in a preview (see LocalInspectionMode in OnboardingPageContent).
+    val videoRawRes: Int? = null,
 )
 
 private val onboardingPages = listOf(
     OnboardingPage(
         title = "No Subscriptions & No Ads",
         drawableRes = R.drawable.onboarding_skater,
-        glowColor = NeonCoral.copy(alpha = 0.25f)
+        glowColor = NeonCoral.copy(alpha = 0.25f),
+        videoRawRes = R.raw.onboarding_loop_1,
     ),
     OnboardingPage(
         title = "Built by Everyone, For Everyone",
@@ -114,7 +136,12 @@ fun OnboardingScreen(
             state = pagerState,
             modifier = Modifier.weight(1f)
         ) { page ->
-            OnboardingPageContent(page = onboardingPages[page])
+            // Only the settled page plays its video — adjacent pages the pager keeps composed stay
+            // paused so we never decode an off-screen clip (battery / decoder waste).
+            OnboardingPageContent(
+                page = onboardingPages[page],
+                isActivePage = pagerState.currentPage == page,
+            )
         }
 
         // Bottom Controls
@@ -293,7 +320,7 @@ internal fun OnboardingNavigation(
 // ── Page Content ──
 
 @Composable
-private fun OnboardingPageContent(page: OnboardingPage) {
+private fun OnboardingPageContent(page: OnboardingPage, isActivePage: Boolean = false) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -325,12 +352,22 @@ private fun OnboardingPageContent(page: OnboardingPage) {
                     .border(1.dp, FrostedGlassBorder, RoundedCornerShape(28.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = page.drawableRes),
-                    contentDescription = "Onboarding visual asset representing loops",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                // A Compose @Preview / inspection host can't run an ExoPlayer, so fall back to the static
+                // drawable there; on-device the video card plays.
+                if (page.videoRawRes != null && !LocalInspectionMode.current) {
+                    OnboardingVideoCard(
+                        rawResId = page.videoRawRes,
+                        playing = isActivePage,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = page.drawableRes),
+                        contentDescription = "Onboarding visual asset representing loops",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
@@ -349,6 +386,69 @@ private fun OnboardingPageContent(page: OnboardingPage) {
             )
         }
     }
+}
+
+// ── Onboarding video card ──
+
+/**
+ * Autoplay, looping, muted preview of a bundled raw-resource video, cropped to fill the onboarding
+ * card. Mirrors the gallery's `LoopingVideoOverlay` (ExoPlayer in an [AndroidView], released in a
+ * [DisposableEffect]) but inline and silent. Plays only while [playing] — i.e. its pager page is the
+ * settled one — so an off-screen page the pager keeps composed never decodes (battery / decoder
+ * waste), and pauses on `ON_STOP` so a backgrounded app stays idle. There is intentionally no *runtime*
+ * still-image fallback: the bundled clip is the product demo, and a decode failure simply leaves the
+ * dark frosted card (per the onboarding-video PRD). The static [drawableRes] is only the inspection-mode
+ * fallback — [OnboardingPageContent] swaps it in under `LocalInspectionMode` since a Compose @Preview
+ * can't host an ExoPlayer.
+ *
+ * `REPEAT_MODE_ALL` loops the whole (unclipped) item — the same pattern `LoopingVideoOverlay` uses;
+ * the known repeat stall only affects *clipped* items, which this is not. The raw clip is referenced
+ * via the `android.resource://` URI scheme, which Media3's `DefaultDataSource` routes to its
+ * raw-resource reader — the non-deprecated replacement for `RawResourceDataSource.buildRawResourceUri`.
+ */
+@OptIn(UnstableApi::class)
+@Composable
+private fun OnboardingVideoCard(
+    rawResId: Int,
+    playing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            val uri = "${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/$rawResId".toUri()
+            setMediaItem(MediaItem.fromUri(uri))
+            repeatMode = Player.REPEAT_MODE_ALL
+            volume = 0f // muted: onboarding plays silently
+            playWhenReady = playing
+            prepare()
+        }
+    }
+    // Lifecycle-aware playback: play only while this is the settled page AND the app is started, and
+    // pause on ON_STOP so a backgrounded app isn't decoding off-screen (developer.android.com/media/
+    // implement/playback-app — stop/release playback in onStop on API 24+). Keyed on [playing] so a
+    // page change re-applies it; the player itself is released on leave-composition below.
+    LifecycleStartEffect(playing) {
+        exoPlayer.playWhenReady = playing
+        onStopOrDispose { exoPlayer.playWhenReady = false }
+    }
+    DisposableEffect(Unit) {
+        onDispose { exoPlayer.release() }
+    }
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+                useController = false
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM // crop-to-fill the square card
+            }
+        },
+        // The looping clip is a decorative product demo; the page title below is the real label. Give
+        // TalkBack a short description rather than leaving the bare PlayerView unlabeled.
+        modifier = modifier.semantics {
+            contentDescription = "Looping demo of a boomerang video"
+        },
+    )
 }
 
 // ── Arrow Icons ──

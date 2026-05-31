@@ -92,6 +92,16 @@ class TrimScreenTest {
     }
 
     @Test
+    fun handleLabels_showEachHandlesTimestamp() {
+        // Start handle at 1.0s, end handle at 4.0s, window length 3.0s (the duration pill).
+        setContent(durationMs = 5_000L, startMs = 1_000L, endMs = 4_000L)
+        composeTestRule.onNodeWithTag("trim_label_start").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("trim_label_end").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1.0s").assertIsDisplayed() // start timestamp
+        composeTestRule.onNodeWithText("4.0s").assertIsDisplayed() // end timestamp
+    }
+
+    @Test
     fun back_showsDiscardConfirmDialog() {
         setContent()
         composeTestRule.onNodeWithTag("trim_back").performClick()

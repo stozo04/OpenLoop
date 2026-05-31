@@ -147,15 +147,16 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Purpose:** 3-page horizontal carousel introducing the app.
 
 **Architecture:**
-- Page data modeled as `OnboardingPage(title, drawableRes, glowColor)` data class with a list of 3 instances
+- Page data modeled as `OnboardingPage(title, drawableRes, glowColor, videoRawRes?)` data class with a list of 3 instances. `videoRawRes` is optional: when set, the card autoplays a muted, looping `res/raw` clip via an ExoPlayer-in-`AndroidView` (`OnboardingVideoCard`) instead of the static `drawableRes`; `drawableRes` remains the inspection-mode (`@Preview`) fallback. See `docs/active/onboarding-video/IMPLEMENTATION.md`.
 - Navigation extracted into `OnboardingNavigation` (internal composable) — **MUST remain extracted to avoid ColumnScope.AnimatedVisibility bug** (see decision log)
 - Dot indicators use `animateFloatAsState` for smooth size transitions
 - Navigation buttons use `AnimatedVisibility` with `fadeIn + scaleIn` / `fadeOut + scaleOut`
+- `OnboardingVideoCard` playback is lifecycle-aware (`LifecycleStartEffect`: plays on `ON_START` only while it is the settled page, pauses on `ON_STOP`) and released on leave-composition
 
 **Private color palette:** `DeepIndigo`, `DarkPlum`, `VoidBlack`, `FrostedGlass`, `FrostedGlassBorder`
 
 **Pages:**
-1. "No Subscriptions & No Ads" — skater visual, coral glow
+1. "No Subscriptions & No Ads" — autoplaying looping boomerang video (coral glow); `onboarding_skater` drawable is the `@Preview` fallback
 2. "Built by Everyone, For Everyone" — bubbles visual, purple glow
 3. "Just Point, Tap & Loop!" — confetti visual, cyan glow
 
