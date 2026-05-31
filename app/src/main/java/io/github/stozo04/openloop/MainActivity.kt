@@ -137,18 +137,10 @@ class MainActivity : ComponentActivity() {
             ),
         )
 
-    private val requiredPermissions = arrayOf(
-        Manifest.permission.CAMERA,
-        Manifest.permission.RECORD_AUDIO
-    )
-
-    // Permission request contract launcher
     private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val cameraGranted = permissions[Manifest.permission.CAMERA] ?: false
-        val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] ?: false
-        viewModel.onPermissionsChecked(cameraGranted && audioGranted)
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        viewModel.onPermissionsChecked(granted)
     }
 
     // Android Photo Picker (slice 07): single-select, VIDEO ONLY, no runtime storage permission.
@@ -301,20 +293,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkPermissions() {
-        val allGranted = requiredPermissions.all {
-            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-        }
-
         when {
-            allGranted -> viewModel.onPermissionsChecked(true)
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED -> viewModel.onPermissionsChecked(true)
 
             // Denied at least once but not permanently — explain before re-asking.
-            requiredPermissions.any { shouldShowRequestPermissionRationale(it) } ->
+            shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ->
                 viewModel.showPermissionRationale()
 
             // First request, or permanently denied — the system handles both. A permanent
             // denial returns granted=false from the launcher, routing to PermissionDenied.
-            else -> requestPermissionLauncher.launch(requiredPermissions)
+            else -> requestPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -323,7 +312,7 @@ class MainActivity : ComponentActivity() {
         // Launch the system dialog directly, bypassing checkPermissions(), so we don't
         // re-enter the rationale branch (shouldShowRequestPermissionRationale stays true
         // until the user actually responds to the dialog).
-        requestPermissionLauncher.launch(requiredPermissions)
+        requestPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
     private fun openAppSettings() {
@@ -436,9 +425,9 @@ fun OpenLoopNavHost(
         is OpenLoopUiState.PermissionRationale -> {
             PermissionExplanationScreen(
                 title = "We need a quick permission",
-                body = "OpenLoop needs Camera and Audio to capture your " +
-                    "video loops. Tap Grant to continue.",
-                primaryActionLabel = "Grant Permissions",
+                body = "OpenLoop needs Camera access to record video for your " +
+                    "loops. Tap Grant to continue.",
+                primaryActionLabel = "Grant Permission",
                 onPrimaryAction = { onRationaleAcknowledged() },
                 secondaryActionLabel = "Not now",
                 onSecondaryAction = { viewModel.onRationaleDeclined() }
@@ -446,9 +435,9 @@ fun OpenLoopNavHost(
         }
         is OpenLoopUiState.PermissionDenied -> {
             PermissionExplanationScreen(
-                title = "Permissions Required",
-                body = "OpenLoop needs Camera and Audio recording permissions " +
-                    "to capture high-quality speed-controlled video loops.",
+                title = "Permission Required",
+                body = "OpenLoop needs Camera access to record video for your " +
+                    "speed-controlled loops.",
                 primaryActionLabel = "Try Again",
                 onPrimaryAction = { onCheckPermissions() },
                 secondaryActionLabel = "Open Device Settings",

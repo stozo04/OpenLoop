@@ -2,8 +2,6 @@ package io.github.stozo04.openloop.camera
 
 import android.content.Context
 import android.util.Log
-import android.Manifest
-import android.content.pm.PackageManager
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -91,15 +89,8 @@ class CameraManager(private val context: Context) {
         val capture = videoCapture ?: return null
 
         val fileOutputOptions = FileOutputOptions.Builder(outputFile).build()
-        val recordingBuilder = capture.output.prepareRecording(context, fileOutputOptions)
-
-        // Dynamically check RECORD_AUDIO permission to avoid crashes
-        val hasAudio = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (hasAudio) {
-            recordingBuilder.withAudioEnabled()
-        }
-
-        val recording = recordingBuilder
+        val recording = capture.output
+            .prepareRecording(context, fileOutputOptions)
             .start(ContextCompat.getMainExecutor(context), onRecordEvent)
 
         activeRecording = recording

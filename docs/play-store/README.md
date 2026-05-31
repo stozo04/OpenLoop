@@ -20,7 +20,7 @@ in**. Keep these in sync if the app's behavior changes.
 - [x] **App Bundle build** wired (`./gradlew :app:bundleRelease` → signed `.aab` once `keystore.properties` is set).
 - [x] **`targetSdk 36`** — exceeds Play's API-35 floor for new apps.
 - [x] **16 KB-aligned native libs** (uncompressed packaging).
-- [x] **Minimal permissions** — `CAMERA`, `RECORD_AUDIO` only; no `INTERNET`; photo import needs no storage permission.
+- [x] **Minimal permissions** — `CAMERA` only; no `INTERNET`; photo import needs no storage permission.
 - [x] **applicationId `io.github.stozo04.openloop`** — permanent, verified unused on Play.
 
 ### You do — developer account & build (can start in parallel; account verification takes days)

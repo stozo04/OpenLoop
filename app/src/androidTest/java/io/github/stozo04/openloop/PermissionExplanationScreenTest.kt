@@ -32,8 +32,8 @@ class PermissionExplanationScreenTest {
             OpenLoopTheme {
                 PermissionExplanationScreen(
                     title = "We need a quick permission",
-                    body = "OpenLoop needs Camera and Audio to capture your video loops.",
-                    primaryActionLabel = "Grant Permissions",
+                    body = "OpenLoop needs Camera access to record video for your loops.",
+                    primaryActionLabel = "Grant Permission",
                     onPrimaryAction = {},
                     secondaryActionLabel = "Not now",
                     onSecondaryAction = {}
@@ -41,7 +41,7 @@ class PermissionExplanationScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Grant Permissions").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Grant Permission").assertIsDisplayed()
         composeTestRule.onNodeWithText("Not now").assertIsDisplayed()
         composeTestRule.onNodeWithText("Open Device Settings").assertDoesNotExist()
     }
@@ -51,8 +51,8 @@ class PermissionExplanationScreenTest {
         composeTestRule.setContent {
             OpenLoopTheme {
                 PermissionExplanationScreen(
-                    title = "Permissions Required",
-                    body = "OpenLoop needs Camera and Audio recording permissions.",
+                    title = "Permission Required",
+                    body = "OpenLoop needs Camera access to record video for your loops.",
                     primaryActionLabel = "Try Again",
                     onPrimaryAction = {},
                     secondaryActionLabel = "Open Device Settings",
@@ -78,7 +78,7 @@ class PermissionExplanationScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Grant Permissions").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Grant Permission").assertIsDisplayed()
         composeTestRule.onNodeWithText("Not now").assertDoesNotExist()
         composeTestRule.onNodeWithText("Open Device Settings").assertDoesNotExist()
     }
@@ -101,7 +101,7 @@ class PermissionExplanationScreenTest {
             }
         }
 
-        composeTestRule.onNodeWithText("Grant Permissions").performClick()
+        composeTestRule.onNodeWithText("Grant Permission").performClick()
         composeTestRule.onNodeWithText("Not now").performClick()
 
         assertTrue("Primary action should fire on tap", primaryClicked)

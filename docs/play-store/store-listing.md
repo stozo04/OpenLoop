@@ -42,8 +42,7 @@ OPEN SOURCE
 OpenLoop is free and open source under the Apache 2.0 license. You can read every line, file issues, or contribute: https://github.com/stozo04/OpenLoop
 
 PERMISSIONS
-• Camera — to record video in the app.
-• Microphone — to capture audio while you record (exported loops have audio removed).
+• Camera — to record video in the app. Exported loops are silent video-only.
 Both are used only on your device.
 
 Made for people who just want to point, tap, and loop.

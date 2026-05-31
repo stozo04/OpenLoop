@@ -505,22 +505,6 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `startBurstCapture recovers to ReadyToCapture on SecurityException`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            viewModel.onPermissionsChecked(true) // ReadyToCapture
-            // withAudioEnabled() throws this if RECORD_AUDIO is revoked before start().
-            every { cameraManager.startRecording(any(), any()) } throws
-                SecurityException("RECORD_AUDIO denied")
-
-            viewModel.startBurstCapture(cameraManager)
-            advanceUntilIdle()
-
-            assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
-            assertEquals(0L, viewModel.recordingElapsedMs.value)
-            verify(exactly = 0) { cameraManager.stopRecording() }
-        }
-
-    @Test
     fun `stopBurstCapture cancels coroutine job and stops recording`() {
         viewModel.onPermissionsChecked(true) // ReadyToCapture
         every { cameraManager.startRecording(any(), any()) } returns fakeRecording
