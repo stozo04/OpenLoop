@@ -152,6 +152,7 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.rules)
     // Explicit Espresso 3.7.0: forces the fixed version over the older one pulled
     // transitively by ui-test-junit4. 3.7.0 replaced the reflective
     // InputManager.getInstance() (removed in Android 16 / API 36) with getSystemService,
