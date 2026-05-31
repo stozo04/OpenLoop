@@ -27,6 +27,7 @@ import io.github.stozo04.openloop.R
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -128,9 +129,16 @@ fun CameraScreen(
         }
     }
 
-    // Trigger Camera binding when LifecycleOwner changes
+    // Bind when the screen enters composition; [releaseCamera] on dispose (below) pairs teardown
+    // with PreviewView removal so CameraX does not keep queuing into an abandoned surface (Issue #36).
     LaunchedEffect(lifecycleOwner) {
         cameraManager.startCamera(lifecycleOwner, previewView)
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        onDispose {
+            cameraManager.releaseCamera()
+        }
     }
 
     Box(

@@ -111,7 +111,30 @@ class CameraManager(private val context: Context) {
         activeRecording = null
     }
 
+    /**
+     * Detach preview and video use cases when the [PreviewView] leaves composition (e.g. navigating
+     * to Trim / Gallery / Editor) while the [LifecycleOwner] may stay RESUMED. Without this, the HAL
+     * can queue buffers into an abandoned [PreviewView] surface → log noise (`BufferQueue has been
+     * abandoned`, surface disconnect races). Re-bind via [startCamera] when [CameraScreen] returns.
+     *
+     * Skipped while [activeRecording] is non-null so we do not unbind mid-capture
+     * ([VideoRecordEvent.Finalize.ERROR_SOURCE_INACTIVE], Lesson 012).
+     */
+    fun releaseCamera() {
+        if (activeRecording != null) {
+            Log.d(TAG, "releaseCamera skipped: recording in progress")
+            return
+        }
+        try {
+            cameraProvider?.unbindAll()
+            videoCapture = null
+        } catch (exc: Exception) {
+            Log.e(TAG, "releaseCamera failed", exc)
+        }
+    }
+
     fun shutdown() {
+        releaseCamera()
         cameraExecutor.shutdown()
     }
 
