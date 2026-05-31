@@ -17,6 +17,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.OverlayWhite
 
 /**
  * Full-screen "rendering" surface shown while the boomerang is being created
@@ -47,8 +49,8 @@ fun ProcessingScreen(
     ) {
         CircularProgressIndicator(
             modifier = Modifier.size(64.dp),
-            color = NeonPurple,
-            trackColor = GlassWhite,
+            color = ElectricLime,
+            trackColor = OverlayWhite,
         )
         Text(
             text = "Loopifying…",

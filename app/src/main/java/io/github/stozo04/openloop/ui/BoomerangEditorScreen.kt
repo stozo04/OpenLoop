@@ -84,7 +84,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -98,6 +97,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.LimeInk
+import io.github.stozo04.openloop.ui.theme.OverlayScrim
+import io.github.stozo04.openloop.ui.theme.OverlayWhite
+import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
+import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.boomerangOutputDurationMs
@@ -352,7 +357,7 @@ fun BoomerangEditorContent(
 
             if (awaitingReverse) {
                 // Soft dark scrim (the dimmed preview frame still shows through) + a glassmorphic card,
-                // rather than a flat color wash — matches the app's DeepCharcoal/GlassWhite surfaces.
+                // rather than a flat color wash — matches the app's OverlayScrim/OverlayWhite surfaces.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -364,12 +369,12 @@ fun BoomerangEditorContent(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(DeepCharcoal)
-                            .border(1.dp, GlassWhiteBorder, RoundedCornerShape(20.dp))
+                            .background(OverlayScrim)
+                            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(20.dp))
                             .padding(horizontal = 28.dp, vertical = 22.dp),
                     ) {
                         CircularProgressIndicator(
-                            color = NeonPurple,
+                            color = ElectricLime,
                             strokeWidth = 3.dp,
                             modifier = Modifier.size(34.dp),
                         )
@@ -400,8 +405,8 @@ fun BoomerangEditorContent(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(DeepCharcoal)
-                            .border(1.dp, GlassWhiteBorder, RoundedCornerShape(20.dp))
+                            .background(OverlayScrim)
+                            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(20.dp))
                             .padding(horizontal = 28.dp, vertical = 22.dp),
                     ) {
                         Text(
@@ -420,13 +425,13 @@ fun BoomerangEditorContent(
                         Spacer(Modifier.height(16.dp))
                         Text(
                             text = "TRY AGAIN",
-                            color = Color.White,
+                            color = LimeInk,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(NeonPurple)
+                                .background(ElectricLime)
                                 .clickable { onRetryReverse() }
                                 .padding(horizontal = 24.dp, vertical = 10.dp)
                                 .testTag("reverse_retry"),
@@ -456,13 +461,11 @@ fun BoomerangEditorContent(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 12.dp)
                         .clip(RoundedCornerShape(percent = 50))
-                        .background(DeepCharcoal)
+                        .background(OverlayScrim)
                         .padding(horizontal = 14.dp, vertical = 6.dp)
                         .testTag("editor_duration_label"),
                     color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
+                    style = TimerTextStyle,
                 )
             }
         }
@@ -471,7 +474,7 @@ fun BoomerangEditorContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, DeepCharcoal))),
+                .background(Brush.verticalGradient(listOf(Color.Transparent, OverlayScrim))),
         ) {
             AnimatedContent(
                 targetState = activeTab,
@@ -495,7 +498,7 @@ fun BoomerangEditorContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(DeepCharcoal)
+                .background(OverlayScrim)
                 .navigationBarsPadding()
                 .height(TAB_BAR_HEIGHT),
             horizontalArrangement = Arrangement.Center,
@@ -619,7 +622,7 @@ private fun SpeedTabContent(
 
 /**
  * Custom comet-style speed slider (drawn, not a Material [androidx.compose.material3.Slider]) so the
- * thumb reads as a glowing comet head on a [NeonPurple] trail per the reference screenshot — no value
+ * thumb reads as a glowing comet head on a [ElectricLime] trail per the reference screenshot — no value
  * label, no end labels. The numeric speed is exposed to TalkBack via [stateDescription] (an unlabeled
  * continuous slider must announce its value — ANDROID_STANDARDS §7), invisible to sighted users.
  *
@@ -698,17 +701,17 @@ private fun SpeedSlider(
             // Inactive track (right of the thumb): white @30%.
             if (thumbX < size.width - thumbRadiusPx) {
                 drawLine(
-                    color = GlassWhiteBorder,
+                    color = OverlayWhiteBorder,
                     start = Offset(thumbX, centerY),
                     end = Offset(size.width - thumbRadiusPx, centerY),
                     strokeWidth = trackStrokePx,
                     cap = StrokeCap.Round,
                 )
             }
-            // Comet trail (left of the thumb): a NeonPurple gradient brightening toward the head.
+            // Comet trail (left of the thumb): a ElectricLime gradient brightening toward the head.
             drawLine(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(NeonPurple.copy(alpha = 0.2f), NeonPurple),
+                    colors = listOf(ElectricLime.copy(alpha = 0.2f), ElectricLime),
                     startX = thumbRadiusPx,
                     endX = thumbX,
                 ),
@@ -717,9 +720,9 @@ private fun SpeedSlider(
                 strokeWidth = trackStrokePx,
                 cap = StrokeCap.Round,
             )
-            // Comet head: soft glow halo, solid NeonPurple body, bright white core.
-            drawCircle(NeonPurple.copy(alpha = 0.3f), radius = thumbRadiusPx * 1.5f, center = Offset(thumbX, centerY))
-            drawCircle(NeonPurple, radius = thumbRadiusPx, center = Offset(thumbX, centerY))
+            // Comet head: soft glow halo, solid ElectricLime body, bright white core.
+            drawCircle(ElectricLime.copy(alpha = 0.3f), radius = thumbRadiusPx * 1.5f, center = Offset(thumbX, centerY))
+            drawCircle(ElectricLime, radius = thumbRadiusPx, center = Offset(thumbX, centerY))
             drawCircle(Color.White, radius = thumbRadiusPx * 0.42f, center = Offset(thumbX, centerY))
         }
     }
@@ -778,8 +781,8 @@ private fun CircleIconButton(
         modifier = modifier
             .size(CONTROL_SIZE)
             .clip(CircleShape)
-            .background(GlassWhite)
-            .border(1.dp, GlassWhiteBorder, CircleShape)
+            .background(OverlayWhite)
+            .border(1.dp, OverlayWhiteBorder, CircleShape)
             .clickable(role = Role.Button) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
@@ -787,7 +790,7 @@ private fun CircleIconButton(
     }
 }
 
-/** Save checkmark: a filled [NeonPurple] circle; dimmed + non-clickable while the reverse isn't ready. */
+/** Save checkmark: a filled [ElectricLime] circle; dimmed + non-clickable while the reverse isn't ready. */
 @Composable
 private fun SaveCheckmark(
     enabled: Boolean,
@@ -798,7 +801,7 @@ private fun SaveCheckmark(
         modifier = modifier
             .size(CONTROL_SIZE)
             .clip(CircleShape)
-            .background(if (enabled) NeonPurple else NeonPurple.copy(alpha = 0.3f))
+            .background(if (enabled) ElectricLime else ElectricLime.copy(alpha = 0.3f))
             .clickable(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
@@ -811,15 +814,15 @@ private fun SaveCheckmark(
         Icon(
             Icons.Filled.Check,
             contentDescription = null,
-            tint = if (enabled) Color.White else Color.White.copy(alpha = 0.5f),
+            tint = if (enabled) LimeInk else Color.White.copy(alpha = 0.5f),
             modifier = Modifier.size(26.dp),
         )
     }
 }
 
 /**
- * A single bottom-tab-bar slot. Active → darker pill + [NeonPurple] icon; inactive interactive →
- * [GlassWhite] pill + white icon; disabled stub → no pill, dimmed icon, non-clickable + `disabled()`
+ * A single bottom-tab-bar slot. Active → darker pill + [ElectricLime] icon; inactive interactive →
+ * [OverlayWhite] pill + white icon; disabled stub → no pill, dimmed icon, non-clickable + `disabled()`
  * semantics (the Reps tab until slice 05). Carries `Role.Tab` + `selected` for selection a11y/tests.
  */
 @Composable
@@ -833,7 +836,7 @@ private fun TabBarItem(
 ) {
     val iconTint = when {
         !enabled -> Color.White.copy(alpha = 0.4f)
-        active -> NeonPurple
+        active -> ElectricLime
         else -> Color.White
     }
     Box(
@@ -844,7 +847,7 @@ private fun TabBarItem(
                 when {
                     !enabled -> Modifier
                     active -> Modifier.background(Color.Black.copy(alpha = 0.35f))
-                    else -> Modifier.background(GlassWhite)
+                    else -> Modifier.background(OverlayWhite)
                 },
             )
             .then(if (enabled) Modifier.clickable(role = Role.Tab) { onClick() } else Modifier)
@@ -861,8 +864,8 @@ private fun TabBarItem(
 
 /**
  * A single direction chip: a glyph tile (no caption — the glyph speaks for itself, and the spoken
- * label rides in `contentDescription`). Selected → `NeonCoral → NeonPurple` gradient with a white
- * glyph; unselected → glassmorphic outline with a [NeonPurple] glyph.
+ * label rides in `contentDescription`). Selected → flat [ElectricLime] fill with a dark glyph;
+ * unselected → glassmorphic outline with a white glyph.
  */
 @Composable
 private fun DirectionChipButton(
@@ -876,11 +879,11 @@ private fun DirectionChipButton(
             .clip(RoundedCornerShape(14.dp))
             .then(
                 if (selected) {
-                    Modifier.background(Brush.horizontalGradient(listOf(NeonCoral, NeonPurple)))
+                    Modifier.background(ElectricLime)
                 } else {
                     Modifier
-                        .background(GlassWhite)
-                        .border(1.dp, GlassWhiteBorder, RoundedCornerShape(14.dp))
+                        .background(OverlayWhite)
+                        .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(14.dp))
                 },
             )
             .clickable(role = Role.Button) { onClick() }
@@ -893,7 +896,7 @@ private fun DirectionChipButton(
     ) {
         Text(
             text = chip.glyph,
-            color = if (selected) Color.White else NeonPurple,
+            color = if (selected) LimeInk else Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
         )
@@ -950,7 +953,7 @@ private fun LooksTabContent(
 
 /**
  * One filter chip: the trim's representative frame ([thumbnailFrame]) rendered in [look] via a
- * [ColorFilter], with a label below and a [NeonPurple] ring when selected. While the frame is still
+ * [ColorFilter], with a label below and a [ElectricLime] ring when selected. While the frame is still
  * decoding (or failed), the chip shows its glass tile so the strip never looks broken.
  */
 @Composable
@@ -972,12 +975,12 @@ private fun LookChip(
             modifier = Modifier
                 .size(64.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(GlassWhite)
+                .background(OverlayWhite)
                 .then(
                     if (selected) {
-                        Modifier.border(2.dp, NeonPurple, RoundedCornerShape(12.dp))
+                        Modifier.border(2.dp, ElectricLime, RoundedCornerShape(12.dp))
                     } else {
-                        Modifier.border(1.dp, GlassWhiteBorder, RoundedCornerShape(12.dp))
+                        Modifier.border(1.dp, OverlayWhiteBorder, RoundedCornerShape(12.dp))
                     },
                 )
                 .clickable(role = Role.Button) { onClick() }

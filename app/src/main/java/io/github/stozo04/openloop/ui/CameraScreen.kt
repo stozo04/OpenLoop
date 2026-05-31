@@ -7,9 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -43,22 +41,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.stozo04.openloop.camera.CameraManager
-
-// Let's define premium theme colors
-val GlassWhite = Color(0x33FFFFFF)
-val GlassWhiteBorder = Color(0x4DFFFFFF)
-val NeonCoral = Color(0xFFFF5252)
-val NeonPurple = Color(0xFF7C4DFF)
-val DeepCharcoal = Color(0xCC1A1A1D)
+import io.github.stozo04.openloop.ui.theme.CoralRed
+import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.LimeInk
+import io.github.stozo04.openloop.ui.theme.OverlayScrim
+import io.github.stozo04.openloop.ui.theme.OverlayWhite
+import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
+import io.github.stozo04.openloop.ui.theme.TimerTextStyle
+import io.github.stozo04.openloop.ui.theme.shutterGradient
 
 /**
  * Single hosting call site for the two camera-bound states ([OpenLoopUiState.ReadyToCapture] and
@@ -149,7 +145,7 @@ fun CameraScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            DeepCharcoal,
+                            OverlayScrim,
                             Color.Transparent
                         )
                     )
@@ -184,7 +180,7 @@ fun CameraScreen(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            DeepCharcoal
+                            OverlayScrim
                         )
                     )
                 )
@@ -192,33 +188,14 @@ fun CameraScreen(
                 .padding(bottom = 24.dp, start = 24.dp, end = 24.dp, top = 32.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Cap the control row width so the shutter/lens controls stay grouped and centered
-            // on large screens (≥600dp) rather than stretching to the display edges.
-            Row(
+            // Shutter stays centered; the lens toggle pins to the right edge. Width-capped so the
+            // controls stay grouped/centered on large screens (≥600dp) rather than stretching out.
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 520.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
-                // Left Placeholder (for future settings / gallery preview)
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(GlassWhite)
-                        .border(1.dp, GlassWhiteBorder, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Reflects the new 30 s hard cap (was a stale "1.5s" from the old self-stop).
-                    Text(
-                        text = "30s",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
-
                 // Shutter Button: tap-to-start / tap-to-stop, with a progress ring. progressFraction
                 // is a lambda so the elapsed read (REC-1) happens in the ring's draw phase, not here.
                 ShutterButton(
@@ -236,13 +213,14 @@ fun CameraScreen(
                     }
                 )
 
-                // Switch Camera / Lens Toggle Button (subtle glass to match 1.5s badge)
+                // Switch Camera / Lens Toggle Button (subtle glass), pinned to the right edge.
                 Box(
                     modifier = Modifier
+                        .align(Alignment.CenterEnd)
                         .size(54.dp)
                         .clip(CircleShape)
-                        .background(GlassWhite)
-                        .border(1.dp, GlassWhiteBorder, CircleShape)
+                        .background(OverlayWhite)
+                        .border(1.dp, OverlayWhiteBorder, CircleShape)
                         .clickable {
                             cameraManager.toggleCamera(lifecycleOwner, previewView)
                         },
@@ -276,12 +254,7 @@ fun HomeButton(
         modifier = modifier
             .size(48.dp)
             .clip(CircleShape)
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(NeonCoral, NeonPurple)
-                )
-            )
-            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+            .background(ElectricLime)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -289,7 +262,7 @@ fun HomeButton(
             painter = painterResource(id = R.drawable.ic_pictures_folder),
             contentDescription = "Gallery",
             modifier = Modifier.size(20.dp),
-            tint = Color.White
+            tint = LimeInk
         )
     }
 }
@@ -298,7 +271,7 @@ fun HomeButton(
  * Tap-to-start / tap-to-stop shutter with a progress ring.
  *
  * Stateless and hoisted (mirrors [OnboardingNavigation]) so it can be exercised in Compose UI
- * tests without binding the camera. While [isRecording], a [NeonCoral] ring sweeps clockwise from
+ * tests without binding the camera. While [isRecording], a [CoralRed] ring sweeps clockwise from
  * 12 o'clock proportional to [progressFraction] (0f..1f toward the 30 s cap), the interior dims,
  * and the dot is replaced by a square "stop" glyph.
  *
@@ -324,7 +297,7 @@ fun ShutterButton(
                 val strokeWidth = 4.dp.toPx()
                 val inset = strokeWidth / 2f
                 drawArc(
-                    color = NeonCoral,
+                    color = CoralRed,
                     startAngle = -90f,
                     sweepAngle = progressFraction().coerceIn(0f, 1f) * 360f,
                     useCenter = false,
@@ -339,10 +312,10 @@ fun ShutterButton(
             modifier = Modifier
                 .size(86.dp)
                 .clip(CircleShape)
-                .background(if (isRecording) NeonCoral.copy(alpha = 0.2f) else GlassWhite)
+                .background(if (isRecording) CoralRed.copy(alpha = 0.2f) else OverlayWhite)
                 .border(
                     width = if (isRecording) 5.dp else 3.dp,
-                    color = if (isRecording) NeonCoral else Color.White,
+                    color = if (isRecording) CoralRed else Color.White,
                     shape = CircleShape
                 )
                 .padding(if (isRecording) 12.dp else 6.dp)
@@ -362,18 +335,14 @@ fun ShutterButton(
                     modifier = Modifier
                         .size(26.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(NeonCoral)
+                        .background(CoralRed)
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(NeonCoral, NeonPurple)
-                            )
-                        )
+                        .background(shutterGradient())
                 )
             }
         }
@@ -382,7 +351,7 @@ fun ShutterButton(
 
 /**
  * Top-center countdown chip shown only while recording: monospaced `MM:SS / 00:30` on a glass
- * surface (DeepCharcoal 80% over a GlassWhite 20% base). Renders nothing when [visible] is false,
+ * surface (OverlayScrim 80% over a OverlayWhite 20% base). Renders nothing when [visible] is false,
  * so the visibility rule itself is testable (mirrors [OnboardingNavigation]'s hoisted pattern).
  *
  * [text] is a lambda, not a value: it is read inside this chip's composition (REC-1) so an
@@ -399,19 +368,16 @@ fun RecordingCountdownChip(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(percent = 50))
-                .background(GlassWhite)
-                .background(DeepCharcoal)
-                .border(1.dp, GlassWhiteBorder, RoundedCornerShape(percent = 50))
+                .background(OverlayWhite)
+                .background(OverlayScrim)
+                .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
                 .padding(horizontal = 14.dp, vertical = 6.dp)
                 .testTag("countdown_chip")
         ) {
             Text(
                 text = text(),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
+                style = TimerTextStyle,
                 color = Color.White,
-                letterSpacing = 1.sp,
                 textAlign = TextAlign.Center
             )
         }

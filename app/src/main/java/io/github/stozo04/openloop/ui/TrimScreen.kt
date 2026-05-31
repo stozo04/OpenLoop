@@ -70,6 +70,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.LimeInk
+import io.github.stozo04.openloop.ui.theme.OverlayScrim
+import io.github.stozo04.openloop.ui.theme.OverlayWhite
+import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
+import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import java.io.File
 import java.util.Locale
 import kotlin.math.abs
@@ -211,8 +217,8 @@ fun TrimScreenContent(
                     .align(Alignment.CenterStart)
                     .size(HANDLE_SIZE)
                     .clip(CircleShape)
-                    .background(GlassWhite)
-                    .border(1.dp, GlassWhiteBorder, CircleShape)
+                    .background(OverlayWhite)
+                    .border(1.dp, OverlayWhiteBorder, CircleShape)
                     .testTag("trim_back")
                     .clickable { showDiscardDialog = true },
                 contentAlignment = Alignment.Center,
@@ -250,13 +256,11 @@ fun TrimScreenContent(
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 12.dp)
                     .clip(RoundedCornerShape(percent = 50))
-                    .background(DeepCharcoal)
+                    .background(OverlayScrim)
                     .padding(horizontal = 14.dp, vertical = 6.dp)
                     .testTag("trim_duration_label"),
                 color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
+                style = TimerTextStyle,
             )
         }
 
@@ -266,7 +270,7 @@ fun TrimScreenContent(
                 .fillMaxWidth()
                 .weight(0.25f)
                 .background(
-                    Brush.verticalGradient(listOf(Color.Transparent, DeepCharcoal))
+                    Brush.verticalGradient(listOf(Color.Transparent, OverlayScrim))
                 )
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 12.dp),
@@ -287,13 +291,7 @@ fun TrimScreenContent(
                     .widthIn(max = 520.dp)
                     .height(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (nextEnabled) {
-                            Brush.horizontalGradient(listOf(NeonCoral, NeonPurple))
-                        } else {
-                            Brush.horizontalGradient(listOf(GlassWhite, GlassWhite))
-                        }
-                    )
+                    .background(if (nextEnabled) ElectricLime else OverlayWhite)
                     .clickable(
                         enabled = nextEnabled,
                         interactionSource = remember { MutableInteractionSource() },
@@ -307,10 +305,10 @@ fun TrimScreenContent(
             ) {
                 Text(
                     text = "NEXT",
-                    color = if (nextEnabled) Color.White else Color.White.copy(alpha = 0.4f),
+                    color = if (nextEnabled) LimeInk else Color.White.copy(alpha = 0.4f),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
+                    letterSpacing = 0.5.sp,
                 )
             }
         }
@@ -413,7 +411,7 @@ private fun TrimBar(
                 .height(HANDLE_SIZE)
                 .padding(vertical = 18.dp)
                 .background(
-                    Brush.horizontalGradient(listOf(NeonCoral, NeonPurple)),
+                    ElectricLime,
                     RoundedCornerShape(4.dp),
                 ),
         )
@@ -507,7 +505,7 @@ private fun TrimThumb(
             .size(HANDLE_SIZE)
             .clip(RoundedCornerShape(8.dp))
             .background(Color.White)
-            .border(2.dp, NeonPurple, RoundedCornerShape(8.dp))
+            .border(2.dp, ElectricLime, RoundedCornerShape(8.dp))
             .semantics(mergeDescendants = true) {
                 contentDescription = label
                 stateDescription = String.format(Locale.US, "%.1f seconds", valueMs / 1000f)
@@ -542,7 +540,7 @@ private fun HandleTimeLabel(
             text = String.format(Locale.US, "%.1fs", timeMs / 1000f),
             modifier = Modifier
                 .clip(RoundedCornerShape(percent = 50))
-                .background(DeepCharcoal)
+                .background(OverlayScrim)
                 .padding(horizontal = 8.dp, vertical = 2.dp)
                 .testTag(testTag),
             color = Color.White,

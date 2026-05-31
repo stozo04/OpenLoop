@@ -909,27 +909,122 @@ class OpenLoopViewModelTest {
     }
 
     @Test
-    fun `deleteVideo removes video from storage and reloads list`() =
-        runTest(mainDispatcherRule.testDispatcher) {
-            // Seed two clips so the delete leaves a non-trivial remainder.
-            fakeVideoStorage.promoteScratchToRaw(fakeVideoStorage.createScratchCapture())
-            fakeVideoStorage.promoteScratchToRaw(fakeVideoStorage.createScratchCapture())
-            viewModel.loadRecordedVideos()
-            advanceUntilIdle()
-            assertEquals(2, viewModel.recordedVideos.value.size)
-
-            val toDelete = viewModel.recordedVideos.value.first()
-            viewModel.deleteVideo(toDelete)
-            advanceUntilIdle()
-
-            assertEquals(1, viewModel.recordedVideos.value.size)
-            assertFalse(viewModel.recordedVideos.value.contains(toDelete))
-        }
-
-    @Test
     fun `recordedVideos flow starts as empty list`() {
         assertTrue(viewModel.recordedVideos.value.isEmpty())
     }
+
+    // ── Deferred deletion + Undo (Issue #35) ──
+
+    /** Seed [count] raw clips into storage and load them so the gallery flows are populated. */
+    private suspend fun seedAndLoad(count: Int) {
+        repeat(count) {
+            fakeVideoStorage.promoteScratchToRaw(fakeVideoStorage.createScratchCapture())
+        }
+        viewModel.loadRecordedVideos()
+    }
+
+    @Test
+    fun `requestDeleteVideos hides ids from visibleVideos and emits LoopsDeleted`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            seedAndLoad(2)
+            advanceUntilIdle()
+            // visibleVideos is WhileSubscribed — keep a hot collector so .value reflects the combine.
+            val visibleCollector = backgroundScope.launch { viewModel.visibleVideos.collect {} }
+            val events = mutableListOf<BoomerangEvent>()
+            val eventCollector = backgroundScope.launch { viewModel.events.toList(events) }
+            advanceUntilIdle()
+            assertEquals(2, viewModel.visibleVideos.value.size)
+
+            val toDelete = viewModel.recordedVideos.value.first()
+            viewModel.requestDeleteVideos(listOf(toDelete))
+            advanceUntilIdle()
+
+            // Optimistically hidden, but NOT yet deleted from storage (deferred until commit).
+            assertTrue(toDelete.id in viewModel.pendingDeletionIds.value)
+            assertEquals(1, viewModel.visibleVideos.value.size)
+            assertFalse(viewModel.visibleVideos.value.contains(toDelete))
+            assertEquals(2, fakeVideoStorage.saved.size) // still on disk
+            assertEquals(LoopsDeleted_count(events), 1)
+
+            visibleCollector.cancel()
+            eventCollector.cancel()
+        }
+
+    @Test
+    fun `undoPendingDeletion restores the hidden tiles without deleting anything`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            seedAndLoad(2)
+            advanceUntilIdle()
+            val visibleCollector = backgroundScope.launch { viewModel.visibleVideos.collect {} }
+            advanceUntilIdle()
+
+            val toDelete = viewModel.recordedVideos.value.first()
+            viewModel.requestDeleteVideos(listOf(toDelete))
+            advanceUntilIdle()
+            assertEquals(1, viewModel.visibleVideos.value.size)
+
+            viewModel.undoPendingDeletion()
+            advanceUntilIdle()
+
+            assertTrue(viewModel.pendingDeletionIds.value.isEmpty())
+            assertEquals(2, viewModel.visibleVideos.value.size) // tiles reappear
+            assertEquals(2, fakeVideoStorage.saved.size) // nothing was deleted
+
+            visibleCollector.cancel()
+        }
+
+    @Test
+    fun `commitPendingDeletion deletes each file from storage and reloads`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            seedAndLoad(3)
+            advanceUntilIdle()
+            val visibleCollector = backgroundScope.launch { viewModel.visibleVideos.collect {} }
+            advanceUntilIdle()
+
+            val toDelete = viewModel.recordedVideos.value.take(2)
+            viewModel.requestDeleteVideos(toDelete)
+            advanceUntilIdle()
+
+            viewModel.commitPendingDeletion()
+            advanceUntilIdle()
+
+            // The two files are gone from storage; the pending set cleared; the remainder is reloaded.
+            assertEquals(1, fakeVideoStorage.saved.size)
+            assertTrue(viewModel.pendingDeletionIds.value.isEmpty())
+            assertEquals(1, viewModel.recordedVideos.value.size)
+            assertFalse(viewModel.recordedVideos.value.any { it in toDelete })
+
+            visibleCollector.cancel()
+        }
+
+    @Test
+    fun `requesting a new deletion commits the prior pending batch first`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            seedAndLoad(3)
+            advanceUntilIdle()
+            val visibleCollector = backgroundScope.launch { viewModel.visibleVideos.collect {} }
+            advanceUntilIdle()
+
+            val first = viewModel.recordedVideos.value[0]
+            val second = viewModel.recordedVideos.value[1]
+
+            viewModel.requestDeleteVideos(listOf(first))
+            advanceUntilIdle()
+            // Supersede: a new delete commits the prior (first) batch before pending the new one.
+            viewModel.requestDeleteVideos(listOf(second))
+            advanceUntilIdle()
+
+            // `first` was committed (gone from storage); `second` is the new pending batch (still on disk).
+            assertFalse(fakeVideoStorage.saved.contains(first))
+            assertTrue(fakeVideoStorage.saved.contains(second))
+            assertEquals(setOf(second.id), viewModel.pendingDeletionIds.value)
+
+            visibleCollector.cancel()
+        }
+
+    /** Count carried by the single [BoomerangEvent.LoopsDeleted] in [events] (fails if absent). */
+    private fun LoopsDeleted_count(events: List<BoomerangEvent>): Int =
+        events.filterIsInstance<BoomerangEvent.LoopsDeleted>().single().count
 
     // ── Import from library (slice 07) ──
 

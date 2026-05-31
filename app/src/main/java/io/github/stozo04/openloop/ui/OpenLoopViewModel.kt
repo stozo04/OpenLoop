@@ -21,10 +21,13 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
@@ -62,6 +65,13 @@ sealed interface BoomerangEvent {
      * snackbar; the user is returned to the gallery, never wedged.
      */
     object ImportFailed : BoomerangEvent
+
+    /**
+     * One or more gallery loops were marked for deletion (Issue #35). Drives the Undo snackbar; the
+     * real file delete is **deferred** until the snackbar is dismissed (see [commitPendingDeletion]).
+     * [count] is how many loops the user removed in this batch, so the snackbar can pluralize.
+     */
+    data class LoopsDeleted(val count: Int) : BoomerangEvent
 }
 
 class OpenLoopViewModel(
@@ -156,6 +166,31 @@ class OpenLoopViewModel(
 
     private val _recordedVideos = MutableStateFlow<List<RecordedVideo>>(emptyList())
     val recordedVideos: StateFlow<List<RecordedVideo>> = _recordedVideos.asStateFlow()
+
+    /**
+     * Ids of loops marked for deletion but not yet committed to disk (Issue #35). They are hidden
+     * from the gallery immediately (optimistic delete via [visibleVideos]) while the Undo snackbar is
+     * up; an Undo clears this set (the tiles reappear), a dismiss commits the real delete.
+     */
+    private val _pendingDeletionIds = MutableStateFlow<Set<Long>>(emptySet())
+    val pendingDeletionIds: StateFlow<Set<Long>> = _pendingDeletionIds.asStateFlow()
+
+    /**
+     * The batch backing the current pending deletion, held in memory (NOT on disk). Safe-by-design:
+     * because the real `videoStorage.deleteVideo` is deferred to [commitPendingDeletion], process
+     * death before the commit leaves every file intact — an implicit Undo, never data loss.
+     */
+    private var pendingBatch: List<RecordedVideo> = emptyList()
+
+    /**
+     * The gallery's view of storage with any pending-deletion ids filtered out, so removed tiles
+     * vanish instantly and reappear on Undo. Collected with [SharingStarted.WhileSubscribed] (Lesson
+     * 002 — lifecycle-aware) so it stops combining when the gallery isn't on screen.
+     */
+    val visibleVideos: StateFlow<List<RecordedVideo>> =
+        combine(recordedVideos, pendingDeletionIds) { videos, pending ->
+            videos.filterNot { it.id in pending }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
      * The Trim screen's working state (source file, duration, handle positions), or `null` when no
@@ -308,9 +343,38 @@ class OpenLoopViewModel(
         }
     }
 
-    fun deleteVideo(video: RecordedVideo) {
+    /**
+     * Mark [videos] for deletion (Issue #35). Hides them from [visibleVideos] immediately and emits
+     * [BoomerangEvent.LoopsDeleted] so the UI can offer Undo — but does NOT touch disk yet. If a prior
+     * batch is still pending it is committed first (a new delete supersedes the old one's Undo window).
+     */
+    fun requestDeleteVideos(videos: List<RecordedVideo>) {
+        if (videos.isEmpty()) return
+        if (pendingBatch.isNotEmpty()) commitPendingDeletion() // supersede: commit the prior batch
+        pendingBatch = videos
+        _pendingDeletionIds.value = videos.map { it.id }.toSet()
+        viewModelScope.launch { _events.send(BoomerangEvent.LoopsDeleted(videos.size)) }
+    }
+
+    /** Undo the pending deletion: forget the batch + restore the hidden tiles. Nothing was deleted. */
+    fun undoPendingDeletion() {
+        pendingBatch = emptyList()
+        _pendingDeletionIds.value = emptySet()
+    }
+
+    /**
+     * Commit the pending deletion: delete each file from storage off the main thread, then reload the
+     * gallery. Clears the in-memory batch + hidden ids first so a racing [requestDeleteVideos] starts
+     * clean. A no-op when nothing is pending (e.g. an Undo already cleared it, or the snackbar is
+     * dismissed twice).
+     */
+    fun commitPendingDeletion() {
+        val batch = pendingBatch
+        if (batch.isEmpty()) return
+        pendingBatch = emptyList()
+        _pendingDeletionIds.value = emptySet()
         viewModelScope.launch {
-            videoStorage.deleteVideo(video)
+            batch.forEach { videoStorage.deleteVideo(it) }
             _recordedVideos.value = videoStorage.loadRecordedVideos()
         }
     }

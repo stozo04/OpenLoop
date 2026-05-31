@@ -6,12 +6,22 @@
     <string name="share_subject">OpenLoop boomerang</string>
 
     <!-- Post-save snackbars (slice 06) -->
-    <string name="snackbar_saved">Saved — view in gallery</string>
+    <string name="snackbar_saved">Loop saved</string>
     <string name="snackbar_view_action">View</string>
-    <string name="snackbar_save_failed">Couldn\'t save boomerang. Try again.</string>
+    <string name="snackbar_save_failed">Couldn\'t save loop. Try again.</string>
 
-    <!-- Gallery -->
-    <string name="gallery_delete">Delete loop</string>
+    <!-- Gallery: long-press multi-select + undo delete (Issue #35) -->
+    <string name="undo">Undo</string>
+    <plurals name="gallery_selection_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="gallery_delete_selected">Delete selected</string>
+    <string name="gallery_exit_selection">Exit selection</string>
+    <plurals name="gallery_loops_deleted">
+        <item quantity="one">1 loop deleted</item>
+        <item quantity="other">%d loops deleted</item>
+    </plurals>
 
     <!-- Import from library (slice 07) -->
     <string name="gallery_import">Import a video</string>
