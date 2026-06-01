@@ -137,6 +137,9 @@ dependencies {
     implementation(libs.androidx.camerax.video)
     implementation(libs.androidx.camerax.view)
 
+    // WorkManager — long-running Loopifying export survives backgrounding (Issue #40)
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Media3 (ExoPlayer & Video Reversal/Processing)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.transformer)
@@ -158,5 +161,6 @@ dependencies {
     // InputManager.getInstance() (removed in Android 16 / API 36) with getSystemService,
     // fixing the NoSuchMethodException that broke every instrumented test on API 36.
     androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.androidx.work.testing)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

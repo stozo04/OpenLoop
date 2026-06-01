@@ -22,6 +22,7 @@ in**. Keep these in sync if the app's behavior changes.
 - [x] **16 KB-aligned native libs** (uncompressed packaging).
 - [x] **Minimal permissions** — `CAMERA` only; no `INTERNET`; photo import needs no storage permission.
 - [x] **applicationId `io.github.stozo04.openloop`** — permanent, verified unused on Play.
+- [x] **Store-listing graphics** — [`play_store_icon_512.png`](play_store_icon_512.png) (512×512, no alpha, no baked corners) and [`feature_graphic_1024x500.png`](feature_graphic_1024x500.png) (1024×500, no alpha) ready to upload. Brand-asset overview in the root [`README.md` → Brand Assets](../../README.md#brand-assets).
 
 ### You do — developer account & build (can start in parallel; account verification takes days)
 - [ ] Create a **Google Play Developer account** ($25 + identity verification).

@@ -15,6 +15,9 @@ import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.media.needsReverse
+import io.github.stozo04.openloop.work.BoomerangRenderRequest
+import io.github.stozo04.openloop.work.BoomerangRenderScheduler
+import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 import androidx.camera.video.VideoRecordEvent
 
 /**
@@ -79,6 +83,7 @@ class OpenLoopViewModel(
     private val videoStorage: VideoStorageRepository,
     private val videoProcessor: VideoProcessor,
     private val videoImporter: VideoImporter,
+    private val renderScheduler: BoomerangRenderScheduler,
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -211,6 +216,12 @@ class OpenLoopViewModel(
     /** In-flight reverse-generation for the preview; canceled when the editing session ends. */
     private var reverseJob: Job? = null
 
+    /** Observes WorkManager progress/completion for the active Loopifying export (Issue #40). */
+    private var renderObserveJob: Job? = null
+
+    /** Scratch UUID of the render currently enqueued — used by [cancelRenderWork] (P2 cancel). */
+    private var activeRenderScratchUuid: String? = null
+
     /** Render progress (0f..1f) for the [OpenLoopUiState.Processing] spinner. */
     private val _renderProgress = MutableStateFlow(0f)
     val renderProgress: StateFlow<Float> = _renderProgress.asStateFlow()
@@ -218,6 +229,13 @@ class OpenLoopViewModel(
     /** One-shot snackbar events (see [BoomerangEvent]); collected once by MainActivity. */
     private val _events = Channel<BoomerangEvent>(Channel.BUFFERED)
     val events: Flow<BoomerangEvent> = _events.receiveAsFlow()
+
+    /**
+     * One-shot signal for MainActivity to request [android.Manifest.permission.POST_NOTIFICATIONS]
+     * on first Save (API 33+). Activity checks grant state before showing the system dialog.
+     */
+    private val _requestPostNotifications = Channel<Unit>(Channel.CONFLATED)
+    val requestPostNotifications: Flow<Unit> = _requestPostNotifications.receiveAsFlow()
 
     /** The in-flight capture's scratch file; non-null between capture start and Trim discard/save. */
     private var activeScratch: ScratchCapture? = null
@@ -631,9 +649,6 @@ class OpenLoopViewModel(
         val tab = _editorTabState.value
         val mode = tab.mode
 
-        _uiState.value = OpenLoopUiState.Processing
-        _renderProgress.value = 0f
-
         viewModelScope.launch {
             try {
                 // Promote once and cache it, so a retry after a failed render doesn't create a 2nd raw.
@@ -642,45 +657,80 @@ class OpenLoopViewModel(
                         ?: throw IOException("Failed to promote scratch ${scratch.uuid} to a raw"))
 
                 val output = videoStorage.allocateBoomerangFile(raw.id)
-                videoProcessor.renderBoomerang(
-                    source = scratch.file, // same path the preview reversed → shared reverse cache
+                val returnToGallery = importedSession // capture before clearEditorSession() resets it
+
+                _requestPostNotifications.trySend(Unit)
+
+                val request = BoomerangRenderRequest(
+                    scratch = scratch,
                     trimStartMs = editor.trimStartMs,
                     trimEndMs = editor.trimEndMs,
                     mode = mode,
                     speed = tab.speed,
                     filter = tab.filter,
                     repetitions = DEFAULT_REPS,
+                    rawId = raw.id,
                     outputFile = output,
-                ) { fraction -> _renderProgress.value = fraction }
+                    returnToGallery = returnToGallery,
+                )
 
-                videoStorage.registerBoomerang(output, raw.id)
-                    ?: throw IOException("Failed to register boomerang ${output.name}")
+                _uiState.value = OpenLoopUiState.Processing
+                _renderProgress.value = 0f
 
-                val returnToGallery = importedSession // capture before clearEditorSession() resets it
-                videoStorage.discardScratch(scratch)
-                clearEditorSession()
-                loadRecordedVideos()
-                // Hand the rendered file to the share sheet (slice 06). `output` was captured before
-                // clearEditorSession(), so it survives the session reset. The "Saved" snackbar is NOT
-                // emitted here — it's deferred until the share sheet returns (onShareSheetClosed).
-                _events.send(BoomerangEvent.Share(output))
-                // A fresh capture lands back on the camera; an imported clip lands back on the gallery
-                // it was imported from (slice 07). The share sheet pops over whichever screen this is.
-                _uiState.value = if (returnToGallery) {
-                    OpenLoopUiState.Gallery
-                } else {
-                    OpenLoopUiState.ReadyToCapture
-                }
+                renderObserveJob?.cancel()
+                activeRenderScratchUuid = scratch.uuid
+                val workId = renderScheduler.enqueue(request)
+                observeRenderWork(workId, scratch)
             } catch (e: CancellationException) {
                 throw e // never swallow cancellation (Lesson 013)
             } catch (e: IOException) {
-                Log.e("OpenLoopViewModel", "Boomerang save failed (IO)", e)
-                failBackToEditor(scratch)
-            } catch (e: RuntimeException) {
-                // Media3 / MediaCodec surface render failures as runtime exceptions; recover the UI.
-                Log.e("OpenLoopViewModel", "Boomerang render failed", e)
+                Log.e("OpenLoopViewModel", "Boomerang save failed before render enqueue (IO)", e)
                 failBackToEditor(scratch)
             }
+        }
+    }
+
+    /**
+     * Cancel the in-flight Loopifying export for the active scratch (P2 cancel coordination).
+     * No-op when nothing is rendering.
+     */
+    fun cancelRenderWork() {
+        activeRenderScratchUuid?.let { renderScheduler.cancelRenderWork(it) }
+    }
+
+    private fun observeRenderWork(workId: UUID, scratch: ScratchCapture) {
+        renderObserveJob = viewModelScope.launch {
+            launch {
+                renderScheduler.observeProgress(workId).collect { fraction ->
+                    _renderProgress.value = fraction
+                }
+            }
+            renderScheduler.observeResult(workId).collect { result ->
+                when (result) {
+                    is BoomerangRenderWorkResult.Success -> onRenderSucceeded(result)
+                    BoomerangRenderWorkResult.Failure -> failBackToEditor(scratch)
+                }
+            }
+        }
+    }
+
+    private suspend fun onRenderSucceeded(result: BoomerangRenderWorkResult.Success) {
+        // End the WorkManager observer without canceling this coroutine mid-collect.
+        renderObserveJob = null
+        activeRenderScratchUuid = null
+        cancelReverseJob()
+        activeScratch = null
+        promotedRaw = null
+        importedSession = false
+        _editorState.value = null
+        _editorTabState.value = EditorTabState()
+        _renderProgress.value = 0f
+        loadRecordedVideos()
+        _events.send(BoomerangEvent.Share(result.outputFile))
+        _uiState.value = if (result.returnToGallery) {
+            OpenLoopUiState.Gallery
+        } else {
+            OpenLoopUiState.ReadyToCapture
         }
     }
 
@@ -697,6 +747,10 @@ class OpenLoopViewModel(
 
     /** Emit [BoomerangEvent.Failed] and route back to the editor, preserving the direction selection. */
     private suspend fun failBackToEditor(scratch: ScratchCapture) {
+        renderObserveJob?.cancel()
+        renderObserveJob = null
+        activeRenderScratchUuid = null
+        _renderProgress.value = 0f
         _events.send(BoomerangEvent.Failed)
         _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
     }
@@ -707,9 +761,16 @@ class OpenLoopViewModel(
         reverseJob = null
     }
 
-    /** Clear the active editing session (after a save or discard). Does NOT touch on-disk files. */
+    private fun cancelRenderObserveJob() {
+        renderObserveJob?.cancel()
+        renderObserveJob = null
+        activeRenderScratchUuid = null
+    }
+
+    /** Clear the active editing session (after discard or navigation away). Does NOT touch on-disk files. */
     private fun clearEditorSession() {
         cancelReverseJob()
+        cancelRenderObserveJob()
         activeScratch = null
         promotedRaw = null
         importedSession = false
@@ -763,11 +824,18 @@ class OpenLoopViewModel(
         private val videoStorage: VideoStorageRepository,
         private val videoProcessor: VideoProcessor,
         private val videoImporter: VideoImporter,
+        private val renderScheduler: BoomerangRenderScheduler,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(OpenLoopViewModel::class.java)) {
-                return OpenLoopViewModel(userPreferencesRepository, videoStorage, videoProcessor, videoImporter) as T
+                return OpenLoopViewModel(
+                    userPreferencesRepository,
+                    videoStorage,
+                    videoProcessor,
+                    videoImporter,
+                    renderScheduler,
+                ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

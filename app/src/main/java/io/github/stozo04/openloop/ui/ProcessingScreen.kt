@@ -14,7 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
 import io.github.stozo04.openloop.ui.theme.OverlayWhite
@@ -30,11 +33,14 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
  *
  * The system back button is intentionally CONSUMED here: mid-render cancel ("oops") is out of scope
  * for slice 02, so back must not silently abort the in-flight Transformer or finish the Activity.
+ * Loopifying runs in a WorkManager worker (Issue #40) so leaving the app is safe when notifications
+ * are granted.
  */
 @Composable
 fun ProcessingScreen(
     progress: () -> Float,
     modifier: Modifier = Modifier,
+    showBackgroundExportHint: Boolean = false,
 ) {
     BackHandler(enabled = true) { /* consume: no mid-render cancel in slice 02 */ }
 
@@ -52,7 +58,7 @@ fun ProcessingScreen(
                 trackColor = OverlayWhite,
             )
             Text(
-                text = "Loopifying…",
+                text = stringResource(R.string.processing_title),
                 modifier = Modifier.padding(top = 24.dp),
                 color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
@@ -62,6 +68,19 @@ fun ProcessingScreen(
                 modifier = Modifier.padding(top = 8.dp),
                 color = Color.White.copy(alpha = 0.7f),
                 style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = stringResource(
+                    if (showBackgroundExportHint) {
+                        R.string.processing_background_hint_no_notifications
+                    } else {
+                        R.string.processing_background_hint
+                    },
+                ),
+                modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
+                color = Color.White.copy(alpha = 0.6f),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
             )
         }
     }

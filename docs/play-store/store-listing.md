@@ -62,15 +62,16 @@ Made for people who just want to point, tap, and loop.
 
 ## Graphic assets — exact specs
 
-| Asset | Required? | Spec |
-|---|---|---|
-| **App icon** | Yes | **512 × 512 px**, **32-bit PNG with alpha**, ≤ **1024 KB**. (Generate from `ic_launcher`; the in-repo neon-infinity mark is the source of truth.) |
-| **Feature graphic** | **Yes (required to publish)** | **1024 × 500 px**, JPEG or **24-bit PNG (no alpha)**. |
-| **Phone screenshots** | Yes — **min 2**, max 8 | JPEG or 24-bit PNG (no alpha). Each side **320–3840 px**, and a side may not exceed **2×** the other. **Recommended: 4–8 portrait shots at 1080 × 1920 px** (OpenLoop is a portrait app). |
-| 7" / 10" tablet screenshots | Optional | Only if you market tablet support; otherwise skip. |
+| Asset | Required? | Spec | In repo |
+|---|---|---|---|
+| **App icon** | Yes | **512 × 512 px**, **24-bit PNG (no alpha)**, ≤ **1024 KB**. **No baked corners** — as of **2026-03-31**, Play auto-applies a 30% corner radius at display time. Ship a square. | [`play_store_icon_512.png`](play_store_icon_512.png) |
+| **Feature graphic** | **Yes (required to publish)** | **1024 × 500 px**, JPEG or **24-bit PNG (no alpha)**. Keep critical content off dead-center — Play overlays a promo-video play button there when a video is attached. | [`feature_graphic_1024x500.png`](feature_graphic_1024x500.png) |
+| **Phone screenshots** | Yes — **min 2**, max 8 | JPEG or 24-bit PNG (no alpha). Each side **320–3840 px**, and a side may not exceed **2×** the other. **Recommended: 4–8 portrait shots at 1080 × 1920 px** (OpenLoop is a portrait app). | — (capture during device QA) |
+| 7" / 10" tablet screenshots | Optional | Only if you market tablet support; otherwise skip. | — |
 
 > Phone screenshots are the only image assets that need the device — capture them during your QA pass
-> (see below). The icon already exists; the feature graphic is a 1024×500 banner you design once.
+> (see below). The icon and feature graphic are versioned in this folder; re-export them if the brand
+> colors or wordmark change, and keep them in sync with `app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`.
 
 ---
 

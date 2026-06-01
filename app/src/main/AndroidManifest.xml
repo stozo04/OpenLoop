@@ -5,6 +5,12 @@
     <!-- Video-only capture — no microphone; exported loops are silent. -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- Loopifying export — WorkManager long-running worker + mediaProcessing FGS (Issue #40). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <!-- API 33+ runtime — progress notification while the user is in another app. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Declare camera hardware usage -->
     <uses-feature android:name="android.hardware.camera" android:required="true" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -57,6 +63,13 @@
              no clean per-line manifest suppression for it — so those red markers are accepted, not a
              defect. Do NOT remove the <service> to clear them: it is what gives API 26–29 the picker.
              See https://developer.android.com/training/data-storage/shared/photopicker -->
+        <!-- WorkManager's merged foreground service — typed for media export (Issue #40).
+             https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/long-running -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="mediaProcessing"
+            tools:node="merge" />
+
         <service
             android:name="com.google.android.gms.metadata.ModuleDependencies"
             android:enabled="false"
