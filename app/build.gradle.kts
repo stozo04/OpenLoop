@@ -55,6 +55,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Embed native debug symbols in the AAB so Play Console can de-obfuscate native crashes/ANRs
+            // (CameraX, Media3, etc. ship .so libs). SYMBOL_TABLE is enough for Play; no separate upload.
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
             // Sign the release (APK/AAB) only when the keystore is present; otherwise leave it
             // unsigned so non-publishing tasks still build.
             signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else null
