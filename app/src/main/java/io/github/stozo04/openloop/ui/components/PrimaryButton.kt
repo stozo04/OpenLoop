@@ -102,7 +102,12 @@ fun PrimaryButton(
                 )
             }
         } else {
-            Text(text = text, color = labelColor, style = MaterialTheme.typography.labelLarge)
+            Text(
+                text = text,
+                color = labelColor,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 28.dp),
+            )
         }
     }
 }

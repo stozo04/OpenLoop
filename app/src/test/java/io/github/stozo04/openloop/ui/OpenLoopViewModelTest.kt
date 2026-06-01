@@ -932,6 +932,22 @@ class OpenLoopViewModelTest {
         assertTrue(viewModel.recordedVideos.value.isEmpty())
     }
 
+    @Test
+    fun `shareLoop emits Share for the gallery clip without a Saved snackbar follow-up`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            seedAndLoad(1)
+            val clip = viewModel.recordedVideos.value.single()
+            val events = mutableListOf<BoomerangEvent>()
+            backgroundScope.launch { viewModel.events.toList(events) }
+
+            viewModel.shareLoop(clip)
+            advanceUntilIdle()
+
+            val share = events.filterIsInstance<BoomerangEvent.Share>().single()
+            assertEquals(File(clip.videoPath), share.file)
+            assertFalse(share.showSavedSnackbarAfterDismiss)
+        }
+
     // ── Deferred deletion + Undo (Issue #35) ──
 
     /** Seed [count] raw clips into storage and load them so the gallery flows are populated. */

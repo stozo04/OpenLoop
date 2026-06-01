@@ -303,8 +303,33 @@ fun BoomerangEditorContent(
     // Apply the color look live (the Looks tab's whole point). setVideoEffects is ExoPlayer's preview
     // path for effects (same Effect objects as the render), so tapping a look re-tints the running
     // preview without a re-render. Independent of speed (a player setting) — they compose.
+    //
+    // Do NOT call setVideoEffects(emptyList()) for [VideoFilter.ORIGINAL]: even an empty list routes
+    // through DefaultVideoFrameProcessor, which cannot hand off from an imported HDR forward clip to
+    // the tone-mapped SDR reversed clip — playback freezes at the seam with checkColors /
+    // ExoPlaybackException (LogCat: VideoFrameProcessingException / IllegalArgumentException).
     LaunchedEffect(filter) {
-        exoPlayer.setVideoEffects(filter.toMediaEffects())
+        val effects = filter.toMediaEffects()
+        if (effects.isNotEmpty()) {
+            exoPlayer.setVideoEffects(effects)
+        }
+    }
+
+    // When a look *is* active, re-apply it at each playlist-item transition so the GL pipeline
+    // reconfigures cleanly across the HDR forward → SDR reversed seam on imported clips.
+    DisposableEffect(exoPlayer, filter) {
+        val effects = filter.toMediaEffects()
+        if (effects.isEmpty()) {
+            onDispose { }
+        } else {
+            val listener = object : Player.Listener {
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    exoPlayer.setVideoEffects(effects)
+                }
+            }
+            exoPlayer.addListener(listener)
+            onDispose { exoPlayer.removeListener(listener) }
+        }
     }
 
     // Apply speed to the preview, debounced: re-keying on `speed` cancels the prior pending delay, so a

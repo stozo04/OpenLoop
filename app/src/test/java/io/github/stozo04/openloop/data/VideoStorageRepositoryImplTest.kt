@@ -122,10 +122,10 @@ class VideoStorageRepositoryImplTest {
     }
 
     @Test
-    fun `allocateBoomerangFile names the file under boomerangs encoding the source raw id`() {
+    fun `allocateBoomerangFile names the file under videos encoding the source raw id`() {
         val file = repository.allocateBoomerangFile(sourceRawId = 777L)
 
-        assertEquals(File(filesDir, "boomerangs").absolutePath, file.parentFile?.absolutePath)
+        assertEquals(videosDir().absolutePath, file.parentFile?.absolutePath)
         assertTrue(file.name.startsWith("boom_") && file.name.endsWith("_from_777.mp4"))
         assertFalse(file.exists())
     }
@@ -164,13 +164,12 @@ class VideoStorageRepositoryImplTest {
 
     @Test
     fun `loadRecordedVideos includes boomerangs and parses the source raw id`() = runBlocking {
-        // Seed a raw + a boomerang (both with thumbnails so the lazy retriever path is skipped).
+        // Seed a raw + a rendered loop (both with thumbnails so the lazy retriever path is skipped).
         val videos = videosDir().apply { mkdirs() }
-        val booms = File(filesDir, "boomerangs").apply { mkdirs() }
         val thumbs = thumbnailsDir().apply { mkdirs() }
         File(videos, "clip_100.mp4").writeBytes(ByteArray(4))
         File(thumbs, "clip_100.jpg").writeBytes(ByteArray(4))
-        File(booms, "boom_200_from_100.mp4").writeBytes(ByteArray(4))
+        File(videos, "boom_200_from_100.mp4").writeBytes(ByteArray(4))
         File(thumbs, "boom_200_from_100.jpg").writeBytes(ByteArray(4))
 
         val result = repository.loadRecordedVideos()
@@ -182,6 +181,22 @@ class VideoStorageRepositoryImplTest {
         assertNull(raw.sourceRawId)
         assertEquals(200L, boomerang.id)
         assertEquals(100L, boomerang.sourceRawId)
+    }
+
+    @Test
+    fun `loadRecordedVideos migrates legacy boomerangs dir into videos`() = runBlocking {
+        val legacy = File(filesDir, "boomerangs").apply { mkdirs() }
+        val videos = videosDir().apply { mkdirs() }
+        thumbnailsDir().mkdirs()
+        File(legacy, "boom_300_from_100.mp4").writeBytes(ByteArray(4))
+        File(thumbnailsDir(), "boom_300_from_100.jpg").writeBytes(ByteArray(4))
+
+        val result = repository.loadRecordedVideos()
+
+        assertEquals(listOf(300L), result.map { it.id })
+        assertEquals(VideoKind.BOOMERANG, result.single().kind)
+        assertTrue(File(videos, "boom_300_from_100.mp4").exists())
+        assertFalse(File(legacy, "boom_300_from_100.mp4").exists())
     }
 
     @Test

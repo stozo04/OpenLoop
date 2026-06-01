@@ -43,11 +43,15 @@ import androidx.camera.video.VideoRecordEvent
  */
 sealed interface BoomerangEvent {
     /**
-     * Boomerang rendered + saved; carries the rendered [file] (a `filesDir/boomerangs/` MP4) so the
+     * Boomerang rendered + saved; carries the rendered [file] (a `filesDir/videos/boom_*.mp4` loop) so the
      * UI can hand it to the Android share sheet (slice 06). The "Saved — view in gallery" snackbar is
      * deferred until the share sheet is dismissed (see [BoomerangEvent.Saved] / [onShareSheetClosed]).
      */
-    data class Share(val file: File) : BoomerangEvent
+    data class Share(
+        val file: File,
+        /** When false (gallery re-share), the share sheet still opens but no "Saved" snackbar follows. */
+        val showSavedSnackbarAfterDismiss: Boolean = true,
+    ) : BoomerangEvent
     /**
      * Show the "Saved — view in gallery" snackbar (with a "View" action into the gallery). Emitted
      * *after* the share sheet returns control — see [onShareSheetClosed] — so the snackbar isn't wasted
@@ -367,6 +371,18 @@ class OpenLoopViewModel(
         pendingBatch = videos
         _pendingDeletionIds.value = videos.map { it.id }.toSet()
         viewModelScope.launch { _events.send(BoomerangEvent.LoopsDeleted(videos.size)) }
+    }
+
+    /** Re-open the Android share sheet for an existing saved loop (gallery preview). */
+    fun shareLoop(video: RecordedVideo) {
+        viewModelScope.launch {
+            _events.send(
+                BoomerangEvent.Share(
+                    file = File(video.videoPath),
+                    showSavedSnackbarAfterDismiss = false,
+                ),
+            )
+        }
     }
 
     /** Undo the pending deletion: forget the batch + restore the hidden tiles. Nothing was deleted. */
