@@ -1,6 +1,8 @@
 package io.github.stozo04.openloop.data
 
 import android.content.ContentResolver
+import android.content.Context
+import android.content.res.AssetFileDescriptor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
@@ -17,7 +19,7 @@ import java.io.IOException
  * [VideoStorageRepository] (Lesson 004): reading a `content://` URI needs a [ContentResolver], which
  * only a `Context` can supply, and the repository must never hold one. The
  * [OpenLoopViewModel][io.github.stozo04.openloop.ui.OpenLoopViewModel]'s `Factory` bridges
- * `applicationContext.contentResolver` into [VideoImporterImpl] once, in `MainActivity`.
+ * `applicationContext` into [VideoImporterImpl] once, in `MainActivity`.
  */
 interface VideoImporter {
     /**
@@ -35,31 +37,54 @@ interface VideoImporter {
     suspend fun importToFile(source: Uri, dest: File): Boolean
 }
 
-class VideoImporterImpl(private val contentResolver: ContentResolver) : VideoImporter {
+class VideoImporterImpl(context: Context) : VideoImporter {
+
+    private val appContext = context.applicationContext
+    private val contentResolver: ContentResolver = appContext.contentResolver
 
     override suspend fun probeDurationMs(source: Uri): Long = withContext(Dispatchers.IO) {
         val retriever = MediaMetadataRetriever()
         try {
-            // openAssetFileDescriptor keeps this class Context-free (vs setDataSource(context, uri)).
-            contentResolver.openAssetFileDescriptor(source, "r")?.use { afd ->
-                // Use the offset-aware overload. An AssetFileDescriptor can describe a region of a
-                // larger file (a non-zero startOffset is legal — some providers pack media inside a
-                // container), and setDataSource(FileDescriptor) reads from position 0, which would
-                // misread the duration of such a clip. Since this probe is the gate for the entire
-                // import (a misread → wrongly reject or silently drop a valid pick), pass the AFD's
-                // own offset + length — the same idiom MediaPlayer.setDataSource(afd) uses internally.
-                // The (FileDescriptor, long, long) overload exists since API 10, so it's safe at minSdk 26.
-                retriever.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-            } ?: 0L
+            readDurationMs(retriever, source)
         } catch (e: IllegalArgumentException) {
             Log.e(TAG, "probe failed", e); 0L
         } catch (e: IOException) {
             Log.e(TAG, "probe open failed", e); 0L
         } catch (e: SecurityException) {
             Log.e(TAG, "probe not permitted", e); 0L
+        } catch (e: RuntimeException) {
+            // MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions.
+            Log.e(TAG, "probe decode failed", e); 0L
         } finally {
             retriever.release()
+        }
+    }
+
+    /**
+     * Tries the AssetFileDescriptor path first (offset-aware for embedded regions), then falls back to
+     * [MediaMetadataRetriever.setDataSource] with the content [Uri] when the AFD path fails or the
+     * provider reports [AssetFileDescriptor.UNKNOWN_LENGTH] — a common Photo Picker case that would
+     * otherwise make the pre-copy probe return 0 and reject the clip with a generic failure.
+     */
+    private fun readDurationMs(retriever: MediaMetadataRetriever, source: Uri): Long {
+        contentResolver.openAssetFileDescriptor(source, "r")?.use { afd ->
+            bindRetrieverToAsset(retriever, afd)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()?.let {
+                if (it > 0L) return it
+            }
+        }
+        retriever.setDataSource(appContext, source)
+        return retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+    }
+
+    private fun bindRetrieverToAsset(retriever: MediaMetadataRetriever, afd: AssetFileDescriptor) {
+        val length = afd.length
+        if (length > 0L && length != AssetFileDescriptor.UNKNOWN_LENGTH) {
+            // Offset-aware overload for providers that expose a region inside a larger file.
+            retriever.setDataSource(afd.fileDescriptor, afd.startOffset, length)
+        } else {
+            // UNKNOWN_LENGTH is legal for many content providers; the 3-arg overload rejects it.
+            retriever.setDataSource(afd.fileDescriptor)
         }
     }
 

@@ -235,6 +235,19 @@ class OpenLoopViewModel(
     val events: Flow<BoomerangEvent> = _events.receiveAsFlow()
 
     /**
+     * Friendly "That clip's a bit long" dialog (slice 07). Held in a [StateFlow] (not a one-shot
+     * event) so the dialog survives Activity recreation after the Photo Picker returns — a Channel
+     * event can be emitted before MainActivity's collector is subscribed and then never shown.
+     */
+    private val _showImportTooLongDialog = MutableStateFlow(false)
+    val showImportTooLongDialog: StateFlow<Boolean> = _showImportTooLongDialog.asStateFlow()
+
+    /** Dismisses the import-too-long guidance dialog after the user taps "Got it". */
+    fun dismissImportTooLongDialog() {
+        _showImportTooLongDialog.value = false
+    }
+
+    /**
      * One-shot signal for MainActivity to request [android.Manifest.permission.POST_NOTIFICATIONS]
      * on first Save (API 33+). Activity checks grant state before showing the system dialog.
      */
@@ -440,7 +453,7 @@ class OpenLoopViewModel(
                 // container duration reads 30.2–30.5 s. The grace only ever makes us *more* permissive
                 // than the promise, never stricter — so no user is surprised by a rejection, and a clip
                 // comfortably past 30 s is still rejected, exactly matching the "up to 30 seconds" copy.
-                durationMs > IMPORT_MAX_DURATION_MS + IMPORT_DURATION_GRACE_MS -> warnTooLong()
+                exceedsImportDurationLimit(durationMs) -> warnTooLong()
                 else -> {
                     val scratch = videoStorage.createScratchCapture()
                     if (!videoImporter.importToFile(uri, scratch.file)) {
@@ -449,10 +462,18 @@ class OpenLoopViewModel(
                         return@launch
                     }
                     val dur = videoStorage.durationOf(scratch.file)
-                    if (dur <= 0L) {
-                        videoStorage.discardScratch(scratch)
-                        failImport()
-                        return@launch
+                    when {
+                        dur <= 0L -> {
+                            videoStorage.discardScratch(scratch)
+                            failImport()
+                            return@launch
+                        }
+                        exceedsImportDurationLimit(dur) -> {
+                            // Pre-copy probe can under-read; enforce the cap again on the local copy.
+                            videoStorage.discardScratch(scratch)
+                            warnTooLong()
+                            return@launch
+                        }
                     }
                     // Defensive: replacing activeScratch must not orphan a previous session's scratch
                     // copy. In practice it's already null here — the import action lives only on the
@@ -484,9 +505,14 @@ class OpenLoopViewModel(
 
     /** Picked clip exceeded the import limit: friendly dialog + back to the gallery (nothing copied). */
     private suspend fun warnTooLong() {
+        _showImportTooLongDialog.value = true
         _events.send(BoomerangEvent.ImportTooLong)
         _uiState.value = OpenLoopUiState.Gallery
     }
+
+    /** True when [durationMs] is past the advertised "up to 30 s" import cap (including grace). */
+    private fun exceedsImportDurationLimit(durationMs: Long): Boolean =
+        durationMs > IMPORT_MAX_DURATION_MS + IMPORT_DURATION_GRACE_MS
 
     /**
      * Finalize the current burst. Called from both the user-tap path and the 30 s auto-cap path.

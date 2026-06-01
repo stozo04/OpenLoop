@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
             MediaComponents.buildVideoProcessor(applicationContext),
             // ContentResolver lives in the Activity bridge (Lesson 004); the importer holds it, the
             // ViewModel never sees a Context. applicationContext's resolver is process-lived and safe.
-            VideoImporterImpl(applicationContext.contentResolver),
+            VideoImporterImpl(applicationContext),
             WorkManagerBoomerangRenderScheduler(WorkManager.getInstance(applicationContext)),
         )
     }
@@ -185,9 +185,9 @@ class MainActivity : ComponentActivity() {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val snackbarHostState = remember { SnackbarHostState() }
 
-                // Drives the friendly "That clip's a bit long" dialog (slice 07); flipped true when an
-                // ImportTooLong event arrives and false when the user dismisses it.
-                var showTooLongDialog by remember { mutableStateOf(false) }
+                // Friendly "That clip's a bit long" dialog (slice 07); held in the ViewModel so it
+                // survives Activity recreation after the Photo Picker returns.
+                val showTooLongDialog by viewModel.showImportTooLongDialog.collectAsStateWithLifecycle()
 
                 // Hoisted out of the (non-composable) collect lambda below — stringResource can only
                 // be read in a composable scope.
@@ -241,9 +241,10 @@ class MainActivity : ComponentActivity() {
                             BoomerangEvent.ImportFailed -> snackbarHostState.showSnackbar(
                                 message = importFailedMessage,
                             )
-                            // Picked clip was too long (slice 07): a friendly dialog reads as guidance,
-                            // not an error. The ViewModel has already returned the user to the gallery.
-                            BoomerangEvent.ImportTooLong -> showTooLongDialog = true
+                            // Picked clip was too long (slice 07): dialog is driven by
+                            // [OpenLoopViewModel.showImportTooLongDialog] so it survives Activity
+                            // recreation after the Photo Picker closes.
+                            BoomerangEvent.ImportTooLong -> Unit
                             // Loops marked for deletion (Issue #35): show an Undo snackbar. The real
                             // file delete is deferred — Undo restores the tiles, any other dismissal
                             // (timeout, swipe, or a superseding delete) commits the delete to disk.
@@ -308,7 +309,7 @@ class MainActivity : ComponentActivity() {
 
                     // Friendly "too long" guidance over the gallery (slice 07).
                     if (showTooLongDialog) {
-                        ImportTooLongDialog(onDismiss = { showTooLongDialog = false })
+                        ImportTooLongDialog(onDismiss = { viewModel.dismissImportTooLongDialog() })
                     }
                 }
             }
