@@ -142,6 +142,7 @@ class VideoReverser(
                 setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
                 // Every frame an I-frame → pass 2 can seek to any frame. This is the whole point of pass 1.
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 0)
+                applySdrBt709ColorMetadata()
             }
 
             encoder = selectAvcEncoder(encoderFormat).apply {
@@ -241,6 +242,7 @@ class VideoReverser(
                 setInteger(MediaFormat.KEY_BIT_RATE, estimateBitRate(width, height))
                 setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, DEFAULT_I_FRAME_INTERVAL)
+                applySdrBt709ColorMetadata()
             }
             encoder = selectAvcEncoder(encoderFormat).apply {
                 configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -459,6 +461,20 @@ class VideoReverser(
     private fun MediaFormat.requestSdrToneMapping() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             setInteger(MediaFormat.KEY_COLOR_TRANSFER_REQUEST, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
+        }
+    }
+
+    /**
+     * Stamp explicit BT709 limited-range SDR metadata on our AVC encoder output. Without this, the
+     * muxer can emit `color aspects (0:0:0:0)` and ExoPlayer's preview effects pipeline rejects the
+     * reversed half of an imported HDR clip at the forward→reverse seam (`checkColors` /
+     * `isDataSpaceValid`).
+     */
+    private fun MediaFormat.applySdrBt709ColorMetadata() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
+            setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+            setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
         }
     }
 

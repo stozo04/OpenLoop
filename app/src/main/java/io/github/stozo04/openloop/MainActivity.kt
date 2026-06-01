@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -137,6 +138,9 @@ class MainActivity : ComponentActivity() {
      */
     private var deferredShareFile: File? = null
 
+    /** Whether [deferredShareFile] should trigger the post-save "Saved" snackbar on return (slice 06). */
+    private var deferredShareShowSavedSnackbar = true
+
     private val requestPostNotificationsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { /* granted or denied — export continues either way; notification is best-effort */ }
@@ -172,6 +176,8 @@ class MainActivity : ComponentActivity() {
         // snackbar still fires on the onResume that follows the chooser dismissing.
         awaitingShareReturn = savedInstanceState?.getBoolean(KEY_AWAITING_SHARE_RETURN) == true
         deferredShareFile = savedInstanceState?.getString(KEY_DEFERRED_SHARE_PATH)?.let { File(it) }
+        deferredShareShowSavedSnackbar =
+            savedInstanceState?.getBoolean(KEY_DEFERRED_SHARE_SHOW_SAVED, true) != false
         cameraManager = CameraManager(this)
 
         setContent {
@@ -213,6 +219,7 @@ class MainActivity : ComponentActivity() {
                             is BoomerangEvent.Share -> deliverShareSheet(
                                 file = event.file,
                                 lifecycle = lifecycleOwner.lifecycle,
+                                showSavedSnackbarAfterDismiss = event.showSavedSnackbarAfterDismiss,
                             )
                             BoomerangEvent.Saved -> {
                                 // Explicit Short (~4 s) auto-dismiss: with a non-null actionLabel the
@@ -339,8 +346,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Pop the Android share sheet for a just-rendered boomerang [file] (slice 06). The file lives in
-     * `filesDir/boomerangs/`, exposed by the manifest's FileProvider; [FileProvider.getUriForFile]
+     * Pop the Android share sheet for a rendered loop [file] (slice 06). The file lives in
+     * `filesDir/videos/`, exposed by the manifest's FileProvider; [FileProvider.getUriForFile]
      * mints a `content://` URI and the [Intent.FLAG_GRANT_READ_URI_PERMISSION] set in
      * [buildBoomerangShareIntent] grants the chosen receiver temporary read access. We flag
      * [awaitingShareReturn] so the "Saved" snackbar fires on the next [onResume] (when the user is
@@ -350,11 +357,16 @@ class MainActivity : ComponentActivity() {
      * Launch the share sheet when the Activity is foregrounded; otherwise defer to [onResume]
      * (Google BAL — Issue #40).
      */
-    private fun deliverShareSheet(file: File, lifecycle: Lifecycle) {
+    private fun deliverShareSheet(
+        file: File,
+        lifecycle: Lifecycle,
+        showSavedSnackbarAfterDismiss: Boolean = true,
+    ) {
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            launchShareSheet(file)
+            launchShareSheet(file, showSavedSnackbarAfterDismiss)
         } else {
             deferredShareFile = file
+            deferredShareShowSavedSnackbar = showSavedSnackbarAfterDismiss
         }
     }
 
@@ -368,9 +380,16 @@ class MainActivity : ComponentActivity() {
         requestPostNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    private fun launchShareSheet(file: File) {
+    private fun launchShareSheet(file: File, showSavedSnackbarAfterDismiss: Boolean = true) {
+        // FileProvider exposes filesDir/videos/ (slice 06) — scratch/cache paths must never reach here.
+        if (!file.path.contains("${File.separator}videos${File.separator}")) {
+            Log.w(TAG, "Refusing to share file outside videos/: ${file.path}")
+            return
+        }
         val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-        awaitingShareReturn = true
+        if (showSavedSnackbarAfterDismiss) {
+            awaitingShareReturn = true
+        }
         val shareIntent = buildBoomerangShareIntent(uri, getString(R.string.share_subject))
         startActivity(Intent.createChooser(shareIntent, getString(R.string.share_chooser_title)))
     }
@@ -378,8 +397,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         deferredShareFile?.let { file ->
+            val showSaved = deferredShareShowSavedSnackbar
             deferredShareFile = null
-            launchShareSheet(file)
+            launchShareSheet(file, showSaved)
             return
         }
         // Returned from a share chooser (shared, canceled, or backed out — all the same): now that the
@@ -395,6 +415,7 @@ class MainActivity : ComponentActivity() {
         // Survive recreation while the chooser is on top — see [awaitingShareReturn].
         outState.putBoolean(KEY_AWAITING_SHARE_RETURN, awaitingShareReturn)
         deferredShareFile?.absolutePath?.let { outState.putString(KEY_DEFERRED_SHARE_PATH, it) }
+        outState.putBoolean(KEY_DEFERRED_SHARE_SHOW_SAVED, deferredShareShowSavedSnackbar)
     }
 
     override fun onDestroy() {
@@ -408,6 +429,11 @@ private const val KEY_AWAITING_SHARE_RETURN = "openloop.awaitingShareReturn"
 
 /** Key under which [MainActivity.deferredShareFile] is persisted across recreation (Issue #40). */
 private const val KEY_DEFERRED_SHARE_PATH = "openloop.deferredSharePath"
+
+/** Key under which [MainActivity.deferredShareShowSavedSnackbar] is persisted across recreation. */
+private const val KEY_DEFERRED_SHARE_SHOW_SAVED = "openloop.deferredShareShowSaved"
+
+private const val TAG = "MainActivity"
 
 @Composable
 private fun rememberNotificationExportHint(): Boolean {

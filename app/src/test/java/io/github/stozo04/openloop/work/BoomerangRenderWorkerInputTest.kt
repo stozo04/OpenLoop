@@ -14,7 +14,7 @@ class BoomerangRenderWorkerInputTest {
     @Test
     fun `toInputData and from round-trip all fields`() {
         val scratch = ScratchCapture("uuid-abc", File("/cache/scratch/raw_uuid-abc.mp4"))
-        val output = File("/files/boomerangs/boom_1_from_2.mp4")
+        val output = File("/files/videos/boom_1_from_2.mp4")
         val request = BoomerangRenderRequest(
             scratch = scratch,
             trimStartMs = 100L,

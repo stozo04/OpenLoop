@@ -5,9 +5,9 @@ import java.io.File
 /**
  * Whether a [RecordedVideo] is an original capture (a "raw") or a rendered boomerang.
  *
- * Inferred from the file's parent directory at load time (`videos/` → [RAW],
- * `boomerangs/` → [BOOMERANG]) — there is no separate index. Slice 02 displays both
- * kinds in the gallery without distinction; badges + a filter chip arrive in slice 07.
+ * Inferred from the filename prefix at load time (`clip_` → [RAW], `boom_` → [BOOMERANG]) — both
+ * kinds live under `filesDir/videos/`. Slice 02 displayed both in the gallery without distinction;
+ * badges + a filter chip arrive in slice 07.
  */
 enum class VideoKind { RAW, BOOMERANG }
 
@@ -47,7 +47,7 @@ data class ScratchCapture(val uuid: String, val file: File)
  * Backed by the app's private filesystem:
  * - `cacheDir/scratch/raw_<uuid>.mp4` — per-capture scratch (volatile; cache-evictable)
  * - `filesDir/videos/clip_<ts>.mp4` — persisted raw captures
- * - `filesDir/boomerangs/boom_<ts>_from_<rawTs>.mp4` — rendered boomerangs
+ * - `filesDir/videos/boom_<ts>_from_<rawTs>.mp4` — rendered loops
  * - `filesDir/thumbnails/<stem>.jpg` — thumbnails for both kinds
  *
  * The ViewModel depends on this interface — never on [android.content.Context] — so the

@@ -18,8 +18,8 @@ import java.util.UUID
  *
  * On-disk layout:
  * - scratch capture:  `cacheDir/scratch/raw_<uuid>.mp4` (per capture; cache-evictable)
- * - persisted raws:   `filesDir/videos/clip_<timestamp>.mp4`
- * - boomerangs:       `filesDir/boomerangs/boom_<timestamp>_from_<rawTimestamp>.mp4`
+ * - persisted clips:  `filesDir/videos/` — raws as `clip_<timestamp>.mp4`, rendered loops as
+ *   `boom_<timestamp>_from_<rawTimestamp>.mp4` (same directory; distinguished by filename prefix)
  * - thumbnails:       `filesDir/thumbnails/<same-stem>.jpg` (JPEG, 90% quality)
  */
 class VideoStorageRepositoryImpl(
@@ -28,7 +28,6 @@ class VideoStorageRepositoryImpl(
 ) : VideoStorageRepository {
 
     private val videosDir = File(filesDir, "videos")
-    private val boomerangsDir = File(filesDir, "boomerangs")
     private val thumbnailsDir = File(filesDir, "thumbnails")
     private val scratchDir = File(cacheDir, "scratch")
 
@@ -124,7 +123,7 @@ class VideoStorageRepositoryImpl(
 
     override fun allocateBoomerangFile(sourceRawId: Long): File {
         val timestamp = nextTimestamp()
-        return File(boomerangsDir.apply { mkdirs() }, "boom_${timestamp}_from_$sourceRawId.mp4")
+        return File(videosDir.apply { mkdirs() }, "boom_${timestamp}_from_$sourceRawId.mp4")
     }
 
     override suspend fun registerBoomerang(file: File, sourceRawId: Long): RecordedVideo? =
@@ -168,9 +167,34 @@ class VideoStorageRepositoryImpl(
     }
 
     override suspend fun loadRecordedVideos(): List<RecordedVideo> = withContext(Dispatchers.IO) {
+        migrateLegacyBoomerangsDir()
         val raws = loadFrom(videosDir, prefix = "clip_", kind = VideoKind.RAW)
-        val boomerangs = loadFrom(boomerangsDir, prefix = "boom_", kind = VideoKind.BOOMERANG)
+        val boomerangs = loadFrom(videosDir, prefix = "boom_", kind = VideoKind.BOOMERANG)
         (raws + boomerangs).sortedByDescending { it.id } // Newest first
+    }
+
+    /**
+     * One-time move of rendered loops from the retired `filesDir/boomerangs/` directory into
+     * `filesDir/videos/` (same filename). Safe to run on every load — no-op once migrated.
+     */
+    private fun migrateLegacyBoomerangsDir() {
+        val legacyDir = File(filesDir, "boomerangs")
+        if (!legacyDir.isDirectory) return
+        videosDir.mkdirs()
+        legacyDir.listFiles { _, name -> name.startsWith("boom_") && name.endsWith(".mp4") }
+            ?.forEach { legacyFile ->
+                val dest = File(videosDir, legacyFile.name)
+                try {
+                    when {
+                        !dest.exists() -> legacyFile.renameTo(dest)
+                        legacyFile.delete() -> Unit // duplicate already in videos/
+                        else -> Log.w(TAG, "Could not migrate legacy boomerang ${legacyFile.name}")
+                    }
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Failed to migrate legacy boomerang ${legacyFile.name}", e)
+                }
+            }
+        legacyDir.listFiles()?.takeIf { it.isEmpty() }?.let { legacyDir.delete() }
     }
 
     /**

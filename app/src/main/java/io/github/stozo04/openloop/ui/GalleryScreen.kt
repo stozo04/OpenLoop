@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.VideoLibrary
@@ -80,6 +81,7 @@ import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.data.RecordedVideo
 import io.github.stozo04.openloop.ui.components.BackButton
+import io.github.stozo04.openloop.ui.components.CircleIconButton
 import io.github.stozo04.openloop.ui.components.PrimaryButton
 import io.github.stozo04.openloop.ui.theme.Canvas
 import io.github.stozo04.openloop.ui.theme.CoralRed
@@ -133,7 +135,8 @@ fun GalleryScreen(
     selectedVideo?.let { video ->
         LoopingVideoOverlay(
             videoPath = video.videoPath,
-            onDismiss = { selectedVideo = null }
+            onDismiss = { selectedVideo = null },
+            onSend = { viewModel.shareLoop(video) },
         )
     }
 }
@@ -513,9 +516,12 @@ private fun VideoThumbnailCard(
 @Composable
 private fun LoopingVideoOverlay(
     videoPath: String,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onSend: () -> Unit,
 ) {
     val context = LocalContext.current
+    val closeLabel = stringResource(R.string.gallery_close_preview)
+    val sendLabel = stringResource(R.string.gallery_send)
 
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
@@ -566,12 +572,25 @@ private fun LoopingVideoOverlay(
                 modifier = Modifier.fillMaxSize()
             )
 
-            PrimaryButton(
-                text = "CLOSE PREVIEW",
+            CircleIconButton(
+                icon = Icons.Filled.Close,
+                contentDescription = closeLabel,
                 onClick = onDismiss,
-                trailingIcon = Icons.Filled.Close,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, end = 16.dp)
+                    .testTag("gallery_preview_close"),
+            )
+
+            PrimaryButton(
+                text = sendLabel,
+                onClick = onSend,
+                trailingIcon = Icons.AutoMirrored.Filled.Send,
+                testTag = "gallery_preview_send",
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
                     .padding(bottom = 48.dp),
             )
         }

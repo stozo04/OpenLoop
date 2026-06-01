@@ -34,10 +34,10 @@
             </intent-filter>
         </activity>
 
-        <!-- Shares rendered boomerangs (filesDir/boomerangs/) as content:// URIs via the system
-             share sheet (slice 06). exported=false + grantUriPermissions=true means only the
-             temporary, per-share FLAG_GRANT_READ_URI_PERMISSION grant lets a receiver read the
-             file; nothing else in filesDir (raws, scratch) is reachable — see res/xml/file_paths. -->
+        <!-- Shares persisted clips (filesDir/videos/) as content:// URIs via the system share sheet
+             (slice 06). exported=false + grantUriPermissions=true means only the temporary, per-share
+             FLAG_GRANT_READ_URI_PERMISSION grant lets a receiver read the file; scratch/cache paths
+             are not reachable — see res/xml/file_paths. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
