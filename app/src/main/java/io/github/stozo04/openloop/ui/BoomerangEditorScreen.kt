@@ -109,9 +109,12 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.media.BoomerangMode
+import io.github.stozo04.openloop.media.ClipDirection
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.boomerangOutputDurationMs
+import io.github.stozo04.openloop.media.boomerangSequence
 import io.github.stozo04.openloop.media.needsReverse
+import io.github.stozo04.openloop.media.sourceSeamDurationMs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -147,13 +150,6 @@ private const val SPEED_DEBOUNCE_MS = 50L
 
 /** Speeds that get a haptic detent so the user can find "normal" (1.0×) and the default (2.0×) by feel. */
 private val SPEED_DETENTS = listOf(1.0f, 2.0f)
-
-/**
- * Approximate one-frame seam offset for the *preview* second clip (~30 fps). The exported render
- * computes the source's exact frame duration; the preview only needs to hide the duplicate frame, so
- * a constant is fine here (and avoids a `MediaExtractor` read on the UI thread).
- */
-private const val PREVIEW_SEAM_MS = 33L
 
 /**
  * The four direction chips, in display order, with the reference-Boomerang glyph. No visible caption —
@@ -250,6 +246,10 @@ fun BoomerangEditorContent(
     val thumbnailFrame by produceState<Bitmap?>(null, sourceFile, trimStartMs, trimEndMs) {
         value = withContext(Dispatchers.IO) { extractRepresentativeFrame(sourceFile, trimStartMs, trimEndMs) }
     }
+    // Match export seam skip: read source fps off main thread; 33 ms placeholder until IO completes (~30 fps).
+    val seamMs by produceState(33L, sourceFile) {
+        value = withContext(Dispatchers.IO) { sourceSeamDurationMs(sourceFile) }
+    }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     // Single back path for both the gesture and the arrow: confirm only when the user changed *any*
@@ -290,8 +290,8 @@ fun BoomerangEditorContent(
     // (PlaybackParameters) and the look (setVideoEffects) are player-wide settings, not per-MediaItem,
     // so they survive this rebind — we don't re-apply either here. The LaunchedEffect(filter) below
     // owns applying the look.
-    LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs) {
-        val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile)
+    LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs, seamMs) {
+        val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile, seamMs)
         if (items.isEmpty()) {
             exoPlayer.clearMediaItems()
         } else {
@@ -732,6 +732,8 @@ private fun previewPlaylist(
     trimEndMs: Long,
     mode: BoomerangMode,
     reversedFile: File?,
+    seamMs: Long,
+    repetitions: Int = 1,
 ): List<MediaItem> {
     fun trimmed(dropLeadingMs: Long): MediaItem = MediaItem.Builder()
         .setUri(sourceFile.toUri())
@@ -754,15 +756,12 @@ private fun previewPlaylist(
             .build()
     }
 
-    // Seam drop mirrors the render (boomerangSequence): the SECOND clip of a two-part mode drops its
-    // duplicated leading frame; lone clips don't.
-    return when (mode) {
-        BoomerangMode.FORWARD -> listOf(trimmed(0L))
-        BoomerangMode.REVERSE -> listOfNotNull(reversed(0L))
-        BoomerangMode.FORWARD_THEN_REVERSE -> listOfNotNull(trimmed(0L), reversed(PREVIEW_SEAM_MS))
-        BoomerangMode.REVERSE_THEN_FORWARD -> {
-            val head = reversed(0L) ?: return emptyList()
-            listOf(head, trimmed(PREVIEW_SEAM_MS))
+    // Same clip plan + position-based seam drop as export (boomerangSequence + Lesson 018).
+    return boomerangSequence(mode, repetitions).mapNotNull { spec ->
+        val dropMs = if (spec.dropLeadingFrame) seamMs else 0L
+        when (spec.direction) {
+            ClipDirection.FORWARD -> trimmed(dropMs)
+            ClipDirection.REVERSED -> reversed(dropMs)
         }
     }
 }

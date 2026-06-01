@@ -70,6 +70,31 @@ internal fun cappedToShortSide(width: Int, height: Int, maxShortSide: Int = MAX_
 /** Round down to the nearest even value (≥ 2); encoders reject odd dimensions in 4:2:0. */
 internal fun evenDown(value: Int): Int = (value - (value % 2)).coerceAtLeast(2)
 
+/** Frame rate of [source]'s video track, or [DEFAULT_FRAME_RATE] when unreadable. Shared by export + preview. */
+internal fun sourceFrameRateFromFile(source: File): Int {
+    val extractor = MediaExtractor()
+    return try {
+        extractor.setDataSource(source.absolutePath)
+        for (i in 0 until extractor.trackCount) {
+            val format = extractor.getTrackFormat(i)
+            if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
+                return format.frameRateOrDefault()
+            }
+        }
+        DEFAULT_FRAME_RATE
+    } catch (e: IOException) {
+        DEFAULT_FRAME_RATE
+    } catch (e: IllegalArgumentException) {
+        DEFAULT_FRAME_RATE
+    } finally {
+        extractor.release()
+    }
+}
+
+/** One-frame seam offset in ms — matches the export path's [Media3VideoProcessor.renderBoomerang] seam skip. */
+internal fun sourceSeamDurationMs(source: File): Long =
+    (1000L / sourceFrameRateFromFile(source).coerceAtLeast(1)).coerceAtLeast(1L)
+
 /**
  * Whether this mode needs the reversed clip generated (everything except a pure [BoomerangMode.FORWARD]).
  * Single source of truth shared by the editor preview, the ViewModel, and the render path.
@@ -156,7 +181,7 @@ class Media3VideoProcessor(
         // Header reads are blocking MediaExtractor work — keep them off the main thread
         // (renderBoomerang runs on viewModelScope's Main dispatcher; runTransformer hops to Main).
         val srcShortSide = withContext(Dispatchers.IO) { sourceShortSide(source) }
-        val sourceFps = withContext(Dispatchers.IO) { sourceFrameRate(source) }
+        val sourceFps = withContext(Dispatchers.IO) { sourceFrameRateFromFile(source) }
         val seamMs = (1000L / sourceFps.coerceAtLeast(1)).coerceAtLeast(1L)
 
         val reversedFile: File? = if (needsReverse) {
@@ -348,27 +373,6 @@ class Media3VideoProcessor(
     /** Short side (min of width/height) of [source]'s video track in px, or 0 if it can't be read. */
     internal fun sourceShortSide(source: File): Int = videoDimensions(source)?.let { (w, h) -> minOf(w, h) } ?: 0
 
-    /** Frame rate of [source]'s video track, or [DEFAULT_FRAME_RATE] when unreadable. */
-    private fun sourceFrameRate(source: File): Int {
-        val extractor = MediaExtractor()
-        return try {
-            extractor.setDataSource(source.absolutePath)
-            for (i in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(i)
-                if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
-                    return format.frameRateOrDefault()
-                }
-            }
-            DEFAULT_FRAME_RATE
-        } catch (e: IOException) {
-            DEFAULT_FRAME_RATE
-        } catch (e: IllegalArgumentException) {
-            DEFAULT_FRAME_RATE
-        } finally {
-            extractor.release()
-        }
-    }
-
     private fun videoDimensions(source: File): Pair<Int, Int>? {
         val extractor = MediaExtractor()
         return try {
@@ -445,6 +449,5 @@ class Media3VideoProcessor(
     private companion object {
         const val REVERSE_BUDGET = 0.8f
         const val PROGRESS_POLL_MS = 100L
-        const val DEFAULT_FRAME_RATE = 30
     }
 }
