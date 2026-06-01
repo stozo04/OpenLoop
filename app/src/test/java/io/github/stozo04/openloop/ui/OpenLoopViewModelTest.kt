@@ -1136,9 +1136,31 @@ class OpenLoopViewModelTest {
 
             assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
             assertTrue(events.contains(BoomerangEvent.ImportTooLong))
+            assertTrue(viewModel.showImportTooLongDialog.value)
             // Caught before any copy or scratch mint.
             assertEquals(0, fakeVideoImporter.importCallCount)
             assertEquals(0, fakeVideoStorage.createScratchCount)
+            assertNull(viewModel.editorState.value)
+            job.cancel()
+        }
+
+    @Test
+    fun `onVideoPicked when post-copy duration exceeds the limit warns and discards the scratch`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            // Pre-copy probe under-reads; post-copy durationOf is authoritative.
+            fakeVideoImporter.probeMs = 25_000L
+            fakeVideoStorage.fixedDurationMs = 45_000L
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            viewModel.onVideoPicked(fakeUri)
+            advanceUntilIdle()
+
+            assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
+            assertTrue(events.contains(BoomerangEvent.ImportTooLong))
+            assertTrue(viewModel.showImportTooLongDialog.value)
+            assertEquals(1, fakeVideoImporter.importCallCount)
+            assertEquals(1, fakeVideoStorage.discardedScratches.size)
             assertNull(viewModel.editorState.value)
             job.cancel()
         }
