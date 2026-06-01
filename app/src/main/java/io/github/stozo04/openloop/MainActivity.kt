@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.annotation.OptIn
@@ -54,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -62,16 +64,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
+import androidx.work.WorkManager
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
 import io.github.stozo04.openloop.data.VideoStorageRepositoryImpl
 import io.github.stozo04.openloop.data.dataStore
-import io.github.stozo04.openloop.media.Media3VideoProcessor
-import io.github.stozo04.openloop.media.VideoProcessor
-import io.github.stozo04.openloop.media.VideoReverser
+import io.github.stozo04.openloop.media.MediaComponents
+import io.github.stozo04.openloop.work.WorkManagerBoomerangRenderScheduler
 import io.github.stozo04.openloop.ui.BoomerangEditorScreen
 import io.github.stozo04.openloop.ui.BoomerangEvent
 import io.github.stozo04.openloop.ui.CameraScreen
@@ -95,6 +99,7 @@ import io.github.stozo04.openloop.ui.theme.TextPrimary
 import java.io.File
 
 class MainActivity : ComponentActivity() {
+    @OptIn(UnstableApi::class)
     private val viewModel: OpenLoopViewModel by viewModels {
         // Bridge Context → repositories + media here, once. applicationContext is the long-lived,
         // safe Context to read dataStore / cacheDir / filesDir from; nothing downstream
@@ -105,10 +110,11 @@ class MainActivity : ComponentActivity() {
                 cacheDir = applicationContext.cacheDir,
                 filesDir = applicationContext.filesDir,
             ),
-            buildVideoProcessor(),
+            MediaComponents.buildVideoProcessor(applicationContext),
             // ContentResolver lives in the Activity bridge (Lesson 004); the importer holds it, the
             // ViewModel never sees a Context. applicationContext's resolver is process-lived and safe.
             VideoImporterImpl(applicationContext.contentResolver),
+            WorkManagerBoomerangRenderScheduler(WorkManager.getInstance(applicationContext)),
         )
     }
     private lateinit var cameraManager: CameraManager
@@ -125,17 +131,15 @@ class MainActivity : ComponentActivity() {
      */
     private var awaitingShareReturn = false
 
-    // Constructing the @UnstableApi Media3VideoProcessor needs an opt-in; a function-level @OptIn
-    // reliably covers its body (a property-delegate annotation doesn't propagate into the
-    // `viewModels { … }` lambda where the construction would otherwise live).
-    @OptIn(UnstableApi::class)
-    private fun buildVideoProcessor(): VideoProcessor =
-        Media3VideoProcessor(
-            context = applicationContext,
-            reverser = VideoReverser(
-                scratchDir = File(applicationContext.cacheDir, "scratch/reversed"),
-            ),
-        )
+    /**
+     * Share event received while the Activity was not in the foreground (Issue #40). Launched from
+     * [onResume] once the app is visible — never from the Worker (BAL restrictions).
+     */
+    private var deferredShareFile: File? = null
+
+    private val requestPostNotificationsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* granted or denied — export continues either way; notification is best-effort */ }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -167,6 +171,7 @@ class MainActivity : ComponentActivity() {
         // Restore the deferred-share flag after recreation (rotation / process death) so the "Saved"
         // snackbar still fires on the onResume that follows the chooser dismissing.
         awaitingShareReturn = savedInstanceState?.getBoolean(KEY_AWAITING_SHARE_RETURN) == true
+        deferredShareFile = savedInstanceState?.getString(KEY_DEFERRED_SHARE_PATH)?.let { File(it) }
         cameraManager = CameraManager(this)
 
         setContent {
@@ -191,13 +196,24 @@ class MainActivity : ComponentActivity() {
                 // Configuration change (lint LocalContextResourcesRead).
                 val resources = LocalResources.current
 
+                val lifecycleOwner = LocalLifecycleOwner.current
+
+                LaunchedEffect(Unit) {
+                    viewModel.requestPostNotifications.collect {
+                        maybeRequestPostNotificationsPermission()
+                    }
+                }
+
                 // Collect one-shot boomerang events → share sheet + snackbars (the app's only
                 // SnackbarHost). `when` stays exhaustive with no `else` (Lesson 014) so a new event
                 // must be handled here to compile.
                 LaunchedEffect(Unit) {
                     viewModel.events.collect { event ->
                         when (event) {
-                            is BoomerangEvent.Share -> launchShareSheet(event.file)
+                            is BoomerangEvent.Share -> deliverShareSheet(
+                                file = event.file,
+                                lifecycle = lifecycleOwner.lifecycle,
+                            )
                             BoomerangEvent.Saved -> {
                                 // Explicit Short (~4 s) auto-dismiss: with a non-null actionLabel the
                                 // Material3 default is Indefinite, which would never time out.
@@ -330,6 +346,28 @@ class MainActivity : ComponentActivity() {
      * [awaitingShareReturn] so the "Saved" snackbar fires on the next [onResume] (when the user is
      * back on the camera), not now (while the chooser is about to cover the screen).
      */
+    /**
+     * Launch the share sheet when the Activity is foregrounded; otherwise defer to [onResume]
+     * (Google BAL — Issue #40).
+     */
+    private fun deliverShareSheet(file: File, lifecycle: Lifecycle) {
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            launchShareSheet(file)
+        } else {
+            deferredShareFile = file
+        }
+    }
+
+    private fun maybeRequestPostNotificationsPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        requestPostNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     private fun launchShareSheet(file: File) {
         val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
         awaitingShareReturn = true
@@ -339,6 +377,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        deferredShareFile?.let { file ->
+            deferredShareFile = null
+            launchShareSheet(file)
+            return
+        }
         // Returned from a share chooser (shared, canceled, or backed out — all the same): now that the
         // user is looking at the camera again, ask the ViewModel to emit the deferred "Saved" snackbar.
         if (awaitingShareReturn) {
@@ -351,6 +394,7 @@ class MainActivity : ComponentActivity() {
         super.onSaveInstanceState(outState)
         // Survive recreation while the chooser is on top — see [awaitingShareReturn].
         outState.putBoolean(KEY_AWAITING_SHARE_RETURN, awaitingShareReturn)
+        deferredShareFile?.absolutePath?.let { outState.putString(KEY_DEFERRED_SHARE_PATH, it) }
     }
 
     override fun onDestroy() {
@@ -361,6 +405,17 @@ class MainActivity : ComponentActivity() {
 
 /** Key under which [MainActivity.awaitingShareReturn] is persisted across recreation (slice 06). */
 private const val KEY_AWAITING_SHARE_RETURN = "openloop.awaitingShareReturn"
+
+/** Key under which [MainActivity.deferredShareFile] is persisted across recreation (Issue #40). */
+private const val KEY_DEFERRED_SHARE_PATH = "openloop.deferredSharePath"
+
+@Composable
+private fun rememberNotificationExportHint(): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+    val context = LocalContext.current
+    return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+        PackageManager.PERMISSION_GRANTED
+}
 
 /**
  * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] with the given
@@ -475,7 +530,11 @@ fun OpenLoopNavHost(
             // Render progress drives the spinner caption; read via a lambda so only the percentage
             // text recomposes as progress ticks (Lesson 016).
             val progress = viewModel.renderProgress.collectAsStateWithLifecycle()
-            ProcessingScreen(progress = { progress.value })
+            val notificationsDenied = rememberNotificationExportHint()
+            ProcessingScreen(
+                progress = { progress.value },
+                showBackgroundExportHint = notificationsDenied,
+            )
         }
         // Probing + copying a picked library video (slice 07): a neutral loader, never the
         // camera-bound screen (Lessons 012/014).

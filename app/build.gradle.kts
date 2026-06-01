@@ -137,6 +137,9 @@ dependencies {
     implementation(libs.androidx.camerax.video)
     implementation(libs.androidx.camerax.view)
 
+    // WorkManager — long-running Loopifying export survives backgrounding (Issue #40)
+    implementation(libs.androidx.work.runtime.ktx)
+
     // Media3 (ExoPlayer & Video Reversal/Processing)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.transformer)
@@ -152,10 +155,12 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.rules)
     // Explicit Espresso 3.7.0: forces the fixed version over the older one pulled
     // transitively by ui-test-junit4. 3.7.0 replaced the reflective
     // InputManager.getInstance() (removed in Android 16 / API 36) with getSystemService,
     // fixing the NoSuchMethodException that broke every instrumented test on API 36.
     androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.androidx.work.testing)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

@@ -179,6 +179,22 @@ Plain-English, beginner-friendly walkthroughs live in [`docs/guides/`](docs/guid
 
 - [**Jetpack DataStore — Explained Like You're Five**](docs/guides/jetpack-datastore-explained.md) — what the app's little "memory" is, where it lives on the phone, three ways to peek inside it, and how to reset onboarding for testing.
 
+## Brand Assets
+
+The visual identity in one place — colors, the on-device launcher icon, and the assets Google Play hosts on the store listing.
+
+| Asset | Where it lives | Notes |
+|---|---|---|
+| **Color tokens** | [`app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt) | Single source of truth — `ElectricLime` (`#CDFF4F`) primary, `Aqua` (`#34E1D5`) tertiary, coral semantic-only (recording + destructive). UI must read via `MaterialTheme.colorScheme`, never inline hex (Lesson 001). |
+| **Launcher icon (adaptive)** | [`app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`](app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml) + [`app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`](app/src/main/res/drawable-nodpi/ic_launcher_foreground.png) | Lime→aqua infinity on a transparent foreground over pure black. The same foreground feeds the API 31+ splash screen via [`app/src/main/res/values/themes.xml`](app/src/main/res/values/themes.xml). |
+| **Launcher icon (legacy)** | `app/src/main/res/mipmap-xxxhdpi/ic_launcher.png` + `ic_launcher_round.png` | Pre-API-26 fallback. `minSdk 26` means these are effectively unused on real devices, but the build still requires them. Keep them in sync with the adaptive foreground. |
+| **Play Store app icon (512×512)** | [`docs/play-store/play_store_icon_512.png`](docs/play-store/play_store_icon_512.png) | RGB (**no alpha**), solid Canvas-dark background, **no baked corners** — Play auto-applies a 30% corner radius at display time (active since 2026-03-31). Upload via **Play Console → Grow → Store presence → Main store listing → Graphics → App icon**. |
+| **Play Store feature graphic (1024×500)** | [`docs/play-store/feature_graphic_1024x500.png`](docs/play-store/feature_graphic_1024x500.png) | RGB (**no alpha**). Logo sits left-of-center so Play's promo-video play button (which lands dead-center if a promo video is attached) won't overlap it. Wordmark uses Space Grotesk Bold; tagline uses Inter Medium — matches the in-app type ramp in [`Type.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Type.kt). Upload via **Play Console → … → Graphics → Feature graphic**. |
+
+Store-listing updates (icon, feature graphic, screenshots, copy) are a **separate flow from publishing an APK/AAB** — save the store listing in Play Console and changes usually roll out within a few hours, no app release required.
+
+For the full Play Store submission pack (copy, data safety, content rating, signing, screenshots), see [`docs/play-store/`](docs/play-store/).
+
 ## Development Standards
 
 This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. We treat these as non-negotiable — if Google recommends it, we follow it. For Android 16 / `targetSdk 36`-specific guidance behind the in-progress upgrade, see the [`docs/android-16/`](docs/android-16/README.md) knowledge hub.

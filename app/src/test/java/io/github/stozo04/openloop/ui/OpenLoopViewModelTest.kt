@@ -14,7 +14,9 @@ import io.github.stozo04.openloop.data.VideoStorageRepository
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
 import io.mockk.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -256,6 +258,7 @@ class OpenLoopViewModelTest {
     private lateinit var fakeVideoStorage: FakeVideoStorageRepository
     private lateinit var fakeVideoProcessor: FakeVideoProcessor
     private lateinit var fakeVideoImporter: FakeVideoImporter
+    private lateinit var fakeRenderScheduler: FakeBoomerangRenderScheduler
     private val cameraManager: CameraManager = mockk(relaxed = true)
 
     /** A stand-in picked-video Uri; mockk avoids needing the android framework in a JVM test. */
@@ -281,7 +284,18 @@ class OpenLoopViewModelTest {
         fakeVideoStorage = FakeVideoStorageRepository()
         fakeVideoProcessor = FakeVideoProcessor()
         fakeVideoImporter = FakeVideoImporter()
-        viewModel = OpenLoopViewModel(fakePreferencesRepository, fakeVideoStorage, fakeVideoProcessor, fakeVideoImporter)
+        fakeRenderScheduler = FakeBoomerangRenderScheduler(
+            processor = fakeVideoProcessor,
+            storage = fakeVideoStorage,
+            scope = CoroutineScope(mainDispatcherRule.testDispatcher),
+        )
+        viewModel = OpenLoopViewModel(
+            fakePreferencesRepository,
+            fakeVideoStorage,
+            fakeVideoProcessor,
+            fakeVideoImporter,
+            fakeRenderScheduler,
+        )
     }
 
     @After
@@ -303,7 +317,17 @@ class OpenLoopViewModelTest {
         // Create a ViewModel where onboarding was already completed
         val returningUserRepo = FakeUserPreferencesRepository(initialOnboardingCompleted = true)
         val returningViewModel =
-            OpenLoopViewModel(returningUserRepo, FakeVideoStorageRepository(), FakeVideoProcessor(), FakeVideoImporter())
+            OpenLoopViewModel(
+                returningUserRepo,
+                FakeVideoStorageRepository(),
+                FakeVideoProcessor(),
+                FakeVideoImporter(),
+                FakeBoomerangRenderScheduler(
+                    FakeVideoProcessor(),
+                    FakeVideoStorageRepository(),
+                    CoroutineScope(mainDispatcherRule.testDispatcher),
+                ),
+            )
 
         assertEquals(OpenLoopUiState.CheckingPermissions, returningViewModel.uiState.value)
     }
@@ -319,7 +343,17 @@ class OpenLoopViewModelTest {
     fun `onOnboardingCompleted handles IOException gracefully`() {
         // Use the failing repository that throws IOException on write
         val failingViewModel =
-            OpenLoopViewModel(FailingWritePreferencesRepository(), FakeVideoStorageRepository(), FakeVideoProcessor(), FakeVideoImporter())
+            OpenLoopViewModel(
+                FailingWritePreferencesRepository(),
+                FakeVideoStorageRepository(),
+                FakeVideoProcessor(),
+                FakeVideoImporter(),
+                FakeBoomerangRenderScheduler(
+                    FakeVideoProcessor(),
+                    FakeVideoStorageRepository(),
+                    CoroutineScope(mainDispatcherRule.testDispatcher),
+                ),
+            )
 
         // Should not crash — state should still transition to CheckingPermissions
         failingViewModel.onOnboardingCompleted()
@@ -701,6 +735,7 @@ class OpenLoopViewModelTest {
             advanceUntilIdle()
 
             assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
+            assertEquals(1, fakeRenderScheduler.enqueueCount)
             assertEquals(1, fakeVideoProcessor.renderCount)
 
             // One RAW (promoted) + one BOOMERANG (registered), boomerang points at the raw.

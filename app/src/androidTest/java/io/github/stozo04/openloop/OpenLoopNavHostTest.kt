@@ -17,6 +17,9 @@ import io.github.stozo04.openloop.data.VideoStorageRepository
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.work.BoomerangRenderRequest
+import io.github.stozo04.openloop.work.BoomerangRenderScheduler
+import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import io.github.stozo04.openloop.ui.EditorSource
 import io.github.stozo04.openloop.ui.OpenLoopUiState
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
@@ -27,6 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.UUID
 
 /**
  * Routing guard for [OpenLoopNavHost] (WARNING-1 / Lesson 012 / Lesson 014). The host's `when` is
@@ -56,6 +60,7 @@ class OpenLoopNavHostTest {
                     NoopVideoStorageRepository(),
                     NoopVideoProcessor(),
                     NoopVideoImporter(),
+                    NoopBoomerangRenderScheduler(),
                 ),
                 cameraManager = CameraManager(ApplicationProvider.getApplicationContext()),
                 onCheckPermissions = {},
@@ -163,5 +168,14 @@ class OpenLoopNavHostTest {
             trimEndMs: Long,
             onProgress: (Float) -> Unit,
         ): File = source
+    }
+
+    private class NoopBoomerangRenderScheduler : BoomerangRenderScheduler {
+        override fun enqueue(request: BoomerangRenderRequest): UUID = UUID.randomUUID()
+        override fun observeProgress(workId: UUID): Flow<Float> = MutableStateFlow(0f)
+        override fun observeResult(workId: UUID): Flow<BoomerangRenderWorkResult> = MutableStateFlow(
+            BoomerangRenderWorkResult.Failure,
+        )
+        override fun cancelRenderWork(scratchUuid: String) = Unit
     }
 }

@@ -5,6 +5,17 @@
     <string name="share_chooser_title">Share boomerang</string>
     <string name="share_subject">OpenLoop boomerang</string>
 
+    <!-- Loopifying / background export (Issue #40) -->
+    <string name="processing_title">Loopifying…</string>
+    <string name="processing_background_hint">You can leave — check your notification for progress.</string>
+    <string name="processing_background_hint_no_notifications">Keep OpenLoop open — enable notifications in Settings to track progress in the background.</string>
+    <string name="notification_loop_export_channel_name">Loop export</string>
+    <string name="notification_loop_export_channel_desc">Progress while your loop is being created</string>
+    <string name="notification_loop_export_title">Creating your loop…</string>
+    <string name="notification_loop_export_progress">%1$d%% complete</string>
+    <string name="notification_loop_export_complete_title">Loop ready</string>
+    <string name="notification_loop_export_complete_text">Tap to open OpenLoop</string>
+
     <!-- Post-save snackbars (slice 06) -->
     <string name="snackbar_saved">Loop saved</string>
     <string name="snackbar_view_action">View</string>

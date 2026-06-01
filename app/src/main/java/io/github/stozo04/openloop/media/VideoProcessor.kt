@@ -8,6 +8,7 @@ import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
@@ -27,6 +28,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.security.MessageDigest
 import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
 
@@ -43,6 +45,16 @@ enum class BoomerangMode { FORWARD, REVERSE, FORWARD_THEN_REVERSE, REVERSE_THEN_
 internal const val MAX_OUTPUT_SHORT_SIDE = 1080
 
 /**
+ * Stable cache key for a source file + trim window. Matches [VideoReverser]'s reversed-clip key shape
+ * so scaled intermediates and reversed outputs for the same window stay deterministic.
+ */
+internal fun trimWindowCacheKey(source: File, trimStartMs: Long, trimEndMs: Long): String {
+    val raw = "${source.absolutePath}_${trimStartMs}_$trimEndMs"
+    val digest = MessageDigest.getInstance("SHA-1").digest(raw.toByteArray())
+    return digest.joinToString("") { "%02x".format(it) }
+}
+
+/**
  * Scale `(width, height)` down so the short side is ≤ [maxShortSide], preserving aspect ratio and
  * forcing even dimensions (AVC requires even). Never upscales — footage already at or below the cap
  * is returned unchanged (only evened). Pure + JVM-unit-tested ([MediaDimensionsTest]).
@@ -57,6 +69,31 @@ internal fun cappedToShortSide(width: Int, height: Int, maxShortSide: Int = MAX_
 
 /** Round down to the nearest even value (≥ 2); encoders reject odd dimensions in 4:2:0. */
 internal fun evenDown(value: Int): Int = (value - (value % 2)).coerceAtLeast(2)
+
+/** Frame rate of [source]'s video track, or [DEFAULT_FRAME_RATE] when unreadable. Shared by export + preview. */
+internal fun sourceFrameRateFromFile(source: File): Int {
+    val extractor = MediaExtractor()
+    return try {
+        extractor.setDataSource(source.absolutePath)
+        for (i in 0 until extractor.trackCount) {
+            val format = extractor.getTrackFormat(i)
+            if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
+                return format.frameRateOrDefault()
+            }
+        }
+        DEFAULT_FRAME_RATE
+    } catch (e: IOException) {
+        DEFAULT_FRAME_RATE
+    } catch (e: IllegalArgumentException) {
+        DEFAULT_FRAME_RATE
+    } finally {
+        extractor.release()
+    }
+}
+
+/** One-frame seam offset in ms — matches the export path's [Media3VideoProcessor.renderBoomerang] seam skip. */
+internal fun sourceSeamDurationMs(source: File): Long =
+    (1000L / sourceFrameRateFromFile(source).coerceAtLeast(1)).coerceAtLeast(1L)
 
 /**
  * Whether this mode needs the reversed clip generated (everything except a pure [BoomerangMode.FORWARD]).
@@ -122,6 +159,8 @@ class Media3VideoProcessor(
     private val reverser: VideoReverser,
 ) : VideoProcessor {
 
+    private val scratchDir = File(context.cacheDir, "scratch")
+
     override suspend fun renderBoomerang(
         source: File,
         trimStartMs: Long,
@@ -138,19 +177,24 @@ class Media3VideoProcessor(
         // duplicated leading frame — a lone clip and same-direction repeats never drop.
         val specs = boomerangSequence(mode, repetitions)
         val needsReverse = specs.any { it.direction == ClipDirection.REVERSED }
+
+        // Header reads are blocking MediaExtractor work — keep them off the main thread
+        // (renderBoomerang runs on viewModelScope's Main dispatcher; runTransformer hops to Main).
+        val srcShortSide = withContext(Dispatchers.IO) { sourceShortSide(source) }
+        val sourceFps = withContext(Dispatchers.IO) { sourceFrameRateFromFile(source) }
+        val seamMs = (1000L / sourceFps.coerceAtLeast(1)).coerceAtLeast(1L)
+
         val reversedFile: File? = if (needsReverse) {
-            reverser.reverse(source, trimStartMs, trimEndMs) { frac -> onProgress(frac * REVERSE_BUDGET) }
+            val reverseInput = prepareReverseInput(source, trimStartMs, trimEndMs, srcShortSide)
+            reverser.reverse(reverseInput.file, reverseInput.trimStartMs, reverseInput.trimEndMs) { frac ->
+                onProgress(frac * REVERSE_BUDGET)
+            }
         } else {
             null
         }
         currentCoroutineContext().ensureActive()
         onProgress(REVERSE_BUDGET)
 
-        // Header reads (frame duration for the seam, short side for the resolution cap) are blocking
-        // MediaExtractor work — keep them off the main thread (renderBoomerang runs on viewModelScope's
-        // Main dispatcher; runTransformer hops to Main itself).
-        val seamMs = withContext(Dispatchers.IO) { frameDurationMs(source) }
-        val srcShortSide = withContext(Dispatchers.IO) { sourceShortSide(source) }
         // Speed (SpeedChangeEffect) + the chosen color look (RgbFilter / RgbAdjustment / HslAdjustment)
         // + a resolution cap for large sources compose in one videoEffects list, applied identically to
         // every clip in the sequence.
@@ -158,8 +202,10 @@ class Media3VideoProcessor(
         val items = specs.map { spec ->
             val dropMs = if (spec.dropLeadingFrame) seamMs else 0L
             when (spec.direction) {
-                ClipDirection.FORWARD -> forwardItem(source, trimStartMs, trimEndMs, dropMs, clipEffects)
-                ClipDirection.REVERSED -> reverseItem(reversedFile!!, dropMs, clipEffects)
+                ClipDirection.FORWARD -> forwardItem(
+                    source, trimStartMs, trimEndMs, dropMs, clipEffects, sourceFps, speed,
+                )
+                ClipDirection.REVERSED -> reverseItem(reversedFile!!, dropMs, clipEffects, sourceFps, speed)
             }
         }
 
@@ -185,28 +231,122 @@ class Media3VideoProcessor(
         trimStartMs: Long,
         trimEndMs: Long,
         onProgress: (Float) -> Unit,
-    ): File = reverser.reverse(source, trimStartMs, trimEndMs, onProgress)
+    ): File {
+        val srcShortSide = withContext(Dispatchers.IO) { sourceShortSide(source) }
+        val reverseInput = prepareReverseInput(source, trimStartMs, trimEndMs, srcShortSide)
+        return reverser.reverse(reverseInput.file, reverseInput.trimStartMs, reverseInput.trimEndMs, onProgress)
+    }
+
+    /**
+     * Pre-scale a >1080p trim window to ≤1080p short side via Media3 Transformer (GL-backed — Lesson
+     * 021). Idempotent: reuses `scratch/scaled_<trimWindowCacheKey>.mp4` when present. Instrumented
+     * tests call this directly to verify the cap without running a full boomerang export.
+     */
+    internal suspend fun scaleSourceForReverse(
+        source: File,
+        trimStartMs: Long,
+        trimEndMs: Long,
+    ): File {
+        scratchDir.mkdirs()
+        val dest = File(scratchDir, "scaled_${trimWindowCacheKey(source, trimStartMs, trimEndMs)}.mp4")
+        if (dest.exists() && dest.length() > 0L) return dest
+
+        val clip = MediaItem.ClippingConfiguration.Builder()
+            .setStartPositionMs(trimStartMs)
+            .setEndPositionMs(trimEndMs)
+            .build()
+        val item = MediaItem.Builder().setUri(source.toUri()).setClippingConfiguration(clip).build()
+        val effects = Effects(
+            /* audioProcessors = */ emptyList(),
+            /* videoEffects = */ listOf(Presentation.createForShortSide(MAX_OUTPUT_SHORT_SIDE)),
+        )
+        val edited = EditedMediaItem.Builder(item).setRemoveAudio(true).setEffects(effects).build()
+        val sequence = EditedMediaItemSequence.withVideoFrom(listOf(edited))
+        val composition = Composition.Builder(sequence)
+            .setHdrMode(Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL)
+            .build()
+        runTransformer(composition, dest) { /* pre-scale is a sub-step; progress owned by reverse budget */ }
+        return dest
+    }
+
+    private data class ReverseInput(
+        val file: File,
+        val trimStartMs: Long,
+        val trimEndMs: Long,
+    )
+
+    /**
+     * When [sourceShortSide] exceeds [MAX_OUTPUT_SHORT_SIDE], pre-scale via Transformer before reverse
+     * (Issue #41 Tier 1A). The reverser still runs at native Surface size — never downscale inside
+     * [VideoReverser] (Lesson 021).
+     */
+    private suspend fun prepareReverseInput(
+        source: File,
+        trimStartMs: Long,
+        trimEndMs: Long,
+        sourceShortSide: Int,
+    ): ReverseInput {
+        if (sourceShortSide <= MAX_OUTPUT_SHORT_SIDE) {
+            return ReverseInput(source, trimStartMs, trimEndMs)
+        }
+        val scaled = scaleSourceForReverse(source, trimStartMs, trimEndMs)
+        val durationMs = trimEndMs - trimStartMs
+        return ReverseInput(scaled, 0L, durationMs)
+    }
 
     /** Forward clip over `[startMs, endMs]`; [dropLeadingMs] (>0 at a turn seam) skips its first frame. */
-    private fun forwardItem(source: File, startMs: Long, endMs: Long, dropLeadingMs: Long, effects: Effects): EditedMediaItem {
+    private fun forwardItem(
+        source: File,
+        startMs: Long,
+        endMs: Long,
+        dropLeadingMs: Long,
+        effects: Effects,
+        sourceFps: Int,
+        speed: Float,
+    ): EditedMediaItem {
         val clip = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(startMs + dropLeadingMs)
             .setEndPositionMs(endMs)
             .build()
         val item = MediaItem.Builder().setUri(source.toUri()).setClippingConfiguration(clip).build()
-        return EditedMediaItem.Builder(item).setRemoveAudio(true).setEffects(effects).build()
+        return buildEditedMediaItem(item, effects, sourceFps, speed)
     }
 
     /**
      * Reversed clip; the file already spans only the trim window, so [dropLeadingMs] (>0 at a turn
      * seam) skips its first frame and `0` plays it whole (e.g. a standalone `REVERSE`).
      */
-    private fun reverseItem(reversedFile: File, dropLeadingMs: Long, effects: Effects): EditedMediaItem {
+    private fun reverseItem(
+        reversedFile: File,
+        dropLeadingMs: Long,
+        effects: Effects,
+        sourceFps: Int,
+        speed: Float,
+    ): EditedMediaItem {
         val clip = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(dropLeadingMs)
             .build()
         val item = MediaItem.Builder().setUri(reversedFile.toUri()).setClippingConfiguration(clip).build()
-        return EditedMediaItem.Builder(item).setRemoveAudio(true).setEffects(effects).build()
+        return buildEditedMediaItem(item, effects, sourceFps, speed)
+    }
+
+    /**
+     * Build an [EditedMediaItem] with optional max frame rate when [speed] > 1× (Issue #41 Tier 1C).
+     * Slow-mo (speed ≤ 1×) must not drop frames — leave frame rate unset.
+     */
+    private fun buildEditedMediaItem(
+        mediaItem: MediaItem,
+        effects: Effects,
+        sourceFps: Int,
+        speed: Float,
+    ): EditedMediaItem {
+        val builder = EditedMediaItem.Builder(mediaItem).setRemoveAudio(true).setEffects(effects)
+        if (speed > 1f) {
+            // Media3 1.10: setFrameRate caps output fps when speed raises effective frame rate.
+            // developer.android.com/reference/androidx/media3/transformer/EditedMediaItem.Builder#setFrameRate(int)
+            builder.setFrameRate((sourceFps / speed).toInt().coerceAtLeast(24))
+        }
+        return builder.build()
     }
 
     private fun videoEffects(speed: Float, filter: VideoFilter, sourceShortSide: Int): Effects {
@@ -231,7 +371,9 @@ class Media3VideoProcessor(
     }
 
     /** Short side (min of width/height) of [source]'s video track in px, or 0 if it can't be read. */
-    private fun sourceShortSide(source: File): Int {
+    internal fun sourceShortSide(source: File): Int = videoDimensions(source)?.let { (w, h) -> minOf(w, h) } ?: 0
+
+    private fun videoDimensions(source: File): Pair<Int, Int>? {
         val extractor = MediaExtractor()
         return try {
             extractor.setDataSource(source.absolutePath)
@@ -240,14 +382,14 @@ class Media3VideoProcessor(
                 if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
                     val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else 0
                     val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else 0
-                    if (w > 0 && h > 0) return minOf(w, h)
+                    if (w > 0 && h > 0) return w to h
                 }
             }
-            0
+            null
         } catch (e: IOException) {
-            0 // unreadable header → skip the cap (Transformer picks a default); never crash
+            null
         } catch (e: IllegalArgumentException) {
-            0
+            null
         } finally {
             extractor.release()
         }
@@ -262,6 +404,13 @@ class Media3VideoProcessor(
         // Transformer requires a Looper thread; build/start/poll/cancel all happen on Main.
         val done = CompletableDeferred<Unit>()
         val transformer = Transformer.Builder(context)
+            // Issue #41 Tier 1B — CodecDB Lite chipset-specific encoder tuning (Media3 1.10+).
+            // developer.android.com/reference/androidx/media3/transformer/DefaultEncoderFactory.Builder#setEnableCodecDbLite(boolean)
+            .setEncoderFactory(
+                DefaultEncoderFactory.Builder(context)
+                    .setEnableCodecDbLite(true)
+                    .build(),
+            )
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     done.complete(Unit)
@@ -297,38 +446,8 @@ class Media3VideoProcessor(
         }
     }
 
-    /** One source frame's duration in ms (for the seam offset), from the track frame rate; 30fps fallback. */
-    private fun frameDurationMs(source: File): Long {
-        val extractor = MediaExtractor()
-        return try {
-            extractor.setDataSource(source.absolutePath)
-            var fps = DEFAULT_FRAME_RATE
-            for (i in 0 until extractor.trackCount) {
-                val format = extractor.getTrackFormat(i)
-                if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true) {
-                    // frameRateOrDefault() is type-tolerant: KEY_FRAME_RATE is sometimes a Float, and
-                    // getInteger() would throw ClassCastException (which the broad catch below would
-                    // then mask by defaulting the WHOLE function). Reuse the shared, unit-tested util.
-                    fps = format.frameRateOrDefault()
-                    break
-                }
-            }
-            (1000L / fps.coerceAtLeast(1)).coerceAtLeast(1L)
-        } catch (e: IOException) {
-            // setDataSource() couldn't read the file — fall back to the 30fps seam offset.
-            1000L / DEFAULT_FRAME_RATE
-        } catch (e: IllegalArgumentException) {
-            // Malformed data source / track format — same safe fallback (never mask a real crash
-            // behind a broad catch, ANDROID_STANDARDS §3).
-            1000L / DEFAULT_FRAME_RATE
-        } finally {
-            extractor.release()
-        }
-    }
-
     private companion object {
         const val REVERSE_BUDGET = 0.8f
         const val PROGRESS_POLL_MS = 100L
-        const val DEFAULT_FRAME_RATE = 30
     }
 }
