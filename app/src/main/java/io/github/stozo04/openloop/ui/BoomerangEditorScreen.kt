@@ -390,6 +390,13 @@ fun BoomerangEditorContent(
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                         )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Send debug info below, or reopen the app once to upload an automatic report.",
+                            color = Color.White.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                        )
                         Spacer(Modifier.height(16.dp))
                         Text(
                             text = "TRY AGAIN",

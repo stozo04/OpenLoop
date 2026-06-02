@@ -15,7 +15,7 @@ import io.github.stozo04.openloop.BuildConfig
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
-import io.github.stozo04.openloop.media.buildReverseSupportReport
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
 import io.github.stozo04.openloop.work.BoomerangRenderScheduler
@@ -790,12 +790,17 @@ class OpenLoopViewModel(
                                 "(${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, " +
                                 "source=${trim.sourceFile.name}, ${trim.trimEndMs - trim.trimStartMs}ms trim)",
                         )
-                        markReversePreviewFailed(trim, "Timed out after ${REVERSE_PREVIEW_TIMEOUT_MS / 1000}s")
+                        markReversePreviewFailed(
+                            trim,
+                            "Timed out after ${REVERSE_PREVIEW_TIMEOUT_MS / 1000}s",
+                            PreviewReverseTimeoutException(),
+                        )
                     } else {
                         Log.e("OpenLoopViewModel", "Reverse generation for preview failed", error)
                         markReversePreviewFailed(
                             trim,
                             "${error.javaClass.simpleName}: ${error.message}",
+                            error,
                         )
                     }
                 }
@@ -811,12 +816,21 @@ class OpenLoopViewModel(
     /** Marker for [select] timeout — not shown to users. */
     private class PreviewReverseTimeoutException : Exception()
 
-    private fun markReversePreviewFailed(trim: TrimState, outcome: String) {
+    private fun markReversePreviewFailed(trim: TrimState, outcome: String, cause: Throwable) {
+        ReverseCrashlytics.reportPreviewFailure(
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+            source = trim.sourceFile,
+            trimStartMs = trim.trimStartMs,
+            trimEndMs = trim.trimEndMs,
+            outcome = outcome,
+            cause = cause,
+        )
         val latest = _editorTabState.value
         _editorTabState.value = latest.copy(
             previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
             reverseFailed = true,
-            reverseSupportReport = buildReverseSupportReport(
+            reverseSupportReport = ReverseCrashlytics.supportReportForShare(
                 versionName = BuildConfig.VERSION_NAME,
                 versionCode = BuildConfig.VERSION_CODE,
                 source = trim.sourceFile,

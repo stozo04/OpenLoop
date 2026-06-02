@@ -1,0 +1,7 @@
+Place Firebase `google-services.json` in this directory (`app/google-services.json`).
+
+Download from Firebase Console → Project settings → Android app `io.github.stozo04.openloop`.
+
+Setup and Crashlytics viewing: `docs/diagnostics/firebase-crashlytics-trimming.md`
+
+This file is not used by the build; the JSON is gitignored.

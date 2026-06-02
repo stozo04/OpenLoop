@@ -1,211 +1,133 @@
-# Library import stuck on "Trimming.." — bug postmortem
+# “Trimming..” stuck / preview reverse failures — postmortem
 
-This document explains the bug where importing a video from the device library left the boomerang editor on the **"Trimming.."** overlay indefinitely (or until a codec crash), while camera captures worked fine. Fixed in PR [#50](https://github.com/stozo04/OpenLoop/pull/50) (`versionCode` 4 / `versionName` 1.0.3).
+Users saw a full-screen **“Trimming..”** overlay after leaving the Trim screen (or tapping Speed/Loop/Filter into the editor). **Save stayed disabled.** On some devices (notably **Samsung S24+** in Brazil) the overlay never cleared and **never showed “Couldn’t loop that clip”** — even after waiting many minutes.
 
-Related handoff: [`docs/active/editor-trimming-overlay-stuck/HANDOFF.md`](docs/active/editor-trimming-overlay-stuck/HANDOFF.md).
+**That overlay is not a separate trim step.** It means the app is building a **reversed MP4** for the default boomerang mode (`FORWARD_THEN_REVERSE`) via a two-pass `MediaCodec` pipeline in `VideoReverser`.
 
----
-
-## What users saw
-
-After **importing a video from the gallery** (not a camera capture):
-
-1. Trim → **Save** (or a toolbar tab into the editor)
-2. Full-screen overlay: **"Trimming.."**
-3. It stayed for a long time or forever
-4. **Save** stayed disabled
-
-Camera clips usually cleared in a few seconds. **Only uploaded library videos** behaved badly.
-
-That overlay is not a separate trim operation. It means the app is running **reverse preview generation** — building a reversed MP4 so the default boomerang mode (`FORWARD_THEN_REVERSE`) can loop in the editor.
-
-| `EditorLoadingKind` | Message shown |
-|---------------------|---------------|
-| `TRIMMING` | **Trimming..** — first entry from trim into the editor |
-| `LOOPIFYING` | **Loopifying..** — later reverse kicks (mode change, return from trim) |
+| `EditorLoadingKind` | UI copy |
+|---------------------|---------|
+| `TRIMMING` | **Trimming..** — first entry from Trim into the editor |
+| `LOOPIFYING` | **Loopifying..** — later reverse kicks (mode change, return from Trim) |
 
 ---
 
-## How the overlay is wired
+## Fix timeline (releases & PRs)
 
-```mermaid
-flowchart LR
-    Trim[Trim → editor] --> VM["ensureReversedSegment(TRIMMING)"]
-    VM --> Set["previewLoading = TRIMMING"]
-    VM --> Job["reverseJob → VideoProcessor.ensureReversed()"]
-    Job --> VR["VideoReverser.reverse() — 2-pass MediaCodec"]
-    Job -->|success| Clear["reversedFile set, clear TRIMMING"]
-    Job -->|hang / no return| Stuck["previewLoading stays TRIMMING"]
-    Clear --> UI["Overlay gone, Save enabled"]
-```
-
-The editor shows the overlay when `previewLoading` is `TRIMMING` or `LOOPIFYING` and there is no `reversedFile` yet. Save is disabled while `awaitingReverse` is true (reverse-containing mode, no file, no failure flag).
-
-**Any** of these keeps **Trimming..** on screen:
-
-- Reverse never finishes (slow or hung codec)
-- Reverse fails but UI does not clear loading (older bug family)
-- Reverse finishes but `previewLoading` is not cleared (stale state)
-- Reverse is cancelled and restarted so it never completes
-
-This bug hit **several** of those at different stages of the fix.
+| Release / PR | What it addressed |
+|--------------|-------------------|
+| [#50](https://github.com/stozo04/OpenLoop/pull/50) — **1.0.3** (`versionCode` 4) | Library import seek wedge, 30 fps pass-1 cap, MediaCodec buffer lifecycle, encoder ranking, ViewModel stale loading, **120 s `withTimeoutOrNull`** (often **did not unblock UI** on wedged codecs) |
+| [#51](https://github.com/stozo04/OpenLoop/pull/51) — **1.0.5** (`versionCode` 5) | **Hard UI deadline** (`select` + `onTimeout`), HEVC/HDR pre-normalize, Media3 **decoder fallback**, vendor encoder preference, **Send debug info**, Crashlytics `recordException` |
 
 ---
 
-## Why library uploads differ from camera clips
+## Root cause (why “Trimming..” never ended)
 
-Camera recordings are predictable for this pipeline: ~30 fps, SDR H.264, modest length, already in the app’s world.
+Several independent failures stacked; Samsung **camera + gallery** hits more than one.
 
-**Gallery imports are adversarial** (see lesson 020): HDR/HEVC, odd metadata, **high reported frame rate**, variable frame spacing, sync samples before the trim window, etc.
+### 1. Heavy preview reverse (expected slowness)
 
-On a **Pixel 10 Pro Fold** repro (portrait ~368×832 H.264):
+Pass 1 re-encodes the trim window so **every kept frame is a keyframe** (required for frame-by-frame reverse in pass 2). Library and phone-export clips are **adversarial**: HEVC, HDR, dense 60 fps samples, odd sync points ([lesson 020](docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md)).
 
-- Pass 1 was still grinding at **~994 frames** in an ~11 s log window
-- Another capture completed with **`reverse pass2: … frames=948`** in ~21 s
-- Encoder often resolved to **`c2.google.avc.encoder`** (slow software path on some devices)
+Symptom: **Trimming..** for 30–120+ seconds on a slow software encoder (`c2.google.avc.encoder`).
 
-For that file, pass 1 was doing **hundreds of frames**, each re-encoded as an **I-frame** (required so pass 2 can seek frame-by-frame backwards). That is minutes of work on a slow encoder — easy to read as “infinite Trimming..” even when work was still progressing.
+### 2. `withTimeoutOrNull` did not unblock the UI (critical)
 
----
+Kotlin/Android guidance ([`withTimeout` docs](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-timeout.html), [coroutines best practices](https://developer.android.com/kotlin/coroutines/coroutines-best-practices)): **cancellation is cooperative**. If `MediaCodec` blocks in native code, the timeout coroutine **may never return**, so:
 
-## Layer 1 — Pass 1 could wedge on imports (seek / zero frames)
+- `reverseFailed` is never set
+- **“Couldn’t loop that clip”** never appears
+- **Trimming..** stays forever
 
-Pass 1 seeks with `SEEK_TO_PREVIOUS_SYNC`, which can land on a keyframe **before** trim start. Older logic treated samples before the trim window as end-of-stream:
+This matches reports: testers waited **much longer than 2 minutes** with no failure screen.
 
-- **Zero frames** fed to the decoder
-- Muxer never started
-- The decode loop waited forever when container `durationUs > 0`
+**Fix (PR #51):** Race preview reverse with `select` + `onTimeout`, return immediately on deadline, **`recordException`-ready failure path**, do **not** wait for the wedged worker to finish cancelling.
 
-**Fix:** After seek, advance samples until `sampleUs >= trimStart`. End input when `sampleUs > endUs`. If input ends with no muxer track, exit the loop (zero-frame pass).
+### 3. Samsung / OEM codecs
 
-That helped some imports. Logs showing **active encoding** (many frames) meant this alone did not explain every library failure.
+- CameraX `Quality.HD` does not force H.264; Samsung often records **HEVC and/or HDR** at ≤1080p — previously **skipped** the >1080p pre-scale path and went straight into raw `VideoReverser`.
+- Media3 `Transformer` defaults **disable decoder fallback**; HW decoder init can fail on HEVC/high profile ([androidx/media#2189](https://github.com/androidx/media/issues/2189), [#2751](https://github.com/androidx/media/issues/2751)).
 
----
+**Fix (PR #51):** Pre-normalize HEVC/HDR via Transformer before reverse; `DefaultDecoderFactory.setEnableDecoderFallback(true)` on Transformer; prefer Exynos/SEC/QTI encoders over Google software AVC.
 
-## Layer 2 — Perceived infinite loop (very slow pass 1)
-
-Pass 1 re-encodes the trim window so **every fed sample becomes a keyframe** — required for the two-pass reverse algorithm (`VideoReverser`, see `docs/active/boomerang-rollout/RESEARCH-reverse-video.md`).
-
-Library clips often have **~2× the sample density** of camera video (e.g. ~60 fps effective → ~948 samples in ~15 s).
-
-| Observation | Meaning |
-|---------------|---------|
-| Overlay shows **Trimming..** | Correct while reverse runs |
-| No exception, no `reverse_failed` | Not a caught failure — looks “stuck” |
-| Long wall time | User gives up before pass 2 |
-
-**Mitigation:** Cap pass-1 **encode rate at 30 fps** by skipping dense extractor samples (advance only, do not decode every frame). Cuts preview reverse time for phone exports. **Export still uses the full-rate source** at render time.
-
----
-
-## Layer 3 — ViewModel / UI could keep Trimming.. wrong
-
-Even when reverse was slow or flaky, the UI could misbehave:
+### 4. Older bug families (PR #50)
 
 | Issue | Effect |
 |--------|--------|
-| `ensureReversedSegment` **cancelled and restarted** reverse on every call | Progress discarded; overlay never “finishes” |
-| `previewLoading` set but **job not active** | TRIMMING forever with no work running |
-| **`updateFilter`** during reverse replaced TRIMMING with FILTERING, then cleared overlay | Confusing state; save could stay disabled via `awaitingReverse` |
-| No **timeout** | True hangs never became retry UI |
-
-**Fixes:**
-
-- Do not restart an active `reverseJob`
-- Recover stale `previewLoading` when no job is running
-- Keep TRIMMING visible during filter changes while reverse runs
-- **120 s timeout** → `reverseFailed` + Try again
-- Hide TRIMMING/LOOPIFYING in the overlay when `reversedFile` already exists (stale-state guard)
-
-Key files: `OpenLoopViewModel.kt`, `BoomerangEditorScreen.kt`.
+| Pass-1 seek before trim start → zero frames | Immediate EOS / hung loop |
+| Frame skip without queueing decoder buffers | `CodecException` — “Could not loop” |
+| `ensureReversedSegment` restarted active job | Progress discarded |
+| Stale `previewLoading` with no job | TRIMMING forever |
 
 ---
 
-## Layer 4 — MediaCodec crash after first skip fix (real buffer bug)
+## Architecture (how the overlay is wired)
 
-After frame-skipping was added, some devices surfaced **“Could not loop!!”** — progress, because failure was visible:
-
-```text
-MediaCodec$CodecException: Fatal error: failed to fetch buffer for index 3
-  at VideoReverser.runDecodeEncodeLoop → queueInputBuffer
-MPEG4Writer: Stop() called but track is not started or stopped
+```mermaid
+flowchart TD
+    Trim[Trim → editor] --> VM["ensureReversedSegment(TRIMMING)"]
+    VM --> Set["previewLoading = TRIMMING"]
+    VM --> Worker["async(IO): VideoProcessor.ensureReversed()"]
+    Worker --> Norm{HEVC/HDR or >1080p?}
+    Norm -->|yes| M3[Media3 Transformer normalize]
+    Norm -->|no| VR["VideoReverser.reverse()"]
+    M3 --> VR
+    Worker --> Select["select: onAwait vs onTimeout 120s"]
+    Select -->|success| OK["reversedFile set, clear overlay"]
+    Select -->|timeout/fail| Fail["reverseFailed + retry + diagnostics"]
+    Fail --> Share[Send debug info]
+    Fail --> CL[Crashlytics recordException]
 ```
 
-**Cause:** Violation of MediaCodec input-buffer contract:
+Save is disabled while `awaitingReverse` (reverse mode, no `reversedFile`, no failure yet).
 
-1. `dequeueInputBuffer()` — you **own** that input slot
-2. You must **`queueInputBuffer()`** exactly once on that slot (payload or EOS), or the codec wedges
+Key files:
 
-**Buggy flow:**
-
-```text
-dequeue buffer #3
-→ decide SKIP (dense frame)
-→ extractor.advance() only
-→ never queue buffer #3
-→ loop again, dequeue another buffer
-→ later queueInputBuffer on #3 → fatal error
-```
-
-**Second bug:** After encoding a frame, if `advance()` failed, code queued **EOS on the same buffer index** already used for that frame.
-
-**Correct pattern (shipped):**
-
-1. **Skip only by advancing the extractor** — do not dequeue decoder input for skipped samples
-2. **One dequeue → one queue** (one frame or EOS)
-3. When the extractor is exhausted, set `pendingDecoderEos`; on the **next** loop iteration dequeue a **fresh** buffer and queue EOS
+- `OpenLoopViewModel.kt` — `ensureReversedSegment`, timeout, failure state
+- `VideoProcessor.kt` — `prepareReverseInput`, Transformer decoder fallback
+- `VideoReverser.kt` — two-pass reverse, encoder selection, logging
+- `BoomerangEditorScreen.kt` — overlay, retry, Send debug info
+- `diagnostics/ReverseCrashlytics.kt` — non-fatal reporting
 
 ---
 
-## Timeline of symptoms
+## Diagnostics (testers without Android Studio)
 
-| Stage | Behavior |
-|--------|----------|
-| Original | **Trimming..** forever — slow pass 1 and/or zero-frame wedge; no retry |
-| After seek + ViewModel fixes | Still bad on dense library files — ~900+ frames, slow encoder |
-| After 30 fps skip (buggy buffers) | **CodecException** — “Could not loop” (failure surfaced) |
-| After buffer lifecycle fix | **Works** — overlay clears, preview loops |
+| Path | When | What you get |
+|------|------|----------------|
+| **Send debug info** (in-app) | After **Couldn’t loop that clip** | Immediate plain-text (device, version, mime, trim) |
+| **Firebase Crashlytics** | Same failure; tester reopens app | Non-fatal in console with custom keys — [setup & viewing](docs/diagnostics/firebase-crashlytics-trimming.md) |
+| **Take bug report** (Developer options) | Stuck on old build / no Firebase | Full system zip; heavy for users |
+| **adb logcat / bugreport** | You or a technical helper | Best codec detail; needs platform-tools |
+
+Do **not** rely on Play Store “Logcat Reader” apps for average testers — most need a PC `adb` setup first.
+
+---
+
+## Regression QA
+
+1. Install build **≥ 1.0.5** with `google-services.json` if testing Crashlytics.
+2. **Camera** and **gallery import** on a Samsung (or HEVC/HDR sample).
+3. Trim → enter editor → note **Trimming..**.
+4. **Healthy:** Overlay clears; preview loops; Save enables (may take up to ~2 min on slow devices).
+5. **Failure:** Within **~120 s**, **Couldn’t loop that clip** + **Try again** + **Send debug info** — not infinite Trimming.
+6. After failure: tester force-stops app, reopens → verify non-fatal in Firebase (if configured).
+7. Logcat (optional): `VideoReverser`, `OpenLoopViewModel`, tags `reverse start`, `reverse pass1`, `reverse pass2`.
+
+Unit tests (no real MediaCodec):  
+`./gradlew :app:testDebugUnitTest --tests "io.github.stozo04.openloop.ui.OpenLoopViewModelTest.reverse*"`
 
 ---
 
 ## One-sentence summary
 
-**Trimming..** meant preview reverse was running; for uploaded library videos that implied a **very heavy pass-1 transcode** on **dense, phone-export-style** media, and the app either **never finished in time**, **never cleared UI state**, or **crashed MediaCodec** because skipped frames still **claimed decoder input buffers** without queueing them back.
-
----
-
-## What shipped in the fix
-
-Included in PR #50 / release **1.0.3** (`versionCode` 4):
-
-- Pass-1 seek / zero-frame exit
-- 30 fps subsampling with correct buffer lifecycle (`pendingDecoderEos`)
-- Encoder preference ranking (deprioritize slow `google` software AVC where possible)
-- ViewModel: no restart while job active, timeout → retry, overlay guards
-- Unit tests: `Pass1SampleActionTest`, `OpenLoopViewModelTest` regressions
-
-**On-device validation is mandatory** — unit tests use a fake `VideoProcessor` and do not run real MediaCodec.
-
----
-
-## Reproduction checklist (regression QA)
-
-1. Fresh install or clear app data
-2. Gallery → import the same library video that failed before
-3. Trim → **Save** (or Speed on trim toolbar)
-4. Note **Trimming..** vs **Loopifying..**
-5. Switch Speed / Loop / Filter **without** moving trim handles
-6. Wait at least 30 s once (distinguish slow vs hung)
-7. Logcat filter: `package:io.github.stozo04.openloop`, tags `VideoReverser`, `OpenLoopViewModel`
-
-**Healthy:** Overlay clears, preview loops, Save enables.  
-**Failure:** `reverse_failed` + Try again, not infinite **Trimming..**
+**Trimming..** meant preview reverse was running; Samsung and library clips often use **HEVC/HDR** and **slow or wedged MediaCodec** work, and **`withTimeoutOrNull` could wait forever on native code**, so the UI never reached the failure screen — fixed by a **non-blocking timeout**, **normalize + decoder fallback**, and **Crashlytics / Send debug info** for remote triage.
 
 ---
 
 ## Related docs
 
-- [`docs/active/editor-trimming-overlay-stuck/HANDOFF.md`](docs/active/editor-trimming-overlay-stuck/HANDOFF.md) — engineering handoff
-- [`docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md`](docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md) — HDR / encoder / failure UI
-- [`docs/play-store/release-signing-and-aab.md`](docs/play-store/release-signing-and-aab.md) — building the Play bundle
-- [`docs/active/boomerang-rollout/RESEARCH-reverse-video.md`](docs/active/boomerang-rollout/RESEARCH-reverse-video.md) — why two-pass reverse exists
+- [Firebase Crashlytics & tester instructions](docs/diagnostics/firebase-crashlytics-trimming.md)
+- [Engineering handoff](docs/active/editor-trimming-overlay-stuck/HANDOFF.md)
+- [Lesson 020 — HDR / imports](docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md)
+- [Lesson 021 — no downscale inside VideoReverser](docs/lessons_learned/021-reverse-downscale-surface-mismatch.md)
+- [Reverse video research](docs/active/boomerang-rollout/RESEARCH-reverse-video.md)
