@@ -43,7 +43,7 @@ class LoopifyingScreenshotTest {
             }
         }
         composeTestRule.onNodeWithTag("processing_screen").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Loopifying…").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Creating..").assertIsDisplayed()
         composeTestRule.onNodeWithText("42%").assertIsDisplayed()
         composeTestRule.waitForIdle()
 

@@ -685,7 +685,7 @@ class OpenLoopViewModelTest {
             // The shimmer must clear and the failure must be flagged, so the editor shows a retry
             // instead of "Loopifying…" forever (the HDR-import wedge).
             assertTrue("reverseFailed must be set", viewModel.editorTabState.value.reverseFailed)
-            assertFalse(viewModel.editorTabState.value.isReversedFileLoading)
+            assertNull(viewModel.editorTabState.value.previewLoading)
             assertNull(viewModel.editorTabState.value.reversedFile)
         }
 
@@ -879,15 +879,17 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `discardTrim discards the scratch and returns to ReadyToCapture`() {
+    fun `discardTrim discards the scratch and returns to ReadyToCapture`() =
+        runTest(mainDispatcherRule.testDispatcher) {
         enterTrimState()
 
         viewModel.discardTrim()
+        advanceUntilIdle()
 
         assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
         assertEquals(1, fakeVideoStorage.discardedScratches.size)
         assertNull(viewModel.editorState.value)
-    }
+        }
 
     // ── Gallery Navigation Tests ──
 

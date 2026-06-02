@@ -23,11 +23,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
-/**
- * UI tests for the stateless [TrimScreenContent]. Driven directly (no ViewModel / no capture), so we
- * control the trim window and assert on the NEXT gate, ≥44 dp handle targets, and the discard dialog.
- * Lesson 017: no mockk in androidTest — plain lambdas + a temp [File] for the (non-playing) source.
- */
 @RunWith(AndroidJUnit4::class)
 class TrimScreenTest {
 
@@ -58,24 +53,36 @@ class TrimScreenTest {
     }
 
     @Test
-    fun next_isEnabled_whenWindowMeetsMinimum() {
+    fun save_isEnabled_whenWindowMeetsMinimum() {
         setContent(durationMs = 3_000L, startMs = 0L, endMs = 3_000L)
-        composeTestRule.onNodeWithTag("next_button").assertIsEnabled()
+        composeTestRule.onNodeWithTag("trim_save").assertIsEnabled()
     }
 
     @Test
-    fun next_isDisabled_whenWindowBelowMinimum() {
-        // 200ms window < 400ms minimum.
+    fun save_isDisabled_whenWindowBelowMinimum() {
         setContent(durationMs = 3_000L, startMs = 1_000L, endMs = 1_200L)
-        composeTestRule.onNodeWithTag("next_button").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("trim_save").assertIsNotEnabled()
     }
 
     @Test
-    fun next_belowMinimum_doesNotInvokeOnNext() {
+    fun save_belowMinimum_doesNotInvokeOnNext() {
         var nextCalls = 0
         setContent(durationMs = 3_000L, startMs = 1_000L, endMs = 1_200L, onNext = { nextCalls++ })
-        composeTestRule.onNodeWithTag("next_button").performClick()
-        assertFalse("disabled NEXT must not fire onNext", nextCalls > 0)
+        composeTestRule.onNodeWithTag("trim_save").performClick()
+        assertFalse("disabled SAVE must not fire onNext", nextCalls > 0)
+    }
+
+    @Test
+    fun trimSectionTitle_isDisplayed() {
+        setContent()
+        composeTestRule.onNodeWithText("TRIM YOUR VIDEO").assertIsDisplayed()
+    }
+
+    @Test
+    fun rangePill_reflectsTheTrimmedWindow() {
+        setContent(durationMs = 5_000L, startMs = 1_000L, endMs = 4_000L)
+        composeTestRule.onNodeWithTag("trim_range_label").assertIsDisplayed()
+        composeTestRule.onNodeWithText("00:01.0  —  00:04.0").assertIsDisplayed()
     }
 
     @Test
@@ -86,30 +93,21 @@ class TrimScreenTest {
     }
 
     @Test
-    fun durationLabel_reflectsTheTrimmedWindow() {
-        setContent(durationMs = 5_000L, startMs = 1_000L, endMs = 4_000L)
-        composeTestRule.onNodeWithText("3.0s").assertIsDisplayed()
-    }
-
-    @Test
-    fun handleLabels_showEachHandlesTimestamp() {
-        // Start handle at 1.0s, end handle at 4.0s, window length 3.0s (the duration pill).
-        setContent(durationMs = 5_000L, startMs = 1_000L, endMs = 4_000L)
-        composeTestRule.onNodeWithTag("trim_label_start").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("trim_label_end").assertIsDisplayed()
-        composeTestRule.onNodeWithText("1.0s").assertIsDisplayed() // start timestamp
-        composeTestRule.onNodeWithText("4.0s").assertIsDisplayed() // end timestamp
-    }
-
-    @Test
     fun back_showsDiscardConfirmDialog() {
         setContent()
         composeTestRule.onNodeWithTag("trim_back").performClick()
         composeTestRule.onNodeWithText("Discard this clip?").assertIsDisplayed()
     }
 
-    // ── Accessibility: the custom trim handles must expose adjustable semantics (not be invisible
-    //    to TalkBack). Each handle is a labeled, range-valued node with a SetProgress action. ──
+    @Test
+    fun bottomToolbar_showsAllFiveSlots() {
+        setContent()
+        composeTestRule.onNodeWithTag("tab_trim").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_speed").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_loop").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_filter").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_delete").assertIsDisplayed()
+    }
 
     @Test
     fun trimHandles_exposeAdjustableRangeSemantics() {
@@ -132,7 +130,6 @@ class TrimScreenTest {
             onCommitTrim = { s, e -> committedStart = s; committedEnd = e },
         )
 
-        // A TalkBack "set value" gesture routes through the SetProgress action and must move + commit.
         composeTestRule.onNodeWithContentDescription("Trim start")
             .performSemanticsAction(SemanticsActions.SetProgress) { it(1_000f) }
 

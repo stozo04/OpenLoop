@@ -2,7 +2,6 @@ package io.github.stozo04.openloop.ui
 
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
-import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,14 +10,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -38,10 +34,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -65,11 +58,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -81,7 +71,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -98,8 +87,13 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
-import io.github.stozo04.openloop.ui.components.BackButton
-import io.github.stozo04.openloop.ui.components.DirectionChipIcon
+import io.github.stozo04.openloop.ui.components.EditorBottomToolbar
+import io.github.stozo04.openloop.ui.components.EditorLoadingOverlay
+import io.github.stozo04.openloop.ui.components.EditorToolbarSlot
+import io.github.stozo04.openloop.ui.components.FilterTabPanel
+import io.github.stozo04.openloop.ui.components.LoopTabPanel
+import io.github.stozo04.openloop.ui.components.SpeedTabPanel
+import io.github.stozo04.openloop.ui.components.toToolbarSlot
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.LimeInk
@@ -124,48 +118,18 @@ import java.util.Locale
 /** Hit target ≥ 48 dp (Material / ANDROID_STANDARDS §7 minimum) for the top-bar buttons and chips. */
 private val CONTROL_SIZE = 56.dp
 
-/** Reserved bottom tab-bar height (steady from slice 03; slice 05 enables the Reps stub without reflow). */
-private val TAB_BAR_HEIGHT = 56.dp
-
-/** Tab-bar icon pill size and the gap between pills ("icons … spaced 32 dp apart", slice-04 doc). */
-private val TAB_PILL_SIZE = 44.dp
-private val TAB_PILL_SPACING = 32.dp
-
 /** Max width of the tab-content row so chips / slider stay centered (not edge-spread) on ≥ 600 dp displays. */
 private val CONTENT_MAX_WIDTH = 520.dp
 
-/**
- * Fixed height of the tab-content panel so switching Direction ↔ Speed (different intrinsic heights)
- * never shifts the tab bar below it. Sized to the taller content (the direction-chip column).
- */
-private val PANEL_CONTENT_HEIGHT = 150.dp
-
-/** Speed slider geometry. Thumb ≈ 24 dp diameter (doc); 4 dp track; 48 dp touch target (§7). */
-private val SLIDER_THUMB_RADIUS = 12.dp
-private val SLIDER_TRACK_HEIGHT = 4.dp
-private val SLIDER_TOUCH_HEIGHT = 48.dp
+/** Tab-panel heights: fixed per tab so the bottom toolbar stays put; Speed is tallest (slider + pill). */
+private fun editorPanelHeight(tab: EditorTab) = when (tab) {
+    EditorTab.SPEED -> 240.dp
+    EditorTab.LOOKS -> 188.dp
+    EditorTab.DIRECTION -> 168.dp
+}
 
 /** Debounce before pushing a new speed to the player — coalesces a drag's stream into one apply. */
 private const val SPEED_DEBOUNCE_MS = 50L
-
-/** Speeds that get a haptic detent so the user can find "normal" (1.0×) and the default (2.0×) by feel. */
-private val SPEED_DETENTS = listOf(1.0f, 2.0f)
-
-/**
- * The four direction chips, in display order, with the reference-Boomerang glyph. No visible caption —
- * the glyph carries the meaning; [accessibilityLabel] is the spoken label for TalkBack.
- */
-private data class DirectionChip(
-    val mode: BoomerangMode,
-    val accessibilityLabel: String,
-)
-
-private val DIRECTION_CHIPS = listOf(
-    DirectionChip(BoomerangMode.FORWARD, "Forward"),
-    DirectionChip(BoomerangMode.REVERSE, "Reverse"),
-    DirectionChip(BoomerangMode.FORWARD_THEN_REVERSE, "Forward then reverse"),
-    DirectionChip(BoomerangMode.REVERSE_THEN_FORWARD, "Reverse then forward"),
-)
 
 /**
  * Tabbed boomerang editor. Opens from the Trim screen's NEXT with the trimmed clip already
@@ -184,6 +148,7 @@ fun BoomerangEditorScreen(
 ) {
     val trim by viewModel.editorState.collectAsStateWithLifecycle()
     val tab by viewModel.editorTabState.collectAsStateWithLifecycle()
+    val sessionOverlay by viewModel.sessionOverlayLoading.collectAsStateWithLifecycle()
     val editor = trim ?: return // No active session (transient state); router keeps us here.
 
     BoomerangEditorContent(
@@ -195,15 +160,18 @@ fun BoomerangEditorScreen(
         filter = tab.filter,
         activeTab = tab.activeTab,
         reversedFile = tab.reversedFile,
-        isReversedFileLoading = tab.isReversedFileLoading,
+        previewLoading = tab.previewLoading,
+        sessionOverlayLoading = sessionOverlay,
         reverseFailed = tab.reverseFailed,
-        onRetryReverse = viewModel::ensureReversedSegment,
+        onRetryReverse = viewModel::retryReverseSegment,
         onSelectMode = viewModel::updateMode,
         onSpeedChange = viewModel::updateSpeed,
         onFilterChange = viewModel::updateFilter,
+        onFilterPreviewSettled = viewModel::onFilterPreviewSettled,
         onSwitchTab = viewModel::switchTab,
         onSave = viewModel::saveBoomerang,
-        onBack = viewModel::backToTrim,
+        onGoToTrim = viewModel::backToTrim,
+        onDiscard = viewModel::discardTrim,
         modifier = modifier,
     )
 }
@@ -224,10 +192,11 @@ fun BoomerangEditorContent(
     trimEndMs: Long,
     mode: BoomerangMode,
     reversedFile: File?,
-    isReversedFileLoading: Boolean,
+    previewLoading: EditorLoadingKind? = null,
+    sessionOverlayLoading: EditorLoadingKind? = null,
     onSelectMode: (BoomerangMode) -> Unit,
     onSave: () -> Unit,
-    onBack: () -> Unit,
+    onGoToTrim: () -> Unit,
     modifier: Modifier = Modifier,
     speed: Float = OpenLoopViewModel.DEFAULT_SPEED,
     filter: VideoFilter = VideoFilter.ORIGINAL,
@@ -236,7 +205,9 @@ fun BoomerangEditorContent(
     onRetryReverse: () -> Unit = {},
     onSpeedChange: (Float) -> Unit = {},
     onFilterChange: (VideoFilter) -> Unit = {},
+    onFilterPreviewSettled: () -> Unit = {},
     onSwitchTab: (EditorTab) -> Unit = {},
+    onDiscard: () -> Unit = {},
 ) {
     val context = LocalContext.current
 
@@ -251,25 +222,13 @@ fun BoomerangEditorContent(
         value = withContext(Dispatchers.IO) { sourceSeamDurationMs(sourceFile) }
     }
 
-    var showDiscardDialog by remember { mutableStateOf(false) }
-    // Single back path for both the gesture and the arrow: confirm only when the user changed *any*
-    // selection off its default (direction, speed, or look — all worth guarding); otherwise return
-    // silently to Trim (Lesson 015 — gate, don't always-intercept).
-    val hasEdits = mode != BoomerangMode.FORWARD_THEN_REVERSE ||
-        speed != OpenLoopViewModel.DEFAULT_SPEED ||
-        filter != VideoFilter.ORIGINAL
-    val handleBack = {
-        if (hasEdits) showDiscardDialog = true else onBack()
-    }
-    BackHandler { handleBack() }
+    var showDeleteClipDialog by remember { mutableStateOf(false) }
 
-    // The reversed clip is still missing for a mode that needs it → preview can't show the real
-    // direction yet; cover with the shimmer and block Save until it lands. Once generation has FAILED
-    // (reverseFailed), stop the shimmer and show a retry card instead — a failed reverse must never
-    // leave "Loopifying…" on screen forever (the bug HDR imports exposed).
-    val awaitingReverse = mode.needsReverse && !reverseFailed && (reversedFile == null || isReversedFileLoading)
+    // Reverse still generating / failed, or any preview overlay (Trimming…, Hold Tight, etc.).
+    val awaitingReverse = mode.needsReverse && !reverseFailed && reversedFile == null
     val reverseUnavailable = mode.needsReverse && reverseFailed && reversedFile == null
-    val saveEnabled = !awaitingReverse && !reverseUnavailable
+    val activeOverlay = sessionOverlayLoading ?: previewLoading
+    val saveEnabled = activeOverlay == null && !awaitingReverse && !reverseUnavailable
 
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
@@ -313,6 +272,7 @@ fun BoomerangEditorContent(
         if (effects.isNotEmpty()) {
             exoPlayer.setVideoEffects(effects)
         }
+        onFilterPreviewSettled()
     }
 
     // When a look *is* active, re-apply it at each playlist-item transition so the GL pipeline
@@ -346,18 +306,13 @@ fun BoomerangEditorContent(
                 .fillMaxSize()
                 .testTag("editor_screen"),
         ) {
-        // ── Top bar: back (left) + save checkmark (right) ──
+        // ── Top bar: save checkmark (right) ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            BackButton(
-                contentDescription = "Back to trim",
-                onClick = handleBack,
-                modifier = Modifier.align(Alignment.CenterStart).testTag("editor_back"),
-            )
             SaveCheckmark(
                 enabled = saveEnabled,
                 onClick = onSave,
@@ -383,37 +338,12 @@ fun BoomerangEditorContent(
                 modifier = Modifier.fillMaxSize().testTag("editor_preview"),
             )
 
-            if (awaitingReverse) {
-                // Soft dark scrim (the dimmed preview frame still shows through) + a glassmorphic card,
-                // rather than a flat color wash — matches the app's OverlayScrim/OverlayWhite surfaces.
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.45f))
-                        .testTag("reverse_loading"),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(OverlayScrim)
-                            .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.medium)
-                            .padding(horizontal = 28.dp, vertical = 22.dp),
-                    ) {
-                        CircularProgressIndicator(
-                            color = ElectricLime,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(34.dp),
-                        )
-                        Spacer(Modifier.height(14.dp))
-                        Text(
-                            text = "Loopifying…",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                    }
-                }
+            if (activeOverlay != null) {
+                EditorLoadingOverlay(
+                    message = activeOverlay.message,
+                    modifier = Modifier.fillMaxSize(),
+                    testTag = "reverse_loading",
+                )
             }
 
             // Reverse generation failed for this clip (e.g. an HDR/codec the device can't tone-map).
@@ -493,22 +423,25 @@ fun BoomerangEditorContent(
             }
         }
 
-        // ── Tab content panel: cross-fades between Direction and Speed (fixed height → tab bar stable) ──
+        // ── Tab content panel: cross-fades between tabs (per-tab height → bottom bar stable, no clip) ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(editorPanelHeight(activeTab))
                 .background(Brush.verticalGradient(listOf(Color.Transparent, OverlayScrim))),
+            contentAlignment = Alignment.TopCenter,
         ) {
             AnimatedContent(
                 targetState = activeTab,
                 transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(200)) },
                 label = "editor_tab_content",
-                modifier = Modifier.fillMaxWidth().height(PANEL_CONTENT_HEIGHT),
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter,
             ) { tab ->
                 when (tab) {
-                    EditorTab.DIRECTION -> DirectionTabContent(mode = mode, onSelectMode = onSelectMode)
-                    EditorTab.SPEED -> SpeedTabContent(speed = speed, onSpeedChange = onSpeedChange)
-                    EditorTab.LOOKS -> LooksTabContent(
+                    EditorTab.DIRECTION -> LoopTabPanel(mode = mode, onSelectMode = onSelectMode)
+                    EditorTab.SPEED -> SpeedTabPanel(speed = speed, onSpeedChange = onSpeedChange)
+                    EditorTab.LOOKS -> FilterTabPanel(
                         filter = filter,
                         thumbnailFrame = thumbnailFrame,
                         onFilterChange = onFilterChange,
@@ -517,236 +450,35 @@ fun BoomerangEditorContent(
             }
         }
 
-        // ── Tab bar: Direction + Speed + Looks, all interactive (slice 05 lit up the third slot) ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(OverlayScrim)
-                .navigationBarsPadding()
-                .height(TAB_BAR_HEIGHT),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TabBarItem(
-                icon = Icons.Filled.FastForward,
-                contentDescription = "Direction tab",
-                active = activeTab == EditorTab.DIRECTION,
-                enabled = true,
-                onClick = { onSwitchTab(EditorTab.DIRECTION) },
-                modifier = Modifier.testTag("tab_direction"),
-            )
-            Spacer(Modifier.width(TAB_PILL_SPACING))
-            TabBarItem(
-                icon = Icons.Filled.Bolt,
-                contentDescription = "Speed tab",
-                active = activeTab == EditorTab.SPEED,
-                enabled = true,
-                onClick = { onSwitchTab(EditorTab.SPEED) },
-                modifier = Modifier.testTag("tab_speed"),
-            )
-            Spacer(Modifier.width(TAB_PILL_SPACING))
-            TabBarItem(
-                icon = Icons.Filled.AutoAwesome,
-                contentDescription = "Looks tab",
-                active = activeTab == EditorTab.LOOKS,
-                enabled = true,
-                onClick = { onSwitchTab(EditorTab.LOOKS) },
-                modifier = Modifier.testTag("tab_looks"),
-            )
-        }
+        EditorBottomToolbar(
+            activeSlot = activeTab.toToolbarSlot(),
+            onTrimClick = onGoToTrim,
+            onSpeedClick = { onSwitchTab(EditorTab.SPEED) },
+            onLoopClick = { onSwitchTab(EditorTab.DIRECTION) },
+            onFilterClick = { onSwitchTab(EditorTab.LOOKS) },
+            onDeleteClick = { showDeleteClipDialog = true },
+        )
         }
     }
 
-    if (showDiscardDialog) {
+    if (showDeleteClipDialog) {
         AlertDialog(
-            // Back press / scrim tap == "Keep editing" (the safe choice): just close the dialog.
-            onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard changes?") },
-            text = { Text("Your edits will be lost and you'll return to trimming.") },
+            onDismissRequest = { showDeleteClipDialog = false },
+            title = { Text("Discard this clip?") },
+            text = { Text("Your captured clip will be deleted and you'll return to the camera.") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onBack()
+                        showDeleteClipDialog = false
+                        onDiscard()
                     },
-                    modifier = Modifier.testTag("discard_changes_confirm"),
+                    modifier = Modifier.testTag("discard_confirm"),
                 ) { Text("Discard") }
             },
             dismissButton = {
-                // "Keep editing" must dismiss the dialog so the user stays in the editor — previously a
-                // no-op, which trapped them in the dialog with no way to continue.
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
+                TextButton(onClick = { showDeleteClipDialog = false }) { Text("Keep editing") }
             },
         )
-    }
-}
-
-/** Direction tab content: the four boomerang-direction chips with a caption. */
-@Composable
-private fun DirectionTabContent(
-    mode: BoomerangMode,
-    onSelectMode: (BoomerangMode) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Select video direction",
-            color = Color.White.copy(alpha = 0.7f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Spacer(Modifier.height(14.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = CONTENT_MAX_WIDTH),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            DIRECTION_CHIPS.forEach { chip ->
-                DirectionChipButton(
-                    chip = chip,
-                    selected = chip.mode == mode,
-                    onClick = { onSelectMode(chip.mode) },
-                )
-            }
-        }
-    }
-}
-
-/** Speed tab content: a caption over the label-free comet [SpeedSlider]. */
-@Composable
-private fun SpeedTabContent(
-    speed: Float,
-    onSpeedChange: (Float) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Slow down or speed up the video",
-            color = Color.White.copy(alpha = 0.85f),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(20.dp))
-        SpeedSlider(
-            speed = speed,
-            onSpeedChange = onSpeedChange,
-            modifier = Modifier.widthIn(max = CONTENT_MAX_WIDTH),
-        )
-    }
-}
-
-/**
- * Custom comet-style speed slider (drawn, not a Material [androidx.compose.material3.Slider]) so the
- * thumb reads as a glowing comet head on a [ElectricLime] trail per the reference screenshot — no value
- * label, no end labels. The numeric speed is exposed to TalkBack via [stateDescription] (an unlabeled
- * continuous slider must announce its value — ANDROID_STANDARDS §7), invisible to sighted users.
- *
- * Drag or tap to set the value; a [HapticFeedbackType.SegmentTick] fires when the value crosses a
- * [SPEED_DETENTS] threshold (1.0× / 2.0×) so the user can return to those speeds by feel.
- */
-@Composable
-private fun SpeedSlider(
-    speed: Float,
-    onSpeedChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val haptics = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    val start = OpenLoopViewModel.MIN_SPEED
-    val end = OpenLoopViewModel.MAX_SPEED
-    val span = end - start
-    val thumbRadiusPx = with(density) { SLIDER_THUMB_RADIUS.toPx() }
-    val trackStrokePx = with(density) { SLIDER_TRACK_HEIGHT.toPx() }
-
-    var widthPx by remember { mutableFloatStateOf(0f) }
-    // The gesture closures below are keyed only on widthPx (re-keying on speed would cancel an active
-    // drag), so they'd capture a stale `speed`. rememberUpdatedState keeps the detent comparison honest.
-    val latestSpeed by rememberUpdatedState(speed)
-
-    val emit: (Float) -> Unit = { raw ->
-        val clamped = raw.coerceIn(start, end)
-        val prev = latestSpeed
-        if (clamped != prev) {
-            if (SPEED_DETENTS.any { t -> (prev < t) != (clamped < t) }) {
-                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-            }
-            onSpeedChange(clamped)
-        }
-    }
-
-    fun fractionOf(value: Float) = ((value - start) / span).coerceIn(0f, 1f)
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(SLIDER_TOUCH_HEIGHT)
-            .testTag("speed_slider")
-            .onSizeChanged { widthPx = it.width.toFloat() }
-            .pointerInput(widthPx) {
-                if (widthPx <= 0f) return@pointerInput
-                val usable = (widthPx - thumbRadiusPx * 2f).coerceAtLeast(1f)
-                fun xToValue(x: Float) = start + ((x - thumbRadiusPx) / usable).coerceIn(0f, 1f) * span
-                detectHorizontalDragGestures { change, _ ->
-                    change.consume()
-                    emit(xToValue(change.position.x))
-                }
-            }
-            .pointerInput(widthPx) {
-                if (widthPx <= 0f) return@pointerInput
-                val usable = (widthPx - thumbRadiusPx * 2f).coerceAtLeast(1f)
-                fun xToValue(x: Float) = start + ((x - thumbRadiusPx) / usable).coerceIn(0f, 1f) * span
-                detectTapGestures { offset -> emit(xToValue(offset.x)) }
-            }
-            .semantics {
-                contentDescription = "Playback speed"
-                stateDescription = formatSpeedLabel(speed)
-                progressBarRangeInfo = ProgressBarRangeInfo(speed, start..end)
-                setProgress { target ->
-                    emit(target)
-                    true
-                }
-            },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val centerY = size.height / 2f
-            val usable = (size.width - thumbRadiusPx * 2f).coerceAtLeast(1f)
-            val thumbX = thumbRadiusPx + fractionOf(speed) * usable
-
-            // Inactive track (right of the thumb): white @30%.
-            if (thumbX < size.width - thumbRadiusPx) {
-                drawLine(
-                    color = OverlayWhiteBorder,
-                    start = Offset(thumbX, centerY),
-                    end = Offset(size.width - thumbRadiusPx, centerY),
-                    strokeWidth = trackStrokePx,
-                    cap = StrokeCap.Round,
-                )
-            }
-            // Comet trail (left of the thumb): a ElectricLime gradient brightening toward the head.
-            drawLine(
-                brush = Brush.horizontalGradient(
-                    colors = listOf(ElectricLime.copy(alpha = 0.2f), ElectricLime),
-                    startX = thumbRadiusPx,
-                    endX = thumbX,
-                ),
-                start = Offset(thumbRadiusPx, centerY),
-                end = Offset(thumbX, centerY),
-                strokeWidth = trackStrokePx,
-                cap = StrokeCap.Round,
-            )
-            // Comet head: soft glow halo, solid ElectricLime body, bright white core.
-            drawCircle(ElectricLime.copy(alpha = 0.3f), radius = thumbRadiusPx * 1.5f, center = Offset(thumbX, centerY))
-            drawCircle(ElectricLime, radius = thumbRadiusPx, center = Offset(thumbX, centerY))
-            drawCircle(Color.White, radius = thumbRadiusPx * 0.42f, center = Offset(thumbX, centerY))
-        }
     }
 }
 
@@ -833,217 +565,7 @@ private fun SaveCheckmark(
 }
 
 /**
- * A single bottom-tab-bar slot. Active → darker pill + [ElectricLime] icon; inactive interactive →
- * [OverlayWhite] pill + white icon; disabled stub → no pill, dimmed icon, non-clickable + `disabled()`
- * semantics (the Reps tab until slice 05). Carries `Role.Tab` + `selected` for selection a11y/tests.
- */
-@Composable
-private fun TabBarItem(
-    icon: ImageVector,
-    contentDescription: String,
-    active: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val iconTint = when {
-        !enabled -> Color.White.copy(alpha = 0.4f)
-        active -> ElectricLime
-        else -> Color.White
-    }
-    Box(
-        modifier = modifier
-            .size(TAB_PILL_SIZE)
-            .clip(CircleShape)
-            .then(
-                when {
-                    !enabled -> Modifier
-                    active -> Modifier.background(Color.Black.copy(alpha = 0.35f))
-                    else -> Modifier.background(OverlayWhite)
-                },
-            )
-            .then(if (enabled) Modifier.clickable(role = Role.Tab) { onClick() } else Modifier)
-            .semantics {
-                this.contentDescription = contentDescription
-                this.selected = active
-                if (!enabled) disabled()
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(26.dp))
-    }
-}
-
-/**
- * A single direction chip: vector glyph tile (no caption — [DirectionChipIcon] carries the meaning;
- * the spoken label rides in `contentDescription`). Selected → flat [ElectricLime] fill with a dark
- * glyph; unselected → glassmorphic outline with a white glyph.
- */
-@Composable
-private fun DirectionChipButton(
-    chip: DirectionChip,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .size(CONTROL_SIZE)
-            .clip(MaterialTheme.shapes.small)
-            .then(
-                if (selected) {
-                    Modifier.background(ElectricLime)
-                } else {
-                    Modifier
-                        .background(OverlayWhite)
-                        .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.small)
-                },
-            )
-            .clickable(role = Role.Button) { onClick() }
-            .semantics {
-                contentDescription = chip.accessibilityLabel
-                this.selected = selected
-            }
-            .testTag("direction_chip_${chip.mode.name}"),
-        contentAlignment = Alignment.Center,
-    ) {
-        DirectionChipIcon(
-            mode = chip.mode,
-            tint = if (selected) LimeInk else Color.White,
-        )
-    }
-}
-
-/** Speech label for the slider's [stateDescription], e.g. 1.75f → "1.75 times speed" (trailing zeros trimmed). */
-private fun formatSpeedLabel(speed: Float): String {
-    val number = String.format(Locale.US, "%.2f", speed).trimEnd('0').trimEnd('.')
-    return "$number times speed"
-}
-
-/** Looks tab content: a caption over a horizontally-scrolling strip of live-preview filter chips. */
-@Composable
-private fun LooksTabContent(
-    filter: VideoFilter,
-    thumbnailFrame: Bitmap?,
-    onFilterChange: (VideoFilter) -> Unit,
-) {
-    val haptics = LocalHapticFeedback.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Choose a look",
-            color = Color.White.copy(alpha = 0.7f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Spacer(Modifier.height(14.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-        ) {
-            VideoFilter.entries.forEach { look ->
-                LookChip(
-                    look = look,
-                    thumbnailFrame = thumbnailFrame,
-                    selected = look == filter,
-                    onClick = {
-                        if (look != filter) haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                        onFilterChange(look)
-                    },
-                )
-            }
-        }
-    }
-}
-
-/**
- * One filter chip: the trim's representative frame ([thumbnailFrame]) rendered in [look] via a
- * [ColorFilter], with a label below and a [ElectricLime] ring when selected. While the frame is still
- * decoding (or failed), the chip shows its glass tile so the strip never looks broken.
- */
-@Composable
-private fun LookChip(
-    look: VideoFilter,
-    thumbnailFrame: Bitmap?,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    // Cache the per-frame ImageBitmap wrapper and the look's ColorMatrix/ColorFilter so they aren't
-    // re-allocated on every recomposition (Compose best practice: remember expensive calculations).
-    val imageBitmap = remember(thumbnailFrame) { thumbnailFrame?.asImageBitmap() }
-    val colorFilter = remember(look) { look.thumbnailColorFilter() }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(72.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(MaterialTheme.shapes.small)
-                .background(OverlayWhite)
-                .then(
-                    if (selected) {
-                        Modifier.border(2.dp, ElectricLime, MaterialTheme.shapes.small)
-                    } else {
-                        Modifier.border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.small)
-                    },
-                )
-                .clickable(role = Role.Button) { onClick() }
-                .semantics {
-                    contentDescription = look.label
-                    this.selected = selected
-                }
-                .testTag("look_chip_${look.name}"),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (imageBitmap != null) {
-                Image(
-                    bitmap = imageBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    colorFilter = colorFilter,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = look.label,
-            color = if (selected) Color.White else Color.White.copy(alpha = 0.6f),
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-/**
- * Compose [ColorFilter] for [VideoFilter]'s chip thumbnail, derived from the SAME per-look params as
- * [VideoFilter.toMediaEffects] so the chip matches the live preview / export (no "preview lies about
- * export"). An all-default look ([VideoFilter.ORIGINAL]) → `null` (draw the frame untouched).
- */
-private fun VideoFilter.thumbnailColorFilter(): ColorFilter? {
-    val matrix = when {
-        grayscale -> ColorMatrix().apply { setToSaturation(0f) }
-        saturation != 0f -> ColorMatrix().apply { setToSaturation(1f + saturation / 100f) }
-        redScale != 1f || blueScale != 1f -> ColorMatrix(
-            floatArrayOf(
-                redScale, 0f, 0f, 0f, 0f,
-                0f, 1f, 0f, 0f, 0f,
-                0f, 0f, blueScale, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        )
-        else -> return null
-    }
-    return ColorFilter.colorMatrix(matrix)
-}
-
-/**
- * Decode one representative frame (the trim midpoint) from [file] for the Looks chips. Best-effort:
+ * Decode one representative frame (the trim midpoint) from [file] for the filter chips. Best-effort:
  * returns `null` on a decode failure (the chips then show their glass placeholder). MUST run off the
  * main thread (ANDROID_STANDARDS §9) — callers wrap it in `Dispatchers.IO`.
  */

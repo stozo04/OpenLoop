@@ -220,6 +220,15 @@ class OpenLoopViewModel(
     /** In-flight reverse-generation for the preview; canceled when the editing session ends. */
     private var reverseJob: Job? = null
 
+    /** Brief overlay for speed/filter tweaks (does not block reverse generation). */
+    private var effectLoadingJob: Job? = null
+
+    /**
+     * Full-screen overlay on Trim/Editor during discard (and any future session-wide blocking work).
+     */
+    private val _sessionOverlayLoading = MutableStateFlow<EditorLoadingKind?>(null)
+    val sessionOverlayLoading: StateFlow<EditorLoadingKind?> = _sessionOverlayLoading.asStateFlow()
+
     /** Observes WorkManager progress/completion for the active Loopifying export (Issue #40). */
     private var renderObserveJob: Job? = null
 
@@ -552,6 +561,20 @@ class OpenLoopViewModel(
         val end = endMs.coerceIn(0L, current.sourceDurationMs)
         if (end - start < MIN_TRIM_MS) return
         _editorState.value = current.copy(trimStartMs = start, trimEndMs = end)
+
+        // Trim changed while the editor is open — invalidate the cached reverse and rebuild it.
+        if (_uiState.value is OpenLoopUiState.BoomerangEditor) {
+            cancelReverseJob()
+            val tab = _editorTabState.value
+            _editorTabState.value = tab.copy(
+                reversedFile = null,
+                reverseFailed = false,
+                previewLoading = null,
+            )
+            if (tab.mode.needsReverse) {
+                ensureReversedSegment(EditorLoadingKind.TRIMMING)
+            }
+        }
     }
 
     /**
@@ -561,13 +584,25 @@ class OpenLoopViewModel(
      * own scratch copy.
      */
     fun discardTrim() {
-        val returnToGallery = importedSession // capture before clearEditorSession() resets it
-        activeScratch?.let { videoStorage.discardScratch(it) }
-        clearEditorSession()
-        if (returnToGallery) {
-            navigateToGallery()
-        } else {
-            _uiState.value = OpenLoopUiState.ReadyToCapture
+        viewModelScope.launch {
+            val returnToGallery = importedSession
+            _sessionOverlayLoading.value = EditorLoadingKind.DELETING
+            try {
+                activeScratch?.let { videoStorage.discardScratch(it) }
+                clearEditorSession()
+                _sessionOverlayLoading.value = null
+                if (returnToGallery) {
+                    navigateToGallery()
+                } else {
+                    _uiState.value = OpenLoopUiState.ReadyToCapture
+                }
+            } catch (e: CancellationException) {
+                _sessionOverlayLoading.value = null
+                throw e
+            } catch (e: Exception) {
+                Log.e("OpenLoopViewModel", "Discard clip failed", e)
+                _sessionOverlayLoading.value = null
+            }
         }
     }
 
@@ -578,12 +613,12 @@ class OpenLoopViewModel(
      * direction's preview is ready ASAP. The actual save now happens from the editor's checkmark
      * ([saveBoomerang]); slice 02's default-render-on-NEXT is gone.
      */
-    fun onNextFromTrim() {
+    fun onNextFromTrim(initialTab: EditorTab = EditorTab.DIRECTION) {
         val scratch = activeScratch ?: return
         if (_editorState.value == null) return
-        _editorTabState.value = EditorTabState()
+        _editorTabState.value = EditorTabState(activeTab = initialTab)
         _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
-        ensureReversedSegment()
+        ensureReversedSegment(EditorLoadingKind.TRIMMING)
     }
 
     /** Back arrow / back gesture from the editor: return to Trim, preserving the trim selection. */
@@ -605,7 +640,7 @@ class OpenLoopViewModel(
         val current = _editorTabState.value
         if (current.mode == mode) return
         _editorTabState.value = current.copy(mode = mode)
-        if (mode.needsReverse) ensureReversedSegment()
+        if (mode.needsReverse) ensureReversedSegment(EditorLoadingKind.LOOPIFYING)
     }
 
     /**
@@ -619,6 +654,7 @@ class OpenLoopViewModel(
         val current = _editorTabState.value
         if (current.speed == clamped) return
         _editorTabState.value = current.copy(speed = clamped)
+        showBriefPreviewLoading(EditorLoadingKind.HOLD_TIGHT)
     }
 
     /**
@@ -629,7 +665,12 @@ class OpenLoopViewModel(
     fun updateFilter(filter: VideoFilter) {
         val current = _editorTabState.value
         if (current.filter == filter) return
-        _editorTabState.value = current.copy(filter = filter)
+        _editorTabState.value = current.copy(filter = filter, previewLoading = EditorLoadingKind.FILTERING)
+    }
+
+    /** Called after the preview player has applied the new filter (or cleared effects for Original). */
+    fun onFilterPreviewSettled() {
+        clearPreviewLoading(EditorLoadingKind.FILTERING)
     }
 
     /** Switch the editor's active tab (Direction / Speed / Looks); pure UI state, no side effects. */
@@ -646,32 +687,70 @@ class OpenLoopViewModel(
      * per session suffices). Failure clears the loading flag and leaves [EditorTabState.reversedFile]
      * null; the preview then falls back to forward playback and the user can retry by reelecting.
      */
-    fun ensureReversedSegment() {
+    fun ensureReversedSegment(loadingKind: EditorLoadingKind = EditorLoadingKind.LOOPIFYING) {
         val trim = _editorState.value ?: return
         val tab = _editorTabState.value
         if (!tab.mode.needsReverse) return
-        if (tab.reversedFile != null || tab.isReversedFileLoading) return
+        if (tab.reversedFile != null) return
+        if (tab.previewLoading == EditorLoadingKind.TRIMMING ||
+            tab.previewLoading == EditorLoadingKind.LOOPIFYING
+        ) {
+            return
+        }
 
-        _editorTabState.value = tab.copy(isReversedFileLoading = true, reverseFailed = false)
+        effectLoadingJob?.cancel()
+        _editorTabState.value = tab.copy(previewLoading = loadingKind, reverseFailed = false)
         reverseJob = viewModelScope.launch {
             try {
                 val reversed = videoProcessor.ensureReversed(trim.sourceFile, trim.trimStartMs, trim.trimEndMs)
-                _editorTabState.value = _editorTabState.value.copy(
+                val latest = _editorTabState.value
+                _editorTabState.value = latest.copy(
                     reversedFile = reversed,
-                    isReversedFileLoading = false,
+                    previewLoading = if (latest.previewLoading == loadingKind) null else latest.previewLoading,
                 )
             } catch (e: CancellationException) {
                 throw e // never swallow cancellation (Lesson 013)
             } catch (e: Exception) {
-                // e.g. an imported clip whose codec the device can't tone-map/transcode. Flag the
-                // failure so the editor drops the "Loopifying…" shimmer and offers a retry instead of
-                // hanging forever (the shimmer is gated on reversedFile == null).
                 Log.e("OpenLoopViewModel", "Reverse generation for preview failed", e)
-                _editorTabState.value = _editorTabState.value.copy(
-                    isReversedFileLoading = false,
+                val latest = _editorTabState.value
+                _editorTabState.value = latest.copy(
+                    previewLoading = if (latest.previewLoading == loadingKind) null else latest.previewLoading,
                     reverseFailed = true,
                 )
             }
+        }
+    }
+
+    /** Retry reverse generation after [EditorTabState.reverseFailed] (Loop tab). */
+    fun retryReverseSegment() {
+        cancelReverseJob()
+        _editorTabState.value = _editorTabState.value.copy(
+            reversedFile = null,
+            reverseFailed = false,
+            previewLoading = null,
+        )
+        ensureReversedSegment(EditorLoadingKind.LOOPIFYING)
+    }
+
+    private fun showBriefPreviewLoading(kind: EditorLoadingKind) {
+        val tab = _editorTabState.value
+        if (tab.previewLoading == EditorLoadingKind.TRIMMING ||
+            tab.previewLoading == EditorLoadingKind.LOOPIFYING
+        ) {
+            return
+        }
+        _editorTabState.value = tab.copy(previewLoading = kind)
+        effectLoadingJob?.cancel()
+        effectLoadingJob = viewModelScope.launch {
+            delay(EFFECT_LOADING_MIN_MS)
+            clearPreviewLoading(kind)
+        }
+    }
+
+    private fun clearPreviewLoading(kind: EditorLoadingKind) {
+        val tab = _editorTabState.value
+        if (tab.previewLoading == kind) {
+            _editorTabState.value = tab.copy(previewLoading = null)
         }
     }
 
@@ -801,6 +880,12 @@ class OpenLoopViewModel(
     private fun cancelReverseJob() {
         reverseJob?.cancel()
         reverseJob = null
+        val tab = _editorTabState.value
+        if (tab.previewLoading == EditorLoadingKind.TRIMMING ||
+            tab.previewLoading == EditorLoadingKind.LOOPIFYING
+        ) {
+            _editorTabState.value = tab.copy(previewLoading = null)
+        }
     }
 
     private fun cancelRenderObserveJob() {
@@ -812,6 +897,9 @@ class OpenLoopViewModel(
     /** Clear the active editing session (after discard or navigation away). Does NOT touch on-disk files. */
     private fun clearEditorSession() {
         cancelReverseJob()
+        effectLoadingJob?.cancel()
+        effectLoadingJob = null
+        _sessionOverlayLoading.value = null
         cancelRenderObserveJob()
         activeScratch = null
         promotedRaw = null
@@ -845,6 +933,9 @@ class OpenLoopViewModel(
 
         /** Playback-speed slider bounds (slice 04); [updateSpeed] clamps to this range. */
         const val MIN_SPEED = 0.25f
+
+        /** Minimum time the speed/filter preview overlay stays visible so the caption is readable. */
+        private const val EFFECT_LOADING_MIN_MS = 400L
         const val MAX_SPEED = 3.0f
 
         /** Max duration of an imported library clip (slice 07); same 30 s ceiling as a capture. */
