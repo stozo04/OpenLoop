@@ -15,6 +15,8 @@ import io.github.stozo04.openloop.BuildConfig
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.diagnostics.AnalyticsReporter
+import io.github.stozo04.openloop.diagnostics.NoOpAnalyticsReporter
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
@@ -95,6 +97,12 @@ class OpenLoopViewModel(
     private val videoProcessor: VideoProcessor,
     private val videoImporter: VideoImporter,
     private val renderScheduler: BoomerangRenderScheduler,
+    // 6th param wired in for the staged Firebase Analytics rollout — see
+    // docs/active/firebase-analytics/IMPLEMENTATION.md. Option 1 ships the abstraction only;
+    // options 2 (screen tracking) and 3 (custom events) populate call sites incrementally. The
+    // production impl comes from FirebaseAnalyticsReporterImpl.create(applicationContext); tests and
+    // CI builds without google-services.json fall back to NoOpAnalyticsReporter.
+    private val analytics: AnalyticsReporter = NoOpAnalyticsReporter,
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -1101,6 +1109,7 @@ class OpenLoopViewModel(
         private val videoProcessor: VideoProcessor,
         private val videoImporter: VideoImporter,
         private val renderScheduler: BoomerangRenderScheduler,
+        private val analytics: AnalyticsReporter,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -1111,6 +1120,7 @@ class OpenLoopViewModel(
                     videoProcessor,
                     videoImporter,
                     renderScheduler,
+                    analytics,
                 ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
