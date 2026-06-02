@@ -15,7 +15,11 @@ import io.github.stozo04.openloop.BuildConfig
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.diagnostics.AnalyticsReporter
+import io.github.stozo04.openloop.diagnostics.NoOpAnalyticsReporter
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
+import io.github.stozo04.openloop.media.SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE
+import io.github.stozo04.openloop.media.isSamsungDevice
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
 import io.github.stozo04.openloop.work.BoomerangRenderScheduler
@@ -39,6 +43,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -82,6 +87,12 @@ sealed interface BoomerangEvent {
     object ImportFailed : BoomerangEvent
 
     /**
+     * Preview reverse failed or timed out; editor fell back to [BoomerangMode.FORWARD] so the user
+     * can preview and save. Ping-pong can be retried from the Loop direction tab.
+     */
+    object ReversePreviewFallbackForward : BoomerangEvent
+
+    /**
      * One or more gallery loops were marked for deletion (Issue #35). Drives the Undo snackbar; the
      * real file delete is **deferred** until the snackbar is dismissed (see [commitPendingDeletion]).
      * [count] is how many loops the user removed in this batch, so the snackbar can pluralize.
@@ -95,6 +106,12 @@ class OpenLoopViewModel(
     private val videoProcessor: VideoProcessor,
     private val videoImporter: VideoImporter,
     private val renderScheduler: BoomerangRenderScheduler,
+    // 6th param wired in for the staged Firebase Analytics rollout — see
+    // docs/active/firebase-analytics/IMPLEMENTATION.md. Option 1 ships the abstraction only;
+    // options 2 (screen tracking) and 3 (custom events) populate call sites incrementally. The
+    // production impl comes from FirebaseAnalyticsReporterImpl.create(applicationContext); tests and
+    // CI builds without google-services.json fall back to NoOpAnalyticsReporter.
+    private val analytics: AnalyticsReporter = NoOpAnalyticsReporter,
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -762,16 +779,37 @@ class OpenLoopViewModel(
                 // the cancelled worker and can surface CancellationException without reverseFailed.
                 // runCatching + Result in select so a failed async child does not cancel this
                 // launch before we can set reverseFailed (Lesson 013 still applies to the job itself).
-                val worker = async(Dispatchers.IO) {
-                    runCatching {
-                        videoProcessor.ensureReversed(trim.sourceFile, trim.trimStartMs, trim.trimEndMs)
+                val previewReverseCap =
+                    if (isSamsungDevice()) SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE else null
+                val outcome = if (reversePreviewTimeoutDisabledForTests()) {
+                    // JVM tests: avoid Main awaiting an IO [async] child (deadlocks with Unconfined).
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            videoProcessor.ensureReversed(
+                                trim.sourceFile,
+                                trim.trimStartMs,
+                                trim.trimEndMs,
+                                maxReverseShortSide = previewReverseCap,
+                            )
+                        }
                     }
-                }
-                val outcome = select {
-                    worker.onAwait { it }
-                    onTimeout(REVERSE_PREVIEW_TIMEOUT_MS) {
-                        worker.cancel()
-                        Result.failure(PreviewReverseTimeoutException())
+                } else {
+                    val worker = async(Dispatchers.IO) {
+                        runCatching {
+                            videoProcessor.ensureReversed(
+                                trim.sourceFile,
+                                trim.trimStartMs,
+                                trim.trimEndMs,
+                                maxReverseShortSide = previewReverseCap,
+                            )
+                        }
+                    }
+                    select {
+                        worker.onAwait { it }
+                        onTimeout(reversePreviewTimeoutMs()) {
+                            worker.cancel()
+                            Result.failure(PreviewReverseTimeoutException())
+                        }
                     }
                 }
                 if (generation != reverseGeneration) return@launch
@@ -786,13 +824,13 @@ class OpenLoopViewModel(
                     if (error is PreviewReverseTimeoutException) {
                         Log.e(
                             "OpenLoopViewModel",
-                            "Reverse generation for preview timed out after ${REVERSE_PREVIEW_TIMEOUT_MS}ms " +
+                            "Reverse generation for preview timed out after ${reversePreviewTimeoutMs()}ms " +
                                 "(${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, " +
                                 "source=${trim.sourceFile.name}, ${trim.trimEndMs - trim.trimStartMs}ms trim)",
                         )
                         markReversePreviewFailed(
                             trim,
-                            "Timed out after ${REVERSE_PREVIEW_TIMEOUT_MS / 1000}s",
+                            "Timed out after ${reversePreviewTimeoutMs() / 1000}s",
                             PreviewReverseTimeoutException(),
                         )
                     } else {
@@ -827,30 +865,45 @@ class OpenLoopViewModel(
             cause = cause,
         )
         val latest = _editorTabState.value
-        _editorTabState.value = latest.copy(
-            previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
-            reverseFailed = true,
-            reverseSupportReport = ReverseCrashlytics.supportReportForShare(
-                versionName = BuildConfig.VERSION_NAME,
-                versionCode = BuildConfig.VERSION_CODE,
-                source = trim.sourceFile,
-                trimStartMs = trim.trimStartMs,
-                trimEndMs = trim.trimEndMs,
-                outcome = outcome,
-            ),
+        val supportReport = ReverseCrashlytics.supportReportForShare(
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+            source = trim.sourceFile,
+            trimStartMs = trim.trimStartMs,
+            trimEndMs = trim.trimEndMs,
+            outcome = outcome,
         )
+        // Let Samsung (and other slow-reverse) users preview and save a forward loop instead of blocking
+        // on ping-pong. They can pick a reverse mode again from the Loop tab (Try again / direction).
+        _editorTabState.value = latest.copy(
+            mode = BoomerangMode.FORWARD,
+            previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
+            reverseFailed = false,
+            reverseSupportReport = supportReport,
+        )
+        viewModelScope.launch {
+            _events.send(BoomerangEvent.ReversePreviewFallbackForward)
+        }
     }
 
     /** Retry reverse generation after [EditorTabState.reverseFailed] (Loop tab). */
     fun retryReverseSegment() {
         cancelReverseJob()
-        _editorTabState.value = _editorTabState.value.copy(
+        val tab = _editorTabState.value
+        val pingPongMode = when (tab.mode) {
+            BoomerangMode.FORWARD -> BoomerangMode.FORWARD_THEN_REVERSE
+            else -> tab.mode
+        }
+        _editorTabState.value = tab.copy(
+            mode = pingPongMode,
             reversedFile = null,
             reverseFailed = false,
             previewLoading = null,
             reverseSupportReport = null,
         )
-        ensureReversedSegment(EditorLoadingKind.LOOPIFYING)
+        if (pingPongMode.needsReverse) {
+            ensureReversedSegment(EditorLoadingKind.LOOPIFYING)
+        }
     }
 
     private fun showBriefPreviewLoading(kind: EditorLoadingKind) {
@@ -1079,6 +1132,24 @@ class OpenLoopViewModel(
          * surfaces [EditorTabState.reverseFailed] instead of infinite "Trimming..".
          */
         const val REVERSE_PREVIEW_TIMEOUT_MS = 120_000L
+
+        /**
+         * When true, preview reverse has no [select] timeout (unit tests only). Virtual-time
+         * [kotlinx.coroutines.test.advanceUntilIdle] otherwise elapses the 120s deadline before IO mocks finish.
+         */
+        @Volatile
+        var reversePreviewTimeoutDisabledForTests: Boolean = false
+
+        /** Non-null replaces [REVERSE_PREVIEW_TIMEOUT_MS] for timeout-duration tests only. */
+        @Volatile
+        var reversePreviewTimeoutMsOverride: Long? = null
+
+        internal fun reversePreviewTimeoutDisabledForTests(): Boolean =
+            reversePreviewTimeoutDisabledForTests
+
+        internal fun reversePreviewTimeoutMs(): Long =
+            reversePreviewTimeoutMsOverride ?: REVERSE_PREVIEW_TIMEOUT_MS
+
         const val MAX_SPEED = 3.0f
 
         /** Max duration of an imported library clip (slice 07); same 30 s ceiling as a capture. */
@@ -1101,6 +1172,7 @@ class OpenLoopViewModel(
         private val videoProcessor: VideoProcessor,
         private val videoImporter: VideoImporter,
         private val renderScheduler: BoomerangRenderScheduler,
+        private val analytics: AnalyticsReporter,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -1111,6 +1183,7 @@ class OpenLoopViewModel(
                     videoProcessor,
                     videoImporter,
                     renderScheduler,
+                    analytics,
                 ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

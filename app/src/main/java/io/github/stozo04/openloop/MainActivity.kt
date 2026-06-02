@@ -75,6 +75,7 @@ import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
 import io.github.stozo04.openloop.data.VideoStorageRepositoryImpl
 import io.github.stozo04.openloop.data.dataStore
+import io.github.stozo04.openloop.diagnostics.FirebaseAnalyticsReporterImpl
 import io.github.stozo04.openloop.media.MediaComponents
 import io.github.stozo04.openloop.work.WorkManagerBoomerangRenderScheduler
 import io.github.stozo04.openloop.ui.BoomerangEditorScreen
@@ -116,6 +117,10 @@ class MainActivity : ComponentActivity() {
             // ViewModel never sees a Context. applicationContext's resolver is process-lived and safe.
             VideoImporterImpl(applicationContext),
             WorkManagerBoomerangRenderScheduler(WorkManager.getInstance(applicationContext)),
+            // Firebase Analytics reporter — falls back to NoOpAnalyticsReporter when
+            // google-services.json is absent (CI / fresh clone). See
+            // docs/active/firebase-analytics/IMPLEMENTATION.md for the staged rollout.
+            FirebaseAnalyticsReporterImpl.create(applicationContext),
         )
     }
     private lateinit var cameraManager: CameraManager
@@ -194,6 +199,7 @@ class MainActivity : ComponentActivity() {
                 val savedMessage = stringResource(R.string.snackbar_saved)
                 val viewAction = stringResource(R.string.snackbar_view_action)
                 val saveFailedMessage = stringResource(R.string.snackbar_save_failed)
+                val reversePreviewForwardMessage = stringResource(R.string.snackbar_reverse_preview_forward)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
                 val undoAction = stringResource(R.string.undo)
                 // The "N loops deleted" plural is count-dependent, so we capture resources here (in a
@@ -235,6 +241,10 @@ class MainActivity : ComponentActivity() {
                             }
                             BoomerangEvent.Failed -> snackbarHostState.showSnackbar(
                                 message = saveFailedMessage,
+                            )
+                            BoomerangEvent.ReversePreviewFallbackForward -> snackbarHostState.showSnackbar(
+                                message = reversePreviewForwardMessage,
+                                duration = SnackbarDuration.Long,
                             )
                             // Import failed for a non-length reason (slice 07): a light snackbar; the
                             // ViewModel has already returned the user to the gallery.
@@ -790,4 +800,3 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
         }
     }
 }
-

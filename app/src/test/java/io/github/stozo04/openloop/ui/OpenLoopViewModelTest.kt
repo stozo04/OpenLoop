@@ -12,6 +12,7 @@ import io.github.stozo04.openloop.data.VideoImporter
 import io.github.stozo04.openloop.data.VideoKind
 import io.github.stozo04.openloop.data.VideoStorageRepository
 import io.github.stozo04.openloop.media.BoomerangMode
+import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.*
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -39,7 +41,7 @@ import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule(
-    val testDispatcher: TestDispatcher = UnconfinedTestDispatcher()
+    val testDispatcher: TestDispatcher = UnconfinedTestDispatcher(),
 ) : TestWatcher() {
     override fun starting(description: Description) {
         Dispatchers.setMain(testDispatcher)
@@ -224,12 +226,16 @@ class FakeVideoProcessor : VideoProcessor {
         return outputFile
     }
 
+    var lastEnsureReversedMaxShortSide: Int? = null
+
     override suspend fun ensureReversed(
         source: File,
         trimStartMs: Long,
         trimEndMs: Long,
         onProgress: (Float) -> Unit,
+        maxReverseShortSide: Int?,
     ): File {
+        lastEnsureReversedMaxShortSide = maxReverseShortSide
         ensureReversedCount++
         if (hangReverse) {
             kotlinx.coroutines.awaitCancellation()
@@ -291,6 +297,8 @@ class OpenLoopViewModelTest {
 
     @Before
     fun setUp() {
+        OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = true
+        OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
@@ -312,11 +320,15 @@ class OpenLoopViewModelTest {
             fakeVideoProcessor,
             fakeVideoImporter,
             fakeRenderScheduler,
+            // Default NoOp arg keeps these constructions compiling; assert on a FakeAnalyticsReporter
+            // in new tests that care about analytics events (see firebase-analytics PRD §6).
         )
     }
 
     @After
     fun tearDown() {
+        OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
+        OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
         unmockkStatic(Log::class)
     }
 
@@ -647,7 +659,7 @@ class OpenLoopViewModelTest {
             enterTrimState()
 
             viewModel.onNextFromTrim()
-            advanceUntilIdle()
+            awaitEditorReverseReady()
 
             val state = viewModel.uiState.value
             assertTrue("expected BoomerangEditor, was $state", state is OpenLoopUiState.BoomerangEditor)
@@ -665,7 +677,7 @@ class OpenLoopViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim() // default FORWARD_THEN_REVERSE → one generation
-            advanceUntilIdle()
+            awaitEditorReverseReady()
             val baseline = fakeVideoProcessor.ensureReversedCount
 
             viewModel.updateMode(BoomerangMode.FORWARD)
@@ -680,7 +692,7 @@ class OpenLoopViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim() // FORWARD_THEN_REVERSE → generate once
-            advanceUntilIdle()
+            awaitEditorReverseReady()
 
             viewModel.updateMode(BoomerangMode.REVERSE)
             viewModel.updateMode(BoomerangMode.REVERSE_THEN_FORWARD)
@@ -693,6 +705,8 @@ class OpenLoopViewModelTest {
     @Test
     fun `reverse preview times out when ensureReversed never completes`() =
         runTest(mainDispatcherRule.testDispatcher) {
+            OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
+            OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
             enterTrimState()
             fakeVideoProcessor.hangReverse = true
             viewModel.onNextFromTrim()
@@ -702,12 +716,14 @@ class OpenLoopViewModelTest {
             advanceTimeBy(OpenLoopViewModel.REVERSE_PREVIEW_TIMEOUT_MS + 500)
             advanceUntilIdle()
 
-            assertTrue(
-                "wedged reverse must surface failure UI",
-                viewModel.editorTabState.value.reverseFailed,
+            val tab = viewModel.editorTabState.value
+            assertFalse(
+                "wedged reverse must not block the editor",
+                tab.reverseFailed,
             )
-            assertNull(viewModel.editorTabState.value.previewLoading)
-            assertNotNull(viewModel.editorTabState.value.reverseSupportReport)
+            assertEquals(BoomerangMode.FORWARD, tab.mode)
+            assertNull(tab.previewLoading)
+            assertNotNull(tab.reverseSupportReport)
         }
 
     @Test
@@ -719,16 +735,16 @@ class OpenLoopViewModelTest {
             viewModel.onNextFromTrim() // default FORWARD_THEN_REVERSE → reverse generation runs + fails
             // Reverse runs on Dispatchers.IO (real pool in JVM tests) — poll until the UI updates.
             withTimeout(5_000) {
-                while (!viewModel.editorTabState.value.reverseFailed) {
+                while (viewModel.editorTabState.value.previewLoading != null) {
                     delay(10)
                 }
             }
 
-            // The shimmer must clear and the failure must be flagged, so the editor shows a retry
-            // instead of "Loopifying…" forever (the HDR-import wedge).
-            assertTrue("reverseFailed must be set", viewModel.editorTabState.value.reverseFailed)
-            assertNull(viewModel.editorTabState.value.previewLoading)
-            assertNull(viewModel.editorTabState.value.reversedFile)
+            val tab = viewModel.editorTabState.value
+            assertFalse("user can continue with forward-only preview", tab.reverseFailed)
+            assertEquals(BoomerangMode.FORWARD, tab.mode)
+            assertNull(tab.previewLoading)
+            assertNull(tab.reversedFile)
         }
 
     @Test
@@ -737,14 +753,15 @@ class OpenLoopViewModelTest {
             enterTrimState()
             fakeVideoProcessor.failReverse = true
             viewModel.onNextFromTrim()
-            advanceUntilIdle()
-            assertTrue(viewModel.editorTabState.value.reverseFailed)
+            awaitReversePreviewFailedFallback()
+            assertEquals(BoomerangMode.FORWARD, viewModel.editorTabState.value.mode)
 
             fakeVideoProcessor.failReverse = false
-            viewModel.ensureReversedSegment() // the editor's "Try again"
-            advanceUntilIdle()
+            viewModel.retryReverseSegment()
+            awaitEditorReverseReady()
 
             assertFalse("retry clears the failure flag", viewModel.editorTabState.value.reverseFailed)
+            assertEquals(BoomerangMode.FORWARD_THEN_REVERSE, viewModel.editorTabState.value.mode)
             assertNotNull("retry produces the reversed clip", viewModel.editorTabState.value.reversedFile)
         }
 
@@ -769,7 +786,7 @@ class OpenLoopViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim()
-            advanceUntilIdle()
+            awaitEditorReverseReady()
             val reversed = viewModel.editorTabState.value.reversedFile
             assertNotNull(reversed)
             viewModel.updateSpeed(0.5f)
@@ -796,7 +813,7 @@ class OpenLoopViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim()
-            advanceUntilIdle()
+            awaitEditorReverseReady()
             viewModel.updateSpeed(0.5f)
             assertNotNull(viewModel.editorTabState.value.reversedFile)
 
@@ -818,7 +835,7 @@ class OpenLoopViewModelTest {
             enterTrimState()
             fakeVideoProcessor.reverseGate = CompletableDeferred()
             viewModel.onNextFromTrim()
-            runCurrent()
+            advanceUntilIdle()
             assertEquals(1, fakeVideoProcessor.ensureReversedCount)
             assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
 
@@ -831,6 +848,11 @@ class OpenLoopViewModelTest {
             )
 
             fakeVideoProcessor.releaseReverseGate()
+            var spins = 0
+            while (viewModel.editorTabState.value.reversedFile == null && spins++ < 200) {
+                Thread.sleep(25)
+                runCurrent()
+            }
             advanceUntilIdle()
             assertNotNull(viewModel.editorTabState.value.reversedFile)
             assertNull(viewModel.editorTabState.value.previewLoading)
@@ -1205,6 +1227,31 @@ class OpenLoopViewModelTest {
 
             visibleCollector.cancel()
         }
+
+    private suspend fun TestScope.awaitReversePreviewFailedFallback() {
+        advanceUntilIdle()
+        var spins = 0
+        while (viewModel.editorTabState.value.mode != BoomerangMode.FORWARD && spins++ < 200) {
+            Thread.sleep(25)
+            runCurrent()
+        }
+        advanceUntilIdle()
+    }
+
+    /** [ensureReversed] runs on [Dispatchers.IO]; yield real time so the pool can finish. */
+    private suspend fun TestScope.awaitEditorReverseReady() {
+        advanceUntilIdle()
+        var spins = 0
+        while (spins++ < 200) {
+            val tab = viewModel.editorTabState.value
+            val waiting = tab.previewLoading != null ||
+                (tab.mode.needsReverse && tab.reversedFile == null)
+            if (!waiting) break
+            Thread.sleep(25)
+            runCurrent()
+        }
+        advanceUntilIdle()
+    }
 
     /** Count carried by the single [BoomerangEvent.LoopsDeleted] in [events] (fails if absent). */
     private fun LoopsDeleted_count(events: List<BoomerangEvent>): Int =

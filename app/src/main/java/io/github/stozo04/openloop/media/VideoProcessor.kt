@@ -135,11 +135,16 @@ interface VideoProcessor {
      * reused by [renderBoomerang] on save — both go through the same processor's reverser, so they hit
      * the same trim-keyed cache and never reverse the same window twice. Suspends and is cancellable.
      */
+    /**
+     * @param maxReverseShortSide when set (e.g. [SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE]), pre-scales
+     * before reverse for faster preview; export uses full [MAX_OUTPUT_SHORT_SIDE] via [renderBoomerang].
+     */
     suspend fun ensureReversed(
         source: File,
         trimStartMs: Long,
         trimEndMs: Long,
         onProgress: (Float) -> Unit = {},
+        maxReverseShortSide: Int? = null,
     ): File
 }
 
@@ -234,9 +239,11 @@ class Media3VideoProcessor(
         trimStartMs: Long,
         trimEndMs: Long,
         onProgress: (Float) -> Unit,
+        maxReverseShortSide: Int?,
     ): File {
+        val cap = maxReverseShortSide ?: MAX_OUTPUT_SHORT_SIDE
         val srcShortSide = withContext(Dispatchers.IO) { sourceShortSide(source) }
-        val reverseInput = prepareReverseInput(source, trimStartMs, trimEndMs, srcShortSide)
+        val reverseInput = prepareReverseInput(source, trimStartMs, trimEndMs, srcShortSide, cap)
         return reverser.reverse(reverseInput.file, reverseInput.trimStartMs, reverseInput.trimEndMs, onProgress)
     }
 
@@ -249,9 +256,13 @@ class Media3VideoProcessor(
         source: File,
         trimStartMs: Long,
         trimEndMs: Long,
+        maxShortSide: Int = MAX_OUTPUT_SHORT_SIDE,
     ): File {
         scratchDir.mkdirs()
-        val dest = File(scratchDir, "scaled_${trimWindowCacheKey(source, trimStartMs, trimEndMs)}.mp4")
+        val dest = File(
+            scratchDir,
+            "scaled_${maxShortSide}_${trimWindowCacheKey(source, trimStartMs, trimEndMs)}.mp4",
+        )
         if (dest.exists() && dest.length() > 0L) return dest
 
         val clip = MediaItem.ClippingConfiguration.Builder()
@@ -261,7 +272,7 @@ class Media3VideoProcessor(
         val item = MediaItem.Builder().setUri(source.toUri()).setClippingConfiguration(clip).build()
         val effects = Effects(
             /* audioProcessors = */ emptyList(),
-            /* videoEffects = */ listOf(Presentation.createForShortSide(MAX_OUTPUT_SHORT_SIDE)),
+            /* videoEffects = */ listOf(Presentation.createForShortSide(maxShortSide)),
         )
         val edited = EditedMediaItem.Builder(item).setRemoveAudio(true).setEffects(effects).build()
         val sequence = EditedMediaItemSequence.withVideoFrom(listOf(edited))
@@ -288,13 +299,14 @@ class Media3VideoProcessor(
         trimStartMs: Long,
         trimEndMs: Long,
         sourceShortSide: Int,
+        maxReverseShortSide: Int = MAX_OUTPUT_SHORT_SIDE,
     ): ReverseInput {
-        val needsScale = sourceShortSide > MAX_OUTPUT_SHORT_SIDE
+        val needsScale = sourceShortSide > maxReverseShortSide
         val needsNormalize = sourceNeedsReverseNormalize(source)
         if (!needsScale && !needsNormalize) {
             return ReverseInput(source, trimStartMs, trimEndMs)
         }
-        val scaled = scaleSourceForReverse(source, trimStartMs, trimEndMs)
+        val scaled = scaleSourceForReverse(source, trimStartMs, trimEndMs, maxReverseShortSide)
         val durationMs = trimEndMs - trimStartMs
         return ReverseInput(scaled, 0L, durationMs)
     }

@@ -1,0 +1,13 @@
+package io.github.stozo04.openloop.media
+
+import android.os.Build
+
+/**
+ * Max short side for **editor preview** reverse on Samsung — pass 1/2 at 720p+ often exceeds the
+ * 120s deadline on Exynos devices; 480p keeps ping-pong preview within a practical budget.
+ * Export ([Media3VideoProcessor.renderBoomerang]) still uses [MAX_OUTPUT_SHORT_SIDE].
+ */
+internal const val SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE = 480
+
+internal fun isSamsungDevice(): Boolean =
+    Build.MANUFACTURER.equals("samsung", ignoreCase = true)

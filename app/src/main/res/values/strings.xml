@@ -20,6 +20,7 @@
     <string name="snackbar_saved">Loop saved</string>
     <string name="snackbar_view_action">View</string>
     <string name="snackbar_save_failed">Couldn\'t save loop. Try again.</string>
+    <string name="snackbar_reverse_preview_forward">Couldn\'t preview ping-pong on this clip — showing forward only. Change direction in Loop to try again.</string>
 
     <!-- Gallery: long-press multi-select + undo delete (Issue #35) -->
     <string name="undo">Undo</string>
