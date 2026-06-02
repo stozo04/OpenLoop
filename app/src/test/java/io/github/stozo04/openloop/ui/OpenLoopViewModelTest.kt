@@ -312,6 +312,8 @@ class OpenLoopViewModelTest {
             fakeVideoProcessor,
             fakeVideoImporter,
             fakeRenderScheduler,
+            // Default NoOp arg keeps these constructions compiling; assert on a FakeAnalyticsReporter
+            // in new tests that care about analytics events (see firebase-analytics PRD §6).
         )
     }
 
