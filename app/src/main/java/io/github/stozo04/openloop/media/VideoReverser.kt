@@ -118,7 +118,8 @@ class VideoReverser(
             // halves still match. See docs/lessons_learned (reverse-downscale-surface-mismatch).
             val width = evenDown(srcWidth)
             val height = evenDown(srcHeight)
-            val frameRate = inputFormat.frameRateOrDefault()
+            val frameRate = inputFormat.frameRateOrDefault().coerceAtMost(MAX_PASS1_ENCODE_FPS)
+            val minEncodeIntervalUs = 1_000_000L / frameRate
             // Capture the source's rotation hint, then NEUTRALIZE it on the format handed to the
             // decoder. In Surface-output mode MediaCodec auto-applies KEY_ROTATION, and whether the
             // decoder->encoder-input-surface path bakes that into the pixels is device-dependent
@@ -159,21 +160,37 @@ class VideoReverser(
             muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             if (rotationDegrees != 0) muxer.setOrientationHint(rotationDegrees)
 
-            extractor.seekTo(trimStartMs * 1000L, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+            val startUs = trimStartMs * 1000L
+            extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+            // SEEK_TO_PREVIOUS_SYNC can land on a sync point *before* the trim start — skip those
+            // samples so pass 1 does not EOS immediately with zero frames (which wedged the loop).
+            while (extractor.sampleTime in 0 until startUs) {
+                if (!extractor.advance()) break
+            }
             val endUs = trimEndMs * 1000L
-            val spanUs = (endUs - trimStartMs * 1000L).coerceAtLeast(1L)
+            val spanUs = (endUs - startUs).coerceAtLeast(1L)
 
+            var encodedFrames = 0
+            var skippedFrames = 0
             runDecodeEncodeLoop(
                 extractor = extractor,
                 decoder = decoder,
                 encoder = encoder,
                 muxer = muxer,
+                startUs = startUs,
                 endUs = endUs,
                 durationUs = durationUs,
-                onSamplePts = { sampleUs -> ((sampleUs - trimStartMs * 1000L).toFloat() / spanUs).coerceIn(0f, 1f) },
+                minEncodeIntervalUs = minEncodeIntervalUs,
+                onSamplePts = { sampleUs -> ((sampleUs - startUs).toFloat() / spanUs).coerceIn(0f, 1f) },
                 onProgress = onProgress,
                 // Pass 1 keeps original timestamps (re-based to 0 at the trim start).
-                remapPtsUs = { sampleUs -> (sampleUs - trimStartMs * 1000L).coerceAtLeast(0L) },
+                remapPtsUs = { sampleUs -> (sampleUs - startUs).coerceAtLeast(0L) },
+                onFrameEncoded = { encodedFrames++ },
+                onFrameSkipped = { skippedFrames++ },
+            )
+            Log.d(
+                TAG,
+                "reverse pass1: ${width}x$height, encoded=$encodedFrames, skipped=$skippedFrames, fpsCap=$frameRate",
             )
         } finally {
             runCatching { decoder?.stop() }; decoder?.release()
@@ -338,11 +355,15 @@ class VideoReverser(
         decoder: MediaCodec,
         encoder: MediaCodec,
         muxer: MediaMuxer,
+        startUs: Long,
         endUs: Long,
         durationUs: Long,
+        minEncodeIntervalUs: Long = 0L,
         onSamplePts: (Long) -> Float,
         onProgress: (Float) -> Unit,
         remapPtsUs: (Long) -> Long,
+        onFrameEncoded: () -> Unit = {},
+        onFrameSkipped: () -> Unit = {},
     ) {
         val bufferInfo = MediaCodec.BufferInfo()
         var muxerTrack = -1
@@ -350,18 +371,66 @@ class VideoReverser(
         var inputDone = false
         var decoderDone = false
         val timeoutUs = DEQUEUE_TIMEOUT_US
+        var lastEncodedSampleUs = -1L
+        var loopIterations = 0
+        // True when the extractor is exhausted but decoder EOS has not been queued yet.
+        var pendingDecoderEos = false
 
         while (!decoderDone) {
             currentCoroutineContext().ensureActive()
+            if (++loopIterations > MAX_DECODE_LOOP_ITERATIONS) {
+                throw IllegalStateException(
+                    "Pass-1 decode loop exceeded $MAX_DECODE_LOOP_ITERATIONS iterations " +
+                        "(last sampleUs=${extractor.sampleTime}, encoded=$lastEncodedSampleUs)",
+                )
+            }
 
             if (!inputDone) {
+                // Advance past pre-trim samples and dense frames *without* dequeuing decoder input
+                // buffers — every dequeued buffer must be queued exactly once or MediaCodec wedges.
+                if (!pendingDecoderEos) {
+                    while (true) {
+                        val sampleUs = extractor.sampleTime
+                        if (sampleUs < 0L || sampleUs > endUs) {
+                            pendingDecoderEos = true
+                            break
+                        }
+                        if (sampleUs < startUs) {
+                            if (!extractor.advance()) {
+                                pendingDecoderEos = true
+                            }
+                            continue
+                        }
+                        if (
+                            pass1SampleAction(
+                                sampleUs = sampleUs,
+                                lastEncodedSampleUs = lastEncodedSampleUs,
+                                endUs = endUs,
+                                minEncodeIntervalUs = minEncodeIntervalUs,
+                            ) == Pass1SampleAction.ENCODE
+                        ) {
+                            break
+                        }
+                        onFrameSkipped()
+                        val prevUs = sampleUs
+                        if (!extractor.advance()) {
+                            pendingDecoderEos = true
+                            break
+                        }
+                        if (extractor.sampleTime == prevUs) {
+                            pendingDecoderEos = true
+                            break
+                        }
+                    }
+                }
+
                 val inIndex = decoder.dequeueInputBuffer(timeoutUs)
                 if (inIndex >= 0) {
-                    val sampleUs = extractor.sampleTime
-                    if (sampleUs !in 0L..endUs) {
+                    if (pendingDecoderEos) {
                         decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                         inputDone = true
                     } else {
+                        val sampleUs = extractor.sampleTime
                         val buffer = decoder.getInputBuffer(inIndex)!!
                         val size = extractor.readSampleData(buffer, 0)
                         if (size < 0) {
@@ -369,8 +438,12 @@ class VideoReverser(
                             inputDone = true
                         } else {
                             decoder.queueInputBuffer(inIndex, 0, size, remapPtsUs(sampleUs), 0)
+                            lastEncodedSampleUs = sampleUs
+                            onFrameEncoded()
                             onProgress(onSamplePts(sampleUs))
-                            extractor.advance()
+                            if (!extractor.advance()) {
+                                pendingDecoderEos = true
+                            }
                         }
                     }
                 }
@@ -392,9 +465,15 @@ class VideoReverser(
                 muxerTrack = { muxerTrack },
                 muxerStarted = muxerStarted,
                 endOfStream = inputDone,
-            ).also { if (it && bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) decoderDone = true }
+            ).also { started ->
+                if (started && bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                    decoderDone = true
+                }
+                // Zero-frame pass (immediate EOS / no muxer track): don't spin until durationUs clears.
+                if (inputDone && !started) decoderDone = true
+            }
 
-            // Surface-mode duration guard so a misbehaving decoder can't spin forever.
+            // Clips with no container duration still need a way out once input is exhausted.
             if (durationUs <= 0L) decoderDone = decoderDone || inputDone
         }
     }
@@ -495,10 +574,7 @@ class VideoReverser(
                         info.getCapabilitiesForType(MIME_AVC).isFormatSupported(format)
                     }.getOrDefault(false)
             }
-            val hardware = supporting.firstOrNull {
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && it.isHardwareAccelerated
-            }
-            (hardware ?: supporting.firstOrNull())?.name
+            supporting.minByOrNull { encoderPreferenceRank(it) }?.name
         }.getOrNull()
         val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else -1
         val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else -1
@@ -524,6 +600,19 @@ class VideoReverser(
         return digest.joinToString("") { "%02x".format(it) }
     }
 
+    /** Lower rank = preferred. Deprioritize Google's software AVC (Lesson 020). */
+    private fun encoderPreferenceRank(info: MediaCodecInfo): Int {
+        var rank = 0
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !info.isHardwareAccelerated) {
+            rank += 100
+        }
+        if (info.name.contains("google", ignoreCase = true)) rank += 50
+        if (info.name.contains(".sw.", ignoreCase = true) || info.name.contains("software", ignoreCase = true)) {
+            rank += 100
+        }
+        return rank
+    }
+
     private companion object {
         const val TAG = "VideoReverser"
         const val MIME_AVC = MediaFormat.MIMETYPE_VIDEO_AVC
@@ -532,5 +621,34 @@ class VideoReverser(
         const val BITS_PER_PIXEL = 4 // ~4 bits/px → solid quality for the short scratch intermediate
         const val MIN_BIT_RATE = 2_000_000
         const val MAX_BIT_RATE = 24_000_000
+        /**
+         * Pass 1 re-encodes every fed sample as an I-frame. Library phone exports often carry
+         * 60–120 fps metadata with dense samples; capping the feed rate keeps preview reverse
+         * bounded without changing export (still uses full-rate source at render time).
+         */
+        const val MAX_PASS1_ENCODE_FPS = 30
+        /** Safety valve when the encoder pipeline never signals EOS (device codec wedge). */
+        const val MAX_DECODE_LOOP_ITERATIONS = 500_000
     }
+}
+
+/** Pure decision for pass-1 frame subsampling (unit-tested). */
+internal enum class Pass1SampleAction { ENCODE, SKIP }
+
+/**
+ * Whether to encode [sampleUs] in pass 1 or skip it (advance only). Encodes the first sample,
+ * any sample at least [minEncodeIntervalUs] after the last encoded one, and the tail of the trim
+ * window so the last frame is not dropped.
+ */
+internal fun pass1SampleAction(
+    sampleUs: Long,
+    lastEncodedSampleUs: Long,
+    endUs: Long,
+    minEncodeIntervalUs: Long,
+): Pass1SampleAction {
+    if (minEncodeIntervalUs <= 0L) return Pass1SampleAction.ENCODE
+    if (lastEncodedSampleUs < 0L) return Pass1SampleAction.ENCODE
+    if (sampleUs - lastEncodedSampleUs >= minEncodeIntervalUs) return Pass1SampleAction.ENCODE
+    if (endUs - sampleUs < minEncodeIntervalUs) return Pass1SampleAction.ENCODE
+    return Pass1SampleAction.SKIP
 }

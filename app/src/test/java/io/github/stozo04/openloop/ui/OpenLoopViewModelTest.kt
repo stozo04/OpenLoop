@@ -17,6 +17,7 @@ import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
 import io.mockk.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -190,6 +191,13 @@ class FakeVideoProcessor : VideoProcessor {
     /** Stub reversed file returned by [ensureReversed]; a real temp file so File handles behave. */
     val reversedStub: File = File.createTempFile("fake_reversed_", ".mp4").apply { writeBytes(ByteArray(4)) }
 
+    /** When set, [ensureReversed] suspends until [releaseReverseGate] completes it (in-flight reverse tests). */
+    var reverseGate: CompletableDeferred<Unit>? = null
+
+    fun releaseReverseGate() {
+        reverseGate?.complete(Unit)
+    }
+
     override suspend fun renderBoomerang(
         source: File,
         trimStartMs: Long,
@@ -218,6 +226,7 @@ class FakeVideoProcessor : VideoProcessor {
         onProgress: (Float) -> Unit,
     ): File {
         ensureReversedCount++
+        reverseGate?.await()
         onProgress(1f)
         if (failReverse) throw RuntimeException("simulated reverse failure")
         return reversedStub
@@ -720,6 +729,111 @@ class OpenLoopViewModelTest {
             assertTrue("expected Trim, was ${viewModel.uiState.value}", viewModel.uiState.value is OpenLoopUiState.Trim)
             assertEquals(500L, viewModel.editorState.value!!.trimStartMs)
             assertEquals(2_500L, viewModel.editorState.value!!.trimEndMs)
+        }
+
+    @Test
+    fun `returning from trim via toolbar preserves editor session and cached reverse`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            val reversed = viewModel.editorTabState.value.reversedFile
+            assertNotNull(reversed)
+            viewModel.updateSpeed(0.5f)
+            val reverseCountAfterFirstOpen = fakeVideoProcessor.ensureReversedCount
+
+            viewModel.backToTrim()
+            viewModel.onNextFromTrim(EditorTab.SPEED)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is OpenLoopUiState.BoomerangEditor)
+            assertEquals(EditorTab.SPEED, viewModel.editorTabState.value.activeTab)
+            assertEquals(0.5f, viewModel.editorTabState.value.speed, 0f)
+            assertEquals(reversed, viewModel.editorTabState.value.reversedFile)
+            assertEquals(
+                "toolbar return must not restart reverse when cache is warm",
+                reverseCountAfterFirstOpen,
+                fakeVideoProcessor.ensureReversedCount,
+            )
+            assertNull(viewModel.editorTabState.value.previewLoading)
+        }
+
+    @Test
+    fun `importing a library clip resets editor tab state for a fresh session`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            viewModel.updateSpeed(0.5f)
+            assertNotNull(viewModel.editorTabState.value.reversedFile)
+
+            fakeVideoImporter.probeMs = 5_000L
+            fakeVideoStorage.fixedDurationMs = 5_000L
+
+            viewModel.onVideoPicked(fakeUri)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is OpenLoopUiState.Trim)
+            assertEquals(2.0f, viewModel.editorTabState.value.speed, 0f)
+            assertNull(viewModel.editorTabState.value.reversedFile)
+            assertNull(viewModel.editorTabState.value.previewLoading)
+        }
+
+    @Test
+    fun `ensureReversedSegment does not restart reverse while a job is already in flight`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            fakeVideoProcessor.reverseGate = CompletableDeferred()
+            viewModel.onNextFromTrim()
+            runCurrent()
+            assertEquals(1, fakeVideoProcessor.ensureReversedCount)
+            assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
+
+            viewModel.ensureReversedSegment(EditorLoadingKind.LOOPIFYING)
+            runCurrent()
+            assertEquals(
+                "must not cancel and restart an active reverse",
+                1,
+                fakeVideoProcessor.ensureReversedCount,
+            )
+
+            fakeVideoProcessor.releaseReverseGate()
+            advanceUntilIdle()
+            assertNotNull(viewModel.editorTabState.value.reversedFile)
+            assertNull(viewModel.editorTabState.value.previewLoading)
+        }
+
+    @Test
+    fun `updateFilter during reverse prep keeps Trimming overlay`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            fakeVideoProcessor.reverseGate = CompletableDeferred()
+            viewModel.onNextFromTrim()
+            runCurrent()
+            assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
+
+            viewModel.updateFilter(VideoFilter.WARM)
+            runCurrent()
+            assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
+
+            fakeVideoProcessor.releaseReverseGate()
+            advanceUntilIdle()
+        }
+
+    @Test
+    fun `updateTrim with unchanged handles is a no-op in the editor`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.updateTrim(500L, 2_500L)
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            val reverseCount = fakeVideoProcessor.ensureReversedCount
+
+            viewModel.updateTrim(500L, 2_500L)
+            advanceUntilIdle()
+
+            assertEquals(reverseCount, fakeVideoProcessor.ensureReversedCount)
+            assertNull(viewModel.editorTabState.value.previewLoading)
         }
 
     @Test

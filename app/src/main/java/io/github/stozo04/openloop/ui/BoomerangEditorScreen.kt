@@ -227,7 +227,17 @@ fun BoomerangEditorContent(
     // Reverse still generating / failed, or any preview overlay (Trimming…, Hold Tight, etc.).
     val awaitingReverse = mode.needsReverse && !reverseFailed && reversedFile == null
     val reverseUnavailable = mode.needsReverse && reverseFailed && reversedFile == null
-    val activeOverlay = sessionOverlayLoading ?: previewLoading
+    // Never show reverse-prep copy once the reversed clip exists (guards stale ViewModel state).
+    val effectivePreviewLoading =
+        if (reversedFile != null) {
+            when (previewLoading) {
+                EditorLoadingKind.TRIMMING, EditorLoadingKind.LOOPIFYING -> null
+                else -> previewLoading
+            }
+        } else {
+            previewLoading
+        }
+    val activeOverlay = sessionOverlayLoading ?: effectivePreviewLoading
     val saveEnabled = activeOverlay == null && !awaitingReverse && !reverseUnavailable
 
     val exoPlayer = remember {
