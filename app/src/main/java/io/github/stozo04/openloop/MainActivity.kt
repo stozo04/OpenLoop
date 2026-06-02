@@ -75,6 +75,7 @@ import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
 import io.github.stozo04.openloop.data.VideoStorageRepositoryImpl
 import io.github.stozo04.openloop.data.dataStore
+import io.github.stozo04.openloop.diagnostics.FirebaseAnalyticsReporterImpl
 import io.github.stozo04.openloop.media.MediaComponents
 import io.github.stozo04.openloop.work.WorkManagerBoomerangRenderScheduler
 import io.github.stozo04.openloop.ui.BoomerangEditorScreen
@@ -116,6 +117,10 @@ class MainActivity : ComponentActivity() {
             // ViewModel never sees a Context. applicationContext's resolver is process-lived and safe.
             VideoImporterImpl(applicationContext),
             WorkManagerBoomerangRenderScheduler(WorkManager.getInstance(applicationContext)),
+            // Firebase Analytics reporter — falls back to NoOpAnalyticsReporter when
+            // google-services.json is absent (CI / fresh clone). See
+            // docs/active/firebase-analytics/IMPLEMENTATION.md for the staged rollout.
+            FirebaseAnalyticsReporterImpl.create(applicationContext),
         )
     }
     private lateinit var cameraManager: CameraManager
@@ -790,4 +795,3 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
         }
     }
 }
-
