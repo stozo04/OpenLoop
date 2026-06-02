@@ -199,6 +199,7 @@ class MainActivity : ComponentActivity() {
                 val savedMessage = stringResource(R.string.snackbar_saved)
                 val viewAction = stringResource(R.string.snackbar_view_action)
                 val saveFailedMessage = stringResource(R.string.snackbar_save_failed)
+                val reversePreviewForwardMessage = stringResource(R.string.snackbar_reverse_preview_forward)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
                 val undoAction = stringResource(R.string.undo)
                 // The "N loops deleted" plural is count-dependent, so we capture resources here (in a
@@ -240,6 +241,10 @@ class MainActivity : ComponentActivity() {
                             }
                             BoomerangEvent.Failed -> snackbarHostState.showSnackbar(
                                 message = saveFailedMessage,
+                            )
+                            BoomerangEvent.ReversePreviewFallbackForward -> snackbarHostState.showSnackbar(
+                                message = reversePreviewForwardMessage,
+                                duration = SnackbarDuration.Long,
                             )
                             // Import failed for a non-length reason (slice 07): a light snackbar; the
                             // ViewModel has already returned the user to the gallery.

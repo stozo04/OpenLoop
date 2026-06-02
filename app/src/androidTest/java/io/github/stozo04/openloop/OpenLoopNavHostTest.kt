@@ -167,6 +167,7 @@ class OpenLoopNavHostTest {
             trimStartMs: Long,
             trimEndMs: Long,
             onProgress: (Float) -> Unit,
+            maxReverseShortSide: Int?,
         ): File = source
     }
 
