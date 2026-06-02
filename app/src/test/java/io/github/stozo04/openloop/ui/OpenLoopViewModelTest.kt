@@ -23,8 +23,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -194,6 +196,9 @@ class FakeVideoProcessor : VideoProcessor {
     /** When set, [ensureReversed] suspends until [releaseReverseGate] completes it (in-flight reverse tests). */
     var reverseGate: CompletableDeferred<Unit>? = null
 
+    /** When true, [ensureReversed] never completes (timeout / wedged-native regression tests). */
+    var hangReverse: Boolean = false
+
     fun releaseReverseGate() {
         reverseGate?.complete(Unit)
     }
@@ -226,6 +231,9 @@ class FakeVideoProcessor : VideoProcessor {
         onProgress: (Float) -> Unit,
     ): File {
         ensureReversedCount++
+        if (hangReverse) {
+            kotlinx.coroutines.awaitCancellation()
+        }
         reverseGate?.await()
         onProgress(1f)
         if (failReverse) throw RuntimeException("simulated reverse failure")
@@ -683,13 +691,38 @@ class OpenLoopViewModelTest {
         }
 
     @Test
+    fun `reverse preview times out when ensureReversed never completes`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            fakeVideoProcessor.hangReverse = true
+            viewModel.onNextFromTrim()
+            runCurrent()
+            assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
+
+            advanceTimeBy(OpenLoopViewModel.REVERSE_PREVIEW_TIMEOUT_MS + 500)
+            advanceUntilIdle()
+
+            assertTrue(
+                "wedged reverse must surface failure UI",
+                viewModel.editorTabState.value.reverseFailed,
+            )
+            assertNull(viewModel.editorTabState.value.previewLoading)
+            assertNotNull(viewModel.editorTabState.value.reverseSupportReport)
+        }
+
+    @Test
     fun `reverse generation failure flags reverseFailed and clears the loading shimmer`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             fakeVideoProcessor.failReverse = true
 
             viewModel.onNextFromTrim() // default FORWARD_THEN_REVERSE → reverse generation runs + fails
-            advanceUntilIdle()
+            // Reverse runs on Dispatchers.IO (real pool in JVM tests) — poll until the UI updates.
+            withTimeout(5_000) {
+                while (!viewModel.editorTabState.value.reverseFailed) {
+                    delay(10)
+                }
+            }
 
             // The shimmer must clear and the failure must be flagged, so the editor shows a retry
             // instead of "Loopifying…" forever (the HDR-import wedge).
