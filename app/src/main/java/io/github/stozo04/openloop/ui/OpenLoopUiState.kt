@@ -72,15 +72,28 @@ data class TrimState(
     val trimEndMs: Long = sourceDurationMs,
 )
 
-/** The interactive tabs in the boomerang editor's bottom tab bar. */
+/** Context-specific copy for the editor preview overlay and full-screen export spinner. */
+enum class EditorLoadingKind(val message: String) {
+    TRIMMING("Trimming.."),
+    LOOPIFYING("Loopifying.."),
+    HOLD_TIGHT("Hold Tight.."),
+    FILTERING("Filtering.."),
+    DELETING("Deleting.."),
+    CREATING("Creating.."),
+}
+
+/**
+ * Content panels behind the editor bottom toolbar. Toolbar labels: Loop → [DIRECTION],
+ * Filter → [LOOKS]; Trim and Delete are navigation actions, not [EditorTab] values.
+ */
 enum class EditorTab {
-    /** Direction chips (slice 03). */
+    /** Loop / boomerang direction chips (slice 03). */
     DIRECTION,
 
     /** Speed slider (slice 04). */
     SPEED,
 
-    /** Color looks / filters (slice 05) — the third tab, repurposed from the disabled Reps stub. */
+    /** Color filter chips (slice 05). */
     LOOKS,
 }
 
@@ -101,7 +114,7 @@ enum class EditorTab {
  *
  * [reversedFile] caches the reversed clip the preview plays for any reverse-containing [mode]; it is
  * produced once per trim (shared with the render via the same `VideoProcessor`) and is `null` until
- * generated. [isReversedFileLoading] drives the "Loopifying…" shimmer over the preview.
+ * generated. [previewLoading] drives the preview shimmer (Trimming…, Loopifying…, etc.).
  *
  * [reverseFailed] is set when reverse generation throws (e.g. an imported clip whose codec the device
  * can't tone-map/transcode). It exists so a failed reverse stops the shimmer and surfaces a retry
@@ -114,6 +127,6 @@ data class EditorTabState(
     val filter: VideoFilter = VideoFilter.ORIGINAL,
     val activeTab: EditorTab = EditorTab.DIRECTION,
     val reversedFile: File? = null,
-    val isReversedFileLoading: Boolean = false,
+    val previewLoading: EditorLoadingKind? = null,
     val reverseFailed: Boolean = false,
 )

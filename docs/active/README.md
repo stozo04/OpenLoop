@@ -47,6 +47,7 @@ the slice-by-slice delivery plan and per-slice PRDs live in [`boomerang-rollout/
 | Boomerang slice 04 — Speed tab | `feature/boomerang-slice-04-speed-tab` | Next up — see `boomerang-rollout/04-editor-speed-tab.md` + the slice-04 KICKOFF |
 | Boomerang slices 05–07 — Reps / Share sheet / Gallery edit | (per slice) | Planned — specs in `boomerang-rollout/` |
 | Onboarding page-1 video | `feature/loop-1` | Built; PR #34 open — see [`onboarding-video/`](./onboarding-video/IMPLEMENTATION.md) |
+| Editor **Trimming..** overlay stuck (library import) | `feature/UI-Updates` | **Fixed** — see [`editor-trimming-overlay-stuck/HANDOFF.md`](./editor-trimming-overlay-stuck/HANDOFF.md) |
 
 > Now in `docs/completed/`: Boomerang slice 01 (variable-length capture) & slice 02 (auto-route trim +
 > default save), VideoStorageRepository / remove Context from ViewModel (Issue #10, PR #17), Target SDK

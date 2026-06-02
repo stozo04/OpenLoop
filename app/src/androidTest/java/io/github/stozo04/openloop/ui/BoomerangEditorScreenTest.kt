@@ -15,9 +15,9 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stozo04.openloop.media.BoomerangMode
+import io.github.stozo04.openloop.ui.EditorLoadingKind
 import io.github.stozo04.openloop.media.VideoFilter
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,7 +26,7 @@ import java.io.File
 /**
  * UI tests for the stateless [BoomerangEditorContent] (slice 03). Driven directly — no ViewModel, no
  * capture — so we control the direction + reverse-ready state and assert on chip selection, the Save
- * gate, the loading shimmer, and the gated discard dialog. Lesson 017: no mockk in androidTest — plain
+ * gate, and the loading shimmer. Lesson 017: no mockk in androidTest — plain
  * lambdas + a temp [File] for the (non-playing) source.
  */
 @RunWith(AndroidJUnit4::class)
@@ -46,13 +46,13 @@ class BoomerangEditorScreenTest {
         filter: VideoFilter = VideoFilter.ORIGINAL,
         activeTab: EditorTab = EditorTab.DIRECTION,
         reversedFile: File? = dummyReversed,
-        isReversedFileLoading: Boolean = false,
+        previewLoading: EditorLoadingKind? = null,
         onSelectMode: (BoomerangMode) -> Unit = {},
         onSpeedChange: (Float) -> Unit = {},
         onFilterChange: (VideoFilter) -> Unit = {},
         onSwitchTab: (EditorTab) -> Unit = {},
         onSave: () -> Unit = {},
-        onBack: () -> Unit = {},
+        onGoToTrim: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             BoomerangEditorContent(
@@ -64,15 +64,30 @@ class BoomerangEditorScreenTest {
                 filter = filter,
                 activeTab = activeTab,
                 reversedFile = reversedFile,
-                isReversedFileLoading = isReversedFileLoading,
+                previewLoading = previewLoading,
                 onSelectMode = onSelectMode,
                 onSpeedChange = onSpeedChange,
                 onFilterChange = onFilterChange,
                 onSwitchTab = onSwitchTab,
                 onSave = onSave,
-                onBack = onBack,
+                onGoToTrim = onGoToTrim,
             )
         }
+    }
+
+    @Test
+    fun loopTab_showsTitleAndInfoButton() {
+        setContent()
+        composeTestRule.onNodeWithText("Select loop direction").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("loop_direction_info").assertIsDisplayed()
+    }
+
+    @Test
+    fun loopInfoButton_showsHelpDialog() {
+        setContent()
+        composeTestRule.onNodeWithTag("loop_direction_info").performClick()
+        composeTestRule.onNodeWithText("Loop directions").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Boomerang").assertIsDisplayed()
     }
 
     @Test
@@ -106,38 +121,27 @@ class BoomerangEditorScreenTest {
 
     @Test
     fun save_isEnabled_whenReversedClipIsReady() {
-        setContent(mode = BoomerangMode.FORWARD_THEN_REVERSE, reversedFile = dummyReversed, isReversedFileLoading = false)
+        setContent(mode = BoomerangMode.FORWARD_THEN_REVERSE, reversedFile = dummyReversed, previewLoading = null)
         composeTestRule.onNodeWithTag("editor_save").assertIsEnabled()
     }
 
     @Test
     fun save_isDisabled_whileReverseIsLoading() {
-        setContent(mode = BoomerangMode.FORWARD_THEN_REVERSE, reversedFile = null, isReversedFileLoading = true)
+        setContent(mode = BoomerangMode.FORWARD_THEN_REVERSE, reversedFile = null, previewLoading = EditorLoadingKind.LOOPIFYING)
         composeTestRule.onNodeWithTag("editor_save").assertIsNotEnabled()
     }
 
     @Test
     fun loadingShimmer_isShown_whileReverseNotReady() {
-        setContent(mode = BoomerangMode.REVERSE, reversedFile = null, isReversedFileLoading = true)
+        setContent(mode = BoomerangMode.REVERSE, reversedFile = null, previewLoading = EditorLoadingKind.LOOPIFYING)
         composeTestRule.onNodeWithTag("reverse_loading").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Loopifying…").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Loopifying..").assertIsDisplayed()
     }
 
     @Test
-    fun back_withChangedDirection_showsDiscardDialog() {
-        var backCalls = 0
-        setContent(mode = BoomerangMode.REVERSE, onBack = { backCalls++ })
-        composeTestRule.onNodeWithTag("editor_back").performClick()
-        composeTestRule.onNodeWithText("Discard changes?").assertIsDisplayed()
-        assertFalse("back should be gated behind the confirm dialog", backCalls > 0)
-    }
-
-    @Test
-    fun back_withDefaultDirection_returnsWithoutDialog() {
-        var backCalls = 0
-        setContent(mode = BoomerangMode.FORWARD_THEN_REVERSE, onBack = { backCalls++ })
-        composeTestRule.onNodeWithTag("editor_back").performClick()
-        assertEquals(1, backCalls)
+    fun loadingOverlay_showsTrimmingMessage() {
+        setContent(mode = BoomerangMode.FORWARD_THEN_REVERSE, reversedFile = null, previewLoading = EditorLoadingKind.TRIMMING)
+        composeTestRule.onNodeWithText("Trimming..").assertIsDisplayed()
     }
 
     @Test
@@ -157,11 +161,13 @@ class BoomerangEditorScreenTest {
     // ── Speed tab (slice 04) ──
 
     @Test
-    fun tabBar_showsThreeSlots() {
+    fun tabBar_showsFiveSlots() {
         setContent()
-        composeTestRule.onNodeWithTag("tab_direction").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_trim").assertIsDisplayed()
         composeTestRule.onNodeWithTag("tab_speed").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("tab_looks").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_loop").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_filter").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("tab_delete").assertIsDisplayed()
     }
 
     @Test
@@ -183,7 +189,15 @@ class BoomerangEditorScreenTest {
     fun speedTabActive_showsSlider_notChips() {
         setContent(activeTab = EditorTab.SPEED)
         composeTestRule.onNodeWithTag("speed_slider").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("speed_current_pill").assertIsDisplayed()
         composeTestRule.onNodeWithTag("direction_chip_FORWARD").assertDoesNotExist()
+    }
+
+    @Test
+    fun speedTab_showsCurrentSpeedInPill() {
+        setContent(activeTab = EditorTab.SPEED, speed = 1.5f)
+        composeTestRule.onNodeWithText("1.5x").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Current speed").assertIsDisplayed()
     }
 
     @Test
@@ -213,11 +227,18 @@ class BoomerangEditorScreenTest {
     // ── Looks tab (slice 05) ──
 
     @Test
-    fun tappingLooksTab_invokesOnSwitchTabWithLooks() {
+    fun tappingFilterTab_invokesOnSwitchTabWithLooks() {
         var switched: EditorTab? = null
         setContent(onSwitchTab = { switched = it })
-        composeTestRule.onNodeWithTag("tab_looks").performClick()
+        composeTestRule.onNodeWithTag("tab_filter").performClick()
         assertEquals(EditorTab.LOOKS, switched)
+    }
+
+    @Test
+    fun filterTab_showsChooseALookTitle() {
+        setContent(activeTab = EditorTab.LOOKS)
+        composeTestRule.onNodeWithText("Choose a look").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("filter_tab_panel").assertIsDisplayed()
     }
 
     @Test
