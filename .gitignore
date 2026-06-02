@@ -5,6 +5,9 @@
 *.aab
 *.ap_
 
+# Firebase — download from Firebase console per app; never commit production secrets in a public fork
+app/google-services.json
+
 # Release signing — NEVER commit the keystore or its passwords (only the .template is tracked)
 keystore.properties
 *.jks

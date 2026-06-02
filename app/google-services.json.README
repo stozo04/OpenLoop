@@ -1,0 +1,16 @@
+Place Firebase `google-services.json` in this directory (`app/google-services.json`).
+
+Download from Firebase Console → Project settings → Android app `io.github.stozo04.openloop`,  
+or CLI (project `openloop-8c266`):
+
+```bash
+npx -y firebase-tools@latest apps:sdkconfig ANDROID \
+  1:95815153197:android:c30254bb713d1e6ae96aa4 \
+  --project openloop-8c266
+```
+
+Save stdout (JSON only) as `app/google-services.json`.
+
+Setup and Crashlytics viewing: `docs/diagnostics/firebase-crashlytics-trimming.md`
+
+This file is not used by the build; the JSON is gitignored.

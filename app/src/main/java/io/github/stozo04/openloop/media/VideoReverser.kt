@@ -64,6 +64,7 @@ class VideoReverser(
         }
 
         val intermediate = File(scratchDir, "_intermediate_${UUID.randomUUID()}.mp4")
+        logReverseStart(source, trimStartMs, trimEndMs)
         try {
             transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate) { frac ->
                 onProgress(frac * 0.5f) // pass 1 occupies the first half of the progress budget
@@ -600,17 +601,54 @@ class VideoReverser(
         return digest.joinToString("") { "%02x".format(it) }
     }
 
-    /** Lower rank = preferred. Deprioritize Google's software AVC (Lesson 020). */
+    /** Lower rank = preferred. Deprioritize Google's software AVC (Lesson 020); prefer vendor HW. */
     private fun encoderPreferenceRank(info: MediaCodecInfo): Int {
         var rank = 0
+        val name = info.name
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !info.isHardwareAccelerated) {
             rank += 100
         }
-        if (info.name.contains("google", ignoreCase = true)) rank += 50
-        if (info.name.contains(".sw.", ignoreCase = true) || info.name.contains("software", ignoreCase = true)) {
+        if (name.contains("google", ignoreCase = true)) rank += 50
+        if (name.contains(".sw.", ignoreCase = true) || name.contains("software", ignoreCase = true)) {
             rank += 100
         }
+        // Samsung Exynos / SEC and Qualcomm encoders are typically much faster than c2.google.avc.encoder.
+        if (
+            name.contains("exynos", ignoreCase = true) ||
+                name.contains("c2.sec", ignoreCase = true) ||
+                name.contains("qcom", ignoreCase = true) ||
+                name.contains("qti", ignoreCase = true)
+        ) {
+            rank -= 25
+        }
         return rank
+    }
+
+    private fun logReverseStart(source: File, trimStartMs: Long, trimEndMs: Long) {
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(source.absolutePath)
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                if (!mime.startsWith("video/")) continue
+                val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else -1
+                val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else -1
+                val fps = format.frameRateOrDefault()
+                Log.d(
+                    TAG,
+                    "reverse start: ${Build.MANUFACTURER} ${Build.MODEL} API ${Build.VERSION.SDK_INT}, " +
+                        "mime=$mime ${w}x$h@${fps}fps, trim=${trimStartMs}..${trimEndMs}ms, " +
+                        "bytes=${source.length()}, normalize=${sourceNeedsReverseNormalize(source)}",
+                )
+                return
+            }
+            Log.d(TAG, "reverse start: ${Build.MANUFACTURER} ${Build.MODEL}, no video track in ${source.name}")
+        } catch (e: Exception) {
+            Log.w(TAG, "reverse start: could not probe ${source.name}", e)
+        } finally {
+            extractor.release()
+        }
     }
 
     private companion object {

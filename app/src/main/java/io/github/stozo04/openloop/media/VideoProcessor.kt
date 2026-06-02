@@ -5,9 +5,12 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import androidx.core.net.toUri
 import androidx.media3.common.Effect
+import androidx.media3.common.util.Clock
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultAssetLoaderFactory
+import androidx.media3.transformer.DefaultDecoderFactory
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
@@ -276,9 +279,9 @@ class Media3VideoProcessor(
     )
 
     /**
-     * When [sourceShortSide] exceeds [MAX_OUTPUT_SHORT_SIDE], pre-scale via Transformer before reverse
-     * (Issue #41 Tier 1A). The reverser still runs at native Surface size — never downscale inside
-     * [VideoReverser] (Lesson 021).
+     * When [sourceShortSide] exceeds [MAX_OUTPUT_SHORT_SIDE], or the track is HEVC/HDR, pre-process
+     * via Transformer before reverse (Issue #41 Tier 1A + Samsung/imports). The reverser still runs
+     * at native Surface size — never downscale inside [VideoReverser] (Lesson 021).
      */
     private suspend fun prepareReverseInput(
         source: File,
@@ -286,7 +289,9 @@ class Media3VideoProcessor(
         trimEndMs: Long,
         sourceShortSide: Int,
     ): ReverseInput {
-        if (sourceShortSide <= MAX_OUTPUT_SHORT_SIDE) {
+        val needsScale = sourceShortSide > MAX_OUTPUT_SHORT_SIDE
+        val needsNormalize = sourceNeedsReverseNormalize(source)
+        if (!needsScale && !needsNormalize) {
             return ReverseInput(source, trimStartMs, trimEndMs)
         }
         val scaled = scaleSourceForReverse(source, trimStartMs, trimEndMs)
@@ -403,7 +408,20 @@ class Media3VideoProcessor(
     ) = withContext(Dispatchers.Main) {
         // Transformer requires a Looper thread; build/start/poll/cancel all happen on Main.
         val done = CompletableDeferred<Unit>()
+        // Default Transformer wiring does NOT enable decoder fallback (Media3 #2751). Samsung and
+        // other OEMs often need a software decoder when HW HEVC/H.264 init fails — androidx/media#2189.
+        // developer.android.com/reference/androidx/media3/transformer/DefaultDecoderFactory.Builder#setEnableDecoderFallback(boolean)
+        val decoderFactory = DefaultDecoderFactory.Builder(context)
+            .setEnableDecoderFallback(true)
+            .build()
+        val assetLoaderFactory = DefaultAssetLoaderFactory(
+            context,
+            decoderFactory,
+            Clock.DEFAULT,
+            /* logSessionId = */ null,
+        )
         val transformer = Transformer.Builder(context)
+            .setAssetLoaderFactory(assetLoaderFactory)
             // Issue #41 Tier 1B — CodecDB Lite chipset-specific encoder tuning (Media3 1.10+).
             // developer.android.com/reference/androidx/media3/transformer/DefaultEncoderFactory.Builder#setEnableCodecDbLite(boolean)
             .setEncoderFactory(

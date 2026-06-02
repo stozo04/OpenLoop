@@ -24,8 +24,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 5
+        versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -71,6 +71,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -145,6 +146,11 @@ dependencies {
     // WorkManager — long-running Loopifying export survives backgrounding (Issue #40)
     implementation(libs.androidx.work.runtime.ktx)
 
+    // Firebase Crashlytics (non-fatal reverse preview failures) — requires app/google-services.json
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.analytics)
+
     // Media3 (ExoPlayer & Video Reversal/Processing)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.transformer)
@@ -168,4 +174,11 @@ dependencies {
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.work.testing)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// Crashlytics mapping upload + Firebase config only when the console JSON is present locally.
+// See docs/diagnostics/firebase-crashlytics-trimming.md and app/google-services.json.README.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }

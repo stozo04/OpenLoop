@@ -1,6 +1,9 @@
 package io.github.stozo04.openloop.media
 
+import android.media.MediaExtractor
 import android.media.MediaFormat
+import java.io.File
+import java.io.IOException
 
 /** Fallback frame rate when a track carries none (or an unreadable one). */
 internal const val DEFAULT_FRAME_RATE = 30
@@ -74,3 +77,53 @@ internal fun MediaFormat.rotationDegreesOrZero(): Int =
         containsRotation = containsKey(MediaFormat.KEY_ROTATION),
         readInt = { getInteger(MediaFormat.KEY_ROTATION) },
     )
+
+/**
+ * Whether [source] should be pre-normalized (Media3 tone-map + AVC) before [VideoReverser].
+ *
+ * CameraX on Samsung flagships often records **HEVC** and/or **HDR** even at HD quality — codecs the
+ * in-app reverse path handles poorly (slow software encoder, tone-map not honored, 10-bit reject).
+ * Gallery imports from the same devices share this profile. SDR H.264 at ≤1080p skips this step.
+ */
+internal fun sourceNeedsReverseNormalize(source: File): Boolean {
+    val extractor = MediaExtractor()
+    return try {
+        extractor.setDataSource(source.absolutePath)
+        for (i in 0 until extractor.trackCount) {
+            val format = extractor.getTrackFormat(i)
+            val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+            if (!mime.startsWith("video/")) continue
+            return needsReverseNormalize(
+                mime = mime,
+                colorTransfer = format.colorTransferOrNull(),
+            )
+        }
+        false
+    } catch (e: IOException) {
+        false
+    } catch (e: IllegalArgumentException) {
+        false
+    } finally {
+        extractor.release()
+    }
+}
+
+/** Pure decision for [sourceNeedsReverseNormalize] (unit-tested). */
+internal fun needsReverseNormalize(mime: String?, colorTransfer: Int?): Boolean {
+    if (mime.equals(MediaFormat.MIMETYPE_VIDEO_HEVC, ignoreCase = true)) return true
+    if (colorTransfer != null && isHdrColorTransfer(colorTransfer)) return true
+    return false
+}
+
+private fun isHdrColorTransfer(transfer: Int): Boolean =
+    transfer == MediaFormat.COLOR_TRANSFER_HLG ||
+        transfer == MediaFormat.COLOR_TRANSFER_ST2084
+
+internal fun MediaFormat.colorTransferOrNull(): Int? {
+    if (!containsKey(MediaFormat.KEY_COLOR_TRANSFER)) return null
+    return try {
+        getInteger(MediaFormat.KEY_COLOR_TRANSFER)
+    } catch (e: ClassCastException) {
+        null
+    }
+}

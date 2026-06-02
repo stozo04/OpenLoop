@@ -1,5 +1,6 @@
 package io.github.stozo04.openloop.ui
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import androidx.annotation.OptIn
@@ -163,6 +164,7 @@ fun BoomerangEditorScreen(
         previewLoading = tab.previewLoading,
         sessionOverlayLoading = sessionOverlay,
         reverseFailed = tab.reverseFailed,
+        reverseSupportReport = tab.reverseSupportReport,
         onRetryReverse = viewModel::retryReverseSegment,
         onSelectMode = viewModel::updateMode,
         onSpeedChange = viewModel::updateSpeed,
@@ -202,6 +204,7 @@ fun BoomerangEditorContent(
     filter: VideoFilter = VideoFilter.ORIGINAL,
     activeTab: EditorTab = EditorTab.DIRECTION,
     reverseFailed: Boolean = false,
+    reverseSupportReport: String? = null,
     onRetryReverse: () -> Unit = {},
     onSpeedChange: (Float) -> Unit = {},
     onFilterChange: (VideoFilter) -> Unit = {},
@@ -387,6 +390,13 @@ fun BoomerangEditorContent(
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                         )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Send debug info below, or reopen the app once to upload an automatic report.",
+                            color = Color.White.copy(alpha = 0.55f),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                        )
                         Spacer(Modifier.height(16.dp))
                         Text(
                             text = "TRY AGAIN",
@@ -399,6 +409,29 @@ fun BoomerangEditorContent(
                                 .padding(horizontal = 24.dp, vertical = 10.dp)
                                 .testTag("reverse_retry"),
                         )
+                        if (!reverseSupportReport.isNullOrBlank()) {
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "SEND DEBUG INFO",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier
+                                    .clip(MaterialTheme.shapes.small)
+                                    .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.small)
+                                    .clickable {
+                                        val share = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, reverseSupportReport)
+                                            putExtra(Intent.EXTRA_SUBJECT, "OpenLoop loop debug")
+                                        }
+                                        context.startActivity(
+                                            Intent.createChooser(share, "Send debug info"),
+                                        )
+                                    }
+                                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                                    .testTag("reverse_send_debug"),
+                            )
+                        }
                     }
                 }
             }

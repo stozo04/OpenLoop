@@ -129,4 +129,6 @@ data class EditorTabState(
     val reversedFile: File? = null,
     val previewLoading: EditorLoadingKind? = null,
     val reverseFailed: Boolean = false,
+    /** Plain-text diagnostic for the "Send debug info" action when [reverseFailed] is true. */
+    val reverseSupportReport: String? = null,
 )

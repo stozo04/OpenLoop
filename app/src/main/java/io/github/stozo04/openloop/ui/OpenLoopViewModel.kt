@@ -11,18 +11,24 @@ import io.github.stozo04.openloop.data.ScratchCapture
 import io.github.stozo04.openloop.data.UserPreferencesRepository
 import io.github.stozo04.openloop.data.VideoImporter
 import io.github.stozo04.openloop.data.VideoStorageRepository
+import io.github.stozo04.openloop.BuildConfig
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
 import io.github.stozo04.openloop.work.BoomerangRenderScheduler
 import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -721,6 +727,7 @@ class OpenLoopViewModel(
      * per session suffices). Failure clears the loading flag and leaves [EditorTabState.reversedFile]
      * null; the preview then falls back to forward playback and the user can retry by reelecting.
      */
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun ensureReversedSegment(loadingKind: EditorLoadingKind = EditorLoadingKind.LOOPIFYING) {
         val trim = _editorState.value ?: return
         var tab = _editorTabState.value
@@ -742,45 +749,96 @@ class OpenLoopViewModel(
 
         val generation = ++reverseGeneration
         effectLoadingJob?.cancel()
-        _editorTabState.value = tab.copy(previewLoading = loadingKind, reverseFailed = false)
+        _editorTabState.value = tab.copy(
+            previewLoading = loadingKind,
+            reverseFailed = false,
+            reverseSupportReport = null,
+        )
         reverseJob = viewModelScope.launch {
             try {
-                val reversed = withTimeoutOrNull(REVERSE_PREVIEW_TIMEOUT_MS) {
-                    videoProcessor.ensureReversed(trim.sourceFile, trim.trimStartMs, trim.trimEndMs)
+                // withTimeoutOrNull waits for cancellation to finish; a wedged MediaCodec/Transformer
+                // on some Samsung devices never returns, so the failure UI never appears. select +
+                // onTimeout returns immediately; do not use coroutineScope here — it would wait for
+                // the cancelled worker and can surface CancellationException without reverseFailed.
+                // runCatching + Result in select so a failed async child does not cancel this
+                // launch before we can set reverseFailed (Lesson 013 still applies to the job itself).
+                val worker = async(Dispatchers.IO) {
+                    runCatching {
+                        videoProcessor.ensureReversed(trim.sourceFile, trim.trimStartMs, trim.trimEndMs)
+                    }
+                }
+                val outcome = select {
+                    worker.onAwait { it }
+                    onTimeout(REVERSE_PREVIEW_TIMEOUT_MS) {
+                        worker.cancel()
+                        Result.failure(PreviewReverseTimeoutException())
+                    }
                 }
                 if (generation != reverseGeneration) return@launch
-                if (reversed == null) {
-                    Log.e(
-                        "OpenLoopViewModel",
-                        "Reverse generation for preview timed out after ${REVERSE_PREVIEW_TIMEOUT_MS}ms",
-                    )
+                outcome.onSuccess { reversed ->
                     val latest = _editorTabState.value
                     _editorTabState.value = latest.copy(
+                        reversedFile = reversed,
                         previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
-                        reverseFailed = true,
+                        reverseSupportReport = null,
                     )
-                    return@launch
+                }.onFailure { error ->
+                    if (error is PreviewReverseTimeoutException) {
+                        Log.e(
+                            "OpenLoopViewModel",
+                            "Reverse generation for preview timed out after ${REVERSE_PREVIEW_TIMEOUT_MS}ms " +
+                                "(${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, " +
+                                "source=${trim.sourceFile.name}, ${trim.trimEndMs - trim.trimStartMs}ms trim)",
+                        )
+                        markReversePreviewFailed(
+                            trim,
+                            "Timed out after ${REVERSE_PREVIEW_TIMEOUT_MS / 1000}s",
+                            PreviewReverseTimeoutException(),
+                        )
+                    } else {
+                        Log.e("OpenLoopViewModel", "Reverse generation for preview failed", error)
+                        markReversePreviewFailed(
+                            trim,
+                            "${error.javaClass.simpleName}: ${error.message}",
+                            error,
+                        )
+                    }
                 }
-                val latest = _editorTabState.value
-                _editorTabState.value = latest.copy(
-                    reversedFile = reversed,
-                    previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
-                )
             } catch (e: CancellationException) {
                 if (generation == reverseGeneration) {
                     clearReversePreviewLoadingIfSet()
                 }
                 throw e // never swallow cancellation (Lesson 013)
-            } catch (e: Exception) {
-                if (generation != reverseGeneration) return@launch
-                Log.e("OpenLoopViewModel", "Reverse generation for preview failed", e)
-                val latest = _editorTabState.value
-                _editorTabState.value = latest.copy(
-                    previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
-                    reverseFailed = true,
-                )
             }
         }
+    }
+
+    /** Marker for [select] timeout — not shown to users. */
+    private class PreviewReverseTimeoutException : Exception()
+
+    private fun markReversePreviewFailed(trim: TrimState, outcome: String, cause: Throwable) {
+        ReverseCrashlytics.reportPreviewFailure(
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+            source = trim.sourceFile,
+            trimStartMs = trim.trimStartMs,
+            trimEndMs = trim.trimEndMs,
+            outcome = outcome,
+            cause = cause,
+        )
+        val latest = _editorTabState.value
+        _editorTabState.value = latest.copy(
+            previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
+            reverseFailed = true,
+            reverseSupportReport = ReverseCrashlytics.supportReportForShare(
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                source = trim.sourceFile,
+                trimStartMs = trim.trimStartMs,
+                trimEndMs = trim.trimEndMs,
+                outcome = outcome,
+            ),
+        )
     }
 
     /** Retry reverse generation after [EditorTabState.reverseFailed] (Loop tab). */
@@ -790,6 +848,7 @@ class OpenLoopViewModel(
             reversedFile = null,
             reverseFailed = false,
             previewLoading = null,
+            reverseSupportReport = null,
         )
         ensureReversedSegment(EditorLoadingKind.LOOPIFYING)
     }
