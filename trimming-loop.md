@@ -126,8 +126,9 @@ Unit tests (no real MediaCodec):
 
 ## Related docs
 
+- [**Engineering handoff (full)**](docs/active/editor-trimming-overlay-stuck/ENGINEERING-HANDOFF.md) — start here for next engineer / agent
 - [Firebase Crashlytics & tester instructions](docs/diagnostics/firebase-crashlytics-trimming.md)
-- [Engineering handoff](docs/active/editor-trimming-overlay-stuck/HANDOFF.md)
+- [Earlier investigation notes](docs/active/editor-trimming-overlay-stuck/HANDOFF.md)
 - [Lesson 020 — HDR / imports](docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md)
 - [Lesson 021 — no downscale inside VideoReverser](docs/lessons_learned/021-reverse-downscale-surface-mismatch.md)
 - [Reverse video research](docs/active/boomerang-rollout/RESEARCH-reverse-video.md)
