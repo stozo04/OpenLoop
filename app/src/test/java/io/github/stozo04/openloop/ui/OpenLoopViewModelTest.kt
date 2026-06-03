@@ -653,6 +653,26 @@ class OpenLoopViewModelTest {
 
     // ── Boomerang editor (slice 03) ──
 
+    /**
+     * RTL 20:32:27: ExoPlayer grabbed a decoder before reverse because TRIMMING was set one frame late.
+     * [onNextFromTrim] must expose TRIMMING synchronously so the editor skips ExoPlayer prepare.
+     */
+    @Test
+    fun `onNextFromTrim sets TRIMMING before ensureReversed completes`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            fakeVideoProcessor.reverseGate = CompletableDeferred()
+
+            viewModel.onNextFromTrim()
+            runCurrent()
+
+            assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
+            assertTrue(viewModel.uiState.value is OpenLoopUiState.BoomerangEditor)
+
+            fakeVideoProcessor.releaseReverseGate()
+            awaitEditorReverseReady()
+        }
+
     @Test
     fun `onNextFromTrim opens the editor and pre-generates the default reversed clip`() =
         runTest(mainDispatcherRule.testDispatcher) {
@@ -881,7 +901,7 @@ class OpenLoopViewModelTest {
             enterTrimState()
             viewModel.updateTrim(500L, 2_500L)
             viewModel.onNextFromTrim()
-            advanceUntilIdle()
+            awaitEditorReverseReady()
             val reverseCount = fakeVideoProcessor.ensureReversedCount
 
             viewModel.updateTrim(500L, 2_500L)

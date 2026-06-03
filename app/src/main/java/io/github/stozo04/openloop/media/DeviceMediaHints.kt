@@ -9,6 +9,12 @@ import android.os.Build
  */
 internal const val SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE = 480
 
+/** Let Media3 Transformer / ExoPlayer codecs fully release before [VideoReverser] pass 1 on Samsung. */
+internal const val SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS = 500L
+
+/** Extra settle inside [VideoReverser.reverse] before opening pass-1 codecs (RTL Jun 2026). */
+internal const val SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS = 400L
+
 internal fun isSamsungDevice(): Boolean =
     Build.MANUFACTURER.equals("samsung", ignoreCase = true) ||
         Build.BRAND.equals("samsung", ignoreCase = true)

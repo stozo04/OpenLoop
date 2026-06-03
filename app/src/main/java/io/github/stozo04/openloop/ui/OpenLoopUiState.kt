@@ -82,6 +82,10 @@ enum class EditorLoadingKind(val message: String) {
     CREATING("Creating.."),
 }
 
+/** True while [VideoReverser] preview pass is running (pass 1/2); ExoPlayer must release codecs first. */
+internal fun EditorLoadingKind?.isReversePreviewLoading(): Boolean =
+    this == EditorLoadingKind.TRIMMING || this == EditorLoadingKind.LOOPIFYING
+
 /**
  * Content panels behind the editor bottom toolbar. Toolbar labels: Loop → [DIRECTION],
  * Filter → [LOOKS]; Trim and Delete are navigation actions, not [EditorTab] values.
