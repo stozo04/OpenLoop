@@ -901,7 +901,7 @@ class OpenLoopViewModelTest {
             enterTrimState()
             viewModel.updateTrim(500L, 2_500L)
             viewModel.onNextFromTrim()
-            advanceUntilIdle()
+            awaitEditorReverseReady()
             val reverseCount = fakeVideoProcessor.ensureReversedCount
 
             viewModel.updateTrim(500L, 2_500L)

@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.Surface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -46,6 +47,10 @@ class VideoReverser(
     private val scratchDir: File,
 ) {
 
+    /** Pass 1 surface encoder that published an output format; reused for pass 2. */
+    @Volatile
+    private var lastSurfaceEncoderName: String? = null
+
     /**
      * Reverse [source] over `[trimStartMs, trimEndMs]`, returning the reversed MP4 [File].
      * Throws [java.io.IOException] / [MediaCodec.CodecException] on a pipeline failure (the caller
@@ -60,23 +65,51 @@ class VideoReverser(
         scratchDir.mkdirs()
         val output = File(scratchDir, "${cacheKey(source, trimStartMs, trimEndMs)}.mp4")
         if (output.exists() && output.length() > 0L) {
+            ReversePreviewLog.i("reverse.cache_hit", "key=${output.name} bytes=${output.length()}")
             onProgress(1f)
             return@withContext output
         }
 
         val intermediate = File(scratchDir, "_intermediate_${UUID.randomUUID()}.mp4")
+        lastSurfaceEncoderName = null
         logReverseStart(source, trimStartMs, trimEndMs)
+        ReversePreviewLog.i(
+            "reverse.start",
+            "trim=${trimStartMs}..${trimEndMs}ms samsung=${isSamsungDevice()}",
+        )
+        if (isSamsungDevice()) {
+            ReversePreviewLog.d("reverse.settle", "preReverseDelayMs=$SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS")
+            delay(SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS)
+        }
         try {
+            ReversePreviewLog.d("reverse.pass1.start", "dest=${intermediate.name}")
             transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate) { frac ->
                 onProgress(frac * 0.5f) // pass 1 occupies the first half of the progress budget
             }
+            ReversePreviewLog.i("reverse.pass1.done", "intermediateBytes=${intermediate.length()}")
             coroutineContext.ensureActive()
+            ReversePreviewLog.d(
+                "reverse.pass2.start",
+                "dest=${output.name} pass1Encoder=$lastSurfaceEncoderName",
+            )
             reverseAllKeyframeVideo(intermediate, output) { frac ->
                 onProgress(0.5f + frac * 0.5f) // pass 2 occupies the second half
             }
+            ReversePreviewLog.i("reverse.pass2.done", "outBytes=${output.length()}")
+            ReversePreviewLog.i(
+                "reverse.complete",
+                "pass1Encoder=$lastSurfaceEncoderName out=${output.name}",
+            )
             onProgress(1f)
             output
         } catch (t: Throwable) {
+            if (t !is kotlinx.coroutines.CancellationException) {
+                ReversePreviewLog.e(
+                    "reverse.failed",
+                    "pass=unknown ${t.javaClass.simpleName}: ${t.message}",
+                    t,
+                )
+            }
             // Don't leave a half-written reversed file behind on any failure (incl. cancellation).
             output.delete()
             throw t
@@ -148,17 +181,20 @@ class VideoReverser(
                 applySdrBt709ColorMetadata()
             }
 
-            encoder = selectAvcEncoder(encoderFormat).apply {
-                configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            }
-            inputSurface = encoder.createInputSurface()
-            encoder.start()
-            awaitEncoderOutputFormat(encoder)
+            ReversePreviewLog.d(
+                "pass1.encodeFormat",
+                "${width}x$height @${frameRate}fps iInterval=0 bitrate=${encoderFormat.getInteger(MediaFormat.KEY_BIT_RATE)}",
+            )
+            val surfaceEncoder = openSurfaceAvcEncoder(encoderFormat)
+            encoder = surfaceEncoder.first
+            inputSurface = surfaceEncoder.second
+            val pass1Encoder = requireNotNull(encoder)
 
-            decoder = MediaCodec.createDecoderByType(inputFormat.getString(MediaFormat.KEY_MIME)!!).apply {
-                configure(inputFormat, inputSurface, null, 0)
-                start()
-            }
+            decoder = openAvcDecoderForReverse(
+                mime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
+                format = inputFormat,
+                outputSurface = requireNotNull(inputSurface),
+            )
 
             muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             if (rotationDegrees != 0) muxer.setOrientationHint(rotationDegrees)
@@ -178,7 +214,7 @@ class VideoReverser(
             runDecodeEncodeLoop(
                 extractor = extractor,
                 decoder = decoder,
-                encoder = encoder,
+                encoder = pass1Encoder,
                 muxer = muxer,
                 startUs = startUs,
                 endUs = endUs,
@@ -191,10 +227,9 @@ class VideoReverser(
                 onFrameEncoded = { encodedFrames++ },
                 onFrameSkipped = { skippedFrames++ },
             )
-            Log.d(
-                TAG,
-                "reverse pass1: ${width}x$height, encoded=$encodedFrames, skipped=$skippedFrames, fpsCap=$frameRate",
-            )
+            val pass1Msg = "reverse pass1: ${width}x$height, encoded=$encodedFrames, skipped=$skippedFrames, fpsCap=$frameRate"
+            Log.d(TAG, pass1Msg)
+            ReversePreviewLog.i("pass1.loop.done", pass1Msg.removePrefix("reverse pass1: "))
         } finally {
             runCatching { decoder?.stop() }; decoder?.release()
             runCatching { encoder?.stop() }; encoder?.release()
@@ -264,16 +299,15 @@ class VideoReverser(
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, DEFAULT_I_FRAME_INTERVAL)
                 applySdrBt709ColorMetadata()
             }
-            encoder = selectAvcEncoder(encoderFormat).apply {
-                configure(encoderFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            }
-            inputSurface = encoder.createInputSurface()
-            encoder.start()
+            val pass2SurfaceEncoder = openSurfaceAvcEncoder(encoderFormat)
+            encoder = pass2SurfaceEncoder.first
+            inputSurface = pass2SurfaceEncoder.second
 
-            decoder = MediaCodec.createDecoderByType(inputFormat.getString(MediaFormat.KEY_MIME)!!).apply {
-                configure(inputFormat, inputSurface, null, 0)
-                start()
-            }
+            decoder = openAvcDecoderForReverse(
+                mime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
+                format = inputFormat,
+                outputSurface = requireNotNull(inputSurface),
+            )
             muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             if (rotationDegrees != 0) muxer.setOrientationHint(rotationDegrees)
 
@@ -505,7 +539,10 @@ class VideoReverser(
                 // caller's outer loop, not inside this function.
                 outIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> if (!endOfStream) return started
                 outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                    if (!started) started = onTrackReady(encoder.outputFormat)
+                    if (!started) {
+                        ReversePreviewLog.d("muxer.format_changed", encoder.outputFormat.toString())
+                        started = onTrackReady(encoder.outputFormat)
+                    }
                 }
                 outIndex >= 0 -> {
                     val encoded = encoder.getOutputBuffer(outIndex)!!
@@ -561,19 +598,23 @@ class VideoReverser(
     }
 
     /**
-     * Create an AVC encoder for [format], preferring a hardware-accelerated one that supports the
-     * format. On some devices `createEncoderByType` defaults to the *software* encoder
-     * (`c2.google.avc.encoder`), which encodes a high-res / high-fps clip frame-by-frame so slowly the
-     * render appears to hang. Picking a hardware encoder makes a 4K/60 import finish in seconds.
-     * Falls back to the platform default for the type if no supporting hardware encoder is found.
+     * After [MediaCodec.configure], some encoders expose [MediaCodec.getOutputFormat] before [start]
+     * (see MediaCodec API — option B). Returns null when not ready yet.
      */
+    private fun readEncoderOutputFormatIfReady(encoder: MediaCodec): MediaFormat? =
+        runCatching { encoder.outputFormat }.getOrNull()?.takeIf {
+            it.containsKey(MediaFormat.KEY_WIDTH) && it.containsKey(MediaFormat.KEY_HEIGHT)
+        }
+
     /**
-     * Surface encoders may not accept decoder input until the output format is known. Draining here
-     * avoids racing [runDecodeEncodeLoop]'s first [MediaCodec.dequeueOutputBuffer] on Samsung.
+     * Best-effort drain for encoders that publish [MediaCodec.INFO_OUTPUT_FORMAT_CHANGED] at startup.
+     * Many surface encoders (Samsung Exynos RTL) only signal format after the first frame is rendered;
+     * pass 1 then relies on [drainToMuxer] (standard decode→surface→encode pattern).
      */
-    private fun awaitEncoderOutputFormat(encoder: MediaCodec): MediaFormat {
+    private fun probeEncoderOutputFormat(encoder: MediaCodec, timeoutNs: Long): MediaFormat? {
+        readEncoderOutputFormatIfReady(encoder)?.let { return it }
         val bufferInfo = MediaCodec.BufferInfo()
-        val deadlineNs = System.nanoTime() + 5_000_000_000L
+        val deadlineNs = System.nanoTime() + timeoutNs
         while (System.nanoTime() < deadlineNs) {
             when (val outIndex = encoder.dequeueOutputBuffer(bufferInfo, DEQUEUE_TIMEOUT_US)) {
                 MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
@@ -581,26 +622,143 @@ class VideoReverser(
                 else -> if (outIndex >= 0) encoder.releaseOutputBuffer(outIndex, false)
             }
         }
-        throw IOException("AVC encoder did not publish output format in time")
+        return null
     }
 
-    private fun selectAvcEncoder(format: MediaFormat): MediaCodec {
-        val name = runCatching {
-            val infos = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
-            val supporting = infos.filter { info ->
-                info.isEncoder &&
-                    info.supportedTypes.any { it.equals(MIME_AVC, ignoreCase = true) } &&
-                    runCatching {
-                        info.getCapabilitiesForType(MIME_AVC).isFormatSupported(format)
-                    }.getOrDefault(false)
-            }
-            supporting.minByOrNull { it.encoderPreferenceRankForReverse(isSamsungDevice()) }?.name
-        }.getOrNull()
+    private fun isHardwareAcceleratedEncoder(info: MediaCodecInfo): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            info.isHardwareAccelerated
+        } else {
+            val name = info.name
+            !name.contains(".sw.", ignoreCase = true) &&
+                !name.contains("software", ignoreCase = true) &&
+                !name.contains("google", ignoreCase = true)
+        }
+
+    private fun listAvcEncoderTryOrder(format: MediaFormat): List<String> {
+        val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+        val avcEncoders = codecList.codecInfos.filter { info ->
+            info.isEncoder &&
+                info.supportedTypes.any { it.equals(MIME_AVC, ignoreCase = true) } &&
+                supportsAvcSurfaceEncode(info, MIME_AVC)
+        }
+        val installedEncoderNames = avcEncoders.map { it.name }.toSet()
+        val formatSupported = avcEncoders.filter { info ->
+            runCatching {
+                info.getCapabilitiesForType(MIME_AVC).isFormatSupported(format)
+            }.getOrDefault(false)
+        }.map { it.name }
+        val hwByName = avcEncoders.associate { it.name to isHardwareAcceleratedEncoder(it) }
+        val samsung = isSamsungDevice()
+        val ordered = avcEncoderTryOrderForReverse(
+            formatSupportedNames = formatSupported,
+            installedEncoderNames = installedEncoderNames,
+            isSamsung = samsung,
+            isHardwareAccelerated = { name -> hwByName[name] == true },
+        )
+        val platformPick = runCatching { codecList.findEncoderForFormat(format) }.getOrNull()
+        val merged = mergePlatformEncoderPick(
+            tryOrder = ordered,
+            platformPick = platformPick,
+            isSamsung = samsung,
+        )
+        ReversePreviewLog.d(
+            "encoder.try_order",
+            "samsung=$samsung strict=${formatSupported.joinToString()} platform=$platformPick → ${merged.joinToString()}",
+        )
+        return merged
+    }
+
+    private fun openSurfaceAvcEncoder(format: MediaFormat): Pair<MediaCodec, Surface> {
         val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else -1
         val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else -1
-        Log.d(TAG, "selectAvcEncoder: ${name ?: "<default createEncoderByType>"} for ${w}x$h")
-        return if (name != null) MediaCodec.createByCodecName(name)
-        else MediaCodec.createEncoderByType(MIME_AVC)
+        var lastFailure: IOException? = null
+        for (name in listAvcEncoderTryOrder(format)) {
+            var encoder: MediaCodec? = null
+            var surface: Surface? = null
+            try {
+                encoder = MediaCodec.createByCodecName(name)
+                encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                val preStartFormat = readEncoderOutputFormatIfReady(encoder)
+                surface = encoder.createInputSurface()
+                encoder.start()
+                val readyFormat = preStartFormat
+                    ?: probeEncoderOutputFormat(encoder, ENCODER_OUTPUT_FORMAT_PROBE_TIMEOUT_NS)
+                val formatNote = if (readyFormat != null) "output format ready" else "format deferred to pass1 drain"
+                ReversePreviewLog.i("encoder.selected", "$name ${w}x$h $formatNote")
+                Log.d(TAG, "selectAvcEncoder: $name for ${w}x$h ($formatNote)")
+                lastSurfaceEncoderName = name
+                return encoder to surface
+            } catch (e: IOException) {
+                lastFailure = e
+                ReversePreviewLog.d("encoder.try_fail", "$name IOException: ${e.message}")
+            } catch (e: IllegalArgumentException) {
+                lastFailure = IOException("configure failed for $name: ${e.message}", e)
+                ReversePreviewLog.d("encoder.try_fail", "$name configure: ${e.message}")
+            } catch (e: MediaCodec.CodecException) {
+                lastFailure = IOException("codec failed for $name: ${e.message}", e)
+                ReversePreviewLog.d("encoder.try_fail", "$name CodecException: ${e.message}")
+            } finally {
+                runCatching { encoder?.stop() }
+                surface?.release()
+                runCatching { encoder?.release() }
+            }
+        }
+        return try {
+            val encoder = MediaCodec.createEncoderByType(MIME_AVC)
+            encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            val preStartFormat = readEncoderOutputFormatIfReady(encoder)
+            val surface = encoder.createInputSurface()
+            encoder.start()
+            val readyFormat = preStartFormat
+                ?: probeEncoderOutputFormat(encoder, ENCODER_OUTPUT_FORMAT_PROBE_TIMEOUT_NS)
+            lastSurfaceEncoderName = null
+            ReversePreviewLog.i("encoder.selected", "<createEncoderByType> ${w}x$h")
+            Log.d(
+                TAG,
+                "selectAvcEncoder: <default createEncoderByType> for ${w}x$h" +
+                    if (readyFormat != null) " (output format ready)" else " (output format deferred)",
+            )
+            encoder to surface
+        } catch (e: IOException) {
+            throw lastFailure ?: e
+        }
+    }
+
+    /**
+     * On Samsung, avoid [MediaCodec.createDecoderByType] defaulting to Exynos while ExoPlayer or pass 1
+     * still holds codec slots — pair software Google decoder with [openSurfaceAvcEncoder].
+     */
+    private fun openAvcDecoderForReverse(
+        mime: String,
+        format: MediaFormat,
+        outputSurface: Surface,
+    ): MediaCodec {
+        val installedDecoders = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
+            .filter { !it.isEncoder && it.supportedTypes.any { t -> t.equals(mime, ignoreCase = true) } }
+            .map { it.name }
+            .toSet()
+        if (isSamsungDevice()) {
+            for (name in samsungSoftwareAvcDecoderTryOrder(installedDecoders)) {
+                var decoder: MediaCodec? = null
+                try {
+                    decoder = MediaCodec.createByCodecName(name)
+                    decoder.configure(format, outputSurface, null, 0)
+                    decoder.start()
+                    ReversePreviewLog.i("decoder.selected", name)
+                    Log.d(TAG, "selectAvcDecoder: $name")
+                    return decoder
+                } catch (e: Exception) {
+                    ReversePreviewLog.d("decoder.try_fail", "$name ${e.javaClass.simpleName}: ${e.message}")
+                    runCatching { decoder?.release() }
+                }
+            }
+        }
+        return MediaCodec.createDecoderByType(mime).apply {
+            configure(format, outputSurface, null, 0)
+            start()
+            Log.d(TAG, "selectAvcDecoder: <default createDecoderByType>")
+        }
     }
 
     private fun selectVideoTrack(extractor: MediaExtractor): Int {
@@ -652,6 +810,8 @@ class VideoReverser(
         const val MIME_AVC = MediaFormat.MIMETYPE_VIDEO_AVC
         const val DEFAULT_I_FRAME_INTERVAL = 1
         const val DEQUEUE_TIMEOUT_US = 10_000L
+        /** Best-effort pre-frame probe; pass 1 still starts the muxer on [MediaCodec.INFO_OUTPUT_FORMAT_CHANGED]. */
+        const val ENCODER_OUTPUT_FORMAT_PROBE_TIMEOUT_NS = 750_000_000L
         const val BITS_PER_PIXEL = 4 // ~4 bits/px → solid quality for the short scratch intermediate
         const val MIN_BIT_RATE = 2_000_000
         const val MAX_BIT_RATE = 24_000_000

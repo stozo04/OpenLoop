@@ -18,6 +18,7 @@ import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.diagnostics.AnalyticsReporter
 import io.github.stozo04.openloop.diagnostics.NoOpAnalyticsReporter
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
+import io.github.stozo04.openloop.media.ReversePreviewLog
 import io.github.stozo04.openloop.media.SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE
 import io.github.stozo04.openloop.media.isSamsungDevice
 import io.github.stozo04.openloop.media.needsReverse
@@ -783,6 +784,11 @@ class OpenLoopViewModel(
             reverseFailed = false,
             reverseSupportReport = null,
         )
+        ReversePreviewLog.i(
+            "viewModel.ensureReversed.start",
+            "gen=$generation loading=$loadingKind source=${trim.sourceFile.name} " +
+                "trim=${trim.trimStartMs}..${trim.trimEndMs}ms samsung=${isSamsungDevice()}",
+        )
         reverseJob = viewModelScope.launch {
             try {
                 // withTimeoutOrNull waits for cancellation to finish; a wedged MediaCodec/Transformer
@@ -824,8 +830,18 @@ class OpenLoopViewModel(
                         }
                     }
                 }
-                if (generation != reverseGeneration) return@launch
+                if (generation != reverseGeneration) {
+                    ReversePreviewLog.d(
+                        "viewModel.ensureReversed.stale",
+                        "gen=$generation current=$reverseGeneration",
+                    )
+                    return@launch
+                }
                 outcome.onSuccess { reversed ->
+                    ReversePreviewLog.i(
+                        "viewModel.ensureReversed.ok",
+                        "gen=$generation file=${reversed.name} bytes=${reversed.length()}",
+                    )
                     val latest = _editorTabState.value
                     _editorTabState.value = latest.copy(
                         reversedFile = reversed,
@@ -834,6 +850,12 @@ class OpenLoopViewModel(
                     )
                 }.onFailure { error ->
                     if (error is PreviewReverseTimeoutException) {
+                        ReversePreviewLog.e(
+                            "viewModel.ensureReversed.timeout",
+                            "gen=$generation after ${reversePreviewTimeoutMs()}ms " +
+                                "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} " +
+                                "source=${trim.sourceFile.name}",
+                        )
                         Log.e(
                             "OpenLoopViewModel",
                             "Reverse generation for preview timed out after ${reversePreviewTimeoutMs()}ms " +
@@ -846,7 +868,16 @@ class OpenLoopViewModel(
                             PreviewReverseTimeoutException(),
                         )
                     } else {
-                        Log.e("OpenLoopViewModel", "Reverse generation for preview failed", error)
+                        ReversePreviewLog.e(
+                            "viewModel.ensureReversed.fail",
+                            "gen=$generation ${error.javaClass.simpleName}: ${error.message}",
+                            error,
+                        )
+                        Log.e(
+                            "OpenLoopViewModel",
+                            "Reverse generation for preview failed: ${error.javaClass.simpleName}: ${error.message}",
+                            error,
+                        )
                         markReversePreviewFailed(
                             trim,
                             "${error.javaClass.simpleName}: ${error.message}",

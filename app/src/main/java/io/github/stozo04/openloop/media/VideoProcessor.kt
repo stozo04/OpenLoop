@@ -243,13 +243,27 @@ class Media3VideoProcessor(
     ): File {
         val cap = maxReverseShortSide ?: MAX_OUTPUT_SHORT_SIDE
         val srcShortSide = withContext(Dispatchers.IO) { sourceShortSide(source) }
+        ReversePreviewLog.d(
+            "ensureReversed.enter",
+            "source=${source.name} bytes=${source.length()} trim=${trimStartMs}..${trimEndMs}ms " +
+                "shortSide=$srcShortSide cap=$cap samsung=${isSamsungDevice()}",
+        )
         val reverseInput = prepareReverseInput(source, trimStartMs, trimEndMs, srcShortSide, cap)
+        ReversePreviewLog.d(
+            "ensureReversed.input",
+            "file=${reverseInput.file.name} trim=${reverseInput.trimStartMs}..${reverseInput.trimEndMs}ms " +
+                "scaledOrNormalized=${reverseInput.file != source}",
+        )
         if (isSamsungDevice()) {
             // RTL/S24: reverse start immediately after Transformer release cancels the decoder's
             // first dequeueOutputBuffer ("Pending dequeue output buffer request cancelled").
+            ReversePreviewLog.d("ensureReversed.settle", "delayMs=$SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS")
             delay(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS)
         }
         return reverser.reverse(reverseInput.file, reverseInput.trimStartMs, reverseInput.trimEndMs, onProgress)
+            .also {
+                ReversePreviewLog.i("ensureReversed.ok", "out=${it.name} bytes=${it.length()}")
+            }
     }
 
     /**
@@ -308,9 +322,14 @@ class Media3VideoProcessor(
     ): ReverseInput {
         val needsScale = sourceShortSide > maxReverseShortSide
         val needsNormalize = sourceNeedsReverseNormalize(source)
+        ReversePreviewLog.d(
+            "prepareReverseInput",
+            "needsScale=$needsScale needsNormalize=$needsNormalize shortSide=$sourceShortSide max=$maxReverseShortSide",
+        )
         if (!needsScale && !needsNormalize) {
             return ReverseInput(source, trimStartMs, trimEndMs)
         }
+        ReversePreviewLog.d("prepareReverseInput.transformer", "running scale/normalize pass")
         val scaled = scaleSourceForReverse(source, trimStartMs, trimEndMs, maxReverseShortSide)
         val durationMs = trimEndMs - trimStartMs
         return ReverseInput(scaled, 0L, durationMs)
