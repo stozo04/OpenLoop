@@ -704,16 +704,15 @@ class VideoReverser(
             } catch (e: IOException) {
                 lastFailure = e
                 ReversePreviewLog.d("encoder.try_fail", "$name IOException: ${e.message}")
+                releaseEncoderCandidate(encoder, surface)
             } catch (e: IllegalArgumentException) {
                 lastFailure = IOException("configure failed for $name: ${e.message}", e)
                 ReversePreviewLog.d("encoder.try_fail", "$name configure: ${e.message}")
+                releaseEncoderCandidate(encoder, surface)
             } catch (e: MediaCodec.CodecException) {
                 lastFailure = IOException("codec failed for $name: ${e.message}", e)
                 ReversePreviewLog.d("encoder.try_fail", "$name CodecException: ${e.message}")
-            } finally {
-                runCatching { encoder?.stop() }
-                surface?.release()
-                runCatching { encoder?.release() }
+                releaseEncoderCandidate(encoder, surface)
             }
         }
         return try {
@@ -777,6 +776,17 @@ class VideoReverser(
             start()
             Log.d(TAG, "selectAvcDecoder: <default createDecoderByType>")
         }
+    }
+
+    /**
+     * Tear down a failed encoder probe only. Must not run on a successful [openSurfaceAvcEncoder] return:
+     * Kotlin/Java `finally` runs before `return`, which released the live input [Surface] and caused
+     * `IllegalArgumentException: The surface has been released` in [openAvcDecoderForReverse] (Pixel RTL).
+     */
+    private fun releaseEncoderCandidate(encoder: MediaCodec?, surface: Surface?) {
+        runCatching { encoder?.stop() }
+        surface?.release()
+        runCatching { encoder?.release() }
     }
 
     /** Log a failed decoder candidate and release it so the try-order can move to the next name. */
