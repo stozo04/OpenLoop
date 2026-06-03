@@ -748,9 +748,15 @@ class VideoReverser(
                     ReversePreviewLog.i("decoder.selected", name)
                     Log.d(TAG, "selectAvcDecoder: $name")
                     return decoder
-                } catch (e: Exception) {
-                    ReversePreviewLog.d("decoder.try_fail", "$name ${e.javaClass.simpleName}: ${e.message}")
-                    runCatching { decoder?.release() }
+                } catch (e: IOException) {
+                    // Narrow to the documented throwables (Lesson 013 / ANDROID_STANDARDS §3), matching
+                    // openSurfaceAvcEncoder: try the next decoder on a real codec failure, but let an
+                    // IllegalStateException (wrong-state programming error) propagate as a visible bug.
+                    onDecoderTryFailed(name, e, decoder)
+                } catch (e: IllegalArgumentException) {
+                    onDecoderTryFailed(name, e, decoder)
+                } catch (e: MediaCodec.CodecException) {
+                    onDecoderTryFailed(name, e, decoder)
                 }
             }
         }
@@ -759,6 +765,12 @@ class VideoReverser(
             start()
             Log.d(TAG, "selectAvcDecoder: <default createDecoderByType>")
         }
+    }
+
+    /** Log a failed decoder candidate and release it so the try-order can move to the next name. */
+    private fun onDecoderTryFailed(name: String, error: Exception, decoder: MediaCodec?) {
+        ReversePreviewLog.d("decoder.try_fail", "$name ${error.javaClass.simpleName}: ${error.message}")
+        runCatching { decoder?.release() }
     }
 
     private fun selectVideoTrack(extractor: MediaExtractor): Int {
