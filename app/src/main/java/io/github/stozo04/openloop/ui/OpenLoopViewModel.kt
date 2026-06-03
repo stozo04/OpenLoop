@@ -717,7 +717,7 @@ class OpenLoopViewModel(
     fun updateFilter(filter: VideoFilter) {
         val current = _editorTabState.value
         if (current.filter == filter) return
-        val overlay = if (isReversePreviewLoading(current.previewLoading)) {
+        val overlay = if (current.previewLoading.isReversePreviewLoading()) {
             current.previewLoading
         } else {
             EditorLoadingKind.FILTERING
@@ -754,12 +754,12 @@ class OpenLoopViewModel(
             return
         }
         if (reverseJob?.isActive == true) {
-            if (!isReversePreviewLoading(tab.previewLoading)) {
+            if (!tab.previewLoading.isReversePreviewLoading()) {
                 _editorTabState.value = tab.copy(previewLoading = loadingKind, reverseFailed = false)
             }
             return
         }
-        if (isReversePreviewLoading(tab.previewLoading) && reverseJob?.isActive != true) {
+        if (tab.previewLoading.isReversePreviewLoading() && reverseJob?.isActive != true) {
             _editorTabState.value = tab.copy(previewLoading = null)
             tab = _editorTabState.value
         }
@@ -1057,15 +1057,12 @@ class OpenLoopViewModel(
         _editorTabState.value = EditorTabState()
     }
 
-    private fun isReversePreviewLoading(kind: EditorLoadingKind?): Boolean =
-        kind == EditorLoadingKind.TRIMMING || kind == EditorLoadingKind.LOOPIFYING
-
     private fun clearReversePreviewLoadingValue(kind: EditorLoadingKind?): EditorLoadingKind? =
-        if (isReversePreviewLoading(kind)) null else kind
+        if (kind.isReversePreviewLoading()) null else kind
 
     private fun clearReversePreviewLoadingIfSet() {
         val tab = _editorTabState.value
-        if (isReversePreviewLoading(tab.previewLoading)) {
+        if (tab.previewLoading.isReversePreviewLoading()) {
             _editorTabState.value = tab.copy(previewLoading = null)
         }
     }

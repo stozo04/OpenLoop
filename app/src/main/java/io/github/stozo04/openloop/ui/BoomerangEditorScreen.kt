@@ -256,19 +256,31 @@ fun BoomerangEditorContent(
     }
     DisposableEffect(Unit) { onDispose { exoPlayer.release() } }
 
+    // While reverse preview is generating, do not prepare ExoPlayer — Samsung devices exhaust or
+    // invalidate extra MediaCodec instances when ExoPlayer holds c2.exynos.h264.decoder and
+    // VideoReverser pass 1 opens another decoder/encoder (IllegalStateException: Released state).
+    val reversePreviewLoading = effectivePreviewLoading.isReversePreviewLoading()
+
     // Rebind the playlist whenever the direction, the reversed file, or the trim changes. setMediaItems
     // replaces the whole playlist (no in-place re-clip of a same-URI item, which ExoPlayer dedupes —
     // slice-02 HANDOFF), then prepare() restarts playback of the new cycle. Both the speed
     // (PlaybackParameters) and the look (setVideoEffects) are player-wide settings, not per-MediaItem,
     // so they survive this rebind — we don't re-apply either here. The LaunchedEffect(filter) below
     // owns applying the look.
-    LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs, seamMs) {
+    LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
+        if (reversePreviewLoading) {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            return@LaunchedEffect
+        }
         val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile, seamMs)
         if (items.isEmpty()) {
+            exoPlayer.stop()
             exoPlayer.clearMediaItems()
         } else {
             exoPlayer.setMediaItems(items)
             exoPlayer.prepare()
+            exoPlayer.play()
         }
     }
 
