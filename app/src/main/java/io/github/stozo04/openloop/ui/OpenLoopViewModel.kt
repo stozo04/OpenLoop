@@ -654,18 +654,30 @@ class OpenLoopViewModel(
         val scratch = activeScratch ?: return
         if (_editorState.value == null) return
         val enteringFresh = !editorSessionActive
+        val priorTab = _editorTabState.value
+        val reverseLoadingKind =
+            if (enteringFresh) EditorLoadingKind.TRIMMING else EditorLoadingKind.LOOPIFYING
+        val willNeedReverse =
+            priorTab.mode.needsReverse &&
+                priorTab.reversedFile == null &&
+                !priorTab.reverseFailed
         if (enteringFresh) {
-            _editorTabState.value = EditorTabState(activeTab = initialTab)
+            // Set TRIMMING before the editor composes so ExoPlayer never grabs a decoder on frame 1
+            // (BoomerangEditorScreen gates prepare() on isReversePreviewLoading()).
+            _editorTabState.value = EditorTabState(
+                activeTab = initialTab,
+                previewLoading = if (willNeedReverse) reverseLoadingKind else null,
+            )
             editorSessionActive = true
         } else {
-            _editorTabState.value = _editorTabState.value.copy(activeTab = initialTab)
+            _editorTabState.value = priorTab.copy(
+                activeTab = initialTab,
+                previewLoading = if (willNeedReverse) reverseLoadingKind else priorTab.previewLoading,
+            )
         }
         _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
-        val tab = _editorTabState.value
-        if (tab.mode.needsReverse && tab.reversedFile == null && !tab.reverseFailed) {
-            ensureReversedSegment(
-                if (enteringFresh) EditorLoadingKind.TRIMMING else EditorLoadingKind.LOOPIFYING,
-            )
+        if (willNeedReverse) {
+            ensureReversedSegment(reverseLoadingKind)
         }
     }
 
