@@ -78,8 +78,8 @@ fun EditorBottomToolbar(
         modifier = modifier
             .fillMaxWidth()
             .background(Color.Black)
-            .navigationBarsPadding()
             .height(EDITOR_TOOLBAR_HEIGHT)
+            .navigationBarsPadding()
             .testTag("editor_bottom_toolbar"),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,

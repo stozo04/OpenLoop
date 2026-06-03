@@ -196,7 +196,7 @@ private fun LoopDirectionHelpDialog(
                             DirectionChipIcon(
                                 mode = chip.mode,
                                 tint = Color.White,
-                                modifier = Modifier.size(22.dp),
+                                iconSize = 22.dp,
                             )
                         }
                         Column {
@@ -258,7 +258,7 @@ private fun LoopModeButton(
         DirectionChipIcon(
             mode = chip.mode,
             tint = iconTint,
-            modifier = Modifier.size(if (selected) 26.dp else 22.dp),
+            iconSize = if (selected) 26.dp else 22.dp,
         )
     }
 }
