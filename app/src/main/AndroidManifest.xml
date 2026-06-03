@@ -5,6 +5,17 @@
     <!-- Video-only capture — no microphone; exported loops are silent. -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- OpenLoop is privacy-first (ANDROID_STANDARDS §8): no ads, no ad-ID-based analytics.
+         firebase-analytics (play-services-measurement) merges the AD_ID permission into the
+         manifest automatically; strip it so the artifact matches the Play Console declaration
+         "does not use advertising ID". Crashlytics is unaffected (it keys off the Firebase
+         installation ID, not the ad ID), and Analytics events still work without it — ad-ID
+         *collection* is additionally disabled via the google_analytics_adid_collection_enabled
+         meta-data below. https://developer.android.com/training/articles/ad-id -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+
     <!-- Loopifying export — WorkManager long-running worker + mediaProcessing FGS (Issue #40). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
@@ -23,6 +34,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.OpenLoop.Starting">
+
+        <!-- Disable Analytics advertising-ID collection (privacy-first; pairs with the AD_ID
+             permission removal above). Events/screen tracking keep working without it.
+             https://firebase.google.com/docs/analytics/android/configure-data-collection -->
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
 
         <activity
             android:name=".MainActivity"
