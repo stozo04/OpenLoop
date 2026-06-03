@@ -594,7 +594,7 @@ class VideoReverser(
                         info.getCapabilitiesForType(MIME_AVC).isFormatSupported(format)
                     }.getOrDefault(false)
             }
-            supporting.minByOrNull { encoderPreferenceRank(it, format) }?.name
+            supporting.minByOrNull { it.encoderPreferenceRankForReverse(isSamsungDevice()) }?.name
         }.getOrNull()
         val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else -1
         val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else -1
@@ -618,48 +618,6 @@ class VideoReverser(
         val raw = "${source.absolutePath}_${trimStartMs}_$trimEndMs"
         val digest = MessageDigest.getInstance("SHA-1").digest(raw.toByteArray())
         return digest.joinToString("") { "%02x".format(it) }
-    }
-
-    /** Lower rank = preferred. Deprioritize Google's software AVC (Lesson 020); prefer vendor HW. */
-    private fun encoderPreferenceRank(info: MediaCodecInfo, format: MediaFormat): Int {
-        var rank = 0
-        val name = info.name
-
-        if (isSamsungDevice()) {
-            // c2.android.avc.encoder often aborts pass-1 surface encode (cancelled dequeueOutputBuffer).
-            if (name.contains("android.avc", ignoreCase = true)) {
-                rank += 400
-            }
-            val isHardware = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                info.isHardwareAccelerated
-            } else {
-                !name.contains(".sw.", ignoreCase = true) &&
-                    !name.contains("software", ignoreCase = true) &&
-                    !name.contains("google", ignoreCase = true)
-            }
-            if (isHardware) {
-                // Samsung HW can wedge on long all-I-frame passes; prefer google SW, then Exynos for preview.
-                rank += 300
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !info.isHardwareAccelerated) {
-            rank += 100
-        }
-        if (name.contains("google", ignoreCase = true)) rank += 50
-        if (name.contains(".sw.", ignoreCase = true) || name.contains("software", ignoreCase = true)) {
-            rank += 100
-        }
-        // Samsung Exynos / SEC and Qualcomm encoders are typically much faster than c2.google.avc.encoder.
-        if (
-            name.contains("exynos", ignoreCase = true) ||
-                name.contains("c2.sec", ignoreCase = true) ||
-                name.contains("qcom", ignoreCase = true) ||
-                name.contains("qti", ignoreCase = true)
-        ) {
-            rank -= 25
-        }
-        return rank
     }
 
     private fun logReverseStart(source: File, trimStartMs: Long, trimEndMs: Long) {
