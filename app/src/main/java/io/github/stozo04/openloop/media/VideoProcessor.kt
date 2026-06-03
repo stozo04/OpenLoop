@@ -244,6 +244,11 @@ class Media3VideoProcessor(
         val cap = maxReverseShortSide ?: MAX_OUTPUT_SHORT_SIDE
         val srcShortSide = withContext(Dispatchers.IO) { sourceShortSide(source) }
         val reverseInput = prepareReverseInput(source, trimStartMs, trimEndMs, srcShortSide, cap)
+        if (isSamsungDevice()) {
+            // RTL/S24: reverse start immediately after Transformer release cancels the decoder's
+            // first dequeueOutputBuffer ("Pending dequeue output buffer request cancelled").
+            delay(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS)
+        }
         return reverser.reverse(reverseInput.file, reverseInput.trimStartMs, reverseInput.trimEndMs, onProgress)
     }
 

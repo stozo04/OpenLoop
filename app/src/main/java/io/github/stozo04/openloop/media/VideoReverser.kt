@@ -14,6 +14,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
 import kotlin.coroutines.coroutineContext
@@ -152,6 +153,7 @@ class VideoReverser(
             }
             inputSurface = encoder.createInputSurface()
             encoder.start()
+            awaitEncoderOutputFormat(encoder)
 
             decoder = MediaCodec.createDecoderByType(inputFormat.getString(MediaFormat.KEY_MIME)!!).apply {
                 configure(inputFormat, inputSurface, null, 0)
@@ -565,6 +567,23 @@ class VideoReverser(
      * render appears to hang. Picking a hardware encoder makes a 4K/60 import finish in seconds.
      * Falls back to the platform default for the type if no supporting hardware encoder is found.
      */
+    /**
+     * Surface encoders may not accept decoder input until the output format is known. Draining here
+     * avoids racing [runDecodeEncodeLoop]'s first [MediaCodec.dequeueOutputBuffer] on Samsung.
+     */
+    private fun awaitEncoderOutputFormat(encoder: MediaCodec): MediaFormat {
+        val bufferInfo = MediaCodec.BufferInfo()
+        val deadlineNs = System.nanoTime() + 5_000_000_000L
+        while (System.nanoTime() < deadlineNs) {
+            when (val outIndex = encoder.dequeueOutputBuffer(bufferInfo, DEQUEUE_TIMEOUT_US)) {
+                MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
+                MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> return encoder.outputFormat
+                else -> if (outIndex >= 0) encoder.releaseOutputBuffer(outIndex, false)
+            }
+        }
+        throw IOException("AVC encoder did not publish output format in time")
+    }
+
     private fun selectAvcEncoder(format: MediaFormat): MediaCodec {
         val name = runCatching {
             val infos = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
@@ -607,6 +626,10 @@ class VideoReverser(
         val name = info.name
 
         if (isSamsungDevice()) {
+            // c2.android.avc.encoder often aborts pass-1 surface encode (cancelled dequeueOutputBuffer).
+            if (name.contains("android.avc", ignoreCase = true)) {
+                rank += 400
+            }
             val isHardware = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 info.isHardwareAccelerated
             } else {
@@ -615,9 +638,8 @@ class VideoReverser(
                     !name.contains("google", ignoreCase = true)
             }
             if (isHardware) {
-                // Samsung hardware encoders (Exynos/SEC) are prone to wedging/hanging under custom workloads
-                // (like reversing). Force software encoder fallback for both reverse passes to ensure stability.
-                rank += 500
+                // Samsung HW can wedge on long all-I-frame passes; prefer google SW, then Exynos for preview.
+                rank += 300
             }
         }
 
