@@ -26,8 +26,10 @@ import io.github.stozo04.openloop.work.BoomerangRenderRequest
 import io.github.stozo04.openloop.work.BoomerangRenderScheduler
 import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -121,6 +123,13 @@ class OpenLoopViewModel(
      * ViewModel stays Context-free (Lesson 004) and tests can flip it deterministically.
      */
     private val isLowMemoryNow: () -> Boolean = { false },
+    /**
+     * Dispatcher for the reverse-scratch janitor's disk I/O (PR #58 review WARNING: never run
+     * file I/O on the main thread — worst on exactly the stressed devices this code serves).
+     * Injected so JVM tests substitute the shared TestDispatcher and the cleanup stays
+     * deterministic under virtual time (coroutines best practice: inject dispatchers).
+     */
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -1153,8 +1162,17 @@ class OpenLoopViewModel(
     }
 
     private fun cleanupReverseScratchAfterCancel() {
-        val result = videoProcessor.cleanupReverseIntermediates()
-        ReverseCrashlytics.logReversePreviewCleanup(result.deletedCount, result.bytesDeleted)
+        // The janitor lists and deletes files — disk I/O that must never run on the main thread
+        // (PR #58 review WARNING; this path fires by definition when the device is unhealthy, so
+        // flash contention makes main-thread I/O jank/ANR-adjacent). NonCancellable so an in-flight
+        // cleanup completes even if the editor session tears viewModelScope work down around it;
+        // anything missed across process death is reclaimed by the startup pruneStaleScratch pass.
+        viewModelScope.launch(ioDispatcher) {
+            withContext(NonCancellable) {
+                val result = videoProcessor.cleanupReverseIntermediates()
+                ReverseCrashlytics.logReversePreviewCleanup(result.deletedCount, result.bytesDeleted)
+            }
+        }
     }
 
     /**

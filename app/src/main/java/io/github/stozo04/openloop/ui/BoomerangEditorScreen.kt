@@ -3,6 +3,7 @@ package io.github.stozo04.openloop.ui
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -197,17 +198,20 @@ fun BoomerangEditorScreen(
 @OptIn(UnstableApi::class)
 @Composable
 fun BoomerangEditorContent(
+    // Required parameters first, then `modifier` as the FIRST optional parameter (Compose API
+    // guideline, lint ModifierParameter — PR #58 review). Every call site uses named arguments,
+    // so this reorder is source-compatible.
     sourceFile: File,
     trimStartMs: Long,
     trimEndMs: Long,
     mode: BoomerangMode,
     reversedFile: File?,
-    previewLoading: EditorLoadingKind? = null,
-    sessionOverlayLoading: EditorLoadingKind? = null,
     onSelectMode: (BoomerangMode) -> Unit,
     onSave: () -> Unit,
     onGoToTrim: () -> Unit,
     modifier: Modifier = Modifier,
+    previewLoading: EditorLoadingKind? = null,
+    sessionOverlayLoading: EditorLoadingKind? = null,
     speed: Float = OpenLoopViewModel.DEFAULT_SPEED,
     filter: VideoFilter = VideoFilter.ORIGINAL,
     activeTab: EditorTab = EditorTab.DIRECTION,
@@ -253,7 +257,10 @@ fun BoomerangEditorContent(
     val saveEnabled = activeOverlay == null && !awaitingReverse && !reverseUnavailable
 
     var playlistRebindCount by remember { mutableIntStateOf(0) }
-    val editorEnteredAtMs = remember { System.currentTimeMillis() }
+    // Monotonic clock for the editor_duration_sec breadcrumb (PR #58 review REC): wall-clock
+    // (System.currentTimeMillis) jumps on NTP corrections / manual time changes, which would skew
+    // the exact telemetry the 30-day Crashlytics watch reads. elapsedRealtime never goes backward.
+    val editorEnteredAtElapsedMs = remember { SystemClock.elapsedRealtime() }
 
     // Player teardown epoch (PR #58 review). setVideoEffects is player-wide and survives every
     // stop/clearMediaItems/prepare rebind, and setVideoEffects(emptyList()) is forbidden (HDR-seam
@@ -301,7 +308,7 @@ fun BoomerangEditorContent(
     DisposableEffect(Unit) {
         onDispose {
             val durationSec =
-                ((System.currentTimeMillis() - editorEnteredAtMs) / 1_000L).coerceAtLeast(0L)
+                ((SystemClock.elapsedRealtime() - editorEnteredAtElapsedMs) / 1_000L).coerceAtLeast(0L)
             io.github.stozo04.openloop.diagnostics.ReverseCrashlytics.logEditorDispose(
                 playlistRebindCount,
                 durationSec,

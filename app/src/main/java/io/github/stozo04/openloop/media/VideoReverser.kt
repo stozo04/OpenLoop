@@ -602,11 +602,11 @@ class VideoReverser(
      * `isDataSpaceValid`).
      */
     private fun MediaFormat.applySdrBt709ColorMetadata() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
-            setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
-            setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
-        }
+        // No SDK guard: these color-metadata keys are API 24+, and minSdk is 26 — the previous
+        // `SDK_INT >= N` check was always true (lint ObsoleteSdkInt — PR #58 review).
+        setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
+        setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+        setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
     }
 
     /**

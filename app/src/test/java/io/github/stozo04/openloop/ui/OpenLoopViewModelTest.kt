@@ -340,6 +340,10 @@ class OpenLoopViewModelTest {
             // Default NoOp analytics arg keeps these constructions compiling; assert on a
             // FakeAnalyticsReporter in new tests that care about analytics events (firebase PRD §6).
             isLowMemoryNow = { lowMemoryNow },
+            // The janitor now runs on an injected IO dispatcher (PR #58 review: file I/O off the
+            // main thread). Sharing the rule's TestDispatcher keeps one scheduler (Lesson 008) so
+            // cleanup runs deterministically under advanceUntilIdle / eager Unconfined execution.
+            ioDispatcher = mainDispatcherRule.testDispatcher,
         )
     }
 

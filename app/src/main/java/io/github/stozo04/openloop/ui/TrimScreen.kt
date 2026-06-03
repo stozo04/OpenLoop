@@ -88,6 +88,8 @@ fun TrimScreen(
 @OptIn(UnstableApi::class)
 @Composable
 fun TrimScreenContent(
+    // `modifier` is the FIRST optional parameter (Compose API guideline, lint ModifierParameter —
+    // PR #58 review). Every call site uses named arguments, so this reorder is source-compatible.
     sourceFile: File,
     sourceDurationMs: Long,
     committedStartMs: Long,
@@ -95,9 +97,9 @@ fun TrimScreenContent(
     onCommitTrim: (Long, Long) -> Unit,
     onNext: () -> Unit,
     onDiscard: () -> Unit,
+    modifier: Modifier = Modifier,
     onAdvanceToEditor: (EditorTab) -> Unit = { onNext() },
     sessionOverlayLoading: EditorLoadingKind? = null,
-    modifier: Modifier = Modifier,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
