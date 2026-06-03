@@ -146,6 +146,12 @@ interface VideoProcessor {
         onProgress: (Float) -> Unit = {},
         maxReverseShortSide: Int? = null,
     ): File
+
+    /**
+     * Best-effort cleanup of reverse pass-1 intermediates after cancel/timeout (editor memory OOM
+     * hardening). Safe to call when no reverse job is running.
+     */
+    fun cleanupReverseIntermediates(): ReverseScratchJanitor.CleanupResult
 }
 
 /**
@@ -264,6 +270,14 @@ class Media3VideoProcessor(
             .also {
                 ReversePreviewLog.i("ensureReversed.ok", "out=${it.name} bytes=${it.length()}")
             }
+    }
+
+    override fun cleanupReverseIntermediates(): ReverseScratchJanitor.CleanupResult {
+        val reversedDir = File(scratchDir, "reversed")
+        return ReverseScratchJanitor.cleanup(
+            scratchDir = reversedDir,
+            trackedPaths = VideoReverser.trackedIntermediatePaths(),
+        )
     }
 
     /**

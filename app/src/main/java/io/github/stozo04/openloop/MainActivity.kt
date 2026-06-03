@@ -8,10 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
-import androidx.annotation.OptIn
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -19,6 +15,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.OptIn
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,6 +62,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,6 +83,7 @@ import io.github.stozo04.openloop.ui.BoomerangEvent
 import io.github.stozo04.openloop.ui.CameraScreen
 import io.github.stozo04.openloop.ui.CameraScreenHost
 import io.github.stozo04.openloop.ui.GalleryScreen
+import io.github.stozo04.openloop.ui.MemoryPressure
 import io.github.stozo04.openloop.ui.OnboardingScreen
 import io.github.stozo04.openloop.ui.OpenLoopUiState
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
@@ -121,6 +122,10 @@ class MainActivity : ComponentActivity() {
             // google-services.json is absent (CI / fresh clone). See
             // docs/active/firebase-analytics/IMPLEMENTATION.md for the staged rollout.
             FirebaseAnalyticsReporterImpl.create(applicationContext),
+            // Proactive low-memory probe (ActivityManager.getMemoryInfo). Android 14+ delivers no
+            // foreground onTrimMemory pressure levels, so the ViewModel polls this at editor entry
+            // and before applying a non-Original look (editor-memory-oom WS-3, PR #58 review).
+            isLowMemoryNow = MemoryPressure.lowMemoryProbe(applicationContext),
         )
     }
     private lateinit var cameraManager: CameraManager
@@ -169,6 +174,18 @@ class MainActivity : ComponentActivity() {
         pickVideoLauncher.launch(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
         )
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // Exact-match the legacy *foreground pressure* levels only (delivered on API <= 33; never
+        // delivered on 34+ — see MemoryPressure). UI_HIDDEN/BACKGROUND are lifecycle signals that
+        // fire on every routine backgrounding and must NOT degrade the editor (PR #58 review FAIL:
+        // the previous `>=` comparison matched them). Android 14+ foreground pressure is covered by
+        // the MemoryPressure.lowMemoryProbe injected into the ViewModel Factory below.
+        if (MemoryPressure.isForegroundPressureLevel(level)) {
+            viewModel.onTrimMemory()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

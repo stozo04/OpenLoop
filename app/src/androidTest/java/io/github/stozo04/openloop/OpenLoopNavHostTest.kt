@@ -169,6 +169,9 @@ class OpenLoopNavHostTest {
             onProgress: (Float) -> Unit,
             maxReverseShortSide: Int?,
         ): File = source
+
+        override fun cleanupReverseIntermediates() =
+            io.github.stozo04.openloop.media.ReverseScratchJanitor.CleanupResult(0, 0L)
     }
 
     private class NoopBoomerangRenderScheduler : BoomerangRenderScheduler {

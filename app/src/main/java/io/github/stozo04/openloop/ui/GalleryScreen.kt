@@ -1,6 +1,5 @@
 package io.github.stozo04.openloop.ui
 
-import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
@@ -44,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -69,9 +70,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -80,6 +81,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.data.RecordedVideo
+import io.github.stozo04.openloop.media.ThumbnailDecoder
 import io.github.stozo04.openloop.ui.components.BackButton
 import io.github.stozo04.openloop.ui.components.CircleIconButton
 import io.github.stozo04.openloop.ui.components.PrimaryButton
@@ -93,6 +95,7 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
+import java.io.File
 
 /**
  * A [Set] of selected loop ids that survives configuration change. [Set] isn't `Bundle`-able on its
@@ -430,12 +433,10 @@ private fun VideoThumbnailCard(
     }
     val scale by animateFloatAsState(targetScale, label = "card_scale")
 
-    val thumbnail = remember(video.thumbnailPath) {
-        try {
-            BitmapFactory.decodeFile(video.thumbnailPath)?.asImageBitmap()
-        } catch (_: Exception) {
-            null
-        }
+    // decodeGalleryThumbnail is main-safe (it owns its IO dispatcher — ANDROID_STANDARDS §3), so
+    // the composable no longer hardcodes a dispatcher switch (PR #58 review REC).
+    val thumbnail by produceState<ImageBitmap?>(null, video.thumbnailPath) {
+        value = ThumbnailDecoder.decodeGalleryThumbnail(File(video.thumbnailPath))?.asImageBitmap()
     }
 
     val shape = MaterialTheme.shapes.small
@@ -461,9 +462,10 @@ private fun VideoThumbnailCard(
             .semantics { selected = isSelected },
     ) {
         // Thumbnail image
-        if (thumbnail != null) {
+        val thumb = thumbnail
+        if (thumb != null) {
             Image(
-                bitmap = thumbnail,
+                bitmap = thumb,
                 contentDescription = "Video thumbnail",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

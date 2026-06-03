@@ -18,6 +18,7 @@ import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -70,7 +71,8 @@ class VideoReverser(
             return@withContext output
         }
 
-        val intermediate = File(scratchDir, "_intermediate_${UUID.randomUUID()}.mp4")
+        val intermediate = File(scratchDir, "${ReverseScratchJanitor.INTERMEDIATE_PREFIX}${UUID.randomUUID()}.mp4")
+        registerIntermediate(intermediate)
         lastSurfaceEncoderName = null
         logReverseStart(source, trimStartMs, trimEndMs)
         ReversePreviewLog.i(
@@ -114,8 +116,17 @@ class VideoReverser(
             output.delete()
             throw t
         } finally {
+            unregisterIntermediate(intermediate)
             intermediate.delete()
         }
+    }
+
+    private fun registerIntermediate(file: File) {
+        activeIntermediatePaths.add(file.absolutePath)
+    }
+
+    private fun unregisterIntermediate(file: File) {
+        activeIntermediatePaths.remove(file.absolutePath)
     }
 
     // ── Pass 1: trim + re-encode so every frame is an I-frame (seekable per-frame) ──────────────
@@ -278,6 +289,7 @@ class VideoReverser(
             run {
                 extractor.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
                 while (true) {
+                    currentCoroutineContext().ensureActive()
                     val t = extractor.sampleTime
                     if (t < 0L) break
                     frameTimesUs.add(t)
@@ -590,11 +602,11 @@ class VideoReverser(
      * `isDataSpaceValid`).
      */
     private fun MediaFormat.applySdrBt709ColorMetadata() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
-            setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
-            setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
-        }
+        // No SDK guard: these color-metadata keys are API 24+, and minSdk is 26 — the previous
+        // `SDK_INT >= N` check was always true (lint ObsoleteSdkInt — PR #58 review).
+        setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
+        setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+        setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
     }
 
     /**
@@ -692,16 +704,15 @@ class VideoReverser(
             } catch (e: IOException) {
                 lastFailure = e
                 ReversePreviewLog.d("encoder.try_fail", "$name IOException: ${e.message}")
+                releaseEncoderCandidate(encoder, surface)
             } catch (e: IllegalArgumentException) {
                 lastFailure = IOException("configure failed for $name: ${e.message}", e)
                 ReversePreviewLog.d("encoder.try_fail", "$name configure: ${e.message}")
+                releaseEncoderCandidate(encoder, surface)
             } catch (e: MediaCodec.CodecException) {
                 lastFailure = IOException("codec failed for $name: ${e.message}", e)
                 ReversePreviewLog.d("encoder.try_fail", "$name CodecException: ${e.message}")
-            } finally {
-                runCatching { encoder?.stop() }
-                surface?.release()
-                runCatching { encoder?.release() }
+                releaseEncoderCandidate(encoder, surface)
             }
         }
         return try {
@@ -767,6 +778,17 @@ class VideoReverser(
         }
     }
 
+    /**
+     * Tear down a failed encoder probe only. Must not run on a successful [openSurfaceAvcEncoder] return:
+     * Kotlin/Java `finally` runs before `return`, which released the live input [Surface] and caused
+     * `IllegalArgumentException: The surface has been released` in [openAvcDecoderForReverse] (Pixel RTL).
+     */
+    private fun releaseEncoderCandidate(encoder: MediaCodec?, surface: Surface?) {
+        runCatching { encoder?.stop() }
+        surface?.release()
+        runCatching { encoder?.release() }
+    }
+
     /** Log a failed decoder candidate and release it so the try-order can move to the next name. */
     private fun onDecoderTryFailed(name: String, error: Exception, decoder: MediaCodec?) {
         ReversePreviewLog.d("decoder.try_fail", "$name ${error.javaClass.simpleName}: ${error.message}")
@@ -817,7 +839,12 @@ class VideoReverser(
         }
     }
 
-    private companion object {
+    companion object {
+        private val activeIntermediatePaths = ConcurrentHashMap.newKeySet<String>()
+
+        /** Paths of in-flight pass-1 intermediates (for [ReverseScratchJanitor] when cancel is wedged). */
+        fun trackedIntermediatePaths(): Set<String> = activeIntermediatePaths.toSet()
+
         const val TAG = "VideoReverser"
         const val MIME_AVC = MediaFormat.MIMETYPE_VIDEO_AVC
         const val DEFAULT_I_FRAME_INTERVAL = 1

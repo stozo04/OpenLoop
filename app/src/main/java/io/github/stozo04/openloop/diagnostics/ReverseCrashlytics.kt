@@ -48,6 +48,29 @@ internal object ReverseCrashlytics {
     }
 
     /** Plain-text report for the in-app share sheet (same facts as Crashlytics keys). */
+    fun logReversePreviewCleanup(deletedCount: Int, bytesDeleted: Long) {
+        val crashlytics = crashlyticsOrNull() ?: return
+        runCatching {
+            crashlytics.log(
+                "reverse_preview_cleanup: deleted=$deletedCount bytes=$bytesDeleted",
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "Crashlytics log failed", e)
+        }
+    }
+
+    fun logEditorDispose(playlistRebindCount: Int, editorDurationSec: Long) {
+        val crashlytics = crashlyticsOrNull() ?: return
+        runCatching {
+            crashlytics.log(
+                "editor_dispose: playlist_rebind_count=$playlistRebindCount " +
+                    "editor_duration_sec=$editorDurationSec",
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "Crashlytics log failed", e)
+        }
+    }
+
     fun supportReportForShare(
         versionName: String,
         versionCode: Int,

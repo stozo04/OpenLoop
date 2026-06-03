@@ -3,6 +3,7 @@ package io.github.stozo04.openloop.ui
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
@@ -47,6 +48,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -106,6 +108,7 @@ import io.github.stozo04.openloop.ui.theme.OverlayScrim
 import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.ClipDirection
 import io.github.stozo04.openloop.media.VideoFilter
@@ -134,6 +137,9 @@ private fun editorPanelHeight(tab: EditorTab) = when (tab) {
 
 /** Debounce before pushing a new speed to the player — coalesces a drag's stream into one apply. */
 private const val SPEED_DEBOUNCE_MS = 50L
+
+/** Debounce playlist rebinding — coalesces trim/mode/seam changes (editor-memory-oom WS-2). */
+private val PLAYLIST_DEBOUNCE_MS = EditorPlaylistBind.PLAYLIST_DEBOUNCE_MS
 
 /**
  * Tabbed boomerang editor. Opens from the Trim screen's NEXT with the trimmed clip already
@@ -168,6 +174,7 @@ fun BoomerangEditorScreen(
         sessionOverlayLoading = sessionOverlay,
         reverseFailed = tab.reverseFailed,
         reverseSupportReport = tab.reverseSupportReport,
+        effectsPreviewEnabled = tab.effectsPreviewEnabled,
         onRetryReverse = viewModel::retryReverseSegment,
         onSelectMode = viewModel::updateMode,
         onSpeedChange = viewModel::updateSpeed,
@@ -192,22 +199,26 @@ fun BoomerangEditorScreen(
 @OptIn(UnstableApi::class)
 @Composable
 fun BoomerangEditorContent(
+    // Required parameters first, then `modifier` as the FIRST optional parameter (Compose API
+    // guideline, lint ModifierParameter — PR #58 review). Every call site uses named arguments,
+    // so this reorder is source-compatible.
     sourceFile: File,
     trimStartMs: Long,
     trimEndMs: Long,
     mode: BoomerangMode,
     reversedFile: File?,
-    previewLoading: EditorLoadingKind? = null,
-    sessionOverlayLoading: EditorLoadingKind? = null,
     onSelectMode: (BoomerangMode) -> Unit,
     onSave: () -> Unit,
     onGoToTrim: () -> Unit,
     modifier: Modifier = Modifier,
+    previewLoading: EditorLoadingKind? = null,
+    sessionOverlayLoading: EditorLoadingKind? = null,
     speed: Float = OpenLoopViewModel.DEFAULT_SPEED,
     filter: VideoFilter = VideoFilter.ORIGINAL,
     activeTab: EditorTab = EditorTab.DIRECTION,
     reverseFailed: Boolean = false,
     reverseSupportReport: String? = null,
+    effectsPreviewEnabled: Boolean = true,
     onRetryReverse: () -> Unit = {},
     onSpeedChange: (Float) -> Unit = {},
     onFilterChange: (VideoFilter) -> Unit = {},
@@ -246,7 +257,23 @@ fun BoomerangEditorContent(
     val activeOverlay = sessionOverlayLoading ?: effectivePreviewLoading
     val saveEnabled = activeOverlay == null && !awaitingReverse && !reverseUnavailable
 
-    val exoPlayer = remember {
+    var playlistRebindCount by remember { mutableIntStateOf(0) }
+    // Monotonic clock for the editor_duration_sec breadcrumb (PR #58 review REC): wall-clock
+    // (System.currentTimeMillis) jumps on NTP corrections / manual time changes, which would skew
+    // the exact telemetry the 30-day Crashlytics watch reads. elapsedRealtime never goes backward.
+    val editorEnteredAtElapsedMs = remember { SystemClock.elapsedRealtime() }
+
+    // Player teardown epoch (PR #58 review). setVideoEffects is player-wide and survives every
+    // stop/clearMediaItems/prepare rebind, and setVideoEffects(emptyList()) is forbidden (HDR-seam
+    // comment below) — so the ONLY way to drop an already-applied look's DefaultVideoFrameProcessor
+    // is to recreate the player. Bumping the epoch releases the old instance (DisposableEffect
+    // below) and builds a fresh one with no frame processor attached.
+    var playerEpoch by remember { mutableIntStateOf(0) }
+    // True once setVideoEffects ran with a non-empty list on the CURRENT player instance; reset
+    // before each epoch bump so a fresh player never inherits a stale "applied" flag.
+    var playerHasAppliedEffects by remember { mutableStateOf(false) }
+
+    val exoPlayer = remember(playerEpoch) {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ALL // loop the concatenated boomerang cycle
             playWhenReady = true
@@ -261,7 +288,9 @@ fun BoomerangEditorContent(
     // may still need codec slots (this PR's contention theme); resume on ON_START when a playlist is
     // bound. Releasing still happens on dispose. (Media3 lifecycle-aware playback guidance.)
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    // Keyed on exoPlayer so an epoch bump releases the OLD instance before the fresh one binds —
+    // release() is what actually drops the applied-effects GL pipeline and its decoders.
+    DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_STOP -> exoPlayer.pause()
@@ -273,6 +302,15 @@ fun BoomerangEditorContent(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.release()
+        }
+    }
+    // Editor-session telemetry logs once per real leave-composition (NOT per player epoch — keying
+    // this on exoPlayer would skew playlist_rebind_count/editor_duration_sec on every teardown).
+    DisposableEffect(Unit) {
+        onDispose {
+            val durationSec =
+                ((SystemClock.elapsedRealtime() - editorEnteredAtElapsedMs) / 1_000L).coerceAtLeast(0L)
+            ReverseCrashlytics.logEditorDispose(playlistRebindCount, durationSec)
         }
     }
 
@@ -287,21 +325,23 @@ fun BoomerangEditorContent(
     // (PlaybackParameters) and the look (setVideoEffects) are player-wide settings, not per-MediaItem,
     // so they survive this rebind — we don't re-apply either here. The LaunchedEffect(filter) below
     // owns applying the look.
-    LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
-        if (reversePreviewLoading) {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
+    // exoPlayer is a key so a recreated (epoch-bumped) instance gets the playlist rebound — without
+    // it the fresh player would sit empty and the preview would go black.
+    LaunchedEffect(exoPlayer, mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
+        delay(PLAYLIST_DEBOUNCE_MS)
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        if (EditorPlaylistBind.shouldHoldPlaylist(reversePreviewLoading)) {
             return@LaunchedEffect
         }
         val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile, seamMs)
-        if (items.isEmpty()) {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
-        } else {
-            exoPlayer.setMediaItems(items)
-            // playWhenReady = true (set on the builder), so prepare() starts playback — no explicit play().
-            exoPlayer.prepare()
+        if (EditorPlaylistBind.shouldClearPlaylist(items.isEmpty())) {
+            return@LaunchedEffect
         }
+        exoPlayer.setMediaItems(items)
+        // playWhenReady = true (set on the builder), so prepare() starts playback — no explicit play().
+        exoPlayer.prepare()
+        playlistRebindCount++
     }
 
     // Apply the color look live (the Looks tab's whole point). setVideoEffects is ExoPlayer's preview
@@ -312,21 +352,31 @@ fun BoomerangEditorContent(
     // through DefaultVideoFrameProcessor, which cannot hand off from an imported HDR forward clip to
     // the tone-mapped SDR reversed clip — playback freezes at the seam with checkColors /
     // ExoPlaybackException (LogCat: VideoFrameProcessingException / IllegalArgumentException).
-    LaunchedEffect(filter) {
-        val effects = filter.toMediaEffects()
-        if (effects.isNotEmpty()) {
-            exoPlayer.setVideoEffects(effects)
+    LaunchedEffect(exoPlayer, filter, effectsPreviewEnabled) {
+        if (!shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)) {
+            // PR #58 review: closing the gate must also DROP effects already applied to the player
+            // (they survive every rebind). Recreate the player — the only sanctioned teardown given
+            // the no-empty-list rule above. The epoch bump re-runs this effect with the fresh
+            // instance; playerHasAppliedEffects is false by then, so it settles in one pass.
+            if (shouldTearDownEffectsPlayer(playerHasAppliedEffects, effectsPreviewEnabled, filter)) {
+                playerHasAppliedEffects = false
+                playerEpoch++
+            }
+            onFilterPreviewSettled()
+            return@LaunchedEffect
         }
+        exoPlayer.setVideoEffects(filter.toMediaEffects())
+        playerHasAppliedEffects = true
         onFilterPreviewSettled()
     }
 
     // When a look *is* active, re-apply it at each playlist-item transition so the GL pipeline
     // reconfigures cleanly across the HDR forward → SDR reversed seam on imported clips.
-    DisposableEffect(exoPlayer, filter) {
-        val effects = filter.toMediaEffects()
-        if (effects.isEmpty()) {
+    DisposableEffect(exoPlayer, filter, effectsPreviewEnabled) {
+        if (!shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)) {
             onDispose { }
         } else {
+            val effects = filter.toMediaEffects()
             val listener = object : Player.Listener {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     exoPlayer.setVideoEffects(effects)
@@ -375,11 +425,14 @@ fun BoomerangEditorContent(
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
-                        player = exoPlayer
                         useController = false
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     }
                 },
+                // Bind in update (runs after factory and on every recomposition) so an epoch-bumped
+                // player replaces the released one — a factory-only bind would leave the view on the
+                // dead instance after an effects teardown.
+                update = { view -> if (view.player !== exoPlayer) view.player = exoPlayer },
                 modifier = Modifier.fillMaxSize().testTag("editor_preview"),
             )
 
@@ -520,6 +573,13 @@ fun BoomerangEditorContent(
                         filter = filter,
                         thumbnailFrame = thumbnailFrame,
                         onFilterChange = onFilterChange,
+                        filtersEnabled = effectsPreviewEnabled,
+                        disabledHint = if (!effectsPreviewEnabled) {
+                            // Cause-neutral: the gate closes on reverse failure OR memory pressure.
+                            "Preview unavailable (low memory or reverse error)"
+                        } else {
+                            null
+                        },
                     )
                 }
             }

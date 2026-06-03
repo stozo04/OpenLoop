@@ -135,4 +135,9 @@ data class EditorTabState(
     val reverseFailed: Boolean = false,
     /** Plain-text diagnostic for the "Send debug info" action when [reverseFailed] is true. */
     val reverseSupportReport: String? = null,
+    /**
+     * When false, the editor skips ExoPlayer [setVideoEffects] (forward-only preview) after reverse
+     * preview failure or a low-memory signal — reduces GL/native retention under heap pressure.
+     */
+    val effectsPreviewEnabled: Boolean = true,
 )

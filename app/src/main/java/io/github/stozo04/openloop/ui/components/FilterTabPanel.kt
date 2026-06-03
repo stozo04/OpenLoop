@@ -65,6 +65,8 @@ fun FilterTabPanel(
     thumbnailFrame: Bitmap?,
     onFilterChange: (VideoFilter) -> Unit,
     modifier: Modifier = Modifier,
+    filtersEnabled: Boolean = true,
+    disabledHint: String? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     val scrollState = rememberScrollState()
@@ -95,6 +97,19 @@ fun FilterTabPanel(
                     .padding(horizontal = 18.dp)
                     .testTag("filter_tab_title"),
             )
+            if (!disabledHint.isNullOrBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = disabledHint,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp)
+                        .testTag("filter_tab_disabled_hint"),
+                )
+            }
             Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier
@@ -104,15 +119,16 @@ fun FilterTabPanel(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 VideoFilter.entries.forEach { look ->
+                    val chipEnabled = filtersEnabled || look == VideoFilter.ORIGINAL
                     FilterLookChip(
                         look = look,
                         thumbnailFrame = thumbnailFrame,
                         selected = look == filter,
+                        enabled = chipEnabled,
                         onClick = {
-                            if (look != filter) {
-                                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                                onFilterChange(look)
-                            }
+                            if (!chipEnabled || look == filter) return@FilterLookChip
+                            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                            onFilterChange(look)
                         },
                     )
                 }
@@ -126,6 +142,7 @@ private fun FilterLookChip(
     look: VideoFilter,
     thumbnailFrame: Bitmap?,
     selected: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val thumbShape = RoundedCornerShape(THUMB_CORNER)
@@ -148,7 +165,7 @@ private fun FilterLookChip(
                         Modifier
                     },
                 )
-                .clickable(role = Role.Button, onClick = onClick)
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
                 .semantics {
                     contentDescription = look.label
                     this.selected = selected
@@ -170,7 +187,11 @@ private fun FilterLookChip(
         Spacer(Modifier.height(8.dp))
         Text(
             text = look.label,
-            color = if (selected) ElectricLime else TextSecondary,
+            color = when {
+                selected -> ElectricLime
+                !enabled -> TextSecondary.copy(alpha = 0.45f)
+                else -> TextSecondary
+            },
             style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
