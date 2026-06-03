@@ -606,11 +606,7 @@ class VideoReverser(
         var rank = 0
         val name = info.name
 
-        // Check if format requests "all I-frames" (KEY_I_FRAME_INTERVAL = 0)
-        val isAllKeyframes = format.containsKey(MediaFormat.KEY_I_FRAME_INTERVAL) &&
-            format.getInteger(MediaFormat.KEY_I_FRAME_INTERVAL) == 0
-
-        if (isAllKeyframes && isSamsungDevice()) {
+        if (isSamsungDevice()) {
             val isHardware = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 info.isHardwareAccelerated
             } else {
@@ -619,8 +615,8 @@ class VideoReverser(
                     !name.contains("google", ignoreCase = true)
             }
             if (isHardware) {
-                // Samsung hardware encoders (Exynos/SEC) are known to hang or wedge when KEY_I_FRAME_INTERVAL = 0 is requested.
-                // Heavily deprioritize them to force software encoder fallback for all-keyframe pass.
+                // Samsung hardware encoders (Exynos/SEC) are prone to wedging/hanging under custom workloads
+                // (like reversing). Force software encoder fallback for both reverse passes to ensure stability.
                 rank += 500
             }
         }
