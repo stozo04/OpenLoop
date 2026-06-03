@@ -255,7 +255,17 @@ fun BoomerangEditorContent(
     var playlistRebindCount by remember { mutableIntStateOf(0) }
     val editorEnteredAtMs = remember { System.currentTimeMillis() }
 
-    val exoPlayer = remember {
+    // Player teardown epoch (PR #58 review). setVideoEffects is player-wide and survives every
+    // stop/clearMediaItems/prepare rebind, and setVideoEffects(emptyList()) is forbidden (HDR-seam
+    // comment below) — so the ONLY way to drop an already-applied look's DefaultVideoFrameProcessor
+    // is to recreate the player. Bumping the epoch releases the old instance (DisposableEffect
+    // below) and builds a fresh one with no frame processor attached.
+    var playerEpoch by remember { mutableIntStateOf(0) }
+    // True once setVideoEffects ran with a non-empty list on the CURRENT player instance; reset
+    // before each epoch bump so a fresh player never inherits a stale "applied" flag.
+    var playerHasAppliedEffects by remember { mutableStateOf(false) }
+
+    val exoPlayer = remember(playerEpoch) {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ALL // loop the concatenated boomerang cycle
             playWhenReady = true
@@ -270,7 +280,9 @@ fun BoomerangEditorContent(
     // may still need codec slots (this PR's contention theme); resume on ON_START when a playlist is
     // bound. Releasing still happens on dispose. (Media3 lifecycle-aware playback guidance.)
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    // Keyed on exoPlayer so an epoch bump releases the OLD instance before the fresh one binds —
+    // release() is what actually drops the applied-effects GL pipeline and its decoders.
+    DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_STOP -> exoPlayer.pause()
@@ -281,13 +293,19 @@ fun BoomerangEditorContent(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            exoPlayer.release()
+        }
+    }
+    // Editor-session telemetry logs once per real leave-composition (NOT per player epoch — keying
+    // this on exoPlayer would skew playlist_rebind_count/editor_duration_sec on every teardown).
+    DisposableEffect(Unit) {
+        onDispose {
             val durationSec =
                 ((System.currentTimeMillis() - editorEnteredAtMs) / 1_000L).coerceAtLeast(0L)
             io.github.stozo04.openloop.diagnostics.ReverseCrashlytics.logEditorDispose(
                 playlistRebindCount,
                 durationSec,
             )
-            exoPlayer.release()
         }
     }
 
@@ -302,7 +320,9 @@ fun BoomerangEditorContent(
     // (PlaybackParameters) and the look (setVideoEffects) are player-wide settings, not per-MediaItem,
     // so they survive this rebind — we don't re-apply either here. The LaunchedEffect(filter) below
     // owns applying the look.
-    LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
+    // exoPlayer is a key so a recreated (epoch-bumped) instance gets the playlist rebound — without
+    // it the fresh player would sit empty and the preview would go black.
+    LaunchedEffect(exoPlayer, mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
         delay(PLAYLIST_DEBOUNCE_MS)
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
@@ -327,12 +347,21 @@ fun BoomerangEditorContent(
     // through DefaultVideoFrameProcessor, which cannot hand off from an imported HDR forward clip to
     // the tone-mapped SDR reversed clip — playback freezes at the seam with checkColors /
     // ExoPlaybackException (LogCat: VideoFrameProcessingException / IllegalArgumentException).
-    LaunchedEffect(filter, effectsPreviewEnabled) {
+    LaunchedEffect(exoPlayer, filter, effectsPreviewEnabled) {
         if (!shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)) {
+            // PR #58 review: closing the gate must also DROP effects already applied to the player
+            // (they survive every rebind). Recreate the player — the only sanctioned teardown given
+            // the no-empty-list rule above. The epoch bump re-runs this effect with the fresh
+            // instance; playerHasAppliedEffects is false by then, so it settles in one pass.
+            if (shouldTearDownEffectsPlayer(playerHasAppliedEffects, effectsPreviewEnabled, filter)) {
+                playerHasAppliedEffects = false
+                playerEpoch++
+            }
             onFilterPreviewSettled()
             return@LaunchedEffect
         }
         exoPlayer.setVideoEffects(filter.toMediaEffects())
+        playerHasAppliedEffects = true
         onFilterPreviewSettled()
     }
 
@@ -391,11 +420,14 @@ fun BoomerangEditorContent(
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
-                        player = exoPlayer
                         useController = false
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     }
                 },
+                // Bind in update (runs after factory and on every recomposition) so an epoch-bumped
+                // player replaces the released one — a factory-only bind would leave the view on the
+                // dead instance after an effects teardown.
+                update = { view -> if (view.player !== exoPlayer) view.player = exoPlayer },
                 modifier = Modifier.fillMaxSize().testTag("editor_preview"),
             )
 
@@ -538,7 +570,8 @@ fun BoomerangEditorContent(
                         onFilterChange = onFilterChange,
                         filtersEnabled = effectsPreviewEnabled,
                         disabledHint = if (!effectsPreviewEnabled) {
-                            "Preview unavailable after reverse error"
+                            // Cause-neutral: the gate closes on reverse failure OR memory pressure.
+                            "Preview unavailable (low memory or reverse error)"
                         } else {
                             null
                         },

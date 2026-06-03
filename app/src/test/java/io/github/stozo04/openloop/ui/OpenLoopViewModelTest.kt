@@ -292,6 +292,14 @@ class OpenLoopViewModelTest {
     private lateinit var fakeRenderScheduler: FakeBoomerangRenderScheduler
     private val cameraManager: CameraManager = mockk(relaxed = true)
 
+    /**
+     * Backs the ViewModel's injected `isLowMemoryNow` probe (production:
+     * `ActivityManager.getMemoryInfo().lowMemory`). Tests flip this to simulate memory pressure at
+     * editor entry / look-apply time — the Android 14+ replacement for the undelivered foreground
+     * `onTrimMemory` levels (PR #58 review).
+     */
+    private var lowMemoryNow = false
+
     /** A stand-in picked-video Uri; mockk avoids needing the android framework in a JVM test. */
     private val fakeUri: Uri = mockk(relaxed = true)
 
@@ -322,14 +330,16 @@ class OpenLoopViewModelTest {
             storage = fakeVideoStorage,
             scope = CoroutineScope(mainDispatcherRule.testDispatcher),
         )
+        lowMemoryNow = false
         viewModel = OpenLoopViewModel(
             fakePreferencesRepository,
             fakeVideoStorage,
             fakeVideoProcessor,
             fakeVideoImporter,
             fakeRenderScheduler,
-            // Default NoOp arg keeps these constructions compiling; assert on a FakeAnalyticsReporter
-            // in new tests that care about analytics events (see firebase-analytics PRD §6).
+            // Default NoOp analytics arg keeps these constructions compiling; assert on a
+            // FakeAnalyticsReporter in new tests that care about analytics events (firebase PRD §6).
+            isLowMemoryNow = { lowMemoryNow },
         )
     }
 
@@ -777,14 +787,88 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `onTrimMemory disables effects preview while editor is active`() =
+    fun `onTrimMemory disables effects preview and resets an active look to ORIGINAL`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.updateFilter(VideoFilter.POP)
+            assertEquals(VideoFilter.POP, viewModel.editorTabState.value.filter)
+            assertTrue(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            viewModel.onTrimMemory()
+
+            val tab = viewModel.editorTabState.value
+            assertFalse(tab.effectsPreviewEnabled)
+            // PR #58 review: the gate close must reset the look — the UI recreates the player to
+            // drop the applied effects, so chips/preview/export all agree on "no look".
+            assertEquals(VideoFilter.ORIGINAL, tab.filter)
+        }
+
+    @Test
+    fun `entering the editor under memory pressure starts with the effects gate closed`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            lowMemoryNow = true
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            // Android 14+ delivers no foreground trim levels — the entry probe is what protects a
+            // session that begins under pressure.
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+        }
+
+    @Test
+    fun `updateFilter under memory pressure closes the gate instead of applying the look`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim()
             awaitEditorReverseReady()
             assertTrue(viewModel.editorTabState.value.effectsPreviewEnabled)
-            viewModel.onTrimMemory()
-            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = true // pressure develops mid-session
+            viewModel.updateFilter(VideoFilter.POP)
+
+            val tab = viewModel.editorTabState.value
+            assertFalse("look-apply is the poll point on Android 14+", tab.effectsPreviewEnabled)
+            assertEquals("the look must not be applied under pressure", VideoFilter.ORIGINAL, tab.filter)
+        }
+
+    @Test
+    fun `updateFilter ignores non-Original looks while the gate is closed`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory() // close the gate
+
+            viewModel.updateFilter(VideoFilter.NOIR) // UI chips are disabled; never trust the UI alone
+
+            val tab = viewModel.editorTabState.value
+            assertEquals(VideoFilter.ORIGINAL, tab.filter)
+            assertFalse(tab.effectsPreviewEnabled)
+        }
+
+    @Test
+    fun `reverse preview timeout resets an active look to ORIGINAL`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
+            OpenLoopViewModel.reversePreviewTimeoutMsOverride = 50L
+            enterTrimState()
+            fakeVideoProcessor.hangReverse = true
+            viewModel.onNextFromTrim()
+            runCurrent()
+            viewModel.updateFilter(VideoFilter.POP) // user picks a look while reverse generates
+
+            advanceTimeBy(100)
+            advanceUntilIdle()
+
+            val tab = viewModel.editorTabState.value
+            assertFalse(tab.effectsPreviewEnabled)
+            assertEquals(
+                "gate close on timeout must reset the look (player recreation drops the effects)",
+                VideoFilter.ORIGINAL,
+                tab.filter,
+            )
         }
 
     @Test

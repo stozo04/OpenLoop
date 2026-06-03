@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.content.ComponentCallbacks2
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -84,6 +83,7 @@ import io.github.stozo04.openloop.ui.BoomerangEvent
 import io.github.stozo04.openloop.ui.CameraScreen
 import io.github.stozo04.openloop.ui.CameraScreenHost
 import io.github.stozo04.openloop.ui.GalleryScreen
+import io.github.stozo04.openloop.ui.MemoryPressure
 import io.github.stozo04.openloop.ui.OnboardingScreen
 import io.github.stozo04.openloop.ui.OpenLoopUiState
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
@@ -122,6 +122,10 @@ class MainActivity : ComponentActivity() {
             // google-services.json is absent (CI / fresh clone). See
             // docs/active/firebase-analytics/IMPLEMENTATION.md for the staged rollout.
             FirebaseAnalyticsReporterImpl.create(applicationContext),
+            // Proactive low-memory probe (ActivityManager.getMemoryInfo). Android 14+ delivers no
+            // foreground onTrimMemory pressure levels, so the ViewModel polls this at editor entry
+            // and before applying a non-Original look (editor-memory-oom WS-3, PR #58 review).
+            isLowMemoryNow = MemoryPressure.lowMemoryProbe(applicationContext),
         )
     }
     private lateinit var cameraManager: CameraManager
@@ -174,8 +178,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        @Suppress("DEPRECATION")
-        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+        // Exact-match the legacy *foreground pressure* levels only (delivered on API <= 33; never
+        // delivered on 34+ — see MemoryPressure). UI_HIDDEN/BACKGROUND are lifecycle signals that
+        // fire on every routine backgrounding and must NOT degrade the editor (PR #58 review FAIL:
+        // the previous `>=` comparison matched them). Android 14+ foreground pressure is covered by
+        // the MemoryPressure.lowMemoryProbe injected into the ViewModel Factory below.
+        if (MemoryPressure.isForegroundPressureLevel(level)) {
             viewModel.onTrimMemory()
         }
     }

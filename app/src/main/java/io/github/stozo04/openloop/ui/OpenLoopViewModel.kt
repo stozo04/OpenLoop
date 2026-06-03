@@ -113,6 +113,14 @@ class OpenLoopViewModel(
     // production impl comes from FirebaseAnalyticsReporterImpl.create(applicationContext); tests and
     // CI builds without google-services.json fall back to NoOpAnalyticsReporter.
     private val analytics: AnalyticsReporter = NoOpAnalyticsReporter,
+    /**
+     * Proactive low-memory probe (production: [MemoryPressure.lowMemoryProbe] →
+     * `ActivityManager.getMemoryInfo().lowMemory`). Polled at editor entry and before applying a
+     * non-Original look, because Android 14+ no longer delivers the foreground `onTrimMemory`
+     * pressure levels (editor-memory-oom WS-3, PR #58 review). Injected as a lambda so the
+     * ViewModel stays Context-free (Lesson 004) and tests can flip it deterministically.
+     */
+    private val isLowMemoryNow: () -> Boolean = { false },
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -665,9 +673,13 @@ class OpenLoopViewModel(
         if (enteringFresh) {
             // Set TRIMMING before the editor composes so ExoPlayer never grabs a decoder on frame 1
             // (BoomerangEditorScreen gates prepare() on isReversePreviewLoading()).
+            // effectsPreviewEnabled: probe at entry — a session that begins under memory pressure
+            // never opens the Looks preview gate (Android 14+ has no foreground trim callback to
+            // close it later; see MemoryPressure).
             _editorTabState.value = EditorTabState(
                 activeTab = initialTab,
                 previewLoading = if (willNeedReverse) reverseLoadingKind else null,
+                effectsPreviewEnabled = !isLowMemoryNow(),
             )
             editorSessionActive = true
         } else {
@@ -730,6 +742,19 @@ class OpenLoopViewModel(
     fun updateFilter(filter: VideoFilter) {
         val current = _editorTabState.value
         if (current.filter == filter) return
+        if (filter != VideoFilter.ORIGINAL) {
+            // Gate closed (reverse failure / memory pressure): the chips are disabled in the UI,
+            // but never trust the UI alone — a non-Original look must not reach the preview.
+            if (!current.effectsPreviewEnabled) return
+            // Proactive probe at the exact moment DefaultVideoFrameProcessor would spin up.
+            // Android 14+ delivers no foreground onTrimMemory pressure levels (MemoryPressure),
+            // so this poll is the only mid-session pressure signal on modern devices: under
+            // pressure, close the gate instead of applying the look (WS-3, PR #58 review).
+            if (isLowMemoryNow()) {
+                _editorTabState.value = current.copy(effectsPreviewEnabled = false)
+                return
+            }
+        }
         val overlay = if (current.previewLoading.isReversePreviewLoading()) {
             current.previewLoading
         } else {
@@ -924,6 +949,11 @@ class OpenLoopViewModel(
             reverseFailed = false,
             reverseSupportReport = supportReport,
             effectsPreviewEnabled = false,
+            // Reset the look with the gate: the chips lock to disabled, the UI recreates the player
+            // to drop any already-applied effects, and the export must match what the preview now
+            // shows — a non-Original filter left behind would bake a look the user can't see
+            // ("the chip can't lie about the export", VideoFilter doc; PR #58 review).
+            filter = VideoFilter.ORIGINAL,
         )
         reverseJob = null
         cleanupReverseScratchAfterCancel()
@@ -1127,12 +1157,22 @@ class OpenLoopViewModel(
         ReverseCrashlytics.logReversePreviewCleanup(result.deletedCount, result.bytesDeleted)
     }
 
-    /** Called from [android.app.Activity.onTrimMemory] while the editor is active. */
+    /**
+     * Called from [android.app.Activity.onTrimMemory] while the editor is active — only for the
+     * legacy *foreground pressure* levels ([MemoryPressure.isForegroundPressureLevel]; API <= 33).
+     * Also resets the look to [VideoFilter.ORIGINAL]: the UI tears down an already-running effects
+     * pipeline by recreating the player (`setVideoEffects(emptyList())` is forbidden — see the
+     * HDR-seam comment in BoomerangEditorScreen), so chips, preview, and export must agree on
+     * "no look" once the gate closes (PR #58 review).
+     */
     fun onTrimMemory() {
         if (_editorState.value == null) return
         val tab = _editorTabState.value
         if (!tab.effectsPreviewEnabled) return
-        _editorTabState.value = tab.copy(effectsPreviewEnabled = false)
+        _editorTabState.value = tab.copy(
+            effectsPreviewEnabled = false,
+            filter = VideoFilter.ORIGINAL,
+        )
     }
 
     private fun cancelRenderObserveJob() {
@@ -1231,6 +1271,8 @@ class OpenLoopViewModel(
         private val videoImporter: VideoImporter,
         private val renderScheduler: BoomerangRenderScheduler,
         private val analytics: AnalyticsReporter,
+        /** See the constructor doc — MainActivity passes [MemoryPressure.lowMemoryProbe]. */
+        private val isLowMemoryNow: () -> Boolean = { false },
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -1242,6 +1284,7 @@ class OpenLoopViewModel(
                     videoImporter,
                     renderScheduler,
                     analytics,
+                    isLowMemoryNow,
                 ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
