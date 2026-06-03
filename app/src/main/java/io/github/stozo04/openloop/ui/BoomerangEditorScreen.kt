@@ -108,6 +108,7 @@ import io.github.stozo04.openloop.ui.theme.OverlayScrim
 import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.ClipDirection
 import io.github.stozo04.openloop.media.VideoFilter
@@ -309,10 +310,7 @@ fun BoomerangEditorContent(
         onDispose {
             val durationSec =
                 ((SystemClock.elapsedRealtime() - editorEnteredAtElapsedMs) / 1_000L).coerceAtLeast(0L)
-            io.github.stozo04.openloop.diagnostics.ReverseCrashlytics.logEditorDispose(
-                playlistRebindCount,
-                durationSec,
-            )
+            ReverseCrashlytics.logEditorDispose(playlistRebindCount, durationSec)
         }
     }
 
