@@ -10,4 +10,5 @@ import android.os.Build
 internal const val SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE = 480
 
 internal fun isSamsungDevice(): Boolean =
-    Build.MANUFACTURER.equals("samsung", ignoreCase = true)
+    Build.MANUFACTURER.equals("samsung", ignoreCase = true) ||
+        Build.BRAND.equals("samsung", ignoreCase = true)
