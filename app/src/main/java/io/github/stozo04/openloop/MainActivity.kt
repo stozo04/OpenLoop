@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.content.ComponentCallbacks2
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -169,6 +170,14 @@ class MainActivity : ComponentActivity() {
         pickVideoLauncher.launch(
             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
         )
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        @Suppress("DEPRECATION")
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            viewModel.onTrimMemory()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -923,7 +923,10 @@ class OpenLoopViewModel(
             previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
             reverseFailed = false,
             reverseSupportReport = supportReport,
+            effectsPreviewEnabled = false,
         )
+        reverseJob = null
+        cleanupReverseScratchAfterCancel()
         viewModelScope.launch {
             _events.send(BoomerangEvent.ReversePreviewFallbackForward)
         }
@@ -1112,9 +1115,24 @@ class OpenLoopViewModel(
 
     private fun cancelReverseJob() {
         reverseGeneration++
-        reverseJob?.cancel()
+        val job = reverseJob
         reverseJob = null
+        job?.cancel()
         clearReversePreviewLoadingIfSet()
+        if (job != null) cleanupReverseScratchAfterCancel()
+    }
+
+    private fun cleanupReverseScratchAfterCancel() {
+        val result = videoProcessor.cleanupReverseIntermediates()
+        ReverseCrashlytics.logReversePreviewCleanup(result.deletedCount, result.bytesDeleted)
+    }
+
+    /** Called from [android.app.Activity.onTrimMemory] while the editor is active. */
+    fun onTrimMemory() {
+        if (_editorState.value == null) return
+        val tab = _editorTabState.value
+        if (!tab.effectsPreviewEnabled) return
+        _editorTabState.value = tab.copy(effectsPreviewEnabled = false)
     }
 
     private fun cancelRenderObserveJob() {

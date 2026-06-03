@@ -18,6 +18,7 @@ import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -70,7 +71,8 @@ class VideoReverser(
             return@withContext output
         }
 
-        val intermediate = File(scratchDir, "_intermediate_${UUID.randomUUID()}.mp4")
+        val intermediate = File(scratchDir, "${ReverseScratchJanitor.INTERMEDIATE_PREFIX}${UUID.randomUUID()}.mp4")
+        registerIntermediate(intermediate)
         lastSurfaceEncoderName = null
         logReverseStart(source, trimStartMs, trimEndMs)
         ReversePreviewLog.i(
@@ -114,8 +116,17 @@ class VideoReverser(
             output.delete()
             throw t
         } finally {
+            unregisterIntermediate(intermediate)
             intermediate.delete()
         }
+    }
+
+    private fun registerIntermediate(file: File) {
+        activeIntermediatePaths.add(file.absolutePath)
+    }
+
+    private fun unregisterIntermediate(file: File) {
+        activeIntermediatePaths.remove(file.absolutePath)
     }
 
     // ── Pass 1: trim + re-encode so every frame is an I-frame (seekable per-frame) ──────────────
@@ -278,6 +289,7 @@ class VideoReverser(
             run {
                 extractor.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
                 while (true) {
+                    currentCoroutineContext().ensureActive()
                     val t = extractor.sampleTime
                     if (t < 0L) break
                     frameTimesUs.add(t)
@@ -817,7 +829,12 @@ class VideoReverser(
         }
     }
 
-    private companion object {
+    companion object {
+        private val activeIntermediatePaths = ConcurrentHashMap.newKeySet<String>()
+
+        /** Paths of in-flight pass-1 intermediates (for [ReverseScratchJanitor] when cancel is wedged). */
+        fun trackedIntermediatePaths(): Set<String> = activeIntermediatePaths.toSet()
+
         const val TAG = "VideoReverser"
         const val MIME_AVC = MediaFormat.MIMETYPE_VIDEO_AVC
         const val DEFAULT_I_FRAME_INTERVAL = 1

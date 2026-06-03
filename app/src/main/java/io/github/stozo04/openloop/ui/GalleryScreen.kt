@@ -1,6 +1,9 @@
 package io.github.stozo04.openloop.ui
 
-import android.graphics.BitmapFactory
+import androidx.compose.runtime.produceState
+import io.github.stozo04.openloop.media.ThumbnailDecoder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
@@ -79,6 +82,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.R
+import java.io.File
 import io.github.stozo04.openloop.data.RecordedVideo
 import io.github.stozo04.openloop.ui.components.BackButton
 import io.github.stozo04.openloop.ui.components.CircleIconButton
@@ -430,11 +434,9 @@ private fun VideoThumbnailCard(
     }
     val scale by animateFloatAsState(targetScale, label = "card_scale")
 
-    val thumbnail = remember(video.thumbnailPath) {
-        try {
-            BitmapFactory.decodeFile(video.thumbnailPath)?.asImageBitmap()
-        } catch (_: Exception) {
-            null
+    val thumbnail by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, video.thumbnailPath) {
+        value = withContext(Dispatchers.IO) {
+            ThumbnailDecoder.decodeGalleryThumbnail(File(video.thumbnailPath))?.asImageBitmap()
         }
     }
 
@@ -461,9 +463,10 @@ private fun VideoThumbnailCard(
             .semantics { selected = isSelected },
     ) {
         // Thumbnail image
-        if (thumbnail != null) {
+        val thumb = thumbnail
+        if (thumb != null) {
             Image(
-                bitmap = thumbnail,
+                bitmap = thumb,
                 contentDescription = "Video thumbnail",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

@@ -245,6 +245,14 @@ class FakeVideoProcessor : VideoProcessor {
         if (failReverse) throw RuntimeException("simulated reverse failure")
         return reversedStub
     }
+
+    var cleanupReverseIntermediatesCount: Int = 0
+        private set
+
+    override fun cleanupReverseIntermediates(): io.github.stozo04.openloop.media.ReverseScratchJanitor.CleanupResult {
+        cleanupReverseIntermediatesCount++
+        return io.github.stozo04.openloop.media.ReverseScratchJanitor.CleanupResult(0, 0L)
+    }
 }
 
 /**
@@ -744,6 +752,39 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.FORWARD, tab.mode)
             assertNull(tab.previewLoading)
             assertNotNull(tab.reverseSupportReport)
+            assertFalse(tab.effectsPreviewEnabled)
+            assertTrue(
+                "scratch janitor runs after preview reverse failure",
+                fakeVideoProcessor.cleanupReverseIntermediatesCount >= 1,
+            )
+        }
+
+    @Test
+    fun `reverse preview timeout invokes scratch janitor`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
+            OpenLoopViewModel.reversePreviewTimeoutMsOverride = 50L
+            enterTrimState()
+            fakeVideoProcessor.hangReverse = true
+            viewModel.onNextFromTrim()
+            advanceTimeBy(100)
+            advanceUntilIdle()
+            assertTrue(
+                "scratch janitor runs on timeout",
+                fakeVideoProcessor.cleanupReverseIntermediatesCount >= 1,
+            )
+            OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
+        }
+
+    @Test
+    fun `onTrimMemory disables effects preview while editor is active`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            assertTrue(viewModel.editorTabState.value.effectsPreviewEnabled)
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
         }
 
     @Test

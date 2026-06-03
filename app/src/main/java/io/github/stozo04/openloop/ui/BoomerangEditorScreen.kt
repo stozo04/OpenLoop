@@ -47,6 +47,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -135,6 +136,9 @@ private fun editorPanelHeight(tab: EditorTab) = when (tab) {
 /** Debounce before pushing a new speed to the player — coalesces a drag's stream into one apply. */
 private const val SPEED_DEBOUNCE_MS = 50L
 
+/** Debounce playlist rebinding — coalesces trim/mode/seam changes (editor-memory-oom WS-2). */
+private val PLAYLIST_DEBOUNCE_MS = EditorPlaylistBind.PLAYLIST_DEBOUNCE_MS
+
 /**
  * Tabbed boomerang editor. Opens from the Trim screen's NEXT with the trimmed clip already
  * boomeranged (`FORWARD_THEN_REVERSE` default) looping in the preview. Slices 03–04 expose two
@@ -168,6 +172,7 @@ fun BoomerangEditorScreen(
         sessionOverlayLoading = sessionOverlay,
         reverseFailed = tab.reverseFailed,
         reverseSupportReport = tab.reverseSupportReport,
+        effectsPreviewEnabled = tab.effectsPreviewEnabled,
         onRetryReverse = viewModel::retryReverseSegment,
         onSelectMode = viewModel::updateMode,
         onSpeedChange = viewModel::updateSpeed,
@@ -208,6 +213,7 @@ fun BoomerangEditorContent(
     activeTab: EditorTab = EditorTab.DIRECTION,
     reverseFailed: Boolean = false,
     reverseSupportReport: String? = null,
+    effectsPreviewEnabled: Boolean = true,
     onRetryReverse: () -> Unit = {},
     onSpeedChange: (Float) -> Unit = {},
     onFilterChange: (VideoFilter) -> Unit = {},
@@ -246,6 +252,9 @@ fun BoomerangEditorContent(
     val activeOverlay = sessionOverlayLoading ?: effectivePreviewLoading
     val saveEnabled = activeOverlay == null && !awaitingReverse && !reverseUnavailable
 
+    var playlistRebindCount by remember { mutableIntStateOf(0) }
+    val editorEnteredAtMs = remember { System.currentTimeMillis() }
+
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_ALL // loop the concatenated boomerang cycle
@@ -272,6 +281,12 @@ fun BoomerangEditorContent(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            val durationSec =
+                ((System.currentTimeMillis() - editorEnteredAtMs) / 1_000L).coerceAtLeast(0L)
+            io.github.stozo04.openloop.diagnostics.ReverseCrashlytics.logEditorDispose(
+                playlistRebindCount,
+                durationSec,
+            )
             exoPlayer.release()
         }
     }
@@ -288,20 +303,20 @@ fun BoomerangEditorContent(
     // so they survive this rebind — we don't re-apply either here. The LaunchedEffect(filter) below
     // owns applying the look.
     LaunchedEffect(mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
-        if (reversePreviewLoading) {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
+        delay(PLAYLIST_DEBOUNCE_MS)
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        if (EditorPlaylistBind.shouldHoldPlaylist(reversePreviewLoading)) {
             return@LaunchedEffect
         }
         val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile, seamMs)
-        if (items.isEmpty()) {
-            exoPlayer.stop()
-            exoPlayer.clearMediaItems()
-        } else {
-            exoPlayer.setMediaItems(items)
-            // playWhenReady = true (set on the builder), so prepare() starts playback — no explicit play().
-            exoPlayer.prepare()
+        if (EditorPlaylistBind.shouldClearPlaylist(items.isEmpty())) {
+            return@LaunchedEffect
         }
+        exoPlayer.setMediaItems(items)
+        // playWhenReady = true (set on the builder), so prepare() starts playback — no explicit play().
+        exoPlayer.prepare()
+        playlistRebindCount++
     }
 
     // Apply the color look live (the Looks tab's whole point). setVideoEffects is ExoPlayer's preview
@@ -312,21 +327,22 @@ fun BoomerangEditorContent(
     // through DefaultVideoFrameProcessor, which cannot hand off from an imported HDR forward clip to
     // the tone-mapped SDR reversed clip — playback freezes at the seam with checkColors /
     // ExoPlaybackException (LogCat: VideoFrameProcessingException / IllegalArgumentException).
-    LaunchedEffect(filter) {
-        val effects = filter.toMediaEffects()
-        if (effects.isNotEmpty()) {
-            exoPlayer.setVideoEffects(effects)
+    LaunchedEffect(filter, effectsPreviewEnabled) {
+        if (!shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)) {
+            onFilterPreviewSettled()
+            return@LaunchedEffect
         }
+        exoPlayer.setVideoEffects(filter.toMediaEffects())
         onFilterPreviewSettled()
     }
 
     // When a look *is* active, re-apply it at each playlist-item transition so the GL pipeline
     // reconfigures cleanly across the HDR forward → SDR reversed seam on imported clips.
-    DisposableEffect(exoPlayer, filter) {
-        val effects = filter.toMediaEffects()
-        if (effects.isEmpty()) {
+    DisposableEffect(exoPlayer, filter, effectsPreviewEnabled) {
+        if (!shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)) {
             onDispose { }
         } else {
+            val effects = filter.toMediaEffects()
             val listener = object : Player.Listener {
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     exoPlayer.setVideoEffects(effects)
@@ -520,6 +536,12 @@ fun BoomerangEditorContent(
                         filter = filter,
                         thumbnailFrame = thumbnailFrame,
                         onFilterChange = onFilterChange,
+                        filtersEnabled = effectsPreviewEnabled,
+                        disabledHint = if (!effectsPreviewEnabled) {
+                            "Preview unavailable after reverse error"
+                        } else {
+                            null
+                        },
                     )
                 }
             }

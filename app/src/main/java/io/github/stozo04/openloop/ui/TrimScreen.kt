@@ -119,6 +119,8 @@ fun TrimScreenContent(
         onDispose { exoPlayer.release() }
     }
     LaunchedEffect(sourceFile, committedStartMs, committedEndMs) {
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
         exoPlayer.setMediaItem(
             MediaItem.Builder()
                 .setUri(sourceFile.toUri())
