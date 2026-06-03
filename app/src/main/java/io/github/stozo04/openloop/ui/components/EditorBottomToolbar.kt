@@ -33,8 +33,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.stozo04.openloop.ui.EditorTab
 import io.github.stozo04.openloop.ui.theme.CoralRed
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -63,6 +66,16 @@ fun EditorToolbarSlot.toEditorTab(): EditorTab = when (this) {
     EditorToolbarSlot.FILTER -> EditorTab.LOOKS
 }
 
+private val ToolbarLabelStyle
+    @Composable get() = MaterialTheme.typography.labelSmall.copy(
+        lineHeight = 16.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = true),
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.None,
+        ),
+    )
+
 /** Shared bottom tool bar: Trim · Speed · Loop · Filter · Delete (reference trim mock). */
 @Composable
 fun EditorBottomToolbar(
@@ -74,52 +87,57 @@ fun EditorBottomToolbar(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .background(Color.Black)
             .navigationBarsPadding()
-            .height(EDITOR_TOOLBAR_HEIGHT)
             .testTag("editor_bottom_toolbar"),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        ToolbarSlot(
-            label = "Trim",
-            icon = Icons.Outlined.ContentCut,
-            testTag = "tab_trim",
-            active = activeSlot == EditorToolbarSlot.TRIM,
-            onClick = onTrimClick,
-        )
-        ToolbarSlot(
-            label = "Speed",
-            icon = Icons.Outlined.Speed,
-            testTag = "tab_speed",
-            active = activeSlot == EditorToolbarSlot.SPEED,
-            onClick = onSpeedClick,
-        )
-        ToolbarSlot(
-            label = "Loop",
-            icon = Icons.Outlined.AllInclusive,
-            testTag = "tab_loop",
-            active = activeSlot == EditorToolbarSlot.LOOP,
-            onClick = onLoopClick,
-        )
-        ToolbarSlot(
-            label = "Filter",
-            icon = Icons.Outlined.FilterAlt,
-            testTag = "tab_filter",
-            active = activeSlot == EditorToolbarSlot.FILTER,
-            onClick = onFilterClick,
-        )
-        ToolbarSlot(
-            label = "Delete",
-            icon = Icons.Outlined.Delete,
-            testTag = "tab_delete",
-            active = false,
-            destructive = true,
-            onClick = onDeleteClick,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.Top,
+        ) {
+            ToolbarSlot(
+                label = "Trim",
+                icon = Icons.Outlined.ContentCut,
+                testTag = "tab_trim",
+                active = activeSlot == EditorToolbarSlot.TRIM,
+                onClick = onTrimClick,
+            )
+            ToolbarSlot(
+                label = "Speed",
+                icon = Icons.Outlined.Speed,
+                testTag = "tab_speed",
+                active = activeSlot == EditorToolbarSlot.SPEED,
+                onClick = onSpeedClick,
+            )
+            ToolbarSlot(
+                label = "Loop",
+                icon = Icons.Outlined.AllInclusive,
+                testTag = "tab_loop",
+                active = activeSlot == EditorToolbarSlot.LOOP,
+                onClick = onLoopClick,
+            )
+            ToolbarSlot(
+                label = "Filter",
+                icon = Icons.Outlined.FilterAlt,
+                testTag = "tab_filter",
+                active = activeSlot == EditorToolbarSlot.FILTER,
+                onClick = onFilterClick,
+            )
+            ToolbarSlot(
+                label = "Delete",
+                icon = Icons.Outlined.Delete,
+                testTag = "tab_delete",
+                active = false,
+                destructive = true,
+                onClick = onDeleteClick,
+            )
+        }
     }
 }
 
@@ -146,7 +164,6 @@ private fun ToolbarSlot(
 
     Column(
         modifier = Modifier
-            .clip(MaterialTheme.shapes.small)
             .clickable(role = Role.Tab) { onClick() }
             .testTag(testTag)
             .semantics {
@@ -155,7 +172,6 @@ private fun ToolbarSlot(
                 role = Role.Tab
             },
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
         Icon(
             imageVector = icon,
@@ -163,23 +179,27 @@ private fun ToolbarSlot(
             tint = iconTint,
             modifier = Modifier.size(24.dp),
         )
-        if (active) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(4.dp)
-                    .clip(CircleShape)
-                    .background(accent),
-            )
+        Box(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .height(6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (active) {
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(accent),
+                )
+            }
         }
         Text(
             text = label,
             color = labelTint,
-            style = MaterialTheme.typography.labelSmall,
+            style = ToolbarLabelStyle,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = if (active) 4.dp else 8.dp),
+            modifier = Modifier.padding(top = 2.dp),
         )
     }
 }
-
-private val EDITOR_TOOLBAR_HEIGHT = 72.dp
