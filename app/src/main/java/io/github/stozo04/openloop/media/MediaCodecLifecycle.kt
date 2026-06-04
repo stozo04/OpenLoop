@@ -12,6 +12,8 @@ import kotlin.coroutines.coroutineContext
  */
 internal fun isMediaCodecLifecycleFailure(error: Throwable): Boolean =
     when (error) {
+        // MediaCodec.CodecException extends IllegalStateException — matches here when inactive
+        // (discarded via CancellationException); active-job CodecException is not retried unless Samsung/surface-released.
         is IllegalStateException, is IllegalArgumentException -> {
             val message = error.message.orEmpty()
             message.contains("Released", ignoreCase = true) ||

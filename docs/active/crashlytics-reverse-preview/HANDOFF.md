@@ -1,9 +1,25 @@
 # HANDOFF — Firebase Crashlytics reverse-preview codec issues
 
-**Last updated:** 2026-06-04  
+**Last updated:** 2026-06-03 (MCP verification session)  
 **Owner context:** Steven Gates · OpenLoop (`io.github.stozo04.openloop`)
 
 Use this doc to resume work in a **new Cursor session** without re-triaging from scratch.
+
+---
+
+## Latest MCP verification (PR #62 · pre–1.0.18 rollout)
+
+**When:** 2026-06-03 · **Auth:** `gates.steven@gmail.com` · **Project:** `openloop-8c266`
+
+| Check | Result |
+|-------|--------|
+| `topVersions` (14d) | **No** `1.0.18 (18)` — fix build not yet reporting to Crashlytics |
+| `3a506c4e` · `lastSeenVersion` | **1.0.9 (9)** only · 3 events · last `2026-06-03T18:14:54Z` · Samsung SM-S921B |
+| `b09e527` · `lastSeenVersion` | **1.0.17 (17)** only · 1 event · last `2026-06-03T20:40:17Z` · Android 17 (OS) emulator |
+| Events on **1.0.18 (18)** for either issue | **None** (expected until testers install PR #62 build) |
+| Issue notes | Empty on both issues |
+
+**Interpretation:** Baseline is clean for the verification version line — historical noise is confined to pre-fix builds. **Field proof still blocked** until [PR #62](https://github.com/stozo04/OpenLoop/pull/62) is merged and **1.0.18+** is installed on Samsung + Android 17 (OS) emulator with `google-services.json`, then re-run `/crashlytics-triage` and the checklist in `docs/diagnostics/crashlytics-issue-3a506c4e-verification.md`.
 
 ---
 
@@ -93,7 +109,7 @@ crashlytics_list_events → sample stacks + custom keys
 | **Last seen (pre-fix)** | **1.0.17 (17)** · Google `sdk_gphone16k_x86_64` · Android 17 emulator |
 | **Console** | [Issue b09e527](https://console.firebase.google.com/project/openloop-8c266/crashlytics/app/android:io.github.stozo04.openloop/issues/b09e5277491a4d8935210b9914ca52c5) |
 
-**Root cause:** Pass 1 configured decoder against encoder **input Surface** that was already invalid. Rotating to another **decoder name** with the same dead surface cannot work (documented Pixel RTL bug; same class on API 17 emulator).
+**Root cause:** Pass 1 configured decoder against encoder **input Surface** that was already invalid. Rotating to another **decoder name** with the same dead surface cannot work (documented Pixel RTL bug; same class on Android 17 (OS) emulator).
 
 **Fix on branch:**
 
@@ -145,7 +161,7 @@ Historical events on **1.0.9 / 1.0.17** stay in the console forever.
 **Proof of fix requires:**
 
 1. Merge PR #62 and distribute **1.0.18+** with `google-services.json`
-2. Repro: editor → reverse mode on **Samsung** + **API 17 emulator** (b09e527 path)
+2. Repro: editor → reverse mode on **Samsung** + **Android 17 (OS) emulator** (b09e527 path)
 3. Logcat: no `reverse_preview_failure` for benign cancel/churn
 4. Crashlytics MCP: `crashlytics_list_events` for `3a506c4e` and `b09e527` — **no events** with `versionDisplayName` **1.0.18 (18)**
 5. **7+ days** zero new events → close issues in console
@@ -171,7 +187,7 @@ adb shell am instrument -w -e class io.github.stozo04.openloop.media.VideoRevers
 ## Suggested next actions (pick up here)
 
 1. **Review/merge** [PR #62](https://github.com/stozo04/OpenLoop/pull/62).
-2. **Internal or Play build** with version **1.0.18**; install on Samsung S24-class device + API 17 emulator.
+2. **Internal or Play build** with version **1.0.18**; install on Samsung S24-class device + Android 17 (OS) emulator.
 3. Run checklist in `docs/diagnostics/crashlytics-issue-3a506c4e-verification.md`.
 4. New session: `/crashlytics-triage` → confirm no new events on **1.0.18** for `3a506c4e` and `b09e527`.
 5. If `3da25acc` / `d848b6c35` still fire on 1.0.18, open a follow-up issue/PR (encoder timeout is a different failure mode).

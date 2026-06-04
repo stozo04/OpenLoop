@@ -80,7 +80,7 @@ class VideoReverser(
             "trim=${trimStartMs}..${trimEndMs}ms samsung=${isSamsungDevice()}",
         )
         // Second pass when [shouldRetryMediaCodecContention] allows (Samsung dequeue churn or
-        // surface-released on any device — Crashlytics b09e527 on API 17 emulator).
+        // surface-released on any device — Crashlytics b09e527 on Android 17 (OS) emulator).
         val maxAttempts = SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS
         var lastFailure: Throwable? = null
         try {
@@ -728,8 +728,9 @@ class VideoReverser(
 
     /**
      * Opens a surface-input AVC encoder and a decoder wired to its input [Surface]. Retries once when
-     * the surface is invalid or configure fails with "surface has been released" (Pixel RTL / API 17
-     * emulator — Crashlytics b09e527). Trying another decoder name with a dead surface never works.
+     * the surface is invalid or configure fails with "surface has been released" (Pixel RTL /
+     * Android 17 (OS) emulator — Crashlytics b09e527). Trying another decoder name with a dead
+     * surface never works.
      */
     private fun openSurfaceCodecPipeline(
         encoderFormat: MediaFormat,
