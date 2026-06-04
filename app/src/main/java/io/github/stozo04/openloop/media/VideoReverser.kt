@@ -79,31 +79,60 @@ class VideoReverser(
             "reverse.start",
             "trim=${trimStartMs}..${trimEndMs}ms samsung=${isSamsungDevice()}",
         )
-        if (isSamsungDevice()) {
-            ReversePreviewLog.d("reverse.settle", "preReverseDelayMs=$SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS")
-            delay(SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS)
-        }
+        // Second pass when [shouldRetryMediaCodecContention] allows (Samsung dequeue churn or
+        // surface-released on any device — Crashlytics b09e527 on API 17 emulator).
+        val maxAttempts = SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS
+        var lastFailure: Throwable? = null
         try {
-            ReversePreviewLog.d("reverse.pass1.start", "dest=${intermediate.name}")
-            transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate) { frac ->
-                onProgress(frac * 0.5f) // pass 1 occupies the first half of the progress budget
+            for (attempt in 0 until maxAttempts) {
+                try {
+                    coroutineContext.ensureActive()
+                    if (attempt > 0) {
+                        lastSurfaceEncoderName = null
+                        intermediate.delete()
+                        output.delete()
+                        ReversePreviewLog.i(
+                            "reverse.contention_retry",
+                            "attempt=${attempt + 1}/$maxAttempts delayMs=$SAMSUNG_CODEC_CONTENTION_RETRY_MS",
+                        )
+                        delay(SAMSUNG_CODEC_CONTENTION_RETRY_MS)
+                    } else if (isSamsungDevice()) {
+                        ReversePreviewLog.d(
+                            "reverse.settle",
+                            "preReverseDelayMs=$SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS",
+                        )
+                        delay(SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS)
+                    }
+                    ReversePreviewLog.d("reverse.pass1.start", "dest=${intermediate.name}")
+                    transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate) { frac ->
+                        onProgress(frac * 0.5f)
+                    }
+                    ReversePreviewLog.i("reverse.pass1.done", "intermediateBytes=${intermediate.length()}")
+                    coroutineContext.ensureActive()
+                    ReversePreviewLog.d(
+                        "reverse.pass2.start",
+                        "dest=${output.name} pass1Encoder=$lastSurfaceEncoderName",
+                    )
+                    reverseAllKeyframeVideo(intermediate, output) { frac ->
+                        onProgress(0.5f + frac * 0.5f)
+                    }
+                    ReversePreviewLog.i("reverse.pass2.done", "outBytes=${output.length()}")
+                    ReversePreviewLog.i(
+                        "reverse.complete",
+                        "pass1Encoder=$lastSurfaceEncoderName out=${output.name} attempts=${attempt + 1}",
+                    )
+                    onProgress(1f)
+                    return@withContext output
+                } catch (t: Throwable) {
+                    if (t is kotlinx.coroutines.CancellationException) throw t
+                    lastFailure = t
+                    output.delete()
+                    if (!shouldRetryMediaCodecContention(t, attempt, maxAttempts, isSamsungDevice())) {
+                        throw t
+                    }
+                }
             }
-            ReversePreviewLog.i("reverse.pass1.done", "intermediateBytes=${intermediate.length()}")
-            coroutineContext.ensureActive()
-            ReversePreviewLog.d(
-                "reverse.pass2.start",
-                "dest=${output.name} pass1Encoder=$lastSurfaceEncoderName",
-            )
-            reverseAllKeyframeVideo(intermediate, output) { frac ->
-                onProgress(0.5f + frac * 0.5f) // pass 2 occupies the second half
-            }
-            ReversePreviewLog.i("reverse.pass2.done", "outBytes=${output.length()}")
-            ReversePreviewLog.i(
-                "reverse.complete",
-                "pass1Encoder=$lastSurfaceEncoderName out=${output.name}",
-            )
-            onProgress(1f)
-            output
+            throw lastFailure ?: IllegalStateException("reverse failed without exception")
         } catch (t: Throwable) {
             if (t !is kotlinx.coroutines.CancellationException) {
                 ReversePreviewLog.e(
@@ -196,16 +225,15 @@ class VideoReverser(
                 "pass1.encodeFormat",
                 "${width}x$height @${frameRate}fps iInterval=0 bitrate=${encoderFormat.getInteger(MediaFormat.KEY_BIT_RATE)}",
             )
-            val surfaceEncoder = openSurfaceAvcEncoder(encoderFormat)
-            encoder = surfaceEncoder.first
-            inputSurface = surfaceEncoder.second
-            val pass1Encoder = requireNotNull(encoder)
-
-            decoder = openAvcDecoderForReverse(
-                mime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
-                format = inputFormat,
-                outputSurface = requireNotNull(inputSurface),
+            val pipeline = openSurfaceCodecPipeline(
+                encoderFormat = encoderFormat,
+                decoderMime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
+                decoderFormat = inputFormat,
             )
+            decoder = pipeline.decoder
+            encoder = pipeline.encoder
+            inputSurface = pipeline.inputSurface
+            val pass1Encoder = requireNotNull(encoder)
 
             muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             if (rotationDegrees != 0) muxer.setOrientationHint(rotationDegrees)
@@ -311,15 +339,14 @@ class VideoReverser(
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, DEFAULT_I_FRAME_INTERVAL)
                 applySdrBt709ColorMetadata()
             }
-            val pass2SurfaceEncoder = openSurfaceAvcEncoder(encoderFormat)
-            encoder = pass2SurfaceEncoder.first
-            inputSurface = pass2SurfaceEncoder.second
-
-            decoder = openAvcDecoderForReverse(
-                mime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
-                format = inputFormat,
-                outputSurface = requireNotNull(inputSurface),
+            val pass2Pipeline = openSurfaceCodecPipeline(
+                encoderFormat = encoderFormat,
+                decoderMime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
+                decoderFormat = inputFormat,
             )
+            decoder = pass2Pipeline.decoder
+            encoder = pass2Pipeline.encoder
+            inputSurface = pass2Pipeline.inputSurface
             muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             if (rotationDegrees != 0) muxer.setOrientationHint(rotationDegrees)
 
@@ -693,6 +720,58 @@ class VideoReverser(
         return merged
     }
 
+    private data class SurfaceCodecPipeline(
+        val decoder: MediaCodec,
+        val encoder: MediaCodec,
+        val inputSurface: Surface,
+    )
+
+    /**
+     * Opens a surface-input AVC encoder and a decoder wired to its input [Surface]. Retries once when
+     * the surface is invalid or configure fails with "surface has been released" (Pixel RTL / API 17
+     * emulator — Crashlytics b09e527). Trying another decoder name with a dead surface never works.
+     */
+    private fun openSurfaceCodecPipeline(
+        encoderFormat: MediaFormat,
+        decoderMime: String,
+        decoderFormat: MediaFormat,
+    ): SurfaceCodecPipeline {
+        var lastFailure: Throwable? = null
+        repeat(SURFACE_CODEC_PIPELINE_MAX_ATTEMPTS) { attempt ->
+            var encoder: MediaCodec? = null
+            var surface: Surface? = null
+            try {
+                val encPair = openSurfaceAvcEncoder(encoderFormat)
+                encoder = encPair.first
+                surface = encPair.second
+                if (!surface.isValid) {
+                    releaseEncoderCandidate(encoder, surface)
+                    encoder = null
+                    surface = null
+                    lastFailure = IOException("encoder input surface invalid after createInputSurface")
+                    return@repeat
+                }
+                val decoder = openAvcDecoderForReverse(decoderMime, decoderFormat, surface)
+                return SurfaceCodecPipeline(decoder, encoder, surface)
+            } catch (t: Throwable) {
+                lastFailure = t
+                releaseEncoderCandidate(encoder, surface)
+                if (
+                    attempt < SURFACE_CODEC_PIPELINE_MAX_ATTEMPTS - 1 &&
+                        (isMediaCodecSurfaceReleasedFailure(t) || surface?.isValid == false)
+                ) {
+                    ReversePreviewLog.i(
+                        "surface_pipeline.retry",
+                        "attempt=${attempt + 2} ${t.javaClass.simpleName}: ${t.message}",
+                    )
+                    return@repeat
+                }
+                throw t
+            }
+        }
+        throw lastFailure ?: IllegalStateException("surface codec pipeline failed")
+    }
+
     private fun openSurfaceAvcEncoder(format: MediaFormat): Pair<MediaCodec, Surface> {
         val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else -1
         val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else -1
@@ -778,6 +857,8 @@ class VideoReverser(
                     onDecoderTryFailed(name, e, decoder)
                 } catch (e: IllegalArgumentException) {
                     onDecoderTryFailed(name, e, decoder)
+                    // Dead encoder surface — further decoder names cannot succeed (b09e527).
+                    if (isMediaCodecSurfaceReleasedFailure(e)) throw e
                 } catch (e: MediaCodec.CodecException) {
                     onDecoderTryFailed(name, e, decoder)
                 }
@@ -874,6 +955,8 @@ class VideoReverser(
         const val MAX_PASS1_ENCODE_FPS = 30
         /** Safety valve when the encoder pipeline never signals EOS (device codec wedge). */
         const val MAX_DECODE_LOOP_ITERATIONS = 500_000
+        /** Encoder+decoder open retries when the input [Surface] is released before configure (b09e527). */
+        const val SURFACE_CODEC_PIPELINE_MAX_ATTEMPTS = 2
     }
 }
 

@@ -15,6 +15,7 @@ internal fun isMediaCodecLifecycleFailure(error: Throwable): Boolean =
         is IllegalStateException, is IllegalArgumentException -> {
             val message = error.message.orEmpty()
             message.contains("Released", ignoreCase = true) ||
+                message.contains("surface has been released", ignoreCase = true) ||
                 message.contains("cancelled", ignoreCase = true) ||
                 message.contains("executing state", ignoreCase = true) ||
                 // S24 / Crashlytics 1.0.9: empty IllegalStateException at dequeueOutputBuffer after churn.
@@ -43,3 +44,22 @@ internal suspend inline fun <T> runMediaCodecCancellable(block: () -> T): T =
     } catch (error: Throwable) {
         rethrowMediaCodecLifecycleAsCancellation(error)
     }
+
+/**
+ * Whether [VideoReverser.reverse] should run another pass after [error] (Samsung codec slot churn
+ * while the job is still active — ExoPlayer + pass 1).
+ */
+/** Encoder input [android.view.Surface] invalidated before [android.media.MediaCodec.configure] (Crashlytics b09e527). */
+internal fun isMediaCodecSurfaceReleasedFailure(error: Throwable): Boolean =
+    error is IllegalArgumentException &&
+        error.message.orEmpty().contains("surface has been released", ignoreCase = true)
+
+internal fun shouldRetryMediaCodecContention(
+    error: Throwable,
+    failedAttemptIndex: Int,
+    maxAttempts: Int,
+    samsung: Boolean,
+): Boolean {
+    if (failedAttemptIndex >= maxAttempts - 1 || !isMediaCodecLifecycleFailure(error)) return false
+    return samsung || isMediaCodecSurfaceReleasedFailure(error)
+}

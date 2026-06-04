@@ -37,4 +37,25 @@ class MediaCodecLifecycleTest {
             ),
         )
     }
+
+    @Test
+    fun `detects surface has been released`() {
+        val error = IllegalArgumentException("The surface has been released")
+        assertTrue(isMediaCodecSurfaceReleasedFailure(error))
+        assertTrue(isMediaCodecLifecycleFailure(error))
+    }
+
+    @Test
+    fun `retries Samsung contention on first failure only`() {
+        val error = IllegalArgumentException("Invalid to call at Released state")
+        assertTrue(shouldRetryMediaCodecContention(error, failedAttemptIndex = 0, maxAttempts = 2, samsung = true))
+        assertFalse(shouldRetryMediaCodecContention(error, failedAttemptIndex = 1, maxAttempts = 2, samsung = true))
+        assertFalse(shouldRetryMediaCodecContention(error, failedAttemptIndex = 0, maxAttempts = 2, samsung = false))
+    }
+
+    @Test
+    fun `retries surface released on non-Samsung devices`() {
+        val error = IllegalArgumentException("The surface has been released")
+        assertTrue(shouldRetryMediaCodecContention(error, failedAttemptIndex = 0, maxAttempts = 2, samsung = false))
+    }
 }

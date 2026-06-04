@@ -319,6 +319,14 @@ fun BoomerangEditorContent(
     // VideoReverser pass 1 opens another decoder/encoder (IllegalStateException: Released state).
     val reversePreviewLoading = effectivePreviewLoading.isReversePreviewLoading()
 
+    // Free decoder slots before the debounced bind effect runs (150ms debounce was enough for 1.0.9
+    // pass-1 vs ExoPlayer races while the reverse job was still active).
+    LaunchedEffect(exoPlayer, reversePreviewLoading) {
+        if (reversePreviewLoading) {
+            EditorPlaylistBind.teardownPlayerForReversePreview(exoPlayer)
+        }
+    }
+
     // Rebind the playlist whenever the direction, the reversed file, or the trim changes. setMediaItems
     // replaces the whole playlist (no in-place re-clip of a same-URI item, which ExoPlayer dedupes —
     // slice-02 HANDOFF), then prepare() restarts playback of the new cycle. Both the speed
@@ -328,12 +336,12 @@ fun BoomerangEditorContent(
     // exoPlayer is a key so a recreated (epoch-bumped) instance gets the playlist rebound — without
     // it the fresh player would sit empty and the preview would go black.
     LaunchedEffect(exoPlayer, mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
-        delay(PLAYLIST_DEBOUNCE_MS)
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
         if (EditorPlaylistBind.shouldHoldPlaylist(reversePreviewLoading)) {
             return@LaunchedEffect
         }
+        delay(PLAYLIST_DEBOUNCE_MS)
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
         val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile, seamMs)
         if (EditorPlaylistBind.shouldClearPlaylist(items.isEmpty())) {
             return@LaunchedEffect

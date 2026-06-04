@@ -28,6 +28,7 @@ Official workflow: [Crashlytics AI assistance MCP](https://firebase.google.com/d
 | `google-services.json` | `app/google-services.json` (gitignored; plugins apply only when present) |
 | Non-fatal reverse failures | `ReverseCrashlytics` — keys like `reverse_outcome`, `video_mime` |
 | Product doc | `docs/diagnostics/firebase-crashlytics-trimming.md` |
+| Issue `3a506c4e` verification | `docs/diagnostics/crashlytics-issue-3a506c4e-verification.md` |
 
 Non-fatals upload on **next app launch**, not instantly.
 
