@@ -193,6 +193,34 @@ Conclusions locked in:
 §5.8 (decoder-fallback retry, gated on S23 verification) **stands**. §8's Exynos question remains open;
 the API-33-vs-35 split is now the stronger axis to investigate than Snapdragon-vs-Exynos.
 
+## 7d. Fallback pairing experiments + fix verification (2026-06-04, S23 via Samsung RTL)
+
+The zero-frame wedge reproduces in an **isolated instrumented test** with a 12-frame 320x240
+synthetic clip (`VideoReverserTest` via `am instrument`) — no camera, no editor, no codec churn.
+That made the §5.8 fallback testable on-device in minutes. Pairing matrix measured on the S23:
+
+| Pass-2 pairing (decoder → encoder) | Result |
+|------------------------------------|--------|
+| `c2.android.avc.decoder` (SW, carve-out) → `c2.qti.avc.encoder` (HW) | **Wedge**: 0 samples, encoder surface never receives a frame |
+| `c2.qti.avc.decoder` (HW, platform default) → `c2.qti.avc.encoder` (HW) | **Worse**: `CodecException: Error 0xe` at `queueInputBuffer`, ~130ms into pass 1 |
+| `c2.android.avc.decoder` (SW) → **`c2.android.avc.encoder` (SW)** | **WORKS**: 12/12 samples muxed, luma-ramp reversal-correctness assertions pass |
+
+So §5.8's original hypothesis (flip the *decoder*) was **falsified on-device**; the shipped fallback
+flips the **encoder** to software on the zero-frame retry. A process-scoped sticky
+(`zeroFrameEncoderWedgeSticky`) skips the doomed HW attempt on subsequent reverses — telemetry from
+the green run shows the first reverse at `attempts=2` and every later one at `attempts=1` on
+`c2.android.avc.encoder`. Deliberately not persisted (reboot/codec updates may fix the device;
+rediscovery costs one attempt).
+
+**Verification:** `ReverseOutputValidatorAndroidTest` + `VideoReverserTest` = **11/11 green on the
+S23** (the same suite that was 5-passed/6-failed before the fallback), including the cache-poison
+regression (`cache_invalid reason=no_video_track bytes=598 — deleting poisoned cache` observed) and
+reversal correctness. JVM suite 189/189. Note: Gradle's `connectedDebugAndroidTest` UTP device
+provider cannot drive RTL's localhost-tunnel adb — use `adb shell am instrument -w -e class …`
+directly.
+
+Remaining manual check for A10: one real capture → loop → save through the app UI on the S23.
+
 ## 8. Open questions
 
 - Did the S23 preview visibly play a reverse half at all, or did the loop look forward-only? (The

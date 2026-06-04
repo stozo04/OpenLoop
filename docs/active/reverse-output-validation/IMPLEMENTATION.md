@@ -368,34 +368,35 @@ fun Context.shareDebugReport(text: String, subject: String, chooserTitle: String
 
 Use from overlay button, preview snackbar action, save snackbar action.
 
-### 5.8 Decoder-fallback retry on zero-frame output (gated — added 2026-06-04)
+### 5.8 Software-ENCODER fallback retry on zero-frame output (REVISED + verified on-device 2026-06-04)
 
 File: [`VideoReverser.kt`](../../../app/src/main/java/io/github/stozo04/openloop/media/VideoReverser.kt)
 
-Validation (5.2) makes the S23 fail **loudly**; this step is the best-evidenced candidate to make it
-**succeed**. Evidence (RESEARCH.md §3/§5, verdict §7c): on the S23 (API 33) the carve-out's software
-decoder (`c2.android.avc.decoder`) never delivers output in the pass-2 reverse-seek mode — confirmed
-on a current-HEAD build, 2-for-2 — while the platform-default `c2.qti.avc.decoder` works on the same
-device for forward streaming (ExoPlayer + Transformer). Caveat (§7c): the **identical pairing works on
-the S25/API 35**, so this is an API-33-stack behavior, and the platform decoder is unproven in the
-pass-2 seek mode specifically — hence the verification gate below. If the fallback also emits zero
-frames, validation (5.2) guarantees the loud-failure floor.
+> **Revision:** the original decoder-fallback hypothesis was **falsified on the S23 itself**
+> (RESEARCH.md §7d): the platform HW decoder feeding the HW encoder surface dies with
+> `CodecException 0xe` at `queueInputBuffer`. The pairing that works is keeping the carve-out's SW
+> decoder and flipping the **encoder** to software (`c2.android.avc.encoder`).
 
-1. Make the new zero-frame failure (5.2 step 1/3) eligible for the existing retry loop in `reverse()`
-   (`shouldRetryMediaCodecContention` or a sibling predicate keyed on
-   `ReverseOutputInvalidException`).
-2. Thread a `useSamsungDecoderCarveOut: Boolean` (or `attempt` index) into
-   `openAvcDecoderForReverse`: on the **retry** attempt, skip `samsungSoftwareAvcDecoderTryOrder`
-   and go straight to `createDecoderByType(mime)` (platform default — `c2.qti.avc.decoder` on
-   Snapdragon).
-3. Log both attempts via `ReversePreviewLog` (`reverse.zero_frame_retry`, decoder names) so the next
-   field capture shows which path won.
+Shipped behavior:
 
-**Gate:** this step ships only after manual verification on the physical S23 (capture → loop → save
-twice: cold + warm cache). If the fallback also produces zero frames, it must fail loudly through the
-same validation path — never loop more than the existing `SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS`.
-Exynos behavior is an open question (RESEARCH.md §8) — do not widen the carve-out gating
-(`Build.SOC_MANUFACTURER`) in this slice without an Exynos capture.
+1. A `ReverseOutputInvalidException` (zero-frame pass, 5.2) makes the retry loop run one more
+   attempt with `preferSoftwareEncoder = true` — `openSurfaceAvcEncoder` fronts the installed SW
+   AVC encoders (`c2.android.avc.encoder`, `c2.google.avc.encoder`, `OMX.google.h264.encoder`)
+   ahead of the normal try-order. Decoder selection is unchanged.
+2. A process-scoped sticky (`zeroFrameEncoderWedgeSticky`) starts subsequent reverses directly on
+   the software encoder, so a wedged device pays the doomed HW attempt + retry delay only once per
+   process. Not persisted (reboot/codec updates may fix the device).
+3. Telemetry: `reverse.zero_frame_retry | preferSoftwareEncoder=true`,
+   `encoder.software_fallback_order`, and `reverse.complete | attempts=N`.
+4. Never loops past `SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS`; a second zero-frame run fails loudly
+   through the validation path (5.2) — the loud-failure floor holds.
+
+**Verification (gate cleared):** `ReverseOutputValidatorAndroidTest` + `VideoReverserTest` =
+**11/11 on the S23 (SM-S911U / API 33, Samsung RTL)** — previously 6/11 failing with the
+zero-frame exception — including cold-cache regenerate, warm-cache hit, poisoned-cache delete, and
+luma-ramp reversal correctness. JVM 189/189. Remaining manual A10 step: one capture → loop → save
+through the real UI on the S23. Exynos behavior is still an open question (RESEARCH.md §8) — do not
+widen the carve-out gating (`Build.SOC_MANUFACTURER`) without an Exynos capture.
 
 ---
 

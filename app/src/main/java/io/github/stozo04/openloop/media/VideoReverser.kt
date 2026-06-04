@@ -94,11 +94,23 @@ class VideoReverser(
             "trim=${trimStartMs}..${trimEndMs}ms samsung=${isSamsungDevice()}",
         )
         // Second pass when [shouldRetryMediaCodecContention] allows (Samsung dequeue churn or
-        // surface-released on any device — Crashlytics b09e527 on Android 17 (OS) emulator).
+        // surface-released on any device — Crashlytics b09e527 on Android 17 (OS) emulator), or when
+        // a pass produced ZERO samples (S23/API 33 wedge) — that retry skips the Samsung
+        // software-decoder carve-out and uses the platform-default decoder instead (spec §5.8).
         val maxAttempts = SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS
         var lastFailure: Throwable? = null
+        // Sticky across reverses in this process: once a device wedges (zero-frame pass 2), every
+        // HW-encoder attempt will wedge again — skip straight to the software encoder instead of
+        // paying a doomed attempt + retry delay on each preview/save (S23/API 33, RESEARCH.md §7c).
+        var zeroFrameFailure = zeroFrameEncoderWedgeSticky
         try {
             for (attempt in 0 until maxAttempts) {
+                // Zero-frame retry pairing (spec §5.8, revised on-device 2026-06-04): on the S23/API 33
+                // the SW-decoder→HW-encoder pairing starves pass 2 (0 samples) and the HW-decoder→
+                // HW-encoder pairing throws CodecException 0xe at queueInputBuffer — so the retry
+                // flips the ENCODER to software (decoder stays per normal selection). The contention
+                // retry path is unchanged.
+                val preferSoftwareEncoder = zeroFrameFailure
                 try {
                     coroutineContext.ensureActive()
                     if (attempt > 0) {
@@ -106,8 +118,9 @@ class VideoReverser(
                         intermediate.delete()
                         output.delete()
                         ReversePreviewLog.i(
-                            "reverse.contention_retry",
-                            "attempt=${attempt + 1}/$maxAttempts delayMs=$SAMSUNG_CODEC_CONTENTION_RETRY_MS",
+                            if (preferSoftwareEncoder) "reverse.zero_frame_retry" else "reverse.contention_retry",
+                            "attempt=${attempt + 1}/$maxAttempts delayMs=$SAMSUNG_CODEC_CONTENTION_RETRY_MS " +
+                                "preferSoftwareEncoder=$preferSoftwareEncoder",
                         )
                         delay(SAMSUNG_CODEC_CONTENTION_RETRY_MS)
                     } else {
@@ -118,7 +131,7 @@ class VideoReverser(
                         delay(PRE_REVERSE_CODEC_SETTLE_MS)
                     }
                     ReversePreviewLog.d("reverse.pass1.start", "dest=${intermediate.name}")
-                    transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate) { frac ->
+                    transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate, preferSoftwareEncoder) { frac ->
                         onProgress(frac * 0.5f)
                     }
                     ReversePreviewLog.i("reverse.pass1.done", "intermediateBytes=${intermediate.length()}")
@@ -127,7 +140,7 @@ class VideoReverser(
                         "reverse.pass2.start",
                         "dest=${output.name} pass1Encoder=$lastSurfaceEncoderName",
                     )
-                    reverseAllKeyframeVideo(intermediate, output) { frac ->
+                    reverseAllKeyframeVideo(intermediate, output, preferSoftwareEncoder) { frac ->
                         onProgress(0.5f + frac * 0.5f)
                     }
                     // A pass 2 starved of frames exits "cleanly" with a sample-less shell that the
@@ -160,6 +173,13 @@ class VideoReverser(
                     if (t is kotlinx.coroutines.CancellationException) throw t
                     lastFailure = t
                     output.delete()
+                    // Zero-sample output (S23/API 33): retry once with the software encoder
+                    // (spec §5.8). Never loops past maxAttempts; a second zero-frame run fails loudly.
+                    if (t is ReverseOutputInvalidException && attempt < maxAttempts - 1) {
+                        zeroFrameFailure = true
+                        zeroFrameEncoderWedgeSticky = true
+                        continue
+                    }
                     if (!shouldRetryMediaCodecContention(t, attempt, maxAttempts, isSamsungDevice())) {
                         throw t
                     }
@@ -198,6 +218,7 @@ class VideoReverser(
         trimStartMs: Long,
         trimEndMs: Long,
         dest: File,
+        preferSoftwareEncoder: Boolean = false,
         onProgress: (Float) -> Unit,
     ) {
         val extractor = MediaExtractor()
@@ -262,6 +283,7 @@ class VideoReverser(
                 encoderFormat = encoderFormat,
                 decoderMime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
                 decoderFormat = inputFormat,
+                preferSoftwareEncoder = preferSoftwareEncoder,
             )
             decoder = pipeline.decoder
             encoder = pipeline.encoder
@@ -316,6 +338,7 @@ class VideoReverser(
     private suspend fun reverseAllKeyframeVideo(
         source: File,
         dest: File,
+        preferSoftwareEncoder: Boolean = false,
         onProgress: (Float) -> Unit,
     ) {
         val extractor = MediaExtractor()
@@ -376,6 +399,7 @@ class VideoReverser(
                 encoderFormat = encoderFormat,
                 decoderMime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
                 decoderFormat = inputFormat,
+                preferSoftwareEncoder = preferSoftwareEncoder,
             )
             decoder = pass2Pipeline.decoder
             encoder = pass2Pipeline.encoder
@@ -787,13 +811,14 @@ class VideoReverser(
         encoderFormat: MediaFormat,
         decoderMime: String,
         decoderFormat: MediaFormat,
+        preferSoftwareEncoder: Boolean = false,
     ): SurfaceCodecPipeline {
         var lastFailure: Throwable? = null
         repeat(SURFACE_CODEC_PIPELINE_MAX_ATTEMPTS) { attempt ->
             var encoder: MediaCodec? = null
             var surface: Surface? = null
             try {
-                val encPair = openSurfaceAvcEncoder(encoderFormat)
+                val encPair = openSurfaceAvcEncoder(encoderFormat, preferSoftwareEncoder)
                 encoder = encPair.first
                 surface = encPair.second
                 if (!surface.isValid) {
@@ -824,11 +849,27 @@ class VideoReverser(
         throw lastFailure ?: IllegalStateException("surface codec pipeline failed")
     }
 
-    private fun openSurfaceAvcEncoder(format: MediaFormat): Pair<MediaCodec, Surface> {
+    private fun openSurfaceAvcEncoder(
+        format: MediaFormat,
+        preferSoftwareEncoder: Boolean = false,
+    ): Pair<MediaCodec, Surface> {
         val w = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else -1
         val h = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else -1
         var lastFailure: IOException? = null
-        for (name in listAvcEncoderTryOrder(format)) {
+        val tryOrder = listAvcEncoderTryOrder(format).let { order ->
+            if (!preferSoftwareEncoder) return@let order
+            // Zero-frame retry (spec §5.8): the S23/API-33 HW encoder's input surface never receives
+            // the decoder's pass-2 frames; a software encoder consumes its surface in-process. Front
+            // the known SW AVC encoders, keep the rest as fallback.
+            val installed = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
+                .filter { it.isEncoder && it.supportedTypes.any { t -> t.equals(MIME_AVC, ignoreCase = true) } }
+                .map { it.name }
+            val software = listOf("c2.android.avc.encoder", "c2.google.avc.encoder", "OMX.google.h264.encoder")
+                .filter { sw -> installed.any { it.equals(sw, ignoreCase = true) } }
+            ReversePreviewLog.d("encoder.software_fallback_order", (software + order).distinct().joinToString())
+            (software + order).distinct()
+        }
+        for (name in tryOrder) {
             var encoder: MediaCodec? = null
             var surface: Surface? = null
             try {
@@ -882,6 +923,11 @@ class VideoReverser(
     /**
      * On Samsung, avoid [MediaCodec.createDecoderByType] defaulting to Exynos while ExoPlayer or pass 1
      * still holds codec slots — pair software Google decoder with [openSurfaceAvcEncoder].
+     *
+     * Note (spec §5.8, on-device 2026-06-04): swapping THIS side to the platform decoder was tried
+     * for the S23 zero-frame wedge and failed harder (CodecException 0xe at queueInputBuffer with
+     * the HW decoder feeding the HW encoder surface) — the working fallback flips the ENCODER to
+     * software instead; the carve-out here stays unconditional.
      */
     private fun openAvcDecoderForReverse(
         mime: String,
@@ -919,7 +965,8 @@ class VideoReverser(
         return MediaCodec.createDecoderByType(mime).apply {
             configure(format, outputSurface, null, 0)
             start()
-            Log.d(TAG, "selectAvcDecoder: <default createDecoderByType>")
+            ReversePreviewLog.i("decoder.selected", "<platform-default> name=$name")
+            Log.d(TAG, "selectAvcDecoder: <default createDecoderByType> ($name)")
         }
     }
 
@@ -986,6 +1033,16 @@ class VideoReverser(
 
     companion object {
         private val activeIntermediatePaths = ConcurrentHashMap.newKeySet<String>()
+
+        /**
+         * Process-wide memo that this device's HW-encoder surface path produced a zero-frame pass
+         * (S23/API 33 wedge): later [reverse] calls start directly on the software encoder instead
+         * of re-paying a doomed attempt + [SAMSUNG_CODEC_CONTENTION_RETRY_MS]. Deliberately not
+         * persisted — a reboot/codec-update may fix the device, and the cost of rediscovery is one
+         * extra attempt.
+         */
+        @Volatile
+        private var zeroFrameEncoderWedgeSticky = false
 
         /** Paths of in-flight pass-1 intermediates (for [ReverseScratchJanitor] when cancel is wedged). */
         fun trackedIntermediatePaths(): Set<String> = activeIntermediatePaths.toSet()
