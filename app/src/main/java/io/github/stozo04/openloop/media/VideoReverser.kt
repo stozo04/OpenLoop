@@ -1058,8 +1058,15 @@ class VideoReverser(
         const val MAX_BIT_RATE = 24_000_000
         /**
          * Pass 1 re-encodes every fed sample as an I-frame. Library phone exports often carry
-         * 60–120 fps metadata with dense samples; capping the feed rate keeps preview reverse
-         * bounded without changing export (still uses full-rate source at render time).
+         * 60–120 fps metadata with dense samples; capping the feed rate keeps the reverse
+         * bounded. NOTE: the export's reversed clips come from this same trim-keyed cache
+         * ([Media3VideoProcessor.renderBoomerang] and `ensureReversed` share the reverser), so
+         * this cap applies to the SAVED boomerang's reversed half too — only the forward clips
+         * are cut from the full-rate source. Sources at or below the cap are never subsampled
+         * (see [pass1SampleAction]'s jitter tolerance). KNOWN LIMIT: when subsampling does
+         * engage (>30 fps source), pass 1 drops compressed samples before the decoder, which
+         * breaks P-frame reference chains and smears moving regions — subsampling should move
+         * to render time (decode all, render selectively). Tracked as fold-loop BUG-2.
          */
         const val MAX_PASS1_ENCODE_FPS = 30
         /** Safety valve when the encoder pipeline never signals EOS (device codec wedge). */
@@ -1085,7 +1092,17 @@ internal fun pass1SampleAction(
 ): Pass1SampleAction {
     if (minEncodeIntervalUs <= 0L) return Pass1SampleAction.ENCODE
     if (lastEncodedSampleUs < 0L) return Pass1SampleAction.ENCODE
-    if (sampleUs - lastEncodedSampleUs >= minEncodeIntervalUs) return Pass1SampleAction.ENCODE
+    // Tolerate timestamp jitter: real "30 fps" sources stamp frames slightly under the nominal
+    // interval (e.g. 33,222 µs vs the computed 33,333 µs), so a floor comparison skipped EVERY
+    // OTHER frame of an at-cap source — halving the reversed half to ~15 fps. Worse, pass 1
+    // skips by dropping compressed samples before the decoder, so the skipped frames' P-frame
+    // references are lost and moving regions macroblock-smear (Pixel 6 E2E, 2026-06-04, fold-loop
+    // iter 1). A quarter-interval tolerance keeps subsampling engaged only for sources genuinely
+    // above the cap (worst-case overshoot: cap × 4/3, e.g. 40 fps for a 120 fps source).
+    val jitterToleranceUs = minEncodeIntervalUs / 4
+    if (sampleUs - lastEncodedSampleUs >= minEncodeIntervalUs - jitterToleranceUs) {
+        return Pass1SampleAction.ENCODE
+    }
     if (endUs - sampleUs < minEncodeIntervalUs) return Pass1SampleAction.ENCODE
     return Pass1SampleAction.SKIP
 }
