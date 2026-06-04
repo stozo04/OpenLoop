@@ -137,10 +137,12 @@ fun TrimFilmstripControls(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        // NOTE: no testTag here — TrimRangePill tags itself "trim_range_label" (TrimScreenTest), and
+        // a second testTag earlier in the same modifier chain SHADOWS the inner one (first semantics
+        // value for a key wins), making the inner tag unfindable.
         TrimRangePill(
             startMs = startMs,
             endMs = endMs,
-            modifier = Modifier.testTag("trim_range_pill"),
         )
     }
 }

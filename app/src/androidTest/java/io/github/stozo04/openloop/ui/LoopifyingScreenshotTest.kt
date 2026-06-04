@@ -21,8 +21,11 @@ import java.io.FileOutputStream
 
 /**
  * Captures PR proof screenshots for Issue #41 — the full-screen [ProcessingScreen] ("Loopifying…").
- * Writes to public Downloads so the file survives test APK teardown. Pull after the test:
- * `MSYS_NO_PATHCONV=1 adb pull /sdcard/Download/openloop_loopifying-processing-42pct.png`
+ * Writes to public Downloads so the file survives test APK teardown, with a unique per-run name:
+ * a FIXED name EACCES-es on the second run — the first run's file is orphaned when AGP uninstalls
+ * the test APK, and the fresh install may not overwrite another owner's file under scoped storage.
+ * Pull the newest after the test:
+ * `adb shell ls -t /sdcard/Download/openloop_loopifying-processing-42pct_*.png | head -1`
  */
 @RunWith(AndroidJUnit4::class)
 class LoopifyingScreenshotTest {
@@ -49,7 +52,7 @@ class LoopifyingScreenshotTest {
 
         val screenshot = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "openloop_loopifying-processing-42pct.png",
+            "openloop_loopifying-processing-42pct_${System.currentTimeMillis()}.png",
         )
         val bitmap = composeTestRule.onRoot().captureToImage().asAndroidBitmap()
         FileOutputStream(screenshot).use { out ->

@@ -727,6 +727,10 @@ private fun extractRepresentativeFrame(file: File, trimStartMs: Long, trimEndMs:
         null // unreadable / unsupported source path
     } catch (e: IllegalStateException) {
         null // retriever not configured (setDataSource failed)
+    } catch (e: RuntimeException) {
+        // MediaMetadataRetriever surfaces native decode/open failures as bare RuntimeExceptions
+        // ("setDataSource failed: status = 0x..."), same as VideoImporter/VideoStorageRepositoryImpl.
+        null
     } finally {
         retriever.release()
     }
