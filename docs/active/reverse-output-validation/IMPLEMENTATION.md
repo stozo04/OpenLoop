@@ -169,10 +169,16 @@ fun validateReversedOutput(file: File): ReverseOutputValidation
 
 | Check | Rationale |
 |-------|-----------|
-| `file.exists() && file.length() >= MIN_REVERSED_BYTES` | Reject moov-only shells (~598 B). Suggest `MIN_REVERSED_BYTES = 4096` (4 KiB) — tunable constant with unit test. |
+| `file.exists()` | Missing file → invalid |
 | `MediaExtractor` finds ≥1 `video/` track | Transformer requires a video track |
-| Track has `KEY_DURATION` > 0 **or** ≥1 readable sample | Empty track → “no video track to output” |
-| Optional: frame count ≥ 1 via sample iteration (cap at e.g. 500 samples for speed) | Catches zero-frame muxer success |
+| ≥1 readable sample on that track (iteration capped at 500) | Catches zero-frame muxer success — the S23 shells have a parseable moov with zero samples |
+| File parses at all | Unreadable → invalid, never a crash |
+
+> **Size-gate correction (2026-06-04, found by the instrumented test):** the originally suggested
+> `MIN_REVERSED_BYTES = 4096` validity gate was **dropped** — a Pixel 10 Pro Fold encoded a
+> legitimate 12-frame 320x240 clip to under 4 KiB, so size false-positives on small real clips
+> while the zero-sample probe already rejects the 598 B shells. `fileBytes` is reported for
+> diagnostics only. Validity is content-based.
 
 **Do not** use `length() > 0` alone anywhere for cache or success.
 
