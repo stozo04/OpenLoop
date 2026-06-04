@@ -883,6 +883,13 @@ class OpenLoopViewModel(
                         reverseSupportReport = null,
                     )
                 }.onFailure { error ->
+                    if (error is CancellationException) {
+                        ReversePreviewLog.d(
+                            "viewModel.ensureReversed.cancelled",
+                            "gen=$generation ${error.javaClass.simpleName}",
+                        )
+                        return@launch
+                    }
                     if (error is PreviewReverseTimeoutException) {
                         ReversePreviewLog.e(
                             "viewModel.ensureReversed.timeout",

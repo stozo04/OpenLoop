@@ -343,10 +343,12 @@ class VideoReverser(
                 currentCoroutineContext().ensureActive()
 
                 if (!inputDone) {
-                    val inIndex = decoder.dequeueInputBuffer(DEQUEUE_TIMEOUT_US)
+                    val inIndex = runMediaCodecCancellable { decoder.dequeueInputBuffer(DEQUEUE_TIMEOUT_US) }
                     if (inIndex >= 0) {
                         if (feedIndex < 0) {
-                            decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            runMediaCodecCancellable {
+                                decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            }
                             inputDone = true
                         } else {
                             val sampleUs = frameTimesUs[feedIndex]
@@ -354,10 +356,14 @@ class VideoReverser(
                             val buffer = decoder.getInputBuffer(inIndex)!!
                             val size = extractor.readSampleData(buffer, 0)
                             if (size < 0) {
-                                decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                runMediaCodecCancellable {
+                                    decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                }
                                 inputDone = true
                             } else {
-                                decoder.queueInputBuffer(inIndex, 0, size, endUs - sampleUs, 0)
+                                runMediaCodecCancellable {
+                                    decoder.queueInputBuffer(inIndex, 0, size, endUs - sampleUs, 0)
+                                }
                             }
                             feedIndex--
                         }
@@ -365,16 +371,16 @@ class VideoReverser(
                 }
 
                 // Render each decoded frame onto the encoder surface (carrying its reversed PTS).
-                val outIndex = decoder.dequeueOutputBuffer(decoderInfo, DEQUEUE_TIMEOUT_US)
+                val outIndex = runMediaCodecCancellable { decoder.dequeueOutputBuffer(decoderInfo, DEQUEUE_TIMEOUT_US) }
                 if (outIndex >= 0) {
                     val render = decoderInfo.size > 0
-                    decoder.releaseOutputBuffer(outIndex, render)
+                    runMediaCodecCancellable { decoder.releaseOutputBuffer(outIndex, render) }
                     if (render) {
                         emitted++
                         onProgress((emitted.toFloat() / total).coerceIn(0f, 1f))
                     }
                     if (decoderInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                        encoder.signalEndOfInputStream()
+                        runMediaCodecCancellable { encoder.signalEndOfInputStream() }
                     }
                 }
 
@@ -473,20 +479,26 @@ class VideoReverser(
                     }
                 }
 
-                val inIndex = decoder.dequeueInputBuffer(timeoutUs)
+                val inIndex = runMediaCodecCancellable { decoder.dequeueInputBuffer(timeoutUs) }
                 if (inIndex >= 0) {
                     if (pendingDecoderEos) {
-                        decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        runMediaCodecCancellable {
+                            decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                        }
                         inputDone = true
                     } else {
                         val sampleUs = extractor.sampleTime
                         val buffer = decoder.getInputBuffer(inIndex)!!
                         val size = extractor.readSampleData(buffer, 0)
                         if (size < 0) {
-                            decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            runMediaCodecCancellable {
+                                decoder.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            }
                             inputDone = true
                         } else {
-                            decoder.queueInputBuffer(inIndex, 0, size, remapPtsUs(sampleUs), 0)
+                            runMediaCodecCancellable {
+                                decoder.queueInputBuffer(inIndex, 0, size, remapPtsUs(sampleUs), 0)
+                            }
                             lastEncodedSampleUs = sampleUs
                             onFrameEncoded()
                             onProgress(onSamplePts(sampleUs))
@@ -499,12 +511,12 @@ class VideoReverser(
             }
 
             // Move decoded frames onto the encoder surface.
-            val outIndex = decoder.dequeueOutputBuffer(bufferInfo, timeoutUs)
+            val outIndex = runMediaCodecCancellable { decoder.dequeueOutputBuffer(bufferInfo, timeoutUs) }
             if (outIndex >= 0) {
                 val render = bufferInfo.size > 0
-                decoder.releaseOutputBuffer(outIndex, render)
+                runMediaCodecCancellable { decoder.releaseOutputBuffer(outIndex, render) }
                 if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                    encoder.signalEndOfInputStream()
+                    runMediaCodecCancellable { encoder.signalEndOfInputStream() }
                 }
             }
 
@@ -532,7 +544,7 @@ class VideoReverser(
      * `muxerStarted` flag. Adds the track + starts the muxer lazily on the first
      * `INFO_OUTPUT_FORMAT_CHANGED`.
      */
-    private fun drainToMuxer(
+    private suspend fun drainToMuxer(
         encoder: MediaCodec,
         muxer: MediaMuxer,
         bufferInfo: MediaCodec.BufferInfo,
@@ -543,7 +555,7 @@ class VideoReverser(
     ): Boolean {
         var started = muxerStarted
         while (true) {
-            val outIndex = encoder.dequeueOutputBuffer(bufferInfo, DEQUEUE_TIMEOUT_US)
+            val outIndex = runMediaCodecCancellable { encoder.dequeueOutputBuffer(bufferInfo, DEQUEUE_TIMEOUT_US) }
             when {
                 // Nothing ready from the encoder this poll. Before EOS, return so the caller's loop can
                 // feed/decode more. At EOS we fall through to the explicit exit just below — the old
@@ -566,7 +578,7 @@ class VideoReverser(
                         encoded.limit(bufferInfo.offset + bufferInfo.size)
                         muxer.writeSampleData(muxerTrack(), encoded, bufferInfo)
                     }
-                    encoder.releaseOutputBuffer(outIndex, false)
+                    runMediaCodecCancellable { encoder.releaseOutputBuffer(outIndex, false) }
                     if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return started
                 }
             }
