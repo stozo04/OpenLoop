@@ -394,9 +394,12 @@ Shipped behavior:
 **Verification (gate cleared):** `ReverseOutputValidatorAndroidTest` + `VideoReverserTest` =
 **11/11 on the S23 (SM-S911U / API 33, Samsung RTL)** — previously 6/11 failing with the
 zero-frame exception — including cold-cache regenerate, warm-cache hit, poisoned-cache delete, and
-luma-ramp reversal correctness. JVM 189/189. Remaining manual A10 step: one capture → loop → save
-through the real UI on the S23. Exynos behavior is still an open question (RESEARCH.md §8) — do not
-widen the carve-out gating (`Build.SOC_MANUFACTURER`) without an Exynos capture.
+luma-ramp reversal correctness. JVM 189/189. **A10 cleared manually (2026-06-04 15:15, RTL):**
+cold-start capture → trim → loop preview → Save on the S23 UI succeeded end-to-end — preview reverse
+hit the wedge and recovered (`attempts=2`), the save-path reverse used the sticky (`attempts=1`),
+`BoomerangRenderWorker` returned SUCCESS, zero `ExportException` (log: `openloop-s23-savetest.txt`).
+Exynos behavior is still an open question (RESEARCH.md §8) — do not widen the carve-out gating
+(`Build.SOC_MANUFACTURER`) without an Exynos capture.
 
 ---
 
