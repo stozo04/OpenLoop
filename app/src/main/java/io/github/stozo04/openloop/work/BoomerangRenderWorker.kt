@@ -3,6 +3,7 @@ package io.github.stozo04.openloop.work
 import android.content.Context
 import android.util.Log
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.transformer.ExportException
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
@@ -93,6 +94,16 @@ class BoomerangRenderWorker(
             } catch (e: IOException) {
                 progressPublisher.cancel()
                 Log.e(TAG, "Boomerang render failed (IO)", e)
+                deletePartialOutput(parsed.outputFile)
+                Result.failure()
+            } catch (e: ExportException) {
+                // Media3's documented async failure type (Transformer.Listener.onError, rethrown by
+                // runTransformer). It extends Exception directly — neither IOException nor
+                // RuntimeException — so without this branch it escaped doWork entirely, skipping
+                // deletePartialOutput and surfacing via WorkManager's generic thrown-exception path
+                // (observed on the S23, RESEARCH.md §6.2).
+                progressPublisher.cancel()
+                Log.e(TAG, "Boomerang render failed (export)", e)
                 deletePartialOutput(parsed.outputFile)
                 Result.failure()
             } catch (e: RuntimeException) {

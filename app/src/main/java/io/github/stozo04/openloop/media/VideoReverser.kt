@@ -65,10 +65,24 @@ class VideoReverser(
     ): File = withContext(Dispatchers.IO) {
         scratchDir.mkdirs()
         val output = File(scratchDir, "${cacheKey(source, trimStartMs, trimEndMs)}.mp4")
-        if (output.exists() && output.length() > 0L) {
-            ReversePreviewLog.i("reverse.cache_hit", "key=${output.name} bytes=${output.length()}")
-            onProgress(1f)
-            return@withContext output
+        if (output.exists()) {
+            // Content-validated, never `length() > 0` alone: a wedged pass 2 can leave a ~598-byte
+            // zero-sample shell behind (S23/API 33), which would otherwise poison every retry of
+            // this trim window (reverse-output-validation spec §5.2).
+            val cached = ReverseOutputValidator.validateReversedOutput(output)
+            if (cached.valid) {
+                ReversePreviewLog.i(
+                    "reverse.cache_hit",
+                    "key=${output.name} bytes=${cached.fileBytes} samples=${cached.sampleCount}",
+                )
+                onProgress(1f)
+                return@withContext output
+            }
+            ReversePreviewLog.e(
+                "reverse.cache_invalid",
+                "key=${output.name} reason=${cached.reason} bytes=${cached.fileBytes} — deleting poisoned cache",
+            )
+            output.delete()
         }
 
         val intermediate = File(scratchDir, "${ReverseScratchJanitor.INTERMEDIATE_PREFIX}${UUID.randomUUID()}.mp4")
@@ -116,7 +130,26 @@ class VideoReverser(
                     reverseAllKeyframeVideo(intermediate, output) { frac ->
                         onProgress(0.5f + frac * 0.5f)
                     }
-                    ReversePreviewLog.i("reverse.pass2.done", "outBytes=${output.length()}")
+                    // A pass 2 starved of frames exits "cleanly" with a sample-less shell that the
+                    // Transformer rejects 3 seconds later as a cryptic asset-loader error (S23/API
+                    // 33, RESEARCH.md §2). Validate before declaring success; the in-pipeline
+                    // counter in reverseAllKeyframeVideo throws earlier — this is the backstop.
+                    val validation = ReverseOutputValidator.validateReversedOutput(output)
+                    if (!validation.valid) {
+                        ReversePreviewLog.e(
+                            "reverse.output_invalid",
+                            "reason=${validation.reason} bytes=${validation.fileBytes} samples=${validation.sampleCount}",
+                        )
+                        output.delete()
+                        throw ReverseOutputInvalidException(
+                            "Reversed output invalid: ${validation.reason} (${output.name})",
+                            validation,
+                        )
+                    }
+                    ReversePreviewLog.i(
+                        "reverse.pass2.done",
+                        "outBytes=${validation.fileBytes} samples=${validation.sampleCount}",
+                    )
                     ReversePreviewLog.i(
                         "reverse.complete",
                         "pass1Encoder=$lastSurfaceEncoderName out=${output.name} attempts=${attempt + 1}",
@@ -365,6 +398,7 @@ class VideoReverser(
             var inputDone = false
             var outputDone = false
             var emitted = 0
+            var muxedSamples = 0
 
             while (!outputDone) {
                 currentCoroutineContext().ensureActive()
@@ -417,7 +451,22 @@ class VideoReverser(
                     muxerTrack = { muxerTrack },
                     muxerStarted = muxerStarted,
                     endOfStream = inputDone,
+                    onSampleWritten = { muxedSamples++ },
                 ).also { if (encoderInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0 && it) outputDone = true }
+            }
+
+            // The S23/API-33 wedge: the loop above can exit "cleanly" — encoder emits only a
+            // format-change + empty EOS — having muxed nothing (rendered=$emitted stays 0 too).
+            // Without this throw the empty shell is returned as success, cached, and the Transformer
+            // fails 3s later with an unrelated-looking asset-loader error (RESEARCH.md §2–§4).
+            if (muxedSamples == 0) {
+                ReversePreviewLog.e(
+                    "reverse.pass2.empty",
+                    "muxed=0 rendered=$emitted planned=$total dest=${dest.name}",
+                )
+                throw ReverseOutputInvalidException(
+                    "Reverse pass 2 muxed 0 samples ($total planned, $emitted rendered) for ${dest.name}",
+                )
             }
         } finally {
             runCatching { decoder?.stop() }; decoder?.release()
@@ -579,6 +628,7 @@ class VideoReverser(
         muxerTrack: () -> Int,
         muxerStarted: Boolean,
         endOfStream: Boolean,
+        onSampleWritten: () -> Unit = {},
     ): Boolean {
         var started = muxerStarted
         while (true) {
@@ -604,6 +654,7 @@ class VideoReverser(
                         encoded.position(bufferInfo.offset)
                         encoded.limit(bufferInfo.offset + bufferInfo.size)
                         muxer.writeSampleData(muxerTrack(), encoded, bufferInfo)
+                        onSampleWritten()
                     }
                     runMediaCodecCancellable { encoder.releaseOutputBuffer(outIndex, false) }
                     if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return started

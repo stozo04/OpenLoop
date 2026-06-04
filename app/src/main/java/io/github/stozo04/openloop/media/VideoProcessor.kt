@@ -207,6 +207,20 @@ class Media3VideoProcessor(
             null
         }
         currentCoroutineContext().ensureActive()
+        if (reversedFile != null) {
+            // Defense in depth (spec §5.5): the reverser validates its own output, but a sample-less
+            // clip reaching the Composition fails 3s later as the cryptic Transformer asset-loader
+            // error (S23, RESEARCH.md §2) — never hand it one. Blocking probe → IO dispatcher.
+            val reversedCheck = withContext(Dispatchers.IO) {
+                ReverseOutputValidator.validateReversedOutput(reversedFile)
+            }
+            if (!reversedCheck.valid) {
+                throw ReverseOutputInvalidException(
+                    "Reversed clip invalid before render: ${reversedCheck.reason} (${reversedFile.name})",
+                    reversedCheck,
+                )
+            }
+        }
         onProgress(REVERSE_BUDGET)
 
         // Speed (SpeedChangeEffect) + the chosen color look (RgbFilter / RgbAdjustment / HslAdjustment)

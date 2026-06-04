@@ -6,6 +6,18 @@ import java.io.File
 import java.io.IOException
 
 /**
+ * A reverse pass completed without error but its output is unusable (zero muxed samples / no video
+ * track — the S23 wedge, RESEARCH.md §7c). Extends [IOException] so existing failure paths
+ * (worker `catch (e: IOException)`, editor forward-fallback) handle it without new plumbing;
+ * [validation] carries the probe facts for diagnostics when the failure came from the post-write
+ * probe (null when detected by the in-pipeline sample counter before the file was finalized).
+ */
+class ReverseOutputInvalidException(
+    message: String,
+    val validation: ReverseOutputValidation? = null,
+) : IOException(message)
+
+/**
  * Result of validating a candidate reversed MP4 (reverse-output-validation spec §5.1).
  *
  * @param reason machine-readable verdict, one of the `REASON_*` constants in
