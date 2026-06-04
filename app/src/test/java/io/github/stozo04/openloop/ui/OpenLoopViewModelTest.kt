@@ -1087,7 +1087,7 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `saveBoomerang on render failure returns to the editor with direction preserved, emitting Failed`() =
+    fun `saveBoomerang on render failure returns to the editor with direction preserved, emitting SaveFailed with report`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim()
@@ -1102,7 +1102,13 @@ class OpenLoopViewModelTest {
 
             val state = viewModel.uiState.value
             assertTrue("expected BoomerangEditor after failure, was $state", state is OpenLoopUiState.BoomerangEditor)
-            assertTrue(events.contains(BoomerangEvent.Failed))
+            val saveFailed = events.filterIsInstance<BoomerangEvent.SaveFailed>().firstOrNull()
+            assertTrue("expected a SaveFailed event, got $events", saveFailed != null)
+            // The snackbar's "Send debug report" action needs a shareable report (spec §5.5/A4).
+            assertTrue(
+                "expected a non-blank support report",
+                !saveFailed!!.supportReport.isNullOrBlank(),
+            )
             // No boomerang registered; the chosen direction survives the failure.
             assertTrue(fakeVideoStorage.saved.none { it.kind == VideoKind.BOOMERANG })
             assertEquals(BoomerangMode.REVERSE_THEN_FORWARD, viewModel.editorTabState.value.mode)

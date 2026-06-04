@@ -1,6 +1,5 @@
 package io.github.stozo04.openloop.ui
 
-import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.os.SystemClock
@@ -109,6 +108,7 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
+import io.github.stozo04.openloop.diagnostics.shareDebugReport
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.ClipDirection
 import io.github.stozo04.openloop.media.VideoFilter
@@ -511,20 +511,19 @@ fun BoomerangEditorContent(
                         if (!reverseSupportReport.isNullOrBlank()) {
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                text = "SEND DEBUG INFO",
+                                // Label unified with the snackbar actions ("Send debug report") —
+                                // reverse-output-validation spec §4.
+                                text = "SEND DEBUG REPORT",
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelLarge,
                                 modifier = Modifier
                                     .clip(MaterialTheme.shapes.small)
                                     .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.small)
                                     .clickable {
-                                        val share = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, reverseSupportReport)
-                                            putExtra(Intent.EXTRA_SUBJECT, "OpenLoop loop debug")
-                                        }
-                                        context.startActivity(
-                                            Intent.createChooser(share, "Send debug info"),
+                                        context.shareDebugReport(
+                                            report = reverseSupportReport,
+                                            subject = "OpenLoop loop debug",
+                                            chooserTitle = "Send debug report",
                                         )
                                     }
                                     .padding(horizontal = 20.dp, vertical = 10.dp)

@@ -76,6 +76,7 @@ import io.github.stozo04.openloop.data.VideoImporterImpl
 import io.github.stozo04.openloop.data.VideoStorageRepositoryImpl
 import io.github.stozo04.openloop.data.dataStore
 import io.github.stozo04.openloop.diagnostics.FirebaseAnalyticsReporterImpl
+import io.github.stozo04.openloop.diagnostics.shareDebugReport
 import io.github.stozo04.openloop.media.MediaComponents
 import io.github.stozo04.openloop.work.WorkManagerBoomerangRenderScheduler
 import io.github.stozo04.openloop.ui.BoomerangEditorScreen
@@ -216,6 +217,7 @@ class MainActivity : ComponentActivity() {
                 val savedMessage = stringResource(R.string.snackbar_saved)
                 val viewAction = stringResource(R.string.snackbar_view_action)
                 val saveFailedMessage = stringResource(R.string.snackbar_save_failed)
+                val saveFailedReportAction = stringResource(R.string.snackbar_save_failed_report_action)
                 val reversePreviewForwardMessage = stringResource(R.string.snackbar_reverse_preview_forward)
                 val reversePreviewReportAction = stringResource(R.string.snackbar_reverse_preview_report_action)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
@@ -257,9 +259,23 @@ class MainActivity : ComponentActivity() {
                                     viewModel.navigateToGallery()
                                 }
                             }
-                            BoomerangEvent.Failed -> snackbarHostState.showSnackbar(
-                                message = saveFailedMessage,
-                            )
+                            // Save/render failure: mirror the preview-fallback pattern — friendly
+                            // copy + "Send debug report" when a report is available (spec §5.6).
+                            is BoomerangEvent.SaveFailed -> {
+                                val report = event.supportReport
+                                val result = snackbarHostState.showSnackbar(
+                                    message = saveFailedMessage,
+                                    actionLabel = if (!report.isNullOrBlank()) saveFailedReportAction else null,
+                                    duration = SnackbarDuration.Long,
+                                )
+                                if (result == SnackbarResult.ActionPerformed && !report.isNullOrBlank()) {
+                                    shareDebugReport(
+                                        report = report,
+                                        subject = "OpenLoop loop feedback",
+                                        chooserTitle = saveFailedReportAction,
+                                    )
+                                }
+                            }
                             is BoomerangEvent.ReversePreviewFallbackForward -> {
                                 val report = event.supportReport
                                 val result = snackbarHostState.showSnackbar(
@@ -269,13 +285,10 @@ class MainActivity : ComponentActivity() {
                                     duration = SnackbarDuration.Long,
                                 )
                                 if (result == SnackbarResult.ActionPerformed && !report.isNullOrBlank()) {
-                                    val share = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, report)
-                                        putExtra(Intent.EXTRA_SUBJECT, "OpenLoop loop feedback")
-                                    }
-                                    startActivity(
-                                        Intent.createChooser(share, reversePreviewReportAction),
+                                    shareDebugReport(
+                                        report = report,
+                                        subject = "OpenLoop loop feedback",
+                                        chooserTitle = reversePreviewReportAction,
                                     )
                                 }
                             }
