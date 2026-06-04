@@ -217,6 +217,7 @@ class MainActivity : ComponentActivity() {
                 val viewAction = stringResource(R.string.snackbar_view_action)
                 val saveFailedMessage = stringResource(R.string.snackbar_save_failed)
                 val reversePreviewForwardMessage = stringResource(R.string.snackbar_reverse_preview_forward)
+                val reversePreviewReportAction = stringResource(R.string.snackbar_reverse_preview_report_action)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
                 val undoAction = stringResource(R.string.undo)
                 // The "N loops deleted" plural is count-dependent, so we capture resources here (in a
@@ -259,10 +260,25 @@ class MainActivity : ComponentActivity() {
                             BoomerangEvent.Failed -> snackbarHostState.showSnackbar(
                                 message = saveFailedMessage,
                             )
-                            BoomerangEvent.ReversePreviewFallbackForward -> snackbarHostState.showSnackbar(
-                                message = reversePreviewForwardMessage,
-                                duration = SnackbarDuration.Long,
-                            )
+                            is BoomerangEvent.ReversePreviewFallbackForward -> {
+                                val report = event.supportReport
+                                val result = snackbarHostState.showSnackbar(
+                                    message = reversePreviewForwardMessage,
+                                    // Offer the report action only when we actually have a report to send.
+                                    actionLabel = if (!report.isNullOrBlank()) reversePreviewReportAction else null,
+                                    duration = SnackbarDuration.Long,
+                                )
+                                if (result == SnackbarResult.ActionPerformed && !report.isNullOrBlank()) {
+                                    val share = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, report)
+                                        putExtra(Intent.EXTRA_SUBJECT, "OpenLoop loop feedback")
+                                    }
+                                    startActivity(
+                                        Intent.createChooser(share, reversePreviewReportAction),
+                                    )
+                                }
+                            }
                             // Import failed for a non-length reason (slice 07): a light snackbar; the
                             // ViewModel has already returned the user to the gallery.
                             BoomerangEvent.ImportFailed -> snackbarHostState.showSnackbar(

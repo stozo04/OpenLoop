@@ -96,12 +96,12 @@ class VideoReverser(
                             "attempt=${attempt + 1}/$maxAttempts delayMs=$SAMSUNG_CODEC_CONTENTION_RETRY_MS",
                         )
                         delay(SAMSUNG_CODEC_CONTENTION_RETRY_MS)
-                    } else if (isSamsungDevice()) {
+                    } else {
                         ReversePreviewLog.d(
                             "reverse.settle",
-                            "preReverseDelayMs=$SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS",
+                            "preReverseDelayMs=$PRE_REVERSE_CODEC_SETTLE_MS",
                         )
-                        delay(SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS)
+                        delay(PRE_REVERSE_CODEC_SETTLE_MS)
                     }
                     ReversePreviewLog.d("reverse.pass1.start", "dest=${intermediate.name}")
                     transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate) { frac ->

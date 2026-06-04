@@ -91,9 +91,11 @@ sealed interface BoomerangEvent {
 
     /**
      * Preview reverse failed or timed out; editor fell back to [BoomerangMode.FORWARD] so the user
-     * can preview and save. Ping-pong can be retried from the Loop direction tab.
+     * can preview and save, and can retry the reverse from the Loop direction tab. Carries the
+     * shareable [supportReport] (null if unavailable) so the snackbar can offer a "Send report"
+     * action — the user-friendly feedback/crash-report path.
      */
-    object ReversePreviewFallbackForward : BoomerangEvent
+    data class ReversePreviewFallbackForward(val supportReport: String?) : BoomerangEvent
 
     /**
      * One or more gallery loops were marked for deletion (Issue #35). Drives the Undo snackbar; the
@@ -974,7 +976,7 @@ class OpenLoopViewModel(
         reverseJob = null
         cleanupReverseScratchAfterCancel()
         viewModelScope.launch {
-            _events.send(BoomerangEvent.ReversePreviewFallbackForward)
+            _events.send(BoomerangEvent.ReversePreviewFallbackForward(supportReport))
         }
     }
 

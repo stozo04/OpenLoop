@@ -1,7 +1,5 @@
 package io.github.stozo04.openloop.ui
 
-import androidx.media3.exoplayer.ExoPlayer
-
 /**
  * Playlist rebind policy for [BoomerangEditorScreen]: debounce rapid trim/mode changes and always tear
  * down the prior [androidx.media3.exoplayer.ExoPlayer] playlist before preparing a new one (reduces
@@ -19,15 +17,11 @@ object EditorPlaylistBind {
     fun shouldHoldPlaylist(reversePreviewLoading: Boolean): Boolean = reversePreviewLoading
 
     /**
-     * Stop ExoPlayer immediately when reverse preview starts — must not wait for [PLAYLIST_DEBOUNCE_MS]
-     * or pass 1 can open MediaCodec while the player still holds an Exynos decoder (Crashlytics
-     * 3a506c4e).
+     * [ExoPlayer.stop] does not release decoder slots — only [ExoPlayer.release] does (Media3 lifecycle
+     * guidance). The screen must bump [BoomerangEditorScreen]'s `playerEpoch` when reverse loading
+     * starts so the prior instance is released before [VideoReverser] pass 1 opens codecs.
      */
-    fun teardownPlayerForReversePreview(player: ExoPlayer) {
-        player.stop()
-        player.clearMediaItems()
-        player.pause()
-    }
+    fun requiresPlayerEpochBumpForReversePreview(): Boolean = true
 
     /**
      * When true, the player should stop and clear items (empty playlist or superseded bind).

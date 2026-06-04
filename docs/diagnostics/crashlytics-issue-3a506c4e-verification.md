@@ -13,7 +13,7 @@ Historical events (e.g. **1.0.9**) will remain in the console. Success means **n
 | Layer | Behavior |
 |-------|----------|
 | **Cancel / teardown** | `MediaCodecLifecycle` maps Released/cancelled dequeue failures to `CancellationException` when the reverse job is no longer active — no `reverse_preview_failure` non-fatal, no forward fallback snackbar. |
-| **Active Samsung contention** | Immediate `EditorPlaylistBind.teardownPlayerForReversePreview` (no 150ms debounce while Trimming/Loopifying); one retry of pass 1+2 after `SAMSUNG_CODEC_CONTENTION_RETRY_MS` when dequeue fails with lifecycle errors while the job is still active. |
+| **Active Samsung contention** | `playerEpoch++` on reverse loading so preview decoders are `release()`d before pass 1; one retry of pass 1+2 after `SAMSUNG_CODEC_CONTENTION_RETRY_MS` when dequeue fails with lifecycle errors while the job is still active. |
 | **Mainline (already on `main`)** | `EditorPlaylistBind.shouldHoldPlaylist`, Samsung pre/post-transform settle delays, software AVC codec pairing, `ReverseScratchJanitor`, preview 480p short-side cap on Samsung. |
 
 ---

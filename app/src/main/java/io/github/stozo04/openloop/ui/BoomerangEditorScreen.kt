@@ -319,12 +319,18 @@ fun BoomerangEditorContent(
     // VideoReverser pass 1 opens another decoder/encoder (IllegalStateException: Released state).
     val reversePreviewLoading = effectivePreviewLoading.isReversePreviewLoading()
 
-    // Free decoder slots before the debounced bind effect runs (150ms debounce was enough for 1.0.9
-    // pass-1 vs ExoPlayer races while the reverse job was still active).
-    LaunchedEffect(exoPlayer, reversePreviewLoading) {
-        if (reversePreviewLoading) {
-            EditorPlaylistBind.teardownPlayerForReversePreview(exoPlayer)
-        }
+    // Release preview decoders before pass 1: stop() alone keeps the slot (editor-codec-churn doc).
+    // Epoch bump matches the effects-teardown path — DisposableEffect release() on the old player.
+    LaunchedEffect(reversePreviewLoading) {
+        if (!reversePreviewLoading) return@LaunchedEffect
+        if (!EditorPlaylistBind.requiresPlayerEpochBumpForReversePreview()) return@LaunchedEffect
+        // Skip the bump when the player holds no media — i.e. the first reverse on editor entry,
+        // where the playlist is still held (shouldHoldPlaylist) so no preview decoder exists to free.
+        // Recreating an empty player there is pure waste (editor-codec-churn finding 3). On later
+        // reverses the prior preview is still bound (mediaItemCount > 0), so the release runs.
+        if (exoPlayer.mediaItemCount == 0) return@LaunchedEffect
+        playerHasAppliedEffects = false
+        playerEpoch++
     }
 
     // Rebind the playlist whenever the direction, the reversed file, or the trim changes. setMediaItems

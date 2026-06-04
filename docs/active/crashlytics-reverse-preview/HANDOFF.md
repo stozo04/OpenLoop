@@ -21,6 +21,8 @@ Use this doc to resume work in a **new Cursor session** without re-triaging from
 
 **Interpretation:** Baseline is clean for the verification version line — historical noise is confined to pre-fix builds. **Field proof still blocked** until [PR #62](https://github.com/stozo04/OpenLoop/pull/62) is merged and **1.0.18+** is installed on Samsung + Android 17 (OS) emulator with `google-services.json`, then re-run `/crashlytics-triage` and the checklist in `docs/diagnostics/crashlytics-issue-3a506c4e-verification.md`.
 
+**Root cause (disease vs symptom):** PR #62 treats Samsung **throws**; ping-pong failing to apply / 120 s emulator timeout is **codec slot churn** (preview + 2-pass reverse). See [`../editor-codec-churn/IMPLEMENTATION.md`](../editor-codec-churn/IMPLEMENTATION.md). Follow-up: `playerEpoch` release on reverse loading + `PRE_REVERSE_CODEC_SETTLE_MS` on all devices.
+
 ---
 
 ## Where we are now
@@ -94,7 +96,7 @@ crashlytics_list_events → sample stacks + custom keys
 - `MediaCodecLifecycle.kt` — classify lifecycle failures; map to `CancellationException` when job inactive
 - `runMediaCodecCancellable` around pass-1/pass-2 dequeue paths
 - `OpenLoopViewModel` — skip `markReversePreviewFailed` on `CancellationException`
-- `BoomerangEditorScreen` — immediate `EditorPlaylistBind.teardownPlayerForReversePreview` (no debounce race)
+- `BoomerangEditorScreen` — `playerEpoch++` on reverse loading (`ExoPlayer.release()`, not `stop()` alone)
 - `VideoReverser.reverse()` — Samsung retry pass 1+2 after `SAMSUNG_CODEC_CONTENTION_RETRY_MS`
 
 ---
@@ -140,7 +142,7 @@ From `topIssues` (7-day window, ~2026-06-04). PR #62 may reduce these via shared
 | `app/.../media/MediaCodecLifecycle.kt` | Lifecycle detection, cancel mapping, retry policy |
 | `app/.../media/VideoReverser.kt` | `openSurfaceCodecPipeline`, reverse retry loop, cancellable dequeue |
 | `app/.../media/DeviceMediaHints.kt` | `SAMSUNG_CODEC_CONTENTION_RETRY_MS`, `SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS` |
-| `app/.../ui/EditorPlaylistBind.kt` | `teardownPlayerForReversePreview` |
+| `app/.../ui/EditorPlaylistBind.kt` | `requiresPlayerEpochBumpForReversePreview` |
 | `app/.../ui/BoomerangEditorScreen.kt` | Immediate ExoPlayer teardown when reverse loading |
 | `app/.../ui/OpenLoopViewModel.kt` | Ignore `CancellationException` in `ensureReversed` failure path |
 | `app/.../diagnostics/ReverseCrashlytics.kt` | Non-fatals + custom keys (`reverse_outcome`, etc.) |

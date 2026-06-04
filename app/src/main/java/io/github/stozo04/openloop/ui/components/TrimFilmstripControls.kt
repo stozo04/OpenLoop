@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -274,7 +277,7 @@ private fun FilmstripTrimSelector(
         val safeDuration = durationMs.coerceAtLeast(1L)
 
         fun positionPx(ms: Long): Float = (ms.toFloat() / safeDuration) * trackPx
-        fun xToMs(x: Float): Long = ((x / trackPx).coerceIn(0f, 1f) * safeDuration).roundToLong()
+        fun pxToMs(px: Float): Long = (px / trackPx * safeDuration).roundToLong()
 
         val curStartMs by rememberUpdatedState(startMs)
         val curEndMs by rememberUpdatedState(endMs)
@@ -283,6 +286,11 @@ private fun FilmstripTrimSelector(
         val dragEnd by rememberUpdatedState(onDragEnd)
 
         var dragging by remember { mutableStateOf(TrimDragTarget.NONE) }
+        // Finger-down x and the grabbed handle's value at grab time. We move the handle by the drag
+        // DELTA from this anchor — not by teleporting it to the absolute finger x — so a touch tracks
+        // the finger 1:1 instead of yanking the handle to wherever the screen was first touched.
+        var dragAnchorPx by remember { mutableFloatStateOf(0f) }
+        var dragAnchorMs by remember { mutableLongStateOf(0L) }
 
         val selectionStart = positionPx(startMs)
         val selectionEnd = positionPx(endMs).coerceAtLeast(selectionStart + 1f)
@@ -403,31 +411,51 @@ private fun FilmstripTrimSelector(
             stripHeightPx = stripHeightPx,
         )
 
-        // ── Full-area drag capture (same stable overlay pattern as the legacy trim bar) ──
+        // ── Full-area drag capture ──
+        // systemGestureExclusion keeps a drag that starts on an edge handle (start handle at x≈0,
+        // end handle at x≈trackPx) from being stolen by the OS back-swipe gesture.
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .systemGestureExclusion()
                 .semantics { hideFromAccessibility() }
                 .pointerInput(durationMs) {
                     detectDragGestures(
                         onDragStart = { pos ->
-                            val startCenter = positionPx(curStartMs)
-                            val endCenter = positionPx(curEndMs)
-                            dragging = if (abs(pos.x - startCenter) <= abs(pos.x - endCenter)) {
-                                TrimDragTarget.START
-                            } else {
-                                TrimDragTarget.END
+                            // Grab a handle only when the touch lands within its touch zone. The old
+                            // "nearest of the two across the whole bar" rule meant a touch anywhere in
+                            // the left half snapped the start handle to the finger — the over-sensitive
+                            // start-handle bug. Now a touch in the dead middle grabs nothing.
+                            val distStart = abs(pos.x - positionPx(curStartMs))
+                            val distEnd = abs(pos.x - positionPx(curEndMs))
+                            dragging = when {
+                                distStart > handleTouchPx && distEnd > handleTouchPx -> TrimDragTarget.NONE
+                                distStart <= distEnd -> TrimDragTarget.START
+                                else -> TrimDragTarget.END
+                            }
+                            dragAnchorPx = pos.x
+                            dragAnchorMs = when (dragging) {
+                                TrimDragTarget.START -> curStartMs
+                                TrimDragTarget.END -> curEndMs
+                                TrimDragTarget.NONE -> 0L
                             }
                         },
-                        onDragEnd = { dragging = TrimDragTarget.NONE; dragEnd() },
+                        onDragEnd = {
+                            val wasDragging = dragging != TrimDragTarget.NONE
+                            dragging = TrimDragTarget.NONE
+                            if (wasDragging) dragEnd()
+                        },
                         onDragCancel = { dragging = TrimDragTarget.NONE },
                     ) { change, _ ->
+                        if (dragging == TrimDragTarget.NONE) return@detectDragGestures
                         change.consume()
+                        // Anchored delta: handle value = (value at grab) + (how far the finger moved).
+                        val target = dragAnchorMs + pxToMs(change.position.x - dragAnchorPx)
                         when (dragging) {
                             TrimDragTarget.START ->
-                                startDrag(xToMs(change.position.x).coerceIn(0L, curEndMs - minGapMs))
+                                startDrag(target.coerceIn(0L, curEndMs - minGapMs))
                             TrimDragTarget.END ->
-                                endDrag(xToMs(change.position.x).coerceIn(curStartMs + minGapMs, durationMs))
+                                endDrag(target.coerceIn(curStartMs + minGapMs, durationMs))
                             TrimDragTarget.NONE -> {}
                         }
                     }

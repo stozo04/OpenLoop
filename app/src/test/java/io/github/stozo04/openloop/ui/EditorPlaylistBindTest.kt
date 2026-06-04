@@ -1,7 +1,7 @@
 package io.github.stozo04.openloop.ui
 
+import io.github.stozo04.openloop.media.PRE_REVERSE_CODEC_SETTLE_MS
 import io.github.stozo04.openloop.media.SAMSUNG_CODEC_CONTENTION_RETRY_MS
-import io.github.stozo04.openloop.media.SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS
 import io.github.stozo04.openloop.media.SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -28,8 +28,13 @@ class EditorPlaylistBindTest {
     }
 
     @Test
+    fun `reverse preview requires player epoch bump not stop alone`() {
+        assertTrue(EditorPlaylistBind.requiresPlayerEpochBumpForReversePreview())
+    }
+
+    @Test
     fun `samsung contention retry constants are ordered`() {
-        assertTrue(SAMSUNG_CODEC_CONTENTION_RETRY_MS >= SAMSUNG_PRE_REVERSE_CODEC_SETTLE_MS)
+        assertTrue(SAMSUNG_CODEC_CONTENTION_RETRY_MS >= PRE_REVERSE_CODEC_SETTLE_MS)
         assertEquals(2, SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS)
     }
 }
