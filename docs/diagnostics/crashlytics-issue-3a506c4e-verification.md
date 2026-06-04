@@ -2,7 +2,7 @@
 
 **Issue:** `VideoReverser.runDecodeEncodeLoop` · `IllegalStateException` (NON_FATAL)  
 **Firebase:** [openloop-8c266 / issue 3a506c4ecc5bfeff0ab2b56d58f6e1d6](https://console.firebase.google.com/project/openloop-8c266/crashlytics/app/android:io.github.stozo04.openloop/issues/3a506c4ecc5bfeff0ab2b56d58f6e1d6)  
-**Branch:** `fix/crashlytics-3a506c4e-pass1-codec-lifecycle`
+**Branch:** `fix/crashlytics-3a506c4e-pass1-codec-lifecycle` · **Ship:** 1.0.18 (18) · **Handoff:** [`docs/active/crashlytics-reverse-preview/HANDOFF.md`](../active/crashlytics-reverse-preview/HANDOFF.md)
 
 Historical events (e.g. **1.0.9**) will remain in the console. Success means **no new events** after a build that includes this fix ships to testers/Play.
 
