@@ -1,12 +1,12 @@
 # E2E Fold Loop — State
 
-- Iteration: 1 (last run 2026-06-04_160734)
+- Iteration: 2 (last run 2026-06-04_162455) — **LOOP COMPLETE: clean sweep confirmed**
 - Source video: `C:\Users\gates\Personal\OpenRang\google-pro-fold-video.mp4` 2,602,743 bytes ·
   5.447 s · 1280×720 H.264 8-bit SDR · 30 fps (real spacing 33,222 µs) · AAC + data track
 - AVD names: `Pixel_6` | `Pixel_8` | `Pixel_10_Pro_Fold` (all Android 17 / API 37, 16k x86_64)
-- Last iteration result: P6 PASS · P8 PASS · Fold PASS — **on the post-fix APK; a mid-run code
-  fix was needed, so this does not count as a clean sweep**
-- Consecutive clean sweeps: 0
+- Last iteration result: P6 PASS · P8 PASS · Fold PASS — zero code changes (iter-2 report:
+  `2026-06-04_162455-iter-2.md`)
+- Consecutive clean sweeps: 1
 
 ## Open bugs
 
@@ -36,9 +36,9 @@
 - Speed slider is continuous: tap ~35 px right of the "1x" tick label center (Pixel 6/8 scale).
 - CHURN baseline (single clean run, Pixel 8): 45 `Created component [c2.*]`.
 
-## Next iteration starts with
+## Loop exit (2026-06-04)
 
-- Full 3-device sweep on commit `731b26b` (or later) with ZERO code changes — that confirms the
-  clean sweep and ends the loop (announce + recommend PR).
-- Carry forward: BUG-2 decision; recommend S23 re-verify (BUG-1 fix doubles pass-1 encode count
-  for low-jitter at-cap sources on every device incl. Samsung).
+- Iteration 2 confirmed the clean sweep — goal met, loop ended. Next step: open a PR from
+  `feature/e2e-fold-loop-fixes` (full Definition-of-Done gate applies at PR time).
+- Carry forward to PR/issues: BUG-2 decision; S23 re-verify recommendation (BUG-1 fix increases
+  pass-1 encode count for low-jitter at-cap sources on every device incl. Samsung).
