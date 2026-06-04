@@ -32,3 +32,6 @@ local/
 # Temporary files
 *.tmp
 *.log
+
+# E2E loop source video — local test asset, never commit (see .claude/commands/e2e-fold-loop.md)
+google-pro-fold-video.mp4
