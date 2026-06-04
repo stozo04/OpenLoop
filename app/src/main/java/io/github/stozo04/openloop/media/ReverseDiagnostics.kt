@@ -40,8 +40,14 @@ internal fun probeReversePreviewDiagnostics(source: File): ReversePreviewDiagnos
         }
     }.getOrNull()
 
+/** Which pipeline phase produced a diagnostic — drives report wording + the Crashlytics key. */
+internal const val REVERSE_REPORT_PHASE_PREVIEW = "preview"
+internal const val REVERSE_REPORT_PHASE_SAVE = "save"
+
 /**
  * Plain-text bundle testers can share via email/WhatsApp (no Android Studio required).
+ * [phase] is [REVERSE_REPORT_PHASE_PREVIEW] (editor ping-pong reverse) or
+ * [REVERSE_REPORT_PHASE_SAVE] (the Loopifying render behind the green check).
  */
 internal fun buildReverseSupportReport(
     versionName: String,
@@ -50,8 +56,11 @@ internal fun buildReverseSupportReport(
     trimStartMs: Long,
     trimEndMs: Long,
     outcome: String,
+    phase: String = REVERSE_REPORT_PHASE_PREVIEW,
 ): String = buildString {
-    appendLine("OpenLoop — loop preview diagnostic")
+    val saving = phase == REVERSE_REPORT_PHASE_SAVE
+    appendLine(if (saving) "OpenLoop — save loop diagnostic" else "OpenLoop — loop preview diagnostic")
+    appendLine("Phase: $phase")
     appendLine("Outcome: $outcome")
     appendLine("App: $versionName ($versionCode)")
     appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
@@ -64,7 +73,13 @@ internal fun buildReverseSupportReport(
         )
     }
     appendLine()
-    appendLine("What you saw: stuck on \"Trimming..\" / could not save")
+    appendLine(
+        if (saving) {
+            "What you saw: \"Couldn't save loop.\""
+        } else {
+            "What you saw: stuck on \"Trimming..\" / could not save"
+        },
+    )
     appendLine("How to help: send this entire message to the developer.")
     appendLine("Crashlytics: a non-fatal report is also queued if Firebase is configured (next app open).")
 }

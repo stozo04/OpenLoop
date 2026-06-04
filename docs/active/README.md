@@ -49,6 +49,9 @@ the slice-by-slice delivery plan and per-slice PRDs live in [`boomerang-rollout/
 | Onboarding page-1 video | `feature/loop-1` | Built; PR #34 open — see [`onboarding-video/`](./onboarding-video/IMPLEMENTATION.md) |
 | Editor **Trimming..** overlay stuck (library import) | `feature/UI-Updates` | **Fixed** — see [`editor-trimming-overlay-stuck/HANDOFF.md`](./editor-trimming-overlay-stuck/HANDOFF.md) |
 | Editor memory / OOM hardening (Crashlytics `ef2823cf…`) | `feature/editor-memory-oom` (suggested) | Spec — [`editor-memory-oom/IMPLEMENTATION.md`](./editor-memory-oom/IMPLEMENTATION.md) |
+| Crashlytics reverse-preview codec (`3a506c4e`, `b09e527`) | `fix/crashlytics-3a506c4e-pass1-codec-lifecycle` | PR [#62](https://github.com/stozo04/OpenLoop/pull/62) — [`crashlytics-reverse-preview/HANDOFF.md`](./crashlytics-reverse-preview/HANDOFF.md) |
+| Editor codec churn (reverse timeout / slot pressure) | (follow-up on #62 branch or new) | [`editor-codec-churn/IMPLEMENTATION.md`](./editor-codec-churn/IMPLEMENTATION.md) |
+| Reverse output validation + save failure debug report (Samsung S23 empty pass-2) | `fix/reverse-output-validation` (suggested) | Spec amended 2026-06-04 with logcat forensics — [`reverse-output-validation/IMPLEMENTATION.md`](./reverse-output-validation/IMPLEMENTATION.md) + [`RESEARCH.md`](./reverse-output-validation/RESEARCH.md) |
 
 > Now in `docs/completed/`: Boomerang slice 01 (variable-length capture) & slice 02 (auto-route trim +
 > default save), VideoStorageRepository / remove Context from ViewModel (Issue #10, PR #17), Target SDK

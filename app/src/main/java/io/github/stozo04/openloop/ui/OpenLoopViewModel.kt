@@ -73,8 +73,13 @@ sealed interface BoomerangEvent {
      * behind the chooser.
      */
     object Saved : BoomerangEvent
-    /** Boomerang render failed. Snackbar invites a retry; the trim selection is preserved. */
-    object Failed : BoomerangEvent
+    /**
+     * Boomerang render failed (Loopifying / save path). Snackbar invites a retry; the trim and
+     * direction selections are preserved. Carries the shareable [supportReport] (null if
+     * unavailable) so the snackbar can offer a "Send debug report" action — the same
+     * tester-friendly path as [ReversePreviewFallbackForward] (reverse-output-validation spec §5.5).
+     */
+    data class SaveFailed(val supportReport: String?) : BoomerangEvent
 
     /**
      * A picked library video was longer than the import limit (slice 07). Drives the friendly
@@ -91,9 +96,11 @@ sealed interface BoomerangEvent {
 
     /**
      * Preview reverse failed or timed out; editor fell back to [BoomerangMode.FORWARD] so the user
-     * can preview and save. Ping-pong can be retried from the Loop direction tab.
+     * can preview and save, and can retry the reverse from the Loop direction tab. Carries the
+     * shareable [supportReport] (null if unavailable) so the snackbar can offer a "Send report"
+     * action — the user-friendly feedback/crash-report path.
      */
-    object ReversePreviewFallbackForward : BoomerangEvent
+    data class ReversePreviewFallbackForward(val supportReport: String?) : BoomerangEvent
 
     /**
      * One or more gallery loops were marked for deletion (Issue #35). Drives the Undo snackbar; the
@@ -883,6 +890,13 @@ class OpenLoopViewModel(
                         reverseSupportReport = null,
                     )
                 }.onFailure { error ->
+                    if (error is CancellationException) {
+                        ReversePreviewLog.d(
+                            "viewModel.ensureReversed.cancelled",
+                            "gen=$generation ${error.javaClass.simpleName}",
+                        )
+                        return@launch
+                    }
                     if (error is PreviewReverseTimeoutException) {
                         ReversePreviewLog.e(
                             "viewModel.ensureReversed.timeout",
@@ -967,7 +981,7 @@ class OpenLoopViewModel(
         reverseJob = null
         cleanupReverseScratchAfterCancel()
         viewModelScope.launch {
-            _events.send(BoomerangEvent.ReversePreviewFallbackForward)
+            _events.send(BoomerangEvent.ReversePreviewFallbackForward(supportReport))
         }
     }
 
@@ -1020,8 +1034,8 @@ class OpenLoopViewModel(
      * share sheet — slice 06) and returns to capture. The render
      * sources the **scratch** file — the same path the preview reversed — so a reverse-containing mode
      * hits the cached reversed clip instead of regenerating it (speed is applied per clip at render and
-     * doesn't invalidate that cache). On failure, it emits [BoomerangEvent.Failed] and routes back to
-     * [OpenLoopUiState.BoomerangEditor] with the direction + speed selection intact.
+     * doesn't invalidate that cache). On failure, it emits [BoomerangEvent.SaveFailed] and routes back
+     * to [OpenLoopUiState.BoomerangEditor] with the direction + speed selection intact.
      */
     fun saveBoomerang() {
         val editor = _editorState.value ?: return
@@ -1065,7 +1079,7 @@ class OpenLoopViewModel(
                 throw e // never swallow cancellation (Lesson 013)
             } catch (e: IOException) {
                 Log.e("OpenLoopViewModel", "Boomerang save failed before render enqueue (IO)", e)
-                failBackToEditor(scratch)
+                failBackToEditor(scratch, "Save failed before render enqueue: ${e.javaClass.simpleName}: ${e.message}", e)
             }
         }
     }
@@ -1088,7 +1102,11 @@ class OpenLoopViewModel(
             renderScheduler.observeResult(workId).collect { result ->
                 when (result) {
                     is BoomerangRenderWorkResult.Success -> onRenderSucceeded(result)
-                    BoomerangRenderWorkResult.Failure -> failBackToEditor(scratch)
+                    BoomerangRenderWorkResult.Failure -> failBackToEditor(
+                        scratch,
+                        "Render worker reported failure (details in BoomerangRenderWorker log)",
+                        cause = null,
+                    )
                 }
             }
         }
@@ -1125,15 +1143,45 @@ class OpenLoopViewModel(
         viewModelScope.launch { _events.send(BoomerangEvent.Saved) }
     }
 
-    /** Emit [BoomerangEvent.Failed] and route back to the editor, preserving the direction selection. */
-    private suspend fun failBackToEditor(scratch: ScratchCapture) {
+    /**
+     * Report the save failure (Crashlytics non-fatal + shareable report), emit
+     * [BoomerangEvent.SaveFailed], and route back to the editor preserving the direction selection.
+     * [cause] is null when the failure arrived as a bare [BoomerangRenderWorkResult.Failure] —
+     * WorkManager does not carry the worker's exception across; its details are in the
+     * `BoomerangRenderWorker` log and the worker process's own Crashlytics breadcrumbs.
+     */
+    private suspend fun failBackToEditor(scratch: ScratchCapture, outcome: String, cause: Throwable?) {
         renderObserveJob?.cancel()
         renderObserveJob = null
         activeRenderScratchUuid = null
         _renderProgress.value = 0f
-        _events.send(BoomerangEvent.Failed)
+        val editor = _editorState.value
+        val trimStartMs = editor?.trimStartMs ?: 0L
+        val trimEndMs = editor?.trimEndMs ?: 0L
+        ReverseCrashlytics.reportSaveFailure(
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+            source = scratch.file,
+            trimStartMs = trimStartMs,
+            trimEndMs = trimEndMs,
+            outcome = outcome,
+            cause = cause ?: SaveRenderFailedException(outcome),
+        )
+        val supportReport = ReverseCrashlytics.supportReportForShare(
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+            source = scratch.file,
+            trimStartMs = trimStartMs,
+            trimEndMs = trimEndMs,
+            outcome = outcome,
+            phase = ReverseCrashlytics.PHASE_SAVE,
+        )
+        _events.send(BoomerangEvent.SaveFailed(supportReport))
         _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
     }
+
+    /** Stand-in cause when a render failure arrives as a bare WorkManager [Result.failure]. */
+    private class SaveRenderFailedException(message: String) : Exception(message)
 
     /** Cancel any in-flight reverse generation (editor left or session cleared). */
     private fun resetEditorTabForNewClip() {

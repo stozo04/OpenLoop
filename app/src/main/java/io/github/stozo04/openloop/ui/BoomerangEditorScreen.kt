@@ -1,6 +1,5 @@
 package io.github.stozo04.openloop.ui
 
-import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.os.SystemClock
@@ -109,6 +108,7 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
+import io.github.stozo04.openloop.diagnostics.shareDebugReport
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.ClipDirection
 import io.github.stozo04.openloop.media.VideoFilter
@@ -319,6 +319,20 @@ fun BoomerangEditorContent(
     // VideoReverser pass 1 opens another decoder/encoder (IllegalStateException: Released state).
     val reversePreviewLoading = effectivePreviewLoading.isReversePreviewLoading()
 
+    // Release preview decoders before pass 1: stop() alone keeps the slot (editor-codec-churn doc).
+    // Epoch bump matches the effects-teardown path — DisposableEffect release() on the old player.
+    LaunchedEffect(reversePreviewLoading) {
+        if (!reversePreviewLoading) return@LaunchedEffect
+        if (!EditorPlaylistBind.requiresPlayerEpochBumpForReversePreview()) return@LaunchedEffect
+        // Skip the bump when the player holds no media — i.e. the first reverse on editor entry,
+        // where the playlist is still held (shouldHoldPlaylist) so no preview decoder exists to free.
+        // Recreating an empty player there is pure waste (editor-codec-churn finding 3). On later
+        // reverses the prior preview is still bound (mediaItemCount > 0), so the release runs.
+        if (exoPlayer.mediaItemCount == 0) return@LaunchedEffect
+        playerHasAppliedEffects = false
+        playerEpoch++
+    }
+
     // Rebind the playlist whenever the direction, the reversed file, or the trim changes. setMediaItems
     // replaces the whole playlist (no in-place re-clip of a same-URI item, which ExoPlayer dedupes —
     // slice-02 HANDOFF), then prepare() restarts playback of the new cycle. Both the speed
@@ -328,12 +342,12 @@ fun BoomerangEditorContent(
     // exoPlayer is a key so a recreated (epoch-bumped) instance gets the playlist rebound — without
     // it the fresh player would sit empty and the preview would go black.
     LaunchedEffect(exoPlayer, mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
-        delay(PLAYLIST_DEBOUNCE_MS)
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
         if (EditorPlaylistBind.shouldHoldPlaylist(reversePreviewLoading)) {
             return@LaunchedEffect
         }
+        delay(PLAYLIST_DEBOUNCE_MS)
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
         val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile, seamMs)
         if (EditorPlaylistBind.shouldClearPlaylist(items.isEmpty())) {
             return@LaunchedEffect
@@ -497,20 +511,19 @@ fun BoomerangEditorContent(
                         if (!reverseSupportReport.isNullOrBlank()) {
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                text = "SEND DEBUG INFO",
+                                // Label unified with the snackbar actions ("Send debug report") —
+                                // reverse-output-validation spec §4.
+                                text = "SEND DEBUG REPORT",
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelLarge,
                                 modifier = Modifier
                                     .clip(MaterialTheme.shapes.small)
                                     .border(1.dp, OverlayWhiteBorder, MaterialTheme.shapes.small)
                                     .clickable {
-                                        val share = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, reverseSupportReport)
-                                            putExtra(Intent.EXTRA_SUBJECT, "OpenLoop loop debug")
-                                        }
-                                        context.startActivity(
-                                            Intent.createChooser(share, "Send debug info"),
+                                        context.shareDebugReport(
+                                            report = reverseSupportReport,
+                                            subject = "OpenLoop loop debug",
+                                            chooserTitle = "Send debug report",
                                         )
                                     }
                                     .padding(horizontal = 20.dp, vertical = 10.dp)

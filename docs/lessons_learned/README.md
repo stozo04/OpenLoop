@@ -35,6 +35,7 @@ Each lesson follows the same shape:
 | 020 | [Imported clips exercise codecs the camera never produces: tone-map HDR, prefer a HW encoder, cap resolution; a failed reverse must never wedge the editor](./020-imported-clips-hdr-codec-and-reverse-failure-recovery.md) | Slice 07 |
 | 021 | [Don't downscale inside a decode→encode-Surface transcode by sizing the encoder Surface smaller than the decoder output (green corruption on the SW path); cap resolution in the Media3 render instead](./021-reverse-downscale-surface-mismatch.md) | Onboarding video |
 | 022 | [Release CameraX when the PreviewView leaves composition, not only when the Activity stops](./022-release-camera-when-preview-leaves-composition.md) | Issue #36 |
+| 023 | [A media pipeline stage must count its own output samples; a zero-frame stage can exit "cleanly"](./023-media-pipeline-stages-must-count-output-samples.md) | PR #62 (S23 zero-frame wedge) |
 
 ## Adding a new lesson
 

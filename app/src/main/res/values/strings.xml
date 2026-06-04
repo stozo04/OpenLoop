@@ -19,8 +19,10 @@
     <!-- Post-save snackbars (slice 06) -->
     <string name="snackbar_saved">Loop saved</string>
     <string name="snackbar_view_action">View</string>
-    <string name="snackbar_save_failed">Couldn\'t save loop. Try again.</string>
-    <string name="snackbar_reverse_preview_forward">Couldn\'t preview ping-pong on this clip — showing forward only. Change direction in Loop to try again.</string>
+    <string name="snackbar_save_failed">Couldn\'t save your loop. Try again, or send a debug report so we can fix device issues.</string>
+    <string name="snackbar_save_failed_report_action">Send debug report</string>
+    <string name="snackbar_reverse_preview_forward">We couldn\'t build the reverse for this clip, so it\'s playing forward only. You can retry from the Loop tab.</string>
+    <string name="snackbar_reverse_preview_report_action">Send debug report</string>
 
     <!-- Gallery: long-press multi-select + undo delete (Issue #35) -->
     <string name="undo">Undo</string>

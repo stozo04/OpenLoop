@@ -113,6 +113,36 @@ class VideoReverserTest {
     }
 
     /**
+     * Cache-poison regression (reverse-output-validation spec §5.2 / RESEARCH.md §6.1): a wedged
+     * pass 2 on the S23 left a 598-byte zero-sample shell at the cache path, and the old
+     * `length() > 0` gate replayed it forever. Seeding the exact real artifact at the cache path
+     * must now be detected, deleted, and regenerated into a valid reversed clip.
+     */
+    @Test
+    fun reverse_poisonedCacheShell_isDeletedAndRegenerated() = runBlocking {
+        val digest = java.security.MessageDigest.getInstance("SHA-1")
+            .digest("${fixture.absolutePath}_0_$durationMs".toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        val poisoned = File(scratchDir, "$digest.mp4")
+        InstrumentationRegistry.getInstrumentation().context.assets
+            .open("reversed_empty_s23_854x480.mp4").use { input ->
+                poisoned.outputStream().use { output -> input.copyTo(output) }
+            }
+        assertEquals("seed must be the real 598-byte S23 shell", 598L, poisoned.length())
+
+        val output = reverser.reverse(fixture, 0L, durationMs)
+
+        assertEquals(
+            "regenerated output must land on the same cache path the shell poisoned",
+            poisoned.absolutePath,
+            output.absolutePath,
+        )
+        val v = ReverseOutputValidator.validateReversedOutput(output)
+        assertTrue("expected a valid regenerated reverse, got ${v.reason}", v.valid)
+        assertTrue("expected >=1 sample, got ${v.sampleCount}", v.sampleCount >= 1)
+    }
+
+    /**
      * The actual correctness guarantee: the **first** frame of the reversed output is the **last**
      * frame of the source trim window. Compared by mean luma (exact pixel equality is unreliable
      * across an encode round-trip), with a tolerance that comfortably absorbs codec drift while still
