@@ -251,6 +251,18 @@ class VideoStorageRepositoryImpl(
         Unit
     }
 
+    override suspend fun deleteRawVideo(id: Long) = withContext(Dispatchers.IO) {
+        val videoFile = File(videosDir, "clip_$id.mp4")
+        val thumbFile = File(thumbnailsDir, "clip_$id.jpg")
+        try {
+            if (videoFile.exists()) videoFile.delete()
+            if (thumbFile.exists()) thumbFile.delete()
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Failed to delete raw video $id", e)
+        }
+        Unit
+    }
+
     /**
      * Extract the first frame of [video] to [dest] as a 90%-quality JPEG. The retriever is released
      * in a `finally` so a decode failure can't leak the native handle (the prior implementation

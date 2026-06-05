@@ -141,6 +141,7 @@ class OpenLoopNavHostTest {
         override suspend fun durationOf(file: File): Long = 0L
         override suspend fun loadRecordedVideos(): List<RecordedVideo> = emptyList()
         override suspend fun deleteVideo(video: RecordedVideo) {}
+        override suspend fun deleteRawVideo(id: Long) {}
         override suspend fun pruneStaleScratch(olderThanMs: Long): Int = 0
     }
 

@@ -81,6 +81,9 @@ class BoomerangRenderWorker(
 
                 videoStorage.discardScratch(parsed.scratch)
 
+                // The original raw video is no longer needed after a successful boomerang render.
+                videoStorage.deleteRawVideo(parsed.rawId)
+
                 Result.success(
                     Data.Builder()
                         .putString(BoomerangRenderWorkerKeys.OUTPUT_FILE_PATH, parsed.outputFile.absolutePath)

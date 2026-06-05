@@ -173,6 +173,10 @@ class FakeVideoStorageRepository : VideoStorageRepository {
     override suspend fun deleteVideo(video: RecordedVideo) {
         saved.remove(video)
     }
+
+    override suspend fun deleteRawVideo(id: Long) {
+        saved.removeIf { it.id == id && it.kind == VideoKind.RAW }
+    }
 }
 
 /**

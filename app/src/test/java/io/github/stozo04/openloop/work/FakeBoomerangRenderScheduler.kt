@@ -55,6 +55,7 @@ class FakeBoomerangRenderScheduler(
                 storage.registerBoomerang(request.outputFile, request.rawId)
                     ?: throw IOException("Failed to register boomerang")
                 storage.discardScratch(request.scratch)
+                storage.deleteRawVideo(request.rawId)
                 results.emit(
                     BoomerangRenderWorkResult.Success(
                         outputFile = request.outputFile,
