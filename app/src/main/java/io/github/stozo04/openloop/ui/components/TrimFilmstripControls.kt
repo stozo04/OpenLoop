@@ -260,7 +260,7 @@ private fun FilmstripTrimSelector(
     val haptics = LocalHapticFeedback.current
     val handleVisualPx = with(density) { HANDLE_VISUAL_WIDTH.toPx() }
     val handleTouchPx = with(density) { HANDLE_TOUCH_WIDTH.toPx() }
-    val minGapMs = OpenLoopViewModel.MIN_TRIM_MS
+    val minGapMs = OpenLoopViewModel.MIN_TRIM_DURATION.inWholeMilliseconds
 
     BoxWithConstraints(
         modifier = modifier

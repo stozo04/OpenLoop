@@ -151,7 +151,7 @@ fun TrimScreenContent(
         onDispose { exoPlayer.removeListener(listener) }
     }
 
-    val trimValid = (endMs - startMs) >= OpenLoopViewModel.MIN_TRIM_MS
+    val trimValid = (endMs - startMs) >= OpenLoopViewModel.MIN_TRIM_DURATION.inWholeMilliseconds
 
     OpenLoopBackground(modifier = modifier) {
         Box(
