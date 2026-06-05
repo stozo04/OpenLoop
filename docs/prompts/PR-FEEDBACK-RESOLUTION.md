@@ -1,12 +1,12 @@
 # PR Feedback Resolution — Reusable Session Prompt
 
-Copy everything below the line into a fresh Claude session with the OpenRang folder mounted. Replace `#XX` with your PR number.
+Copy everything below the line into a fresh Claude session with the OpenLoop folder mounted. Replace `#XX` with your PR number.
 
 ---
 
 ## Session Prompt — Address PR Review Feedback & Re-Review
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops. Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04).
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops. Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04).
 
 ## Critical Rule — Do Not Trust Your Training Data
 

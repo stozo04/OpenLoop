@@ -1,12 +1,12 @@
 # Boomerang Slice 06 — Kickoff Prompt for a Fresh Claude Code Session
 
-Copy everything below the line into a fresh Claude Code session with the OpenRang folder mounted. This kickoff is specific to **slice 06 (Share sheet + return-to-camera)**. Assumes slices 01–05 have shipped and are merged to `main`.
+Copy everything below the line into a fresh Claude Code session with the OpenLoop folder mounted. This kickoff is specific to **slice 06 (Share sheet + return-to-camera)**. Assumes slices 01–05 have shipped and are merged to `main`.
 
 ---
 
 ## Session Prompt — Implement Boomerang Slice 06
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
 
 The editor is feature-complete (direction + speed + reps + trim, slices 02–05 shipped) and saves rendered boomerangs to internal storage. This slice adds the **single-tap distribution path** — Save now pops the Android share sheet on the new MP4, and the user lands back on the camera with a "View in gallery" snackbar.
 
@@ -62,14 +62,14 @@ If anything has drifted, **stop and surface** before coding.
 
 - **`AndroidManifest.xml`** — add `<provider>` for `androidx.core.content.FileProvider` with authority `${applicationId}.fileprovider`, `exported=false`, `grantUriPermissions=true`, meta-data pointing at `@xml/file_paths`.
 - **`res/xml/file_paths.xml`** (new) — `<files-path name="boomerangs" path="boomerangs/" />` only. Raws and scratch are NOT exposed.
-- **`OpenRangViewModel.kt`** — replace the snackbar-emitting success path with a `MutableSharedFlow<UiEffect>` (`extraBufferCapacity = 4`) exposing `uiEffects`. Add `UiEffect.ShareBoomerang(file)`, `UiEffect.Saved`, `UiEffect.SaveFailed`. On render success, emit `ShareBoomerang(file)` then post `ReadyToCapture`. `Saved` is emitted after `withResumed { ... }` resolves.
-- **`MainActivity.kt`** — collect `uiEffects` with `repeatOnLifecycle(STARTED)`. On `ShareBoomerang`, build the `Intent.createChooser(...)` and `startActivity`. Host a `SnackbarHostState` in the `Scaffold`; on `Saved`, `showSnackbar(message, actionLabel = "View")`; on `ActionPerformed`, post `OpenRangUiState.Gallery`.
+- **`OpenLoopViewModel.kt`** — replace the snackbar-emitting success path with a `MutableSharedFlow<UiEffect>` (`extraBufferCapacity = 4`) exposing `uiEffects`. Add `UiEffect.ShareBoomerang(file)`, `UiEffect.Saved`, `UiEffect.SaveFailed`. On render success, emit `ShareBoomerang(file)` then post `ReadyToCapture`. `Saved` is emitted after `withResumed { ... }` resolves.
+- **`MainActivity.kt`** — collect `uiEffects` with `repeatOnLifecycle(STARTED)`. On `ShareBoomerang`, build the `Intent.createChooser(...)` and `startActivity`. Host a `SnackbarHostState` in the `Scaffold`; on `Saved`, `showSnackbar(message, actionLabel = "View")`; on `ActionPerformed`, post `OpenLoopUiState.Gallery`.
 
 **Stay scoped to slice 06.** Do not add: gallery tap-to-edit / kind badge / filter chips (slice 07). Do not write to public `MediaStore` (parent doc D-6 explicitly defers this).
 
 ## Phase 4: Test
 
-- Unit tests: `OpenRangViewModelTest` for `saveBoomerang` emitting `ShareBoomerang(file)` on success then transitioning to `ReadyToCapture`; emitting `SaveFailed` on error and staying in `BoomerangEditor`; `Saved` ordering verified via flow collection.
+- Unit tests: `OpenLoopViewModelTest` for `saveBoomerang` emitting `ShareBoomerang(file)` on success then transitioning to `ReadyToCapture`; emitting `SaveFailed` on error and staying in `BoomerangEditor`; `Saved` ordering verified via flow collection.
 - Instrumented test (`MainActivityTest` or `ShareIntentTest`): use `androidx.test.espresso.intent.Intents` to assert `intended(allOf(hasAction(ACTION_SEND), hasType("video/mp4"), hasExtraWithKey(EXTRA_STREAM)))`. After returning from the chooser, snackbar text is visible; tapping "View" routes to `Gallery`.
 - End-to-end: capture → trim → editor → save → share sheet appears → cancel → snackbar on camera screen with "View" action.
 - Run:

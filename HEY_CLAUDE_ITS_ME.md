@@ -5,7 +5,7 @@ at the repo root (yes, against the "docs go in `docs/`" rule — he made the cal
 one sanctioned exception). It's not the source of truth; it's the hand on your shoulder pointing
 you at the source of truth, plus the stuff I wish someone had told *me* at minute one.
 
-_Written 2026-05-28 by the Opus 4.7 session that took OpenRang to `targetSdk 36`._
+_Written 2026-05-28 by the Opus 4.7 session that took OpenLoop to `targetSdk 36`._
 
 ---
 
@@ -56,7 +56,7 @@ wants from a CC partner (this is the real gold):
   `build-tools\<ver>\zipalign.exe`, `emulator\emulator.exe`).
 - Steven runs a **physical Pixel 10 Pro Fold (API 36)** — adb commands hit *real hardware*. Be
   considerate (force-stop closes his app on his screen). The `/reset-storage` skill handles the
-  OpenRang reset safely.
+  OpenLoop reset safely.
 
 ## Gotchas this codebase will throw at you
 

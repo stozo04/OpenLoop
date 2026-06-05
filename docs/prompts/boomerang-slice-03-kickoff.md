@@ -1,12 +1,12 @@
 # Boomerang Slice 03 — Kickoff Prompt for a Fresh Claude Code Session
 
-Copy everything below the line into a fresh Claude Code session with the OpenRang folder mounted. This kickoff is specific to **slice 03 (Tabbed Editor + Direction tab)**. Assumes slices 01–02 have shipped and are merged to `main`.
+Copy everything below the line into a fresh Claude Code session with the OpenLoop folder mounted. This kickoff is specific to **slice 03 (Tabbed Editor + Direction tab)**. Assumes slices 01–02 have shipped and are merged to `main`.
 
 ---
 
 ## Session Prompt — Implement Boomerang Slice 03
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
 
 The app currently captures variable-length clips up to 30 s (slice 01), auto-routes to a Trim screen, and renders default boomerangs (slice 02). This slice is where the user gets **expression** for the first time — they can pick how their boomerang plays. The tabbed editor screen lands in this slice, but with only the Direction tab populated. Speed (slice 04) and Reps (slice 05) layer on later.
 
@@ -63,8 +63,8 @@ If anything has drifted from what the slice doc implies, **stop and surface** be
 
 Work the technical deltas in `docs/active/boomerang-rollout/03-editor-direction-tab.md` §"Technical deltas":
 
-- **`OpenRangUiState.kt`** — add `BoomerangEditor(source, trim)` state and `TrimWindow(startMs, endMs)` data class.
-- **`OpenRangViewModel.kt`** — add `editorTabState: StateFlow<EditorTabState>` with `mode`, `reversedFile`, `isReversedFileLoading`, plus mutators `updateMode`, `ensureReversedSegment`, `saveBoomerang`, `discardEditor`. Trim's `NEXT` now posts `BoomerangEditor(source, trim)` (was: `Processing`). **Delete** `saveBoomerangDefault()` from slice 02 — superseded.
+- **`OpenLoopUiState.kt`** — add `BoomerangEditor(source, trim)` state and `TrimWindow(startMs, endMs)` data class.
+- **`OpenLoopViewModel.kt`** — add `editorTabState: StateFlow<EditorTabState>` with `mode`, `reversedFile`, `isReversedFileLoading`, plus mutators `updateMode`, `ensureReversedSegment`, `saveBoomerang`, `discardEditor`. Trim's `NEXT` now posts `BoomerangEditor(source, trim)` (was: `Processing`). **Delete** `saveBoomerangDefault()` from slice 02 — superseded.
 - **`media/VideoProcessor.kt`** — honor the `mode` parameter (no longer hard-coded). For `FORWARD` mode, **skip** `videoReverser.reverse(...)` entirely (saves work and disk I/O). Apply seam offset for two-clip compositions.
 - **`ui/BoomerangEditorScreen.kt`** (new) — layout per the ASCII mock in the slice doc. Direction chips selected styling per design tokens. Save checkmark wired. Preview eagerly calls `ensureReversedSegment()` on entry (per the locked decision). "Preparing reverse…" shimmer overlay while loading. All Flow collection via `collectAsStateWithLifecycle()` (Lesson 002).
 - **`MainActivity.kt`** — route `BoomerangEditor` to `BoomerangEditorScreen(...)`.
@@ -73,7 +73,7 @@ Work the technical deltas in `docs/active/boomerang-rollout/03-editor-direction-
 
 ## Phase 4: Test
 
-- Unit tests from §"Testing plan / Unit tests": `OpenRangViewModelTest` for Trim→Editor transition, `updateMode`, `saveBoomerang` parameter forwarding. `VideoProcessorTest` for each of the 4 modes' Composition layout + duration math + seam frame drop.
+- Unit tests from §"Testing plan / Unit tests": `OpenLoopViewModelTest` for Trim→Editor transition, `updateMode`, `saveBoomerang` parameter forwarding. `VideoProcessorTest` for each of the 4 modes' Composition layout + duration math + seam frame drop.
 - Instrumented `BoomerangEditorScreenTest`: chip selection / deselection, save disabled while reversed-file loading, back returns to Trim with trim preserved.
 - End-to-end: capture → trim → editor → pick `REVERSE` → shimmer → resolves → preview plays reversed → save → file exists with reversed playback.
 - Run:

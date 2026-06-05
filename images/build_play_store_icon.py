@@ -18,8 +18,10 @@ CANVAS_BG = (10, 10, 12)        # #0A0A0C — matches Canvas token
 SIZE = 512
 SAFE_FRACTION = 0.78            # logo occupies ~78% of canvas width
 
-src_foreground = Path("/sessions/busy-brave-cannon/mnt/OpenRang/app/src/main/res/drawable-nodpi/ic_launcher_foreground.png")
-dst = Path("/sessions/busy-brave-cannon/mnt/outputs/play_store_icon_512.png")
+# Use relative paths so it works across environments
+ROOT = Path(__file__).parent.parent
+src_foreground = ROOT / "app/src/main/res/drawable-nodpi/ic_launcher_foreground.png"
+dst = ROOT / "docs/play-store/play_store_icon_512.png"
 
 # 1) Solid dark square background — no transparency, no rounded corners
 bg = Image.new("RGB", (SIZE, SIZE), CANVAS_BG)

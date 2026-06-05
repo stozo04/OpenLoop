@@ -174,7 +174,7 @@ standards.
 - [ ] Permission model changes addressed (if any in the target version)
 - [ ] Storage access changes addressed (if any)
 - [ ] Foreground service restrictions addressed (if applicable)
-- [ ] Camera/media API changes reviewed (relevant for OpenRang)
+- [ ] Camera/media API changes reviewed (relevant for OpenLoop)
 
 ---
 

@@ -126,11 +126,11 @@ trim selection preserved.
 
 ## Technical deltas
 
-### `OpenRangUiState.kt`
+### `OpenLoopUiState.kt`
 
 ```kotlin
-data class Trim(val source: EditorSource) : OpenRangUiState
-object Processing : OpenRangUiState   // already declared in current state file; keep
+data class Trim(val source: EditorSource) : OpenLoopUiState
+object Processing : OpenLoopUiState   // already declared in current state file; keep
 
 sealed interface EditorSource {
     data class ScratchClip(val uuid: String) : EditorSource
@@ -138,7 +138,7 @@ sealed interface EditorSource {
 }
 ```
 
-### `OpenRangViewModel.kt`
+### `OpenLoopViewModel.kt`
 
 - On `VideoRecordEvent.Finalize` success: instead of transitioning to
   `LoopingPreview`, build a `ScratchClip(uuid)` from the just-finalized
@@ -289,7 +289,7 @@ centered spinner + caption (small composable).
 
 ### Unit tests
 
-- `OpenRangViewModelTest`:
+- `OpenLoopViewModelTest`:
   - On `Finalize` success, `uiState` transitions to `Trim(ScratchClip(uuid))`
     (NOT `LoopingPreview` anymore).
   - `editorState.trimStart / trimEnd` initialize to `0 / sourceDuration`.
@@ -354,7 +354,7 @@ centered spinner + caption (small composable).
   estimates, a 3 s trimmed source on Pixel 10 Pro Fold should produce a
   reversed half in ~1 s plus the Composition encode (~0.5 s) for a total of
   ~1.5 s end-to-end. Anything > 4 s warrants investigation.
-- Inspect `cacheDir/scratch/reversed/` via `adb shell run-as com.openrang.app ls`:
+- Inspect `cacheDir/scratch/reversed/` via `adb shell run-as com.OpenLoop.app ls`:
   exactly one reversed `.mp4` should exist; no `_intermediate_*.mp4` should
   remain.
 - Save a second boomerang from a *different* trim window of the same raw → a
@@ -366,12 +366,12 @@ centered spinner + caption (small composable).
 - Tap `View` on snackbar → gallery shows the new boomerang (no badge yet).
 - Discard from Trim screen → confirm dialog → "Yes" returns to camera, scratch
   cleaned up.
-- Process kill on the Trim screen (`adb shell am force-stop com.openrang.app`)
+- Process kill on the Trim screen (`adb shell am force-stop com.OpenLoop.app`)
   → relaunch returns to `ReadyToCapture` (scratch is orphaned; pruning is
   slice-07 territory). Document this is expected.
 - Process kill *during* an in-flight render → on relaunch, no zombie
   intermediate / partial output files in the cache directory; codecs released
-  (verify via `adb shell dumpsys media.codec | grep com.openrang.app` shows
+  (verify via `adb shell dumpsys media.codec | grep com.OpenLoop.app` shows
   no held instances).
 - Screenshot of the Trim screen attached to the PR.
 
@@ -387,7 +387,7 @@ centered spinner + caption (small composable).
 - [ ] All Flow collection in TrimScreen uses `collectAsStateWithLifecycle()`
       (Lesson 002).
 - [ ] All repository writes wrapped in `try / catch (IOException)` (Lesson 003).
-- [ ] No `Context` parameter on any `OpenRangViewModel` method (Lesson 004).
+- [ ] No `Context` parameter on any `OpenLoopViewModel` method (Lesson 004).
 - [ ] FileProvider not yet configured (that's slice 06); confirm no
       `Intent.ACTION_SEND` shipped prematurely.
 - [ ] `VideoReverser` cache behavior verified: cache hit on identical

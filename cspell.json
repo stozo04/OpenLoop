@@ -16,7 +16,7 @@
     "/0x[0-9A-Fa-f]+/"
   ],
   "words": [
-    "OpenRang", "boomerang", "boomerangs", "Loopify",
+    "OpenLoop", "OpenLoopViewModel", "OpenLoopUiState", "boomerang", "boomerangs", "Loopify",
     "vaporwave", "glassmorphic", "Neon", "Coral", "charcoal",
     "Jetpack", "Kotlin", "Gradle", "gradlew", "Kts", "AGP", "zipalign",
     "minSdk", "compileSdk", "targetSdk", "sdk", "anydpi", "mipmap", "dpi",

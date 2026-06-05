@@ -9,7 +9,7 @@
 
 ## Goal
 
-Raise OpenRang from `targetSdk 34` (Android 14) to `targetSdk 36` (Android 16) so the app
+Raise OpenLoop from `targetSdk 34` (Android 14) to `targetSdk 36` (Android 16) so the app
 can be submitted to / updated on Google Play, and meet the related **16 KB page size**
 requirement, while handling every behavior change the bump introduces — verified against
 `developer.android.com`, not training data.
@@ -22,7 +22,7 @@ requirement, while handling every behavior change the bump introduces — verifi
 | The extension allowing API 34 closed **Nov 1, 2025**. | same |
 | Today is **2026-05-28** → both dates passed. At `targetSdk 34` we **cannot publish**. | — |
 | Since **Nov 1, 2025**, apps targeting API 35+ **with native libraries** must support **16 KB page sizes**. | developer.android.com/guide/practices/page-sizes |
-| OpenRang bundles native `.so` libs via **CameraX** and **Media3** → 16 KB rule applies. | dependency inspection |
+| OpenLoop bundles native `.so` libs via **CameraX** and **Media3** → 16 KB rule applies. | dependency inspection |
 
 **Decision (confirmed with owner):** go straight to **API 36 (Android 16)**, the latest, to
 avoid repeating this when Google raises the floor to 36 (expected ~Aug 2026). This means we
@@ -81,9 +81,9 @@ absorb both the 34→35 and 35→36 behavior changes in one pass.
   break on tablets/foldables. Temporary opt-out exists (`PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY`)
   but is explicitly temporary — prefer making the UI adaptive.
 - [ ] **Predictive back default-on.** Verify back navigation. Back must route through the
-  `OpenRangUiState` state machine (per `ANDROID_STANDARDS.md` §10/§11) — do **not** add an ad-hoc back boolean.
+  `OpenLoopUiState` state machine (per `ANDROID_STANDARDS.md` §10/§11) — do **not** add an ad-hoc back boolean.
 - [ ] **Intent redirect hardening, JobScheduler quotas, health permissions** — reviewed, **N/A**
-  for OpenRang's current surface (no exported intents beyond LAUNCHER, no jobs, no health perms).
+  for OpenLoop's current surface (no exported intents beyond LAUNCHER, no jobs, no health perms).
 
 ---
 
@@ -161,7 +161,7 @@ absorb both the 34→35 and 35→36 behavior changes in one pass.
 - [ ] Update this file's **Status** line; on merge to `main`, move folder to `docs/completed/`.
 - [ ] Close issue #7.
 - [ ] **Final step — reconcile the docs with the shipped code.** Once the build actually targets 36, sort every affected doc reference into one of two buckets:
-  - **Flip (normative — these state *current* status):** `docs/ANDROID_STANDARDS.md` §8 OpenRang status note + the four §11 `Status: pending — Issue #7` markers → mark satisfied or remove; `CLAUDE.md` (Tech Stack table + SDK status note) and `README.md` (SDK levels) → change 34 → 36. This is the convergence step that keeps docs and code in agreement ([Lesson 007](../../lessons_learned/007-standards-doc-must-match-code.md)).
+  - **Flip (normative — these state *current* status):** `docs/ANDROID_STANDARDS.md` §8 OpenLoop status note + the four §11 `Status: pending — Issue #7` markers → mark satisfied or remove; `CLAUDE.md` (Tech Stack table + SDK status note) and `README.md` (SDK levels) → change 34 → 36. This is the convergence step that keeps docs and code in agreement ([Lesson 007](../../lessons_learned/007-standards-doc-must-match-code.md)).
   - **Keep (provenance — these record what was *planned/done*):** this file, [`DOC-PREP.md`](./DOC-PREP.md), and the [`docs/android-16/`](../../android-16/README.md) hub. Leave their Issue #7 / "pending" history intact — that's correct linkage, not stale debt to scrub.
   - The source of truth for the version numbers stays `app/build.gradle.kts`; the docs only echo it, so there are just a handful of echoes to update — all listed above.
 
@@ -184,7 +184,7 @@ will get an explicit "proceed" before execution per the project reversibility pr
 - Android 15 behavior changes — developer.android.com/about/versions/15/behavior-changes-15
 - 16 KB page sizes — developer.android.com/guide/practices/page-sizes
 - Versions — Google Maven metadata (AGP 8.13.0, CameraX 1.4.2, Media3 1.7.1, Compose BOM 2025.06.01)
-- **Internal:** OpenRang Android 16 knowledge hub — [`docs/android-16/`](../../android-16/README.md)
+- **Internal:** OpenLoop Android 16 knowledge hub — [`docs/android-16/`](../../android-16/README.md)
 
 ---
 

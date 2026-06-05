@@ -1,16 +1,16 @@
 # Android 16 — Migration Guide
 
 > **Source:** https://developer.android.com/about/versions/16/migration · fetched 2026-05-28
-> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenRang (Issue #7)
+> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenLoop (Issue #7)
 
-## Impact on OpenRang
+## Impact on OpenLoop
 
-**Verdict:** Applies — OpenRang must run both migration phases the page describes (compatibility first, then re-target to 36), even though its tiny surface keeps the work small.
+**Verdict:** Applies — OpenLoop must run both migration phases the page describes (compatibility first, then re-target to 36), even though its tiny surface keeps the work small.
 
-- **Phase 1 (compatibility, no `targetSdkVersion` change):** Run OpenRang's existing published build against an Android 16 device/emulator, work through every flow — camera capture, looping preview, gallery, delete, onboarding — and fix anything the all-apps behavior changes break. Per the page, this phase needs no change to `targetSdkVersion` or `compileSdkVersion`.
+- **Phase 1 (compatibility, no `targetSdkVersion` change):** Run OpenLoop's existing published build against an Android 16 device/emulator, work through every flow — camera capture, looping preview, gallery, delete, onboarding — and fix anything the all-apps behavior changes break. Per the page, this phase needs no change to `targetSdkVersion` or `compileSdkVersion`.
 - **Phase 2 (re-target to 36):** Update `targetSdkVersion` and `compileSdkVersion` to 36 in the Gradle config, recompile, then re-test focusing on the changes that apply *only* when targeting Android 16. This is the substance of Issue #7.
-- **Non-SDK interface check applies even to us:** Audit OpenRang and its libraries (CameraX, Media3, DataStore, Compose) for restricted non-SDK interface usage. Watch logcat warnings and consider wiring `StrictMode.VmPolicy.Builder.detectNonSdkApiUsage()` into a debug build during testing.
-- **Third-party SDK testing matters here:** OpenRang ships CameraX, Media3 (ExoPlayer + Transformer), DataStore, and Compose. The page requires fully testing every library on Android 16 and updating to the latest versions if any misbehaves.
+- **Non-SDK interface check applies even to us:** Audit OpenLoop and its libraries (CameraX, Media3, DataStore, Compose) for restricted non-SDK interface usage. Watch logcat warnings and consider wiring `StrictMode.VmPolicy.Builder.detectNonSdkApiUsage()` into a debug build during testing.
+- **Third-party SDK testing matters here:** OpenLoop ships CameraX, Media3 (ExoPlayer + Transformer), DataStore, and Compose. The page requires fully testing every library on Android 16 and updating to the latest versions if any misbehaves.
 - **Already done:** `enableEdgeToEdge()` is already called in `MainActivity` — relevant to the edge-to-edge enforcement that lands when targeting 36, but that specific change lives in the behavior-changes docs, not this migration page.
 - **Largely N/A for us:** No notifications, foreground services, health/Bluetooth/LAN, Wear/TV/Auto, accounts, network, or exported intents beyond LAUNCHER — so the privacy and targeted-change surface to review (Phase 2 Step 3) is narrow.
 

@@ -1,7 +1,7 @@
 # E2E Fold Loop — State
 
 - Iteration: 2 (last run 2026-06-04_162455) — **LOOP COMPLETE: clean sweep confirmed**
-- Source video: `C:\Users\gates\Personal\OpenRang\google-pro-fold-video.mp4` 2,602,743 bytes ·
+- Source video: `C:\Users\gates\Personal\OpenLoop\google-pro-fold-video.mp4` 2,602,743 bytes ·
   5.447 s · 1280×720 H.264 8-bit SDR · 30 fps (real spacing 33,222 µs) · AAC + data track
 - AVD names: `Pixel_6` | `Pixel_8` | `Pixel_10_Pro_Fold` (all Android 17 / API 37, 16k x86_64)
 - Last iteration result: P6 PASS · P8 PASS · Fold PASS — zero code changes (iter-2 report:

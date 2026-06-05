@@ -1,17 +1,17 @@
 # Android 16 — New Features & APIs
 
 > **Source:** https://developer.android.com/about/versions/16/features · fetched 2026-05-28
-> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenRang (Issue #7)
+> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenLoop (Issue #7)
 
-## Impact on OpenRang
+## Impact on OpenLoop
 
-**Verdict:** Partially applies — most of the surface (notifications, connectivity, health, TV, accessibility) is irrelevant to a 100% on-device camera/loop app, but the Camera, Media, and Graphics additions are directly in OpenRang's domain and worth tracking.
+**Verdict:** Partially applies — most of the surface (notifications, connectivity, health, TV, accessibility) is irrelevant to a 100% on-device camera/loop app, but the Camera, Media, and Graphics additions are directly in OpenLoop's domain and worth tracking.
 
-- **Camera (relevant, optional):** Hybrid auto-exposure (ISO / exposure-time priority), precise color temperature + tint (`COLOR_CORRECTION_MODE_CCT`), and night-mode scene detection are Camera2 features. OpenRang uses CameraX today, so these only matter if it ever drops to Camera2 interop for manual capture controls. Not required for the SDK 36 upgrade.
-- **Media (relevant, optional):** UltraHDR HEIC (`ImageFormat.HEIC_ULTRAHDR`) and the APV professional video codec (`MediaFormat.MIMETYPE_VIDEO_APV`) touch OpenRang's video-processing/export domain (Media3 Transformer), but APV's multi-Gbps pro-codec target is far beyond a Boomerang app's needs. The embedded/cloud Photo Picker is more about picking media than exporting it.
+- **Camera (relevant, optional):** Hybrid auto-exposure (ISO / exposure-time priority), precise color temperature + tint (`COLOR_CORRECTION_MODE_CCT`), and night-mode scene detection are Camera2 features. OpenLoop uses CameraX today, so these only matter if it ever drops to Camera2 interop for manual capture controls. Not required for the SDK 36 upgrade.
+- **Media (relevant, optional):** UltraHDR HEIC (`ImageFormat.HEIC_ULTRAHDR`) and the APV professional video codec (`MediaFormat.MIMETYPE_VIDEO_APV`) touch OpenLoop's video-processing/export domain (Media3 Transformer), but APV's multi-Gbps pro-codec target is far beyond a Boomerang app's needs. The embedded/cloud Photo Picker is more about picking media than exporting it.
 - **Graphics (relevant, optional):** AGSL `RuntimeColorFilter` / `RuntimeXfermode` could power on-device video effects/filters in Compose-driven UI later; not needed now.
-- **Adaptive UI (relevant):** Predictive-back updates and the accessibility improvements (outline high-contrast text, tri-state checkbox, expandable-element state) are general best-practice items that benefit any Compose Material 3 app, OpenRang included.
-- **Not relevant:** Progress-centric notifications, richer haptics, live-wallpaper content, all Connectivity (Wi-Fi ranging, UWB, Companion Device), Health Connect, Privacy Sandbox, Key Sharing, TV quality framework, and internationalization (vertical text, measurement system) — OpenRang has zero network, no notifications, no accounts, and is not a Wear/TV/Auto target.
+- **Adaptive UI (relevant):** Predictive-back updates and the accessibility improvements (outline high-contrast text, tri-state checkbox, expandable-element state) are general best-practice items that benefit any Compose Material 3 app, OpenLoop included.
+- **Not relevant:** Progress-centric notifications, richer haptics, live-wallpaper content, all Connectivity (Wi-Fi ranging, UWB, Companion Device), Health Connect, Privacy Sandbox, Key Sharing, TV quality framework, and internationalization (vertical text, measurement system) — OpenLoop has zero network, no notifications, no accounts, and is not a Wear/TV/Auto target.
 - **Versioning (relevant):** The new `SDK_INT_FULL` / `VERSION_CODES_FULL` constants and `Build.getMinorSdkVersion(int)` matter for the two-releases-per-year cadence and should be on the radar for runtime version checks during the SDK 36 work.
 
 ## Summary
@@ -60,7 +60,7 @@ A new `Notification.ProgressStyle` notification style lets apps track user-initi
 - `Notification.ProgressStyle.Point` — denotes states and milestones in a journey.
 - `Notification.ProgressStyle.Segment` — defines journey segments.
 
-Intended use cases include rideshare tracking, delivery notifications, and navigation progress. (See OpenRang's dedicated `progress-centric-notifications.md` note for detail.)
+Intended use cases include rideshare tracking, delivery notifications, and navigation progress. (See OpenLoop's dedicated `progress-centric-notifications.md` note for detail.)
 
 #### Predictive back updates
 

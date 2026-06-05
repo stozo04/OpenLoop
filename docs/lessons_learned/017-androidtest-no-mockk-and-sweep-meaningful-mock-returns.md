@@ -7,7 +7,7 @@
 Two distinct test-infrastructure facts cost time this session:
 
 1. **`mockk` is `testImplementation` only — it is NOT on the `androidTest` classpath.** The new
-   instrumented `OpenRangNavHostTest` needed an `OpenRangViewModel` + `CameraManager`, but the JVM
+   instrumented `OpenLoopNavHostTest` needed an `OpenLoopViewModel` + `CameraManager`, but the JVM
    unit fakes (`FakeUserPreferencesRepository`, etc. in `src/test/`) and `mockk` are **invisible**
    to `src/androidTest/`. You cannot `mockk(...)` in an instrumented test.
 

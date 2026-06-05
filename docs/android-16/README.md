@@ -1,8 +1,8 @@
 # Android 16 (API 36) — Upgrade Knowledge Hub
 
-Durable reference for OpenRang's move to **`targetSdk 36` / Android 16**. This folder is the
+Durable reference for OpenLoop's move to **`targetSdk 36` / Android 16**. This folder is the
 single place an agent or contributor should look to understand what Android 16 changes, what it
-means for OpenRang specifically, and where the official Google source lives — without re-running a
+means for OpenLoop specifically, and where the official Google source lives — without re-running a
 Google search.
 
 This hub is **evergreen reference**: unlike a feature folder, it does **not** move to
@@ -17,14 +17,14 @@ This hub is **evergreen reference**: unlike a feature folder, it does **not** mo
 
 Each document leads with:
 1. **Source** — the exact `developer.android.com` URL it summarizes, plus the fetch date.
-2. **Impact on OpenRang** — an *Applies / Partially applies / N/A* verdict with reasons tied to
-   OpenRang's actual surface (on-device, zero-network, no notifications/health/Bluetooth, single
+2. **Impact on OpenLoop** — an *Applies / Partially applies / N/A* verdict with reasons tied to
+   OpenLoop's actual surface (on-device, zero-network, no notifications/health/Bluetooth, single
    Activity, Compose + CameraX + Media3).
 3. **Summary** — a faithful, verbose summary of the page.
 
 ## Documents
 
-| Document | What it covers | OpenRang verdict |
+| Document | What it covers | OpenLoop verdict |
 |----------|----------------|------------------|
 | [behavior-changes-targeting-16.md](./behavior-changes-targeting-16.md) | Behavior changes for apps **targeting** API 36 (verbatim Google page + provenance header) | **Applies** — edge-to-edge, predictive back, adaptive layouts |
 | [summary.md](./summary.md) | The full Android 16 change catalog (all-apps vs targeted vs new APIs) | Partially applies |

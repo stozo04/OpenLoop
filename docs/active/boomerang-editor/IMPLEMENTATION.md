@@ -1,7 +1,7 @@
 # Boomerang Editor — Implementation Plan
 
 Feature folder for the **capture-to-edit flow** and the **Boomerang Editor screen**: the
-piece of OpenRang that takes a raw clip (just captured, or picked from the gallery) and turns
+piece of OpenLoop that takes a raw clip (just captured, or picked from the gallery) and turns
 it into a configurable looped boomerang.
 
 > Status: **Spec / sign-off pending.** No code written yet. Owner: Steven.
@@ -58,13 +58,13 @@ defer to the per-slice docs.
 
 ## 1. Problem statement
 
-Today OpenRang's capture flow ends in `LoopingPreview` — a fixed-speed preview of the raw
+Today OpenLoop's capture flow ends in `LoopingPreview` — a fixed-speed preview of the raw
 burst, saved verbatim to the gallery as `clip_<ts>.mp4`. There is no editor, no reverse, no
 concat, no speed/repetition control, no trim. The Boomerang feature itself does not yet exist.
 
 We are also reverse-engineering the proprietary **Boomerang** app, which has the right
 *editor* but the wrong *capture entry point* (forces the user to pre-record in another app)
-and the wrong *business model* (ads/IAP per save). OpenRang's wedge is:
+and the wrong *business model* (ads/IAP per save). OpenLoop's wedge is:
 
 1. **Camera-first.** The app boots straight into the viewfinder so the user can react to what
    they're witnessing without leaving for the system camera and coming back.
@@ -213,7 +213,7 @@ camera viewfinder, with a toast: *"Saved — view in gallery"* (tap to jump to G
 
 ## 5. State machine update
 
-Add to `OpenRangUiState`:
+Add to `OpenLoopUiState`:
 
 ```kotlin
 /**
@@ -221,7 +221,7 @@ Add to `OpenRangUiState`:
  * existing gallery raw). All editor controls mutate an inner [EditorState] held by the
  * ViewModel; this object only carries the source identity so navigation is resumable.
  */
-data class BoomerangEditor(val source: EditorSource) : OpenRangUiState
+data class BoomerangEditor(val source: EditorSource) : OpenLoopUiState
 
 sealed interface EditorSource {
     /** A just-captured clip living in cacheDir/scratch/raw_<uuid>.mp4, not yet in the gallery. */
@@ -244,7 +244,7 @@ BoomerangEditor  ──▶ ReadyToCapture / Gallery            (back/discard, de
 `LoopingPreview` is **kept** for tap-a-finished-boomerang playback in the gallery. The editor
 does not replace it.
 
-The `EditorState` lives inside the ViewModel and is **not** part of `OpenRangUiState` — keeping
+The `EditorState` lives inside the ViewModel and is **not** part of `OpenLoopUiState` — keeping
 it out of the public state surface lets us mutate freely on every slider tick without producing
 re-renders of the navigation host. The editor screen collects `editorState: StateFlow<EditorState>`
 directly via `collectAsStateWithLifecycle()` (Lesson 002).
@@ -486,7 +486,7 @@ since FileProvider URIs are first-class share targets.
 
 ### 11.1 Unit tests (JVM)
 
-- `OpenRangViewModelTest`:
+- `OpenLoopViewModelTest`:
   - Recording → BoomerangEditor(ScratchClip) transition fires on finalize success.
   - Recording → ReadyToCapture transition on finalize error; scratch is discarded.
   - Editor mutators (`updateTrim`, `updateMode`, `updateSpeed`, `updateRepetitions`) push
@@ -523,7 +523,7 @@ since FileProvider URIs are first-class share targets.
 - Save → share sheet appears; share to a file-saving target (Drive / Telegram) succeeds.
 - Back from camera → app returns to viewfinder; gallery contains both the raw and the
   boomerang, raw badged.
-- Process kill during edit (`adb shell am force-stop com.openrang.app`): on relaunch the
+- Process kill during edit (`adb shell am force-stop com.OpenLoop.app`): on relaunch the
   raw scratch is detected and offered for resume. *(Stretch — Decision D-8.)*
 - Screenshot of the editor screen attached to the PR.
 
@@ -578,7 +578,7 @@ A change is shippable for this feature when **all** of the following hold (per
       (Lesson 002).
 - [ ] Every `DataStore` / repository write is wrapped in `try / catch (IOException)`
       (Lesson 003).
-- [ ] No `Context` parameter on any `OpenRangViewModel` function (Lesson 004).
+- [ ] No `Context` parameter on any `OpenLoopViewModel` function (Lesson 004).
 
 ---
 

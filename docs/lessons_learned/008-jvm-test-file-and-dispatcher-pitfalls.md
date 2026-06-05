@@ -2,7 +2,7 @@
 
 ## What went wrong
 
-`OpenRangViewModelTest.kt` was committed in a state that **never compiled and never ran green**. Three distinct problems were stacked:
+`OpenLoopViewModelTest.kt` was committed in a state that **never compiled and never ran green**. Three distinct problems were stacked:
 
 1. **Stale mock signature.** The test stubbed `cameraManager.startRecording(any(), capture(slot))` with `slot<Consumer<VideoRecordEvent>>()` and `just Runs`. The real signature is `startRecording(File, (VideoRecordEvent) -> Unit): Recording?` — a Kotlin function type, returning a nullable `Recording`. Result: `Type mismatch` compile errors. `just Runs` only works for `Unit`-returning calls; a `Recording?` return needs `returns null`.
 

@@ -36,7 +36,7 @@ when {
 }
 ```
 
-For OpenRang specifically, the existing `PermissionDeniedScreen` composable can be lifted into the rationale slot — same content (icon, explanation, "Grant Permissions" button), just shown *before* the system dialog the second time.
+For OpenLoop specifically, the existing `PermissionDeniedScreen` composable can be lifted into the rationale slot — same content (icon, explanation, "Grant Permissions" button), just shown *before* the system dialog the second time.
 
 ## Detection checklist
 

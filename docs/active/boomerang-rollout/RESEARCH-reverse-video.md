@@ -101,11 +101,11 @@ legal uncertainty after MPEG LA's acquisition by Via-L (codec patent
 exposure). Several community forks exist but none has emerged as a clear
 successor.
 
-Additionally, — even before retirement — bringing FFmpegKit into OpenRang
+Additionally, — even before retirement — bringing FFmpegKit into OpenLoop
 would have meant:
 
 - **APK size:** ~35–40 MB for a full build; ~13 MB minimal. Compared to
-  OpenRang's current single-digit MB APK, this is a 5–10× size increase.
+  OpenLoop's current single-digit MB APK, this is a 5–10× size increase.
 - **Licensing:** LGPL v3 by default (workable with dynamic linking); GPL v3
   if any GPL filter is enabled. Apache 2.0 + LGPL is fine, but adds compliance
   burden (LGPL requires shipping the modified-library source on request).
@@ -253,7 +253,7 @@ and is documented as such. There's no `setReverse(true)` on `MediaItem` or
 `EditedMediaItem` in 1.10.x. Rejected on absence.
 
 ### Third-party video SDKs (Cloudinary, Mux, Banuba, etc.)
-- Cloudinary / Mux: cloud-based; would break OpenRang's "100% on-device"
+- Cloudinary / Mux: cloud-based; would break OpenLoop's "100% on-device"
   principle. Rejected on architecture.
 - Banuba / similar commercial SDKs: closed-source, paid licensing,
   conflict with Apache-2.0 open-source model. Rejected on licensing.
@@ -286,7 +286,7 @@ class VideoReverser(
 
 Then wire it into the pipeline at two places:
 
-- **`OpenRangViewModel.ensureReversedSegment()`** (slice 03) — called when
+- **`OpenLoopViewModel.ensureReversedSegment()`** (slice 03) — called when
   the user first switches to a reverse-containing direction. The result file
   path is stored in `EditorTabState.reversedFile` and used by the preview
   player.

@@ -1,7 +1,7 @@
 ---
 name: pr-reviewer
 description: >
-  Autonomous PR reviewer that audits OpenRang code changes against Google's official Android
+  Autonomous PR reviewer that audits OpenLoop code changes against Google's official Android
   development standards. Use this skill whenever a pull request is created, updated, or when
   the user says "review PR", "review my code", "check PR", "audit PR", "run a review",
   "standards check", or anything related to reviewing code quality against Google Android
@@ -16,7 +16,7 @@ description: >
 
 # PR Reviewer — Google Android Standards Compliance Agent
 
-You are an autonomous PR review agent for **OpenRang**, an open-source Android camera app
+You are an autonomous PR review agent for **OpenLoop**, an open-source Android camera app
 (Kotlin/Jetpack Compose) for creating speed-controlled video loops.
 
 Repo: `stozo04/OpenLoop` on GitHub.

@@ -2,13 +2,13 @@
 
 ## What was flagged
 
-`OpenRangViewModel` accepts `Context` as a parameter in `startBurstCapture`, `loadRecordedVideos`, `deleteVideo`, and `navigateToGallery`. While passing Context per-call is less dangerous than holding it as a field, it still:
+`OpenLoopViewModel` accepts `Context` as a parameter in `startBurstCapture`, `loadRecordedVideos`, `deleteVideo`, and `navigateToGallery`. While passing Context per-call is less dangerous than holding it as a field, it still:
 
 - Couples the ViewModel to the Android framework — every test must mock Context.
 - Violates Google's ViewModel guideline: "A ViewModel must never reference a view, Lifecycle, or any class that may hold a reference to the activity context."
 - Compounds as the app grows — every new Context-dependent operation extends the pattern. Phase 3 video processing would add several more.
 
-This was pre-existing in OpenRang, but every PR that extends the pattern makes the eventual refactor larger.
+This was pre-existing in OpenLoop, but every PR that extends the pattern makes the eventual refactor larger.
 
 ## Pattern
 
@@ -32,7 +32,7 @@ This was pre-existing in OpenRang, but every PR that extends the pattern makes t
 - The ViewModel depends on the interface, not Context:
 
   ```kotlin
-  class OpenRangViewModel(
+  class OpenLoopViewModel(
       private val userPreferences: UserPreferencesRepository,
       private val videoStorage: VideoStorageRepository,
   ) : ViewModel()
@@ -48,7 +48,7 @@ This was pre-existing in OpenRang, but every PR that extends the pattern makes t
               thumbnailsDir = File(context.filesDir, "thumbnails"),
               cacheDir = context.cacheDir,
           )
-          return OpenRangViewModel(userPrefs, videoStorage) as T
+          return OpenLoopViewModel(userPrefs, videoStorage) as T
       }
   }
   ```
@@ -59,7 +59,7 @@ This was pre-existing in OpenRang, but every PR that extends the pattern makes t
 
 - ViewModel files must not contain `: Context` or `Context,` in any function signature:
   ```
-  grep -rn ": Context\|Context," app/src/main/java/com/openrang/app/ui/*ViewModel*.kt
+  grep -rn ": Context\|Context," app/src/main/java/com/OpenLoop/app/ui/*ViewModel*.kt
   ```
 - The only Context references in ViewModel code should be inside `Factory` creation — and even there, only to construct the repositories that get passed in.
 - Every ViewModel test should be possible without `mockk<Context>()`.

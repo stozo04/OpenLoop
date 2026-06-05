@@ -8,8 +8,8 @@ The state router in `MainActivity.setContent` ended with a catch-all:
 
 ```kotlin
 when (uiState) {
-    is OpenRangUiState.ReadyToCapture,
-    is OpenRangUiState.Recording -> CameraScreenHost(uiState) { CameraScreen(viewModel, cameraManager) }
+    is OpenLoopUiState.ReadyToCapture,
+    is OpenLoopUiState.Recording -> CameraScreenHost(uiState) { CameraScreen(viewModel, cameraManager) }
     // … other states …
     else -> {                      // ← the problem
         CameraScreen(viewModel = viewModel, cameraManager = cameraManager)
@@ -19,7 +19,7 @@ when (uiState) {
 
 Two compounding harms:
 
-1. **It defeated the compile-time guard.** `OpenRangUiState` is a **sealed interface** chosen
+1. **It defeated the compile-time guard.** `OpenLoopUiState` is a **sealed interface** chosen
    specifically (PRD Decision Log #1) so the compiler forces every state to be handled. An `else`
    silently absorbs any state you forgot to route — exactly what sealed types exist to prevent.
 
@@ -30,25 +30,25 @@ Two compounding harms:
 
 ## Pattern
 
-- **No `else` in the state router.** List every state. Adding a new `OpenRangUiState` must then
+- **No `else` in the state router.** List every state. Adding a new `OpenLoopUiState` must then
   *fail to compile* until it is routed — that failure is the feature, not a nuisance.
 - **Extract the router into a stateless `@Composable` so it's unit-testable** (mirrors the
   project's `OnboardingNavigation` extract-for-testability pattern). Pass Activity-bound effects
   (permission launch, open-settings) in as lambdas so the composable holds no `ComponentActivity`:
   ```kotlin
   @Composable
-  fun OpenRangNavHost(
-      uiState: OpenRangUiState,
-      viewModel: OpenRangViewModel,
+  fun OpenLoopNavHost(
+      uiState: OpenLoopUiState,
+      viewModel: OpenLoopViewModel,
       cameraManager: CameraManager,
       onCheckPermissions: () -> Unit,
       onRationaleAcknowledged: () -> Unit,
       onOpenAppSettings: () -> Unit,
   ) {
       when (uiState) {
-          is OpenRangUiState.Initializing      -> InfinityLoadingScreen()
+          is OpenLoopUiState.Initializing      -> InfinityLoadingScreen()
           // … one branch per state, capture states share the single CameraScreenHost branch …
-          is OpenRangUiState.Processing        -> InfinityLoadingScreen() // TODO(slice-02): real surface
+          is OpenLoopUiState.Processing        -> InfinityLoadingScreen() // TODO(slice-02): real surface
           // NO else.
       }
   }
@@ -56,21 +56,21 @@ Two compounding harms:
 - **A not-yet-built state still needs a real branch.** Route it to a safe placeholder (here the
   neutral loader) with a `// TODO(slice-NN)` — never let it ride an `else`.
 
-> **Slice 02 note:** routing now lives in `OpenRangNavHost`, not inline in `setContent`.
+> **Slice 02 note:** routing now lives in `OpenLoopNavHost`, not inline in `setContent`.
 > `Processing` already exists with the loader placeholder — *replace* it with the real
-> ProcessingScreen and *add* a `Trim` branch **in `OpenRangNavHost`**, keeping the `when`
+> ProcessingScreen and *add* a `Trim` branch **in `OpenLoopNavHost`**, keeping the `when`
 > exhaustive and the `ReadyToCapture, Recording` pair on their single `CameraScreenHost` branch.
 
 ## Detection checklist
 
 - Grep the router for a catch-all: `grep -n "else ->" MainActivity.kt` (and any `*NavHost*`) → expect **none**.
 - Lesson 012 check still holds: `grep -n "CameraScreen(" MainActivity.kt` → exactly **1**.
-- After adding a state to `OpenRangUiState`, a clean build must error with a non-exhaustive-`when`
+- After adding a state to `OpenLoopUiState`, a clean build must error with a non-exhaustive-`when`
   message until you route it. (Kotlin 2.x enforces exhaustiveness for `when` over a sealed type
   even as a statement.) Sanity-check by commenting out one branch locally — the build should fail;
   restore it (don't commit the broken state).
 - Covering test: mount the NavHost with the new/placeholder state and assert it renders that
-  screen and **not** a camera-bound one (`OpenRangNavHostTest`).
+  screen and **not** a camera-bound one (`OpenLoopNavHostTest`).
 
 ## Reference
 

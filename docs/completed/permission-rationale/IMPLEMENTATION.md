@@ -14,7 +14,7 @@ Origin: WARNING #5 from PR #5 review; captured in
 ## Scope
 
 **In:**
-- New `OpenRangUiState.PermissionRationale` state.
+- New `OpenLoopUiState.PermissionRationale` state.
 - ViewModel `showPermissionRationale()` and `onRationaleAcknowledged()`.
 - `MainActivity.checkPermissions()` rewritten as a 3-state `when` (granted / rationale / request).
 - `PermissionDeniedScreen` generalized into `PermissionExplanationScreen`, reused for both the
@@ -36,8 +36,8 @@ actually responds. See `docs/PRD-mission-control.md` §3 (State Machine) and §4
 
 ## Implementation steps
 
-1. `OpenRangUiState.kt` — add `object PermissionRationale`.
-2. `OpenRangViewModel.kt` — add `showPermissionRationale()` → `PermissionRationale` and
+1. `OpenLoopUiState.kt` — add `object PermissionRationale`.
+2. `OpenLoopViewModel.kt` — add `showPermissionRationale()` → `PermissionRationale` and
    `onRationaleAcknowledged()` → `CheckingPermissions`.
 3. `MainActivity.kt` — `requiredPermissions` array; 3-state `checkPermissions()`;
    `onRationaleAcknowledged()` (acknowledge + direct launch); route `PermissionRationale` and
@@ -47,7 +47,7 @@ actually responds. See `docs/PRD-mission-control.md` §3 (State Machine) and §4
 
 ## Testing plan
 
-Unit tests (`OpenRangViewModelTest.kt`):
+Unit tests (`OpenLoopViewModelTest.kt`):
 - `showPermissionRationale transitions to PermissionRationale`
 - `onRationaleAcknowledged transitions to CheckingPermissions`
 - `onRationaleDeclined transitions to PermissionDenied`
@@ -62,7 +62,7 @@ The Activity-level `checkPermissions()` branching (framework calls) is verified 
 passes per the issue's acceptance criteria — Activities are out of scope for local unit tests
 (`docs/TEST_COVERAGE.md`).
 
-Note: while adding coverage, the committed `OpenRangViewModelTest.kt` was found to never compile or
+Note: while adding coverage, the committed `OpenLoopViewModelTest.kt` was found to never compile or
 run green; the fixes and the general pattern are recorded in
 [`docs/lessons_learned/008-jvm-test-file-and-dispatcher-pitfalls.md`](../../lessons_learned/008-jvm-test-file-and-dispatcher-pitfalls.md).
 

@@ -12,7 +12,7 @@ keep-vs-delete question, no screenshots, no waking the screen. Be fast.
 ## Ground truth (verified against source — keep these in sync with the code)
 
 - **applicationId / package:** `io.github.stozo04.openloop` (set in `app/build.gradle.kts`).
-  (The app was rebranded from OpenRang; a ghost `com.openrang.app` may still be installed —
+  (The app was rebranded from OpenLoop; a ghost `com.OpenLoop.app` may still be installed —
   **ignore it**, it is the wrong, old app.)
 - **Launcher activity:** `io.github.stozo04.openloop/.MainActivity`.
 - **Onboarding flag:** Preferences DataStore named `openloop_preferences`

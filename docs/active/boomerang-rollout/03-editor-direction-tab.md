@@ -106,10 +106,10 @@ or in flight, repeated chip taps are no-ops (the trim is fixed for the session).
 
 ## Technical deltas (as shipped)
 
-### `OpenRangUiState.kt`
+### `OpenLoopUiState.kt`
 
 ```kotlin
-data class BoomerangEditor(val source: EditorSource) : OpenRangUiState
+data class BoomerangEditor(val source: EditorSource) : OpenLoopUiState
 
 data class EditorTabState(
     val mode: BoomerangMode = BoomerangMode.FORWARD_THEN_REVERSE,
@@ -121,7 +121,7 @@ data class EditorTabState(
 There is **no** `TrimWindow` type; the trim window is read from the existing `TrimState` in
 `editorState`.
 
-### `OpenRangViewModel.kt`
+### `OpenLoopViewModel.kt`
 
 - `editorTabState: StateFlow<EditorTabState>` (sibling to `editorState`).
 - `onNextFromTrim()` — resets `editorTabState`, posts `BoomerangEditor(source)`, calls
@@ -159,7 +159,7 @@ There is **no** `TrimWindow` type; the trim window is read from the existing `Tr
 
 ### `MainActivity.kt`
 
-Routes `BoomerangEditor` → `BoomerangEditorScreen` in the exhaustive `OpenRangNavHost` `when`
+Routes `BoomerangEditor` → `BoomerangEditorScreen` in the exhaustive `OpenLoopNavHost` `when`
 (no `else` — Lesson 014).
 
 ## Testing plan (as shipped)
@@ -167,7 +167,7 @@ Routes `BoomerangEditor` → `BoomerangEditorScreen` in the exhaustive `OpenRang
 ### Unit tests (JVM)
 - `BoomerangSequenceTest` — the pure seam-by-position rule (all 4 modes × reps, incl. the two slice-02
   regression cases) **and** `boomerangOutputDurationMs`.
-- `OpenRangViewModelTest` — `onNextFromTrim` opens the editor + eagerly generates the reversed clip;
+- `OpenLoopViewModelTest` — `onNextFromTrim` opens the editor + eagerly generates the reversed clip;
   `updateMode(FORWARD)` generates nothing; the reversed clip is generated once and reused across
   reverse-containing modes; `backToTrim` preserves the trim; `saveBoomerang` renders the chosen mode /
   saves / emits `Saved`; render failure returns to the editor with the direction preserved.

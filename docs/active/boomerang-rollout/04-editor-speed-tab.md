@@ -167,7 +167,7 @@ For `mode = F→R, reps = 1, speed = 1.75×, trim = 2.0 s`:
 
 ## Technical deltas
 
-### `OpenRangViewModel.kt`
+### `OpenLoopViewModel.kt`
 
 ```kotlin
 data class EditorTabState(
@@ -200,7 +200,7 @@ fun switchTab(tab: EditorTab) {
 `SpeedChangeEffect(speed)` — the constant-speed effect in Media3 1.10.1 (**not**
 `SpeedChangingVideoEffect`, which isn't in this version). There is no `2.0f`
 literal in the processor to replace. The only render-side change is in
-`OpenRangViewModel.saveBoomerang()` (pass `state.speed` instead of `DEFAULT_SPEED`).
+`OpenLoopViewModel.saveBoomerang()` (pass `state.speed` instead of `DEFAULT_SPEED`).
 Audio remains stripped.
 
 ### `ui/BoomerangEditorScreen.kt`
@@ -235,7 +235,7 @@ No new routes — same `BoomerangEditor` destination, expanded content.
 
 ### Unit tests
 
-- `OpenRangViewModelTest`:
+- `OpenLoopViewModelTest`:
   - `updateSpeed(1.5f)` updates `editorTabState.speed = 1.5f`.
   - `updateSpeed(5.0f)` clamps to `3.0f`; `updateSpeed(0.1f)` clamps to `0.25f`.
   - `switchTab(EditorTab.SPEED)` updates `editorTabState.activeTab`.
@@ -287,6 +287,6 @@ No new routes — same `BoomerangEditor` destination, expanded content.
 - [ ] No `Color(0x…)` literal violates the 8-hex-digit rule (Lesson 001).
 - [ ] All Flow collection in editor uses `collectAsStateWithLifecycle()`
       (Lesson 002).
-- [ ] No `Context` parameter on any `OpenRangViewModel` method (Lesson 004).
+- [ ] No `Context` parameter on any `OpenLoopViewModel` method (Lesson 004).
 - [ ] PR description states the longest output duration observed in QA (so we
       know we're still under the 60 s hard cap from parent doc D-5).

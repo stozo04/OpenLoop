@@ -72,5 +72,5 @@ never produced, and harden all three legs:
 - [`MediaFormat.KEY_COLOR_TRANSFER_REQUEST` — added API 31](https://developer.android.com/sdk/api_diff/31/changes/android.media.MediaFormat)
 - [`Presentation` (resolution effect)](https://developer.android.com/reference/androidx/media3/effect/Presentation)
 - `media/VideoReverser.kt` (`requestSdrToneMapping`, `selectAvcEncoder`), `media/VideoProcessor.kt`
-  (`cappedToShortSide`, `setHdrMode`), `ui/OpenRangViewModel.kt` (`reverseFailed`), and builds on
+  (`cappedToShortSide`, `setHdrMode`), `ui/OpenLoopViewModel.kt` (`reverseFailed`), and builds on
   [[019-reverse-rotation-strip-decoder-restamp-muxer]].

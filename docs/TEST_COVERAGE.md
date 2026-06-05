@@ -1,6 +1,6 @@
-# TEST_COVERAGE.md — OpenRang Testing Strategy
+# TEST_COVERAGE.md — OpenLoop Testing Strategy
 
-This document defines how, where, and why we test. It follows Google's official Android testing guidance and serves as the single source of truth for all testing decisions in OpenRang.
+This document defines how, where, and why we test. It follows Google's official Android testing guidance and serves as the single source of truth for all testing decisions in OpenLoop.
 
 ---
 
@@ -125,7 +125,7 @@ class MainDispatcherRule(
 | `UnconfinedTestDispatcher` | Runs coroutines **eagerly** (blocking). Simpler test code. | Default choice. Most tests. |
 | `StandardTestDispatcher` | Queues coroutines. You control execution with `advanceUntilIdle()`, `advanceTimeBy()`. | Testing timing, delays, concurrency, or observing intermediate states. |
 
-OpenRang defaults to `UnconfinedTestDispatcher` for simplicity. The `startBurstCapture` test uses `advanceTimeBy(1500)` to simulate the auto-stop timer.
+OpenLoop defaults to `UnconfinedTestDispatcher` for simplicity. The `startBurstCapture` test uses `advanceTimeBy(1500)` to simulate the auto-stop timer.
 
 **Source:** [Testing Kotlin Coroutines on Android](https://developer.android.com/kotlin/coroutines/test)
 

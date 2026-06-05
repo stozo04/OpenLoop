@@ -10,7 +10,7 @@
 
 Today `startBurstCapture` records exactly 1.5 s of video before auto-stopping. That
 length is too short to make a meaningful boomerang loop and gives the user no time
-to react to what they're filming. The whole point of OpenRang's camera-first wedge
+to react to what they're filming. The whole point of OpenLoop's camera-first wedge
 ("react to what you're witnessing without leaving for the system camera") falls
 flat when the recording is shorter than a sneeze.
 
@@ -73,7 +73,7 @@ with the auto-route to the Trim screen.
 
 ## Technical deltas
 
-### `OpenRangViewModel.kt`
+### `OpenLoopViewModel.kt`
 
 - Remove the 1.5 s `delay()` self-stop in `startBurstCapture`. The
   `viewModelScope.launch { delay(1500); ... }` block goes away.
@@ -107,7 +107,7 @@ the user-tap path and the auto-cap path.
 - Add the `00:00 / 00:30` countdown chip; format with
   `"%02d:%02d".format(elapsed / 60_000, (elapsed / 1000) % 60)`.
 
-### `OpenRangUiState.kt`
+### `OpenLoopUiState.kt`
 
 No additions. `Recording` and `ReadyToCapture` cover this slice's flow.
 
@@ -122,7 +122,7 @@ scratch files arrive in slice 02.)
 
 ### Unit tests (`app/src/test/`)
 
-- `OpenRangViewModelTest`:
+- `OpenLoopViewModelTest`:
   - `startBurstCapture` puts the state into `Recording` and starts emitting on
     `recordingElapsedMs`.
   - `stopBurstCapture` while in `Recording` calls `cameraManager.stopRecording()`
@@ -166,6 +166,6 @@ scratch files arrive in slice 02.)
 - [ ] No `Color(0x…)` literal violates the 8-hex-digit rule (Lesson 001).
 - [ ] Every `Flow` collected in `CameraScreen` uses
       `collectAsStateWithLifecycle()` (Lesson 002).
-- [ ] No `Context` parameter introduced on `OpenRangViewModel` methods (Lesson 004).
+- [ ] No `Context` parameter introduced on `OpenLoopViewModel` methods (Lesson 004).
 - [ ] PR description states what was NOT verified (e.g., "did not test recording
       across screen rotation mid-record").

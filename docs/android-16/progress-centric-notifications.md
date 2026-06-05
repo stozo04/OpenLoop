@@ -1,13 +1,13 @@
 # Android 16 — Progress-centric Notifications
 
 > **Source:** https://developer.android.com/about/versions/16/features/progress-centric-notifications · fetched 2026-05-28
-> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenRang (Issue #7)
+> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenLoop (Issue #7)
 
-## Impact on OpenRang
+## Impact on OpenLoop
 
-**Verdict:** N/A today — OpenRang posts no notifications and runs no user-initiated, start-to-end background journeys, which is the only thing this style is for (revisit if background video export ever needs a progress UI).
+**Verdict:** N/A today — OpenLoop posts no notifications and runs no user-initiated, start-to-end background journeys, which is the only thing this style is for (revisit if background video export ever needs a progress UI).
 
-- This style targets user-initiated journeys like rideshare, delivery, and navigation; OpenRang has nothing of that shape today.
+- This style targets user-initiated journeys like rideshare, delivery, and navigation; OpenLoop has nothing of that shape today.
 - The app is 100% on-device with no background or long-running user-visible jobs, so there is no progress to surface.
 - The one realistic future fit: if loop generation / video export ever moves to a long-running background job, a `Notification.ProgressStyle` notification could show export progress with segments and a tracker icon.
 

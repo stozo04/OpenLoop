@@ -55,4 +55,4 @@ isn't a rotation discontinuity.
 
 - [`MediaMuxer.setOrientationHint`](https://developer.android.com/reference/android/media/MediaMuxer#setOrientationHint(int)) — orientation as container metadata.
 - [`MediaCodec`](https://developer.android.com/reference/android/media/MediaCodec) — Surface-mode auto-rotate is device-dependent on the decoder→encoder-input path.
-- `app/src/main/java/com/openrang/app/media/VideoReverser.kt` + `MediaFormatUtils.rotationDegreesOrZero()`.
+- `app/src/main/java/com/OpenLoop/app/media/VideoReverser.kt` + `MediaFormatUtils.rotationDegreesOrZero()`.

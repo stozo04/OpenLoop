@@ -2,7 +2,7 @@
 
 ## What went wrong
 
-PR #5 introduced `Color(0xFFFF7C4DFF)` — a 10-hex-digit `ULong` literal — for the `secondary` color in `OpenRangTheme`. The intended value was `Color(0xFF7C4DFF)` (NeonPurple). The extra `FF` inserted between the alpha and R channels would have either silently truncated to a wrong color or produced an entirely different one across every composable that reads `MaterialTheme.colorScheme.secondary`.
+PR #5 introduced `Color(0xFFFF7C4DFF)` — a 10-hex-digit `ULong` literal — for the `secondary` color in `OpenLoopTheme`. The intended value was `Color(0xFF7C4DFF)` (NeonPurple). The extra `FF` inserted between the alpha and R channels would have either silently truncated to a wrong color or produced an entirely different one across every composable that reads `MaterialTheme.colorScheme.secondary`.
 
 This was not caught by the compiler (literal is a valid `Long`) and not caught by any test (no UI regression test asserts the resolved color). It would have shipped a broken design system.
 

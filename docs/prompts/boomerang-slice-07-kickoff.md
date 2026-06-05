@@ -1,14 +1,14 @@
 # Boomerang Slice 07 — Kickoff Prompt for a Fresh Claude Code Session
 
-Copy everything below the line into a fresh Claude Code session with the OpenRang folder mounted. This kickoff is specific to **slice 07 (Gallery tap-to-edit + raw/boomerang distinction)**. Assumes slices 01–06 have shipped and are merged to `main`. **This is the final slice in the rollout** — after it merges, OpenRang v1 is feature-complete.
+Copy everything below the line into a fresh Claude Code session with the OpenLoop folder mounted. This kickoff is specific to **slice 07 (Gallery tap-to-edit + raw/boomerang distinction)**. Assumes slices 01–06 have shipped and are merged to `main`. **This is the final slice in the rollout** — after it merges, OpenLoop v1 is feature-complete.
 
 ---
 
 ## Session Prompt — Implement Boomerang Slice 07
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
 
-The boomerang flow works end-to-end for fresh captures: capture → trim → editor → save → share (slices 01–06 shipped). But every prior slice operates on a **fresh capture only** — there is no path to boomerang a clip that's already in the gallery. This slice closes that loop and ships the gallery distinction between raws and boomerangs. After this merges, **OpenRang v1 is done**.
+The boomerang flow works end-to-end for fresh captures: capture → trim → editor → save → share (slices 01–06 shipped). But every prior slice operates on a **fresh capture only** — there is no path to boomerang a clip that's already in the gallery. This slice closes that loop and ships the gallery distinction between raws and boomerangs. After this merges, **OpenLoop v1 is done**.
 
 ## Critical Rule — Do Not Trust Your Training Data
 
@@ -59,8 +59,8 @@ If anything has drifted, **stop and surface** before coding.
 
 ## Phase 3: Implement to the slice spec
 
-- **`OpenRangUiState.kt`** — extend `EditorSource` with `data class GalleryClip(val rawId: Long) : EditorSource`. Add `GalleryFilter { ALL, BOOMERANGS, RAW }` enum.
-- **`OpenRangViewModel.kt`** — add `startEditorFromGallery(rawId: Long)` (resolves the raw via `videoStorage.loadRecordedVideos().firstOrNull { it.id == rawId && it.kind == RAW }`, posts `Trim(GalleryClip(rawId))`); `playBoomerang(video)` (posts `LoopingPreview(...)`); `deleteVideoAndRefresh(video)` (calls `videoStorage.deleteVideo` wrapped in try/catch IOException per Lesson 003, re-emits `recordedVideos`); `setGalleryFilter(filter)`. On `init`, kick off `videoStorage.pruneStaleScratch(24.hours)` in `viewModelScope`.
+- **`OpenLoopUiState.kt`** — extend `EditorSource` with `data class GalleryClip(val rawId: Long) : EditorSource`. Add `GalleryFilter { ALL, BOOMERANGS, RAW }` enum.
+- **`OpenLoopViewModel.kt`** — add `startEditorFromGallery(rawId: Long)` (resolves the raw via `videoStorage.loadRecordedVideos().firstOrNull { it.id == rawId && it.kind == RAW }`, posts `Trim(GalleryClip(rawId))`); `playBoomerang(video)` (posts `LoopingPreview(...)`); `deleteVideoAndRefresh(video)` (calls `videoStorage.deleteVideo` wrapped in try/catch IOException per Lesson 003, re-emits `recordedVideos`); `setGalleryFilter(filter)`. On `init`, kick off `videoStorage.pruneStaleScratch(24.hours)` in `viewModelScope`.
 - **`VideoStorageRepository`** — add `fun pruneStaleScratch(olderThanMs: Long)`. Implementation: list `cacheDir/scratch/` and `cacheDir/scratch/reversed/`, delete files with `lastModified < (now - olderThanMs)`. Log the count.
 - **Trim + BoomerangEditor source resolution** — when source is `GalleryClip(rawId)`, resolve the file via `videoStorage.loadRecordedVideos().first { it.id == rawId }`. Saving from a `GalleryClip` source skips the scratch-promotion step (raw is already in the gallery).
 - **`ui/GalleryScreen.kt`** — add filter chip row above the grid. Add raw badge overlay on `RAW` thumbnails (bottom-right, 24 dp, `NeonPurple` 80%, "R" glyph). Wire `combinedClickable` (tap + long-press) per slice doc. `DropdownMenu` for context menus.
@@ -69,7 +69,7 @@ If anything has drifted, **stop and surface** before coding.
 
 ## Phase 4: Test
 
-- Unit tests: `OpenRangViewModelTest` for `startEditorFromGallery` (existing raw → posts `Trim(GalleryClip)`; non-existent rawId → no-op); `playBoomerang` (posts `LoopingPreview`); `deleteVideoAndRefresh` (removes file via fake + re-emits list); `setGalleryFilter` (filters the exposed list).
+- Unit tests: `OpenLoopViewModelTest` for `startEditorFromGallery` (existing raw → posts `Trim(GalleryClip)`; non-existent rawId → no-op); `playBoomerang` (posts `LoopingPreview`); `deleteVideoAndRefresh` (removes file via fake + re-emits list); `setGalleryFilter` (filters the exposed list).
 - `VideoStorageRepositoryImplTest`: `pruneStaleScratch` deletes files older than threshold, leaves newer ones alone. Use `TemporaryFolder` + `File.setLastModified` (verify it works on your test FS first).
 - Instrumented `GalleryScreenTest`: filter chips switch visible items; raw badge on raws not boomerangs; tap raw routes to `Trim(GalleryClip)`; tap boomerang routes to `LoopingPreview`; long-press menus show correct items per kind.
 - End-to-end: capture 2 raws + render 1 boomerang → gallery shows 3 items, one badged → filter Raw shows 2 → tap a raw → Trim opens with raw loaded → long-press boomerang → "Re-edit from source" → editor opens on the **source raw** (not the rendered output).
@@ -95,8 +95,8 @@ Walk the slice 07 manual QA on emulator + **Pixel 10 Pro Fold (both folded AND u
 - Delete a raw with 2 linked boomerangs → dialog says "2 boomerang(s)" correctly; after delete, the boomerangs' "Re-edit from source" menu item is grayed out.
 - Process kill + relaunch: scratch files >24 h old are pruned. Verify via:
   ```powershell
-  adb shell run-as com.openrang.app ls cache/scratch/
-  adb shell run-as com.openrang.app ls cache/scratch/reversed/
+  adb shell run-as com.OpenLoop.app ls cache/scratch/
+  adb shell run-as com.OpenLoop.app ls cache/scratch/reversed/
   ```
 - Re-edit from a boomerang opens its actual source raw — not the rendered boomerang.
 - Tap a raw from the gallery → Trim opens with the raw loaded → save a new boomerang → both raws and the new boomerang appear in gallery.
