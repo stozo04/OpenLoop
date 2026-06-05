@@ -136,10 +136,14 @@ private fun SpeedCurrentPill(
             .padding(horizontal = 18.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Gap via padding, not a trailing space in the string — a trailing space makes the node's
+        // text "Current speed " which an exact-match onNodeWithText("Current speed") can't find
+        // (BoomerangEditorScreenTest), and reads as a stray pause in TalkBack.
         Text(
-            text = "Current speed ",
+            text = "Current speed",
             color = TextSecondary,
             style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(end = 4.dp),
         )
         Text(
             text = formatSpeedMultiplier(speed),

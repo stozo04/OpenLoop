@@ -33,6 +33,10 @@ fun extractTrimFilmstripFrames(
         List(frameCount) { null }
     } catch (_: IllegalStateException) {
         List(frameCount) { null }
+    } catch (_: RuntimeException) {
+        // setDataSource surfaces native open failures as bare RuntimeExceptions ("setDataSource
+        // failed: status = 0x...") — the getFrameAtTime catch above doesn't cover this one.
+        List(frameCount) { null }
     } finally {
         retriever.release()
     }

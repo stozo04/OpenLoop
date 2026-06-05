@@ -99,7 +99,14 @@ class BoomerangRenderWorkerTest {
         val workManager = WorkManager.getInstance(context)
         workManager.enqueue(workRequest).result.get()
 
-        val finished = awaitTerminalWorkInfo(workManager, workRequest.id, TIMEOUT_MS)
+        // WorkInfo.progress is only populated while the worker is RUNNING — it is wiped at a
+        // terminal state (developer.android.com "Observe intermediate worker progress"), so
+        // progress must be sampled from the in-flight polls, never from the terminal WorkInfo.
+        var maxObservedProgressPercent = -1
+        val finished = awaitTerminalWorkInfo(workManager, workRequest.id, TIMEOUT_MS) { running ->
+            val percent = running.progress.getInt(BoomerangRenderWorkerKeys.PROGRESS_PERCENT, -1)
+            if (percent > maxObservedProgressPercent) maxObservedProgressPercent = percent
+        }
         assertNotNull("worker did not finish within ${TIMEOUT_MS / 1000}s", finished)
         assertEquals(
             "expected SUCCEEDED, was ${finished!!.state} (runAttempt=${finished.runAttemptCount})",
@@ -122,10 +129,11 @@ class BoomerangRenderWorkerTest {
             scratchFile.exists(),
         )
 
-        val progressPercent = finished.progress.getInt(BoomerangRenderWorkerKeys.PROGRESS_PERCENT, -1)
         assertTrue(
-            "expected progress published during run, got $progressPercent",
-            progressPercent in 0..100,
+            "expected progress published while RUNNING, max observed = $maxObservedProgressPercent " +
+                "(-1 means no RUNNING poll carried progress — worker publishes 0% immediately, " +
+                "so this should only happen if the render outran the $POLL_MS ms poll entirely)",
+            maxObservedProgressPercent in 0..100,
         )
     }
 
@@ -185,12 +193,14 @@ class BoomerangRenderWorkerTest {
         workManager: WorkManager,
         workId: UUID,
         timeoutMs: Long,
+        onInFlightPoll: (WorkInfo) -> Unit = {},
     ): WorkInfo? {
         val deadline = System.currentTimeMillis() + timeoutMs
         var latest: WorkInfo? = null
         while (System.currentTimeMillis() < deadline) {
             latest = workManager.getWorkInfoById(workId).get()
             if (latest?.state?.isFinished == true) return latest
+            if (latest != null) onInFlightPoll(latest)
             Thread.sleep(POLL_MS)
         }
         return latest?.takeIf { it.state.isFinished }
@@ -199,6 +209,8 @@ class BoomerangRenderWorkerTest {
     private companion object {
         const val WORKER_TEST_TAG = "boomerang_render_worker_test"
         const val TIMEOUT_MS = 180_000L
-        const val POLL_MS = 500L
+        // Short enough that a fast tiny-clip render is still sampled at least once while RUNNING
+        // (the progress assertion depends on in-flight polls — see awaitTerminalWorkInfo caller).
+        const val POLL_MS = 250L
     }
 }

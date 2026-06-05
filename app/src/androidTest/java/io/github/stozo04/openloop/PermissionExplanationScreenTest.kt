@@ -72,7 +72,7 @@ class PermissionExplanationScreenTest {
                 PermissionExplanationScreen(
                     title = "Title",
                     body = "Body",
-                    primaryActionLabel = "Grant Permissions",
+                    primaryActionLabel = "Grant Permission",
                     onPrimaryAction = {}
                 )
             }
@@ -93,7 +93,7 @@ class PermissionExplanationScreenTest {
                 PermissionExplanationScreen(
                     title = "We need a quick permission",
                     body = "Body",
-                    primaryActionLabel = "Grant Permissions",
+                    primaryActionLabel = "Grant Permission",
                     onPrimaryAction = { primaryClicked = true },
                     secondaryActionLabel = "Not now",
                     onSecondaryAction = { secondaryClicked = true }
