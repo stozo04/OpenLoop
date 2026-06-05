@@ -47,7 +47,7 @@ Implementation: `app/src/main/java/io/github/stozo04/openloop/diagnostics/Revers
 
 1. Firebase console → **Project settings** → **Your apps** → Android app
 2. Download **`google-services.json`**
-3. Place it at: **`app/google-services.json`** (repo root is `OpenRang/`, file lives under `app/`)
+3. Place it at: **`app/google-services.json`** (repo root is `OpenLoop/`, file lives under `app/`)
 
 The file is **gitignored**. See `app/google-services.json.README` for the path.
 

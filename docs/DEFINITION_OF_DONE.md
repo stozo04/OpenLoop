@@ -53,11 +53,11 @@ EMU=<sdk>/emulator/emulator.exe ; ADB=<sdk>/platform-tools/adb.exe
 # poll until: getprop sys.boot_completed == 1
 "$ADB" install -r app/build/outputs/apk/debug/app-debug.apk
 "$ADB" logcat -c
-"$ADB" shell am start -W -n com.openrang.app/.MainActivity      # check Status: ok, no Error
+"$ADB" shell am start -W -n com.OpenLoop.app/.MainActivity      # check Status: ok, no Error
 "$ADB" exec-out screencap -p > proof.png                        # attach to the PR
 "$ADB" logcat -d | grep -iE "FATAL|AndroidRuntime"              # confirm no crash
 ```
-> AGP uninstalls the app after `connectedAndroidTest`, so re-`install` before launching. `pm clear com.openrang.app` first if you need a fresh first-run (e.g. to see onboarding).
+> AGP uninstalls the app after `connectedAndroidTest`, so re-`install` before launching. `pm clear com.OpenLoop.app` first if you need a fresh first-run (e.g. to see onboarding).
 
 ### 6. Be honest about what you could NOT verify
 State the coverage gaps plainly and hand off a manual QA checklist. Camera capture (simulated on emulators), specific-API-level runtime behavior, and large-screen (>=600dp) layout often need a real device or a specific emulator + a human. **Never claim success for something you didn't actually exercise** (Lesson 007's spirit).

@@ -121,6 +121,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Hit target ≥ 48 dp (Material / ANDROID_STANDARDS §7 minimum) for the top-bar buttons and chips. */
 private val CONTROL_SIZE = 56.dp
@@ -136,10 +137,10 @@ private fun editorPanelHeight(tab: EditorTab) = when (tab) {
 }
 
 /** Debounce before pushing a new speed to the player — coalesces a drag's stream into one apply. */
-private const val SPEED_DEBOUNCE_MS = 50L
+private val SPEED_DEBOUNCE = 50.milliseconds
 
 /** Debounce playlist rebinding — coalesces trim/mode/seam changes (editor-memory-oom WS-2). */
-private val PLAYLIST_DEBOUNCE_MS = EditorPlaylistBind.PLAYLIST_DEBOUNCE_MS
+private val PLAYLIST_DEBOUNCE = EditorPlaylistBind.PLAYLIST_DEBOUNCE
 
 /**
  * Tabbed boomerang editor. Opens from the Trim screen's NEXT with the trimmed clip already
@@ -345,7 +346,7 @@ fun BoomerangEditorContent(
         if (EditorPlaylistBind.shouldHoldPlaylist(reversePreviewLoading)) {
             return@LaunchedEffect
         }
-        delay(PLAYLIST_DEBOUNCE_MS)
+        delay(PLAYLIST_DEBOUNCE)
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
         val items = previewPlaylist(sourceFile, trimStartMs, trimEndMs, mode, reversedFile, seamMs)
@@ -405,7 +406,7 @@ fun BoomerangEditorContent(
     // drag's stream of values collapses into a single setPlaybackSpeed once the user settles (~50 ms).
     // This is a player-side effect — free, no re-render, and independent of the cached reversed clip.
     LaunchedEffect(speed) {
-        delay(SPEED_DEBOUNCE_MS)
+        delay(SPEED_DEBOUNCE)
         exoPlayer.setPlaybackSpeed(speed)
     }
 

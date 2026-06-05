@@ -1,6 +1,6 @@
 # Static Analysis — Reproducing Android Studio's "Inspect Code" as a merge gate
 
-This is OpenRang's plan and runbook for running the same checks Android Studio's **Analyze →
+This is OpenLoop's plan and runbook for running the same checks Android Studio's **Analyze →
 Inspect Code** produces, headlessly, and folding them into the PR-merge gate alongside the
 [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) standards review.
 
@@ -11,7 +11,7 @@ Last verified: 2026-05-28 · AGP 8.13.2 · Android Studio at `C:\Program Files\A
 ## The key insight: "Inspect Code" is two engines
 
 Android Studio's single "Inspect Code" action is really **two analysis engines stacked**, and
-they differ enormously in how headless-runnable they are. OpenRang treats them as two tiers.
+they differ enormously in how headless-runnable they are. OpenLoop treats them as two tiers.
 
 | Engine | Catches (examples from a real Inspect Code run) | Headless? |
 |--------|--------------------------------------------------|-----------|
@@ -94,10 +94,10 @@ locally before opening/merging a PR, and the merge policy requires it to be clea
 
 ```powershell
 & "C:\Program Files\Android\Android Studio\bin\inspect.bat" `
-  "C:\Users\gates\Personal\OpenRang" `
-  "C:\Users\gates\Personal\OpenRang\.idea\inspectionProfiles\Project_Default.xml" `
-  "C:\Users\gates\Personal\OpenRang\build\inspection-results" `
-  -v2 -d "C:\Users\gates\Personal\OpenRang"
+  "C:\Users\gates\Personal\OpenLoop" `
+  "C:\Users\gates\Personal\OpenLoop\.idea\inspectionProfiles\Project_Default.xml" `
+  "C:\Users\gates\Personal\OpenLoop\build\inspection-results" `
+  -v2 -d "C:\Users\gates\Personal\OpenLoop"
 ```
 
 - **Args:** project path · inspection profile · output dir · `-v2` (verbose) · `-d` (scope).
@@ -145,7 +145,7 @@ run. Tier 3 is a fast, headless, **Node-based** approximation of Engine 2's high
 
 The configs are tuned to match what Inspect Code actually reports: `markdownlint` disables the
 opinionated prose rules IntelliJ doesn't flag (`MD013` line-length, `MD060` table pipe-spacing,
-`MD033` inline-HTML); `cspell` is seeded with `OpenRang`, `CameraX`, `ExoPlayer`, `detekt`,
+`MD033` inline-HTML); `cspell` is seeded with `OpenLoop`, `CameraX`, `ExoPlayer`, `detekt`,
 `Grazie`, etc. so real terms aren't flagged as typos.
 
 ### Running it

@@ -20,6 +20,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicReference
 import androidx.work.ListenableWorker.Result
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Long-running WorkManager worker that Loopifies a scratch clip under a `mediaProcessing` FGS
@@ -81,7 +82,7 @@ class BoomerangRenderWorker(
                         lastPublishedPercent = percent
                     }
                     if (fraction >= 1f) break
-                    delay(PROGRESS_EMIT_INTERVAL_MS)
+                    delay(PROGRESS_EMIT_INTERVAL)
                 }
             }
 
@@ -105,6 +106,9 @@ class BoomerangRenderWorker(
                     ?: throw IOException("Failed to register boomerang ${parsed.outputFile.name}")
 
                 videoStorage.discardScratch(parsed.scratch)
+
+                // The original raw video is no longer needed after a successful boomerang render.
+                videoStorage.deleteRawVideo(parsed.rawId)
 
                 Result.success(
                     Data.Builder()
@@ -167,6 +171,6 @@ class BoomerangRenderWorker(
 
     private companion object {
         const val TAG = "BoomerangRenderWorker"
-        const val PROGRESS_EMIT_INTERVAL_MS = 1_000L
+        val PROGRESS_EMIT_INTERVAL = 1000.milliseconds
     }
 }

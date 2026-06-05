@@ -66,7 +66,7 @@ Each slice's doc is structured the same way: **Problem → Scope (this slice onl
 
 ## What ships when the rollout is complete
 
-After slice 07 merges, OpenRang has feature parity with the proprietary Boomerang
+After slice 07 merges, OpenLoop has feature parity with the proprietary Boomerang
 app's core editor (capture → trim → direction / speed / looks → save → share) —
 minus the ads, IAP, watermark, and PRO-locked options. Out of scope for this
 rollout (deliberate): audio handling beyond strip, multi-clip composition, cloud
@@ -83,7 +83,7 @@ only changes the exported file length, never the in-app loop.)
 The structural patterns (separate trim screen with `NEXT`, tabbed editor with
 icon-only bottom tab bar, duration indicator at bottom of the preview, back arrow
 top-left + save checkmark top-right) are drawn from screenshots of the reference
-Boomerang app that Steven shared. OpenRang's visual language stays
+Boomerang app that Steven shared. OpenLoop's visual language stays
 project-native: dark theme only, `NeonCoral` / `NeonPurple` / `GlassWhite` /
 `DeepCharcoal` tokens (see PRD §3 "Design System Tokens" and Lesson 001 for the
 hex-literal rule). The reference app's white bottom sheets become glassmorphic

@@ -31,13 +31,13 @@
 
 Through slice 06 the boomerang flow only works on **fresh captures** — the user must record a new
 clip every time. But the moment they want to loop often already lives in their phone's photo
-library (a clip they shot earlier, a download, an AirDrop). OpenRang offers no way in.
+library (a clip they shot earlier, a download, an AirDrop). OpenLoop offers no way in.
 
 We want: from the gallery, tap an **Import** button → the system **video** picker opens → pick a
 video → the app drops the user on the **Trim screen exactly as if they had just finished recording**,
 and the rest of the pipeline (Trim → Editor → Render → Share, slices 02–06) is **unchanged**.
 
-After this slice ships, OpenRang v1 is feature-complete for submission (Issue #14 mechanics
+After this slice ships, OpenLoop v1 is feature-complete for submission (Issue #14 mechanics
 permitting).
 
 ## Owner decisions baked into this slice
@@ -56,7 +56,7 @@ permitting).
 The entire pipeline downstream of capture is **`File`-based and keyed on a "scratch" clip**:
 
 - Capture records into `cacheDir/scratch/raw_<uuid>.mp4` (`VideoStorageRepository.createScratchCapture()`).
-- `OpenRangViewModel` sets `editorState = TrimState(sourceFile = scratch.file, …)` and routes to
+- `OpenLoopViewModel` sets `editorState = TrimState(sourceFile = scratch.file, …)` and routes to
   `Trim(EditorSource.ScratchClip(uuid))`.
 - On save, the scratch is **promoted** to a raw (`promoteScratchToRaw`), the boomerang is rendered
   from it, and slice 06 shares the output. `durationOf`, the two-pass reverse (`VideoReverser`), and
@@ -145,7 +145,7 @@ When the picked clip is longer than 30 s, show a friendly **dialog** (not an err
 gallery — acknowledgment-only, no destructive framing:
 
 > **Title:** "That clip's a bit long"
-> **Body:** "OpenRang makes loops from videos up to 30 seconds. Pick a shorter clip and we'll loop
+> **Body:** "OpenLoop makes loops from videos up to 30 seconds. Pick a shorter clip and we'll loop
 > it." *(adjust copy to taste — keep it warm, not an error)*
 > **Button:** "Got it"
 
@@ -215,16 +215,16 @@ class VideoImporterImpl(private val contentResolver: ContentResolver) : VideoImp
 > That is **allowed** under Lesson 004 — `Uri` is a parcelable value type, not a `Context`/View/
 > Lifecycle. The ban is on framework objects that retain an Activity; `Uri` retains nothing.
 
-### `ui/OpenRangUiState.kt`
+### `ui/OpenLoopUiState.kt`
 
 ```kotlin
-object ImportingVideo : OpenRangUiState   // loader while the picked clip is probed + copied
+object ImportingVideo : OpenLoopUiState   // loader while the picked clip is probed + copied
 ```
 
 **No `TrimState` change** — because imports are ≤ 30 s, no max-trim-window field is needed; the Trim
 screen already can't select more than the (≤30 s) clip length.
 
-### `ui/OpenRangViewModel.kt`
+### `ui/OpenLoopViewModel.kt`
 
 - Constructor gains `private val videoImporter: VideoImporter` (update the `Factory` too).
 - Constant: `IMPORT_MAX_DURATION_MS = MAX_RECORDING_MS` (30 s). Apply a small grace so a clip the user
@@ -233,7 +233,7 @@ screen already can't select more than the (≤30 s) clip length.
 - `fun onVideoPicked(uri: Uri?)`:
   ```kotlin
   if (uri == null) return                                  // user backed out
-  _uiState.value = OpenRangUiState.ImportingVideo
+  _uiState.value = OpenLoopUiState.ImportingVideo
   viewModelScope.launch {
       val durationMs = videoImporter.probeDurationMs(uri)
       when {
@@ -252,13 +252,13 @@ screen already can't select more than the (≤30 s) clip length.
                   trimStartMs = 0L,
                   trimEndMs = dur,                          // whole clip ≤30 s; no window cap needed
               )
-              _uiState.value = OpenRangUiState.Trim(EditorSource.ScratchClip(scratch.uuid))
+              _uiState.value = OpenLoopUiState.Trim(EditorSource.ScratchClip(scratch.uuid))
           }
       }
   }
   ```
-  - `failImport()`: emit `BoomerangEvent.ImportFailed`; `_uiState.value = OpenRangUiState.Gallery`.
-  - `warnTooLong()`: emit `BoomerangEvent.ImportTooLong`; `_uiState.value = OpenRangUiState.Gallery`.
+  - `failImport()`: emit `BoomerangEvent.ImportFailed`; `_uiState.value = OpenLoopUiState.Gallery`.
+  - `warnTooLong()`: emit `BoomerangEvent.ImportTooLong`; `_uiState.value = OpenLoopUiState.Gallery`.
 - **Events:** add `ImportFailed` (snackbar) and `ImportTooLong` (the friendly dialog) to the sealed
   `BoomerangEvent`. Keep the MainActivity `when` exhaustive (no `else`).
 - **No `updateTrim` change** (no window cap).
@@ -276,10 +276,10 @@ screen already can't select more than the (≤30 s) clip length.
   private fun importVideo() = pickVideoLauncher.launch(PickVisualMediaRequest(PickVisualMedia.VideoOnly))
   ```
 - Factory bridge: construct `VideoImporterImpl(applicationContext.contentResolver)` and pass it into
-  `OpenRangViewModel.Factory` (Context stays in the Activity, per Lesson 004).
-- Thread an `onImportVideo = ::importVideo` lambda through `OpenRangNavHost` to `GalleryScreen`.
+  `OpenLoopViewModel.Factory` (Context stays in the Activity, per Lesson 004).
+- Thread an `onImportVideo = ::importVideo` lambda through `OpenLoopNavHost` to `GalleryScreen`.
 - Route the new state in the exhaustive `when` (Lesson 014 — **no `else`**):
-  `is OpenRangUiState.ImportingVideo -> InfinityLoadingScreen()`.
+  `is OpenLoopUiState.ImportingVideo -> InfinityLoadingScreen()`.
 - Events collector: `ImportFailed -> showSnackbar("Couldn't import that video.")`;
   `ImportTooLong -> ` show the friendly dialog (drive an `AlertDialog` from a small remembered
   state, e.g. `var showTooLongDialog by remember { mutableStateOf(false) }` flipped true on the
@@ -329,7 +329,7 @@ source rotation.
 
 ## Testing plan
 
-### Unit (`OpenRangViewModelTest`, JVM — add a `FakeVideoImporter` with settable `probeMs` / `copyOk`)
+### Unit (`OpenLoopViewModelTest`, JVM — add a `FakeVideoImporter` with settable `probeMs` / `copyOk`)
 - `onVideoPicked(null)` → no state change, no scratch created.
 - `probeDurationMs` returns ≤ 30 s + `copyOk` → `ImportingVideo` → `Trim(ScratchClip)`; `editorState`
   set (`trimEndMs == duration`); `activeScratch` non-null.
@@ -339,7 +339,7 @@ source rotation.
 - copy fails (`copyOk = false`) → `ImportFailed` → `Gallery`; scratch discarded.
 - post-copy `durationOf == 0` → `ImportFailed`, scratch discarded.
 - **Lesson 017**: sweep every ViewModel construction site for the new constructor param — the JVM
-  fakes block, and `OpenRangNavHostTest`'s `Noop…` fakes.
+  fakes block, and `OpenLoopNavHostTest`'s `Noop…` fakes.
 
 ### `VideoStorageRepositoryImplTest` (if D-8 prune included)
 - `pruneStaleScratch(olderThanMs)` deletes old files, keeps newer ones (`TemporaryFolder` +
@@ -350,7 +350,7 @@ source rotation.
   `file://` URIs — create a temp source, `Uri.fromFile`, assert `importToFile` copies bytes exactly
   and `probeDurationMs` reads a real bundled short test clip's length; a non-existent URI → copy
   false / probe 0.
-- `OpenRangNavHostTest`: `ImportingVideo` renders the loader and **not** the camera-bound screen
+- `OpenLoopNavHostTest`: `ImportingVideo` renders the loader and **not** the camera-bound screen
   (mirror the `Processing`/`Trim` guards — Lessons 012/014).
 - `GalleryScreenTest`: import button exists (`onNodeWithContentDescription("Import a video")`) and
   invokes the `onImportVideo` lambda (capture a flag).
@@ -384,7 +384,7 @@ source rotation.
 - [ ] Unreadable/copy-failed imports fall to a snackbar + gallery — never a crash or wedged state.
 - [ ] State router `when` stays exhaustive with **no `else`** after adding `ImportingVideo`
       (Lesson 014).
-- [ ] No `Context` parameter on any `OpenRangViewModel` method; `VideoImporterImpl` is the only new
+- [ ] No `Context` parameter on any `OpenLoopViewModel` method; `VideoImporterImpl` is the only new
       Context holder, constructed in the `MainActivity` Factory bridge (Lesson 004).
 - [ ] New Flow collection uses `collectAsStateWithLifecycle()` (Lesson 002); importer/repository I/O
       guarded for `IOException` (Lesson 003); no malformed `Color(0x…)` literal (Lesson 001).

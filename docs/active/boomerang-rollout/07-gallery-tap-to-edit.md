@@ -33,7 +33,7 @@ Two missing pieces:
    over its **source raw** (not the rendered boomerang), enabling
    "this boomerang is almost right, let me tweak it."
 
-After this slice ships, OpenRang v1 is complete and ready for Play submission
+After this slice ships, OpenLoop v1 is complete and ready for Play submission
 (Issue #14 mechanics permitting).
 
 ## Scope
@@ -159,7 +159,7 @@ affordance (the "Re-edit from source" menu item becomes grayed for them).
 
 ## Technical deltas
 
-### `OpenRangUiState.kt`
+### `OpenLoopUiState.kt`
 
 `EditorSource` was added in slice 02 as a sealed interface with only
 `ScratchClip`. Now add the second variant:
@@ -171,7 +171,7 @@ sealed interface EditorSource {
 }
 ```
 
-### `OpenRangViewModel.kt`
+### `OpenLoopViewModel.kt`
 
 - Add `startEditorFromGallery(rawId: Long)`:
   - Resolves the raw via `videoStorage.loadRecordedVideos().firstOrNull { it.id == rawId && it.kind == RAW }`.
@@ -228,7 +228,7 @@ build for v1.
 
 ### Unit tests
 
-- `OpenRangViewModelTest`:
+- `OpenLoopViewModelTest`:
   - `startEditorFromGallery(rawId)` for an existing raw posts
     `Trim(GalleryClip(rawId))`.
   - `startEditorFromGallery(rawId)` for a non-existent raw is a no-op (does
@@ -266,7 +266,7 @@ build for v1.
   boomerang(s)" correctly; after delete, the boomerangs' "Re-edit from
   source" menu items are grayed.
 - Process kill, relaunch: any scratch files >24 h old are pruned (verify via
-  `adb shell ls /data/data/com.openrang.app/cache/scratch/`).
+  `adb shell ls /data/data/com.OpenLoop.app/cache/scratch/`).
 - Screenshot of the gallery with mixed raws/boomerangs + filter chip selected
   attached to the PR.
 
@@ -287,7 +287,7 @@ build for v1.
 - [ ] No `Color(0x…)` literal violates the 8-hex-digit rule (Lesson 001).
 - [ ] All Flow collection uses `collectAsStateWithLifecycle()` (Lesson 002).
 - [ ] All repository writes wrapped in `try / catch (IOException)` (Lesson 003).
-- [ ] No `Context` parameter on any `OpenRangViewModel` method (Lesson 004).
+- [ ] No `Context` parameter on any `OpenLoopViewModel` method (Lesson 004).
 - [ ] Unfolded large-screen (≥600 dp) layout sanity-checked on Pixel 10 Pro
       Fold — the grid should breathe, not just stretch to 3-col fixed.
       (May warrant a separate small slice if extensive; track as open

@@ -275,6 +275,19 @@ class VideoStorageRepositoryImplTest {
         assertTrue(repository.loadRecordedVideos().isEmpty())
     }
 
+    @Test
+    fun `deleteRawVideo removes the raw clip and its thumbnail`() = runBlocking {
+        seedClipWithThumbnail(123L)
+        val videoFile = File(videosDir(), "clip_123.mp4")
+        val thumbFile = File(thumbnailsDir(), "clip_123.jpg")
+        assertTrue(videoFile.exists() && thumbFile.exists())
+
+        repository.deleteRawVideo(123L)
+
+        assertFalse(videoFile.exists())
+        assertFalse(thumbFile.exists())
+    }
+
     // ── Stale-scratch prune (slice 07 / D-8) ──
 
     private fun scratchDir() = File(cacheDir, "scratch")

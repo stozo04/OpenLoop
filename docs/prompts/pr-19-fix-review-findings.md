@@ -1,6 +1,6 @@
 # PR #19 — Fix Review Findings (Slice 01: variable-length capture)
 
-Copy everything below the line into a **fresh Claude Code session** with the OpenRang folder mounted and the branch `feature/boomerang-slice-01-variable-length` checked out.
+Copy everything below the line into a **fresh Claude Code session** with the OpenLoop folder mounted and the branch `feature/boomerang-slice-01-variable-length` checked out.
 
 This prompt is a **finding-specific** companion to `docs/prompts/PR-FEEDBACK-RESOLUTION.md`. That file is the generic "address feedback + re-review" harness; **this** file enumerates the exact 7 findings from the automated review on PR #19 that are in scope (3 WARNINGs + 4 Recommendations), each with file:line, the fix, and the **covering test** that must prove it. Use both: the steps below for *what* to change, the generic doc's Phase 4/5 for the response comment + re-review.
 
@@ -12,7 +12,7 @@ This prompt is a **finding-specific** companion to `docs/prompts/PR-FEEDBACK-RES
 
 ## Session Prompt — Fix the PR #19 review findings (with tests)
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0. You are on branch `feature/boomerang-slice-01-variable-length` (PR #19).
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0. You are on branch `feature/boomerang-slice-01-variable-length` (PR #19).
 
 ### Critical Rule — Do Not Trust Your Training Data
 
@@ -27,11 +27,11 @@ Your knowledge cutoff could be a year old. **Do not assume** you know current An
 5. `docs/TEST_COVERAGE.md` — test directory split (`test/` JVM unit vs `androidTest/` instrumented), MockK + `kotlinx-coroutines-test` conventions, the `MainDispatcherRule`, and the backtick test-naming convention.
 6. `docs/DEFINITION_OF_DONE.md` — the verification gate you must clear before calling this done.
 
-Then read the files you'll touch in full: `app/src/main/java/com/openrang/app/MainActivity.kt`, `ui/CameraScreen.kt`, `ui/OpenRangViewModel.kt`, `ui/OpenRangUiState.kt`, `ui/PreviewScreen.kt`, `camera/CameraManager.kt`, and the two test files `test/.../ui/OpenRangViewModelTest.kt`, `androidTest/.../ui/CameraScreenTest.kt`.
+Then read the files you'll touch in full: `app/src/main/java/com/OpenLoop/app/MainActivity.kt`, `ui/CameraScreen.kt`, `ui/OpenLoopViewModel.kt`, `ui/OpenLoopUiState.kt`, `ui/PreviewScreen.kt`, `camera/CameraManager.kt`, and the two test files `test/.../ui/OpenLoopViewModelTest.kt`, `androidTest/.../ui/CameraScreenTest.kt`.
 
 ### Phase 1 — Confirm owner decisions BEFORE building
 
-Two findings cross into UX/behavior choices. Per OpenRang's pushback + reversibility rules, **surface these to Steven and get a one-word answer before writing the code for them.** Propose the recommended default in parentheses; don't silently pick:
+Two findings cross into UX/behavior choices. Per OpenLoop's pushback + reversibility rules, **surface these to Steven and get a one-word answer before writing the code for them.** Propose the recommended default in parentheses; don't silently pick:
 
 - **D1 — Back while Recording (WARNING-2).** Should the system back gesture during `Recording` (a) **stop & finalize** the clip (same as tapping stop → `LoopingPreview`), or (b) **discard** the in-flight clip and return to `ReadyToCapture`? *(Recommended: (a) stop & finalize — least surprising, no silent data loss, reuses `stopBurstCapture`.)*
 - **D2 — `Processing` routing (WARNING-1).** `Processing` is a defined-but-unrouted state (slice 02 will give it a real UI per `02-auto-route-trim-and-default-save.md`). For *this* cleanup, render it as (a) the existing **`InfinityLoadingScreen()`** placeholder, or (b) a dedicated minimal "processing" UI? *(Recommended: (a) — a safe placeholder that closes the exhaustiveness/unguarded-`CameraScreen` gap now; slice 02 replaces it with the real Processing surface.)*
@@ -49,14 +49,14 @@ For every item below, web-search the cited doc to confirm the standard before fi
 Order them by risk: warnings first, then recommendations. Each must end green with its own test.
 
 ### WARNING-1 — `else ->` defeats sealed-interface exhaustiveness + reintroduces an unguarded `CameraScreen` call site
-- **Where:** `MainActivity.kt:178-184` (`else -> { CameraScreen(...) }`); unhandled state `OpenRangUiState.Processing` at `OpenRangUiState.kt:17`.
+- **Where:** `MainActivity.kt:178-184` (`else -> { CameraScreen(...) }`); unhandled state `OpenLoopUiState.Processing` at `OpenLoopUiState.kt:17`.
 - **Why it matters:** Decision Log #1 chose a sealed interface specifically so the compiler forces every state to be handled. The `else` defeats that, leaves `Processing` silently falling through to a **bare `CameraScreen`** (no `CameraScreenHost`), and makes Lesson 012's own detection check fail — `grep -n "CameraScreen(" MainActivity.kt` returns **2** call sites, but the lesson requires exactly **1** reachable during capture. That second call site is the exact seam the `ERROR_SOURCE_INACTIVE` fix closed.
-- **Fix:** Remove the `else ->` branch. Add an explicit `is OpenRangUiState.Processing ->` branch rendering the agreed D2 placeholder UI. Let the `when` be exhaustive (no `else`) so the next new state won't compile until handled. (Slice 02 will swap the placeholder for the real Processing surface — leave a `// TODO(slice-02)` so that hand-off is obvious.)
-- **Recommended structural move (enables the test):** Extract the routing `when` out of `setContent` into a testable, stateless `@Composable fun OpenRangNavHost(uiState, viewModel, cameraManager)` — mirrors the project's existing extract-for-testability pattern (`OnboardingNavigation`, PRD §UI). MainActivity then just calls `OpenRangNavHost(uiState, ...)`.
+- **Fix:** Remove the `else ->` branch. Add an explicit `is OpenLoopUiState.Processing ->` branch rendering the agreed D2 placeholder UI. Let the `when` be exhaustive (no `else`) so the next new state won't compile until handled. (Slice 02 will swap the placeholder for the real Processing surface — leave a `// TODO(slice-02)` so that hand-off is obvious.)
+- **Recommended structural move (enables the test):** Extract the routing `when` out of `setContent` into a testable, stateless `@Composable fun OpenLoopNavHost(uiState, viewModel, cameraManager)` — mirrors the project's existing extract-for-testability pattern (`OnboardingNavigation`, PRD §UI). MainActivity then just calls `OpenLoopNavHost(uiState, ...)`.
 - **Covering tests:**
   - **Compile-time (the real guard):** after removing `else`, intentionally comment out one branch locally and confirm the build fails with a non-exhaustive-`when` error, then restore it. (Don't commit the broken state — this just proves the guard is live.)
-  - **Instrumented** (`CameraScreenTest.kt` or a new `OpenRangNavHostTest.kt`): mount `OpenRangNavHost` with `uiState = OpenRangUiState.Processing` and assert the camera content is **not** mounted (e.g. reuse the `host_content`/`LaunchedEffect` counter trick from `cameraScreenHost_keepsContentMounted_acrossCaptureTransition`, or assert the loading marker shows and `progress_ring`/shutter `contentDescription` do not exist).
-  - **Lesson-012 grep:** confirm `grep -n "CameraScreen(" app/src/main/java/com/openrang/app/MainActivity.kt` returns exactly **1** match after the fix.
+  - **Instrumented** (`CameraScreenTest.kt` or a new `OpenLoopNavHostTest.kt`): mount `OpenLoopNavHost` with `uiState = OpenLoopUiState.Processing` and assert the camera content is **not** mounted (e.g. reuse the `host_content`/`LaunchedEffect` counter trick from `cameraScreenHost_keepsContentMounted_acrossCaptureTransition`, or assert the loading marker shows and `progress_ring`/shutter `contentDescription` do not exist).
+  - **Lesson-012 grep:** confirm `grep -n "CameraScreen(" app/src/main/java/com/OpenLoop/app/MainActivity.kt` returns exactly **1** match after the fix.
 
 ### WARNING-2 — No `BackHandler` for the `Recording` state (predictive back is default-on at target 36)
 - **Where:** `CameraScreen.kt` (no `BackHandler` anywhere; `PreviewScreen.kt:47` shows the correct pattern).
@@ -85,9 +85,9 @@ Order them by risk: warnings first, then recommendations. Each must end green wi
   - **Optional but ideal — recomposition counter (instrumented):** mount the screen/overlay, increment a counter inside the parent composable body (a plain `var` captured + `SideEffect { parentRecompositions++ }`), drive several elapsed updates via a `MutableStateFlow`, and assert the **parent** recomposition count stays ~constant while the child updates. If a reliable counter proves too fiddly, document that the perf win was verified manually via Layout Inspector recomposition counts and skip the automated assert — don't ship a flaky test.
 
 ### REC-2 — Handle `startRecording(...) == null` (stuck-in-`Recording` hang)
-- **Where:** `OpenRangViewModel.kt:110` ignores the `Recording?` return. `CameraManager.startRecording` returns `null` when `videoCapture` isn't bound — then no `Finalize` ever fires, the auto-cap's `stopRecording()` is a no-op, and the UI is stuck in `Recording` with a full ring for 30 s.
+- **Where:** `OpenLoopViewModel.kt:110` ignores the `Recording?` return. `CameraManager.startRecording` returns `null` when `videoCapture` isn't bound — then no `Finalize` ever fires, the auto-cap's `stopRecording()` is a no-op, and the UI is stuck in `Recording` with a full ring for 30 s.
 - **Fix:** Capture the return value; if `null`, `clearRecordingTimers()`, set `_uiState.value = ReadyToCapture`, and **return before launching the timer coroutine**.
-- **Covering test (`OpenRangViewModelTest.kt`, JVM unit):**
+- **Covering test (`OpenLoopViewModelTest.kt`, JVM unit):**
   ```kotlin
   @Test
   fun `startBurstCapture reverts to ReadyToCapture when recording cannot start`() =
@@ -96,7 +96,7 @@ Order them by risk: warnings first, then recommendations. Each must end green wi
           every { cameraManager.startRecording(any(), any()) } returns null
           viewModel.startBurstCapture(cameraManager)
           advanceUntilIdle()
-          assertEquals(OpenRangUiState.ReadyToCapture, viewModel.uiState.value)
+          assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
           assertEquals(0L, viewModel.recordingElapsedMs.value)
           verify(exactly = 0) { cameraManager.stopRecording() }
       }
@@ -104,10 +104,10 @@ Order them by risk: warnings first, then recommendations. Each must end green wi
   (Confirm there's no orphan timer coroutine left spinning — `advanceUntilIdle()` should settle immediately.)
 
 ### REC-3 — Narrow the broad `catch (e: Exception)` in `startBurstCapture`
-- **Where:** `OpenRangViewModel.kt:150`.
+- **Where:** `OpenLoopViewModel.kt:150`.
 - **Why it matters:** ANDROID_STANDARDS §3 — catch specific types; a bare `Exception` swallows programming errors as a silent state reset.
 - **Fix:** **Web-search the exact throwables** of `PendingRecording.prepareRecording`/`Recording.start()` (and the audio-permission path) on `developer.android.com` before narrowing — likely `IllegalStateException`, `IllegalArgumentException`, `SecurityException`, `IOException`. Catch those explicitly; let anything unexpected propagate.
-- **Covering test (`OpenRangViewModelTest.kt`, JVM unit):** `every { cameraManager.startRecording(any(), any()) } throws IllegalStateException("camera busy")`, call `startBurstCapture`, assert it recovers to `ReadyToCapture` with `recordingElapsedMs == 0L` and no leaked timer.
+- **Covering test (`OpenLoopViewModelTest.kt`, JVM unit):** `every { cameraManager.startRecording(any(), any()) } throws IllegalStateException("camera busy")`, call `startBurstCapture`, assert it recovers to `ReadyToCapture` with `recordingElapsedMs == 0L` and no leaked timer.
 
 > **Not in this prompt — "Loopify" no-op button (`PreviewScreen.kt:105-106`).** The review flagged it, but it is an **intentional** slice-02 placeholder: slice 02 routes `Finalize` success to the Trim screen and repoints this button (see `boomerang-slice-02-kickoff.md` / `02-auto-route-trim-and-default-save.md`, plus the Lesson 012 §slice-02 hand-off). **Do not modify it.** In the PR response comment, mark this finding **ACKNOWLEDGED — intentional, deferred to slice 02.**
 

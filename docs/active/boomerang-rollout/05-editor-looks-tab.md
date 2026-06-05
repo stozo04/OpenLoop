@@ -175,7 +175,7 @@ built from it (single source of truth → thumbnail matches export).
 
 ## Technical deltas
 
-### `OpenRangUiState.kt`
+### `OpenLoopUiState.kt`
 ```kotlin
 enum class EditorTab { DIRECTION, SPEED, LOOKS }   // add LOOKS
 
@@ -199,7 +199,7 @@ parameters (red/blue channel scale, saturation). Two derivations:
 
 Both built from the same per-look constants so they stay in sync (thumbnail ≈ preview ≈ export).
 
-### `OpenRangViewModel.kt`
+### `OpenLoopViewModel.kt`
 ```kotlin
 fun updateFilter(filter: VideoFilter) {     // mirror updateSpeed/updateMode
     val current = _editorTabState.value
@@ -240,7 +240,7 @@ No new routes — same `BoomerangEditor` destination.
 
 ## Testing plan
 
-### Unit tests (`OpenRangViewModelTest`)
+### Unit tests (`OpenLoopViewModelTest`)
 - `updateFilter(WARM)` → `editorTabState.filter == WARM`.
 - `updateFilter` is a no-op when already selected (no extra emission).
 - `saveBoomerang()` passes the selected `filter` to the processor (add `lastRenderFilter` to
@@ -278,6 +278,6 @@ No new routes — same `BoomerangEditor` destination.
 - [ ] Speed + filter verified stacking correctly in both preview and a saved file.
 - [ ] No `Color(0x…)` literal violates the 8-hex-digit rule (Lesson 001).
 - [ ] All Flow collection uses `collectAsStateWithLifecycle()` (Lesson 002).
-- [ ] No `Context` parameter on any `OpenRangViewModel` method (Lesson 004) — frame extraction runs
+- [ ] No `Context` parameter on any `OpenLoopViewModel` method (Lesson 004) — frame extraction runs
       in the composable (it has a `Context`), not in the ViewModel.
 - [ ] PR notes which Media3 effect classes/methods were used (with the verified 1.10.1 signatures).

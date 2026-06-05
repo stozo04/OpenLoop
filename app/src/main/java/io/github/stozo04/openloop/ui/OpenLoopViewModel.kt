@@ -50,6 +50,10 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import androidx.camera.video.VideoRecordEvent
 
 /**
@@ -158,7 +162,7 @@ class OpenLoopViewModel(
         // forget on Dispatchers.IO inside the repo — never blocks startup or the UI thread.
         viewModelScope.launch {
             try {
-                videoStorage.pruneStaleScratch(STALE_SCRATCH_MAX_AGE_MS)
+                videoStorage.pruneStaleScratch(STALE_SCRATCH_MAX_AGE.inWholeMilliseconds)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -216,8 +220,8 @@ class OpenLoopViewModel(
     /**
      * Elapsed recording time in milliseconds, driven by the capture timer while in
      * [OpenLoopUiState.Recording]. The UI reads this to draw the shutter progress ring and the
-     * `00:00 / 00:30` countdown chip. It re-emits roughly every [TICK_MS] ms and is reset to 0
-     * whenever a capture stops. Value is clamped to [MAX_RECORDING_MS].
+     * `00:00 / 00:30` countdown chip. It re-emits roughly every [TICK_DURATION] and is reset to 0
+     * whenever a capture stops. Value is clamped to [MAX_RECORDING].
      */
     private val _recordingElapsedMs = MutableStateFlow(0L)
     val recordingElapsedMs: StateFlow<Long> = _recordingElapsedMs.asStateFlow()
@@ -403,15 +407,17 @@ class OpenLoopViewModel(
             }
 
             // Drive the elapsed-time flow (for the progress ring + countdown chip) and enforce the
-            // 30 s hard cap. When elapsed reaches MAX_RECORDING_MS with no user tap, finalize via the
+            // 30 s hard cap. When elapsed reaches MAX_RECORDING with no user tap, finalize via the
             // same stopBurstCapture() path as a tap. The loop is bounded by the cap, so a virtual-time
             // test can advanceUntilIdle() without spinning forever (Lesson 008).
             _recordingElapsedMs.value = 0L
             recordingJob = viewModelScope.launch {
                 var elapsed = 0L
-                while (elapsed < MAX_RECORDING_MS) {
-                    delay(TICK_MS)
-                    elapsed = (elapsed + TICK_MS).coerceAtMost(MAX_RECORDING_MS)
+                val maxRecordingMs = MAX_RECORDING.inWholeMilliseconds
+                val tickMs = TICK_DURATION.inWholeMilliseconds
+                while (elapsed < maxRecordingMs) {
+                    delay(TICK_DURATION)
+                    elapsed = (elapsed + tickMs).coerceAtMost(maxRecordingMs)
                     _recordingElapsedMs.value = elapsed
                 }
                 stopBurstCapture(cameraManager)
@@ -582,7 +588,7 @@ class OpenLoopViewModel(
 
     /** True when [durationMs] is past the advertised "up to 30 s" import cap (including grace). */
     private fun exceedsImportDurationLimit(durationMs: Long): Boolean =
-        durationMs > IMPORT_MAX_DURATION_MS + IMPORT_DURATION_GRACE_MS
+        durationMs > (IMPORT_MAX_DURATION + IMPORT_DURATION_GRACE).inWholeMilliseconds
 
     /**
      * Finalize the current burst. Called from both the user-tap path and the 30 s auto-cap path.
@@ -614,13 +620,13 @@ class OpenLoopViewModel(
 
     /**
      * Update the trim handles. Positions are clamped to `[0, sourceDuration]`; an update that would
-     * shrink the window below [MIN_TRIM_MS] is ignored (the handles can't cross within the minimum).
+     * shrink the window below [MIN_TRIM_DURATION] is ignored (the handles can't cross within the minimum).
      */
     fun updateTrim(startMs: Long, endMs: Long) {
         val current = _editorState.value ?: return
         val start = startMs.coerceIn(0L, current.sourceDurationMs)
         val end = endMs.coerceIn(0L, current.sourceDurationMs)
-        if (end - start < MIN_TRIM_MS) return
+        if (end - start < MIN_TRIM_DURATION.inWholeMilliseconds) return
         if (start == current.trimStartMs && end == current.trimEndMs) return
         _editorState.value = current.copy(trimStartMs = start, trimEndMs = end)
 
@@ -865,7 +871,7 @@ class OpenLoopViewModel(
                     }
                     select {
                         worker.onAwait { it }
-                        onTimeout(reversePreviewTimeoutMs()) {
+                        onTimeout(reversePreviewTimeout()) {
                             worker.cancel()
                             Result.failure(PreviewReverseTimeoutException())
                         }
@@ -900,19 +906,19 @@ class OpenLoopViewModel(
                     if (error is PreviewReverseTimeoutException) {
                         ReversePreviewLog.e(
                             "viewModel.ensureReversed.timeout",
-                            "gen=$generation after ${reversePreviewTimeoutMs()}ms " +
+                            "gen=$generation after ${reversePreviewTimeout()} " +
                                 "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} " +
                                 "source=${trim.sourceFile.name}",
                         )
                         Log.e(
                             "OpenLoopViewModel",
-                            "Reverse generation for preview timed out after ${reversePreviewTimeoutMs()}ms " +
+                            "Reverse generation for preview timed out after ${reversePreviewTimeout()} " +
                                 "(${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, " +
                                 "source=${trim.sourceFile.name}, ${trim.trimEndMs - trim.trimStartMs}ms trim)",
                         )
                         markReversePreviewFailed(
                             trim,
-                            "Timed out after ${reversePreviewTimeoutMs() / 1000}s",
+                            "Timed out after ${reversePreviewTimeout().inWholeSeconds}s",
                             PreviewReverseTimeoutException(),
                         )
                     } else {
@@ -1015,7 +1021,7 @@ class OpenLoopViewModel(
         _editorTabState.value = tab.copy(previewLoading = kind)
         effectLoadingJob?.cancel()
         effectLoadingJob = viewModelScope.launch {
-            delay(EFFECT_LOADING_MIN_MS)
+            delay(EFFECT_LOADING_MIN_DURATION)
             clearPreviewLoading(kind)
         }
     }
@@ -1271,13 +1277,13 @@ class OpenLoopViewModel(
      */
     companion object {
         /** Hard cap on a single burst capture; recording auto-finalizes at this elapsed time. */
-        const val MAX_RECORDING_MS = 30_000L
+        val MAX_RECORDING = 30.seconds
 
         /** Elapsed-time emit cadence (~30 fps) for a smooth progress ring without over-emitting. */
-        const val TICK_MS = 33L
+        val TICK_DURATION = 33.milliseconds
 
         /** Minimum trimmed duration; below this the NEXT action is disabled (slice 02). */
-        const val MIN_TRIM_MS = 400L
+        val MIN_TRIM_DURATION = 400.milliseconds
 
         /** Default boomerang config. Direction picker shipped slice 03, speed slider slice 04, Looks
          *  (filters) slice 05 — the Reps tab was dropped in favor of Looks, so [DEFAULT_REPS] stays
@@ -1289,13 +1295,13 @@ class OpenLoopViewModel(
         const val MIN_SPEED = 0.25f
 
         /** Minimum time the speed/filter preview overlay stays visible so the caption is readable. */
-        private const val EFFECT_LOADING_MIN_MS = 400L
+        private val EFFECT_LOADING_MIN_DURATION = 400.milliseconds
 
         /**
          * Max wall time for editor preview reverse (library imports can be slow). On timeout the editor
          * surfaces [EditorTabState.reverseFailed] instead of infinite "Trimming..".
          */
-        const val REVERSE_PREVIEW_TIMEOUT_MS = 120_000L
+        val REVERSE_PREVIEW_TIMEOUT = 120.seconds
 
         /**
          * When true, preview reverse has no [select] timeout (unit tests only). Virtual-time
@@ -1304,30 +1310,30 @@ class OpenLoopViewModel(
         @Volatile
         var reversePreviewTimeoutDisabledForTests: Boolean = false
 
-        /** Non-null replaces [REVERSE_PREVIEW_TIMEOUT_MS] for timeout-duration tests only. */
+        /** Non-null replaces [REVERSE_PREVIEW_TIMEOUT] for timeout-duration tests only. */
         @Volatile
-        var reversePreviewTimeoutMsOverride: Long? = null
+        var reversePreviewTimeoutOverride: Duration? = null
 
         internal fun reversePreviewTimeoutDisabledForTests(): Boolean =
             reversePreviewTimeoutDisabledForTests
 
-        internal fun reversePreviewTimeoutMs(): Long =
-            reversePreviewTimeoutMsOverride ?: REVERSE_PREVIEW_TIMEOUT_MS
+        internal fun reversePreviewTimeout(): Duration =
+            reversePreviewTimeoutOverride ?: REVERSE_PREVIEW_TIMEOUT
 
         const val MAX_SPEED = 3.0f
 
         /** Max duration of an imported library clip (slice 07); same 30 s ceiling as a capture. */
-        const val IMPORT_MAX_DURATION_MS = MAX_RECORDING_MS
+        val IMPORT_MAX_DURATION = MAX_RECORDING
 
         /**
-         * Grace added to [IMPORT_MAX_DURATION_MS] before rejecting an import, so a clip the user
+         * Grace added to [IMPORT_MAX_DURATION] before rejecting an import, so a clip the user
          * thinks of as "30 seconds" (often 30.2–30.5 s of actual container duration) isn't rejected
          * for being a few hundred ms over (slice 07).
          */
-        const val IMPORT_DURATION_GRACE_MS = 1_000L
+        val IMPORT_DURATION_GRACE = 1.seconds
 
         /** Scratch files older than this are pruned at launch (parent D-8); 24 h. */
-        const val STALE_SCRATCH_MAX_AGE_MS = 24L * 60 * 60 * 1_000
+        val STALE_SCRATCH_MAX_AGE = 24.hours
     }
 
     class Factory(

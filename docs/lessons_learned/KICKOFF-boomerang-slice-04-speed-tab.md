@@ -27,7 +27,7 @@ with `SpeedChangingVideoEffect(speed)`."* **Two things are wrong with that:**
    `SpeedChangeEffect(speed)` per clip via `speedEffects(speed)`. **There is no `2.0f` literal in
    `VideoProcessor` to replace.** The render side is done.
 
-So the **entire render-side change for slice 04** is one line: `OpenRangViewModel.saveBoomerang()`
+So the **entire render-side change for slice 04** is one line: `OpenLoopViewModel.saveBoomerang()`
 currently passes `speed = DEFAULT_SPEED` — change it to `speed = _editorTabState.value.speed`. That's it.
 Don't touch `Media3VideoProcessor`.
 
@@ -114,16 +114,16 @@ variable speed makes it obvious — that's why it lands here.)
 
 `media/BoomerangSequence.kt` has `boomerangOutputDurationMs(mode, trimStartMs, trimEndMs, speed, repetitions)`
 (pure, JVM-tested). `BoomerangEditorContent` already calls it — but currently passes
-`OpenRangViewModel.DEFAULT_SPEED`. Slice 04: pass `state.speed` and the "Xs" label updates live. No new
+`OpenLoopViewModel.DEFAULT_SPEED`. Slice 04: pass `state.speed` and the "Xs" label updates live. No new
 math, no new function.
 
 ---
 
 ## 5. Where everything lives (so you don't re-learn the map)
 
-- **State + `EditorTabState`:** `ui/OpenRangUiState.kt` (NOT inline in the ViewModel, despite the PRD
-  sketch). Add `speed: Float = 2.0f` and `activeTab: EditorTab`. Default speed = `OpenRangViewModel.DEFAULT_SPEED` (2.0f).
-- **VM mutators:** `ui/OpenRangViewModel.kt` — alongside `updateMode` / `ensureReversedSegment` /
+- **State + `EditorTabState`:** `ui/OpenLoopUiState.kt` (NOT inline in the ViewModel, despite the PRD
+  sketch). Add `speed: Float = 2.0f` and `activeTab: EditorTab`. Default speed = `OpenLoopViewModel.DEFAULT_SPEED` (2.0f).
+- **VM mutators:** `ui/OpenLoopViewModel.kt` — alongside `updateMode` / `ensureReversedSegment` /
   `saveBoomerang` / `backToTrim`, add `updateSpeed(speed)` (`coerceIn(0.25f, 3.0f)`) and `switchTab(tab)`.
   `saveBoomerang()` is where you swap `DEFAULT_SPEED` → `state.speed`.
 - **Editor UI:** `ui/BoomerangEditorScreen.kt` — `BoomerangEditorScreen` (thin) + `BoomerangEditorContent`
@@ -133,8 +133,8 @@ math, no new function.
 - **Pure math:** `media/BoomerangSequence.kt` (`boomerangSequence`, `boomerangOutputDurationMs`).
 - **Render:** `media/VideoProcessor.kt` (`renderBoomerang` already applies `SpeedChangeEffect(speed)`;
   `ensureReversed` for the preview). **You don't edit this file.**
-- **Tests:** `OpenRangViewModelTest` (JVM; `FakeVideoProcessor` — extend it if you add interface methods,
-  and sweep `NoopVideoProcessor` in `OpenRangNavHostTest` too — Lesson 017), `BoomerangSequenceTest`
+- **Tests:** `OpenLoopViewModelTest` (JVM; `FakeVideoProcessor` — extend it if you add interface methods,
+  and sweep `NoopVideoProcessor` in `OpenLoopNavHostTest` too — Lesson 017), `BoomerangSequenceTest`
   (JVM), `BoomerangEditorScreenTest` (instrumented; no mockk — Lesson 017).
 
 ---

@@ -10,10 +10,12 @@ TEXT_SECONDARY = (173, 173, 184)
 LIME = (205, 255, 79)
 AQUA = (52, 225, 213)
 
-FONT_SPACE_GROTESK = "/sessions/busy-brave-cannon/mnt/OpenRang/app/src/main/res/font/space_grotesk.ttf"
-FONT_INTER = "/sessions/busy-brave-cannon/mnt/OpenRang/app/src/main/res/font/inter.ttf"
-LOGO_FOREGROUND = "/sessions/busy-brave-cannon/mnt/OpenRang/app/src/main/res/drawable-nodpi/ic_launcher_foreground.png"
-OUT = Path("/sessions/busy-brave-cannon/mnt/outputs/feature_graphic_1024x500.png")
+# Use relative paths so it works across environments
+ROOT = Path(__file__).parent.parent
+FONT_SPACE_GROTESK = str(ROOT / "app/src/main/res/font/space_grotesk.ttf")
+FONT_INTER = str(ROOT / "app/src/main/res/font/inter.ttf")
+LOGO_FOREGROUND = str(ROOT / "app/src/main/res/drawable-nodpi/ic_launcher_foreground.png")
+OUT = ROOT / "docs/play-store/feature_graphic_1024x500.png"
 
 def load_variable_font(path: str, size: int, weight: int) -> ImageFont.FreeTypeFont:
     f = ImageFont.truetype(path, size)

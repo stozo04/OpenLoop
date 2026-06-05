@@ -1,6 +1,6 @@
 # Lesson 013 — Media start calls: handle the failure RETURN, catch only the documented synchronous throwables, and remember async errors arrive via a callback
 
-> Origin: PR #19 (slice 01 review) — findings REC-2 + REC-3 in `OpenRangViewModel.startBurstCapture`.
+> Origin: PR #19 (slice 01 review) — findings REC-2 + REC-3 in `OpenLoopViewModel.startBurstCapture`.
 
 ## What went wrong
 
@@ -50,7 +50,7 @@ Media3 `Transformer` and `MediaCodec` work):
        val recording = cameraManager.startRecording(outputFile) { event -> /* … */ }
        if (recording == null) {            // VideoCapture not bound → no Finalize will ever fire
            clearRecordingTimers()
-           _uiState.value = OpenRangUiState.ReadyToCapture
+           _uiState.value = OpenLoopUiState.ReadyToCapture
            return                          // bail BEFORE launching the timer
        }
        // … only now launch the elapsed-time / auto-cap coroutine
@@ -84,7 +84,7 @@ Media3 `Transformer` and `MediaCodec` work):
   a candidate to narrow to the API's documented throwable.
 - For every exception type you *do* catch, you must be able to point to the `@throws` in the
   API source/reference. If you can't, you're guessing — remove it.
-- Covering tests (`OpenRangViewModelTest`): null-return → ReadyToCapture, `elapsed == 0`,
+- Covering tests (`OpenLoopViewModelTest`): null-return → ReadyToCapture, `elapsed == 0`,
   `stopRecording` never called, `advanceUntilIdle()` settles (no orphan timer); and one test per
   caught exception type proving recovery to idle.
 

@@ -37,7 +37,7 @@ sheet gives users single-tap distribution.
   MediaStore write is a future decision (parent doc D-6).
 - "Save to gallery" as a separate option distinct from share. Save and
   in-gallery storage already happen — share is just the additional surfacing.
-- Watermarks, share captions, deep links back to OpenRang.
+- Watermarks, share captions, deep links back to OpenLoop.
 - Per-target customization (e.g., compress for SMS). Out of scope for v1.
 
 ## UX deltas
@@ -61,7 +61,7 @@ slice 02 failure path).
 - Default text: `"Saved — view in gallery"`.
 - Action label: `"View"` (right-aligned, `NeonCoral` text).
 - Action behavior: navigates to `Gallery` (currently routed via
-  `OpenRangUiState.Gallery`).
+  `OpenLoopUiState.Gallery`).
 - Type: Compose Material 3 `Snackbar` hosted by a `SnackbarHostState` in the
   `Scaffold` of `MainActivity` (so it persists across state transitions, not
   scoped to the editor screen).
@@ -69,7 +69,7 @@ slice 02 failure path).
 ### Share sheet contents
 
 - `Intent.EXTRA_STREAM`: FileProvider URI for the rendered boomerang MP4.
-- `Intent.EXTRA_SUBJECT`: `"OpenRang boomerang"`.
+- `Intent.EXTRA_SUBJECT`: `"OpenLoop boomerang"`.
 - `intent.type`: `"video/mp4"`.
 - `intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)`.
 - `Intent.createChooser(intent, "Share boomerang")`.
@@ -101,7 +101,7 @@ slice 02 failure path).
 Only `filesDir/boomerangs/` is exposed — raws and scratch files are not
 shareable through this provider.
 
-### `OpenRangViewModel.kt`
+### `OpenLoopViewModel.kt`
 
 - Replace the snackbar-emitting success path in `saveBoomerang()` with a
   `SharedFlow<UiEffect>` emit:
@@ -129,7 +129,7 @@ shareable through this provider.
   val intent = Intent(Intent.ACTION_SEND).apply {
       type = "video/mp4"
       putExtra(Intent.EXTRA_STREAM, uri)
-      putExtra(Intent.EXTRA_SUBJECT, "OpenRang boomerang")
+      putExtra(Intent.EXTRA_SUBJECT, "OpenLoop boomerang")
       addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
   }
   val chooser = Intent.createChooser(intent, "Share boomerang")
@@ -143,7 +143,7 @@ shareable through this provider.
   ```
 - The `Scaffold` in `MainActivity` hosts a `SnackbarHostState`; on `UiEffect.Saved`,
   call `snackbarHostState.showSnackbar(message = "Saved — view in gallery", actionLabel = "View")`
-  and on `SnackbarResult.ActionPerformed`, post `OpenRangUiState.Gallery`.
+  and on `SnackbarResult.ActionPerformed`, post `OpenLoopUiState.Gallery`.
 
 ### Boomerang file location
 
@@ -155,7 +155,7 @@ above grants share-time access without copying or moving them.
 
 ### Unit tests
 
-- `OpenRangViewModelTest`:
+- `OpenLoopViewModelTest`:
   - `saveBoomerang()` emits `UiEffect.ShareBoomerang(file)` on render success,
     then transitions to `ReadyToCapture`.
   - `saveBoomerang()` emits `UiEffect.SaveFailed` on render error; stays in
@@ -198,7 +198,7 @@ both deliberately:
   user-visible gain, and a `Channel` is the more robust choice for one-shot events (it buffers a
   miss; a `SharedFlow` can drop one if nobody is collecting at that instant). Added
   `BoomerangEvent.Share(file)` (render success hands the rendered MP4 to the sheet) and
-  `OpenRangViewModel.onShareSheetClosed()` (emits the deferred `Saved`).
+  `OpenLoopViewModel.onShareSheetClosed()` (emits the deferred `Saved`).
 - **Deferred the snackbar via the activity's next `onResume()`, not `lifecycle.withResumed { }`.**
   Called synchronously right after `startActivity(chooser)`, the activity is still `RESUMED`
   (the chooser hasn't taken over yet), so `withResumed` would run its block *immediately* — firing
@@ -236,6 +236,6 @@ both deliberately:
 - [ ] Snackbar "View" action routes to Gallery correctly.
 - [ ] No `Color(0x…)` literal violates the 8-hex-digit rule (Lesson 001).
 - [ ] All Flow collection uses `collectAsStateWithLifecycle()` (Lesson 002).
-- [ ] No `Context` parameter on any `OpenRangViewModel` method (Lesson 004).
+- [ ] No `Context` parameter on any `OpenLoopViewModel` method (Lesson 004).
 - [ ] PR description states what was not verified (e.g., specific apps that
       crash on receipt of a video URI — Steven's call on how thorough to be).

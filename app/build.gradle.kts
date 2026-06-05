@@ -3,8 +3,8 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.baselineprofile)
 }
 
 // Release signing is driven by a gitignored keystore.properties at the repo root (never commit
@@ -24,8 +24,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 20
-        versionName = "1.0.20"
+        versionCode = 21
+        versionName = "1.0.21"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -66,8 +66,10 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        // Java 17 per https://developer.android.com/build/jdks — JDK 21 deprecated compiling
+        // to source/target 8. D8 dexes the bytecode, so this is independent of minSdk.
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
         compose = true
@@ -109,12 +111,24 @@ android {
 }
 
 kotlin {
+    jvmToolchain(17)
     compilerOptions {
-        jvmTarget = JvmTarget.JVM_1_8
+        // Must match compileOptions source/targetCompatibility above.
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 
 dependencies {
+    constraints {
+        // AGP 9 no longer aligns the compile classpath to runtime versions
+        // (android.dependency.useConstraints now defaults to false). Without this pin the
+        // *compile* classpath resolves transitive androidx.fragment to 1.1.0 while runtime
+        // gets 1.5.4, tripping lint's InvalidFragmentVersionForActivityResult on every
+        // registerForActivityResult call site. Pin compile to the runtime-resolved version.
+        // OpenLoop never uses Fragments directly — this is a constraint, not a dependency.
+        implementation(libs.androidx.fragment)
+    }
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -174,6 +188,8 @@ dependencies {
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.work.testing)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    baselineProfile(project(":baselineprofile"))
 }
 
 // Crashlytics mapping upload + Firebase config only when the console JSON is present locally.

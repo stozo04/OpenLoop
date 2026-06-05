@@ -1,12 +1,12 @@
 # Boomerang Slice 02 — Kickoff Prompt for a Fresh Claude Code Session
 
-Copy everything below the line into a fresh Claude Code session with the OpenRang folder mounted. This kickoff is specific to **slice 02 (Auto-route to Trim screen + default-render Save)**. Assumes slice 01 has shipped and is merged to `main`.
+Copy everything below the line into a fresh Claude Code session with the OpenLoop folder mounted. This kickoff is specific to **slice 02 (Auto-route to Trim screen + default-render Save)**. Assumes slice 01 has shipped and is merged to `main`.
 
 ---
 
 ## Session Prompt — Implement Boomerang Slice 02
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
 
 The app currently captures variable-length clips up to 30 s (slice 01 shipped). There is still no boomerang generation. This slice is where boomerangs *start existing* — but with no editor tabs yet. It is the largest, riskiest slice in the rollout: it introduces the new `VideoReverser` class (hand-rolled two-pass MediaCodec), the new `VideoProcessor` class (Media3 Composition), the new `Trim` screen, the per-UUID scratch file model, and the `boomerangs/` directory + `RecordedVideo.kind`. Plan for it.
 
@@ -24,11 +24,11 @@ The full slice spec — UX, technical deltas, testing plan, acceptance criteria 
 
 Slice 01 merged variable-length capture **plus a PR-review hardening pass (PR #19)** that changed structure you will touch. Concretely, already in `main`:
 
-- **`OpenRangUiState.Processing` already exists** and is routed to an `InfinityLoadingScreen()` **placeholder** with a `// TODO(slice-02)` marker. Slice 02 replaces that placeholder with the real `ProcessingScreen`.
-- **Routing was extracted** out of `setContent` into a stateless, **exhaustive `@Composable fun OpenRangNavHost(...)` with no `else`** (Lesson 014). Add `Trim`/replace `Processing` **there**.
+- **`OpenLoopUiState.Processing` already exists** and is routed to an `InfinityLoadingScreen()` **placeholder** with a `// TODO(slice-02)` marker. Slice 02 replaces that placeholder with the real `ProcessingScreen`.
+- **Routing was extracted** out of `setContent` into a stateless, **exhaustive `@Composable fun OpenLoopNavHost(...)` with no `else`** (Lesson 014). Add `Trim`/replace `Processing` **there**.
 - **`CameraScreen` has a `BackHandler(enabled = isRecording)`** that stops & finalizes mid-record (Lesson 015). The capture states still share **one** `CameraScreenHost` call site (Lesson 012) — `grep "CameraScreen(" MainActivity.kt` must stay at **1**.
 - **High-frequency UI state is read via `() -> T` lambdas** (`ShutterButton(progressFraction = { … })`, `RecordingCountdownChip(text = { … })`) so the viewfinder doesn't recompose per tick (Lesson 016). Mirror this in the `Trim` scrubber.
-- **`OpenRangViewModel.startBurstCapture` now checks the `Recording?` return** (null → abort to `ReadyToCapture`) and **catches only `IllegalStateException` + `SecurityException`** (Lesson 013). Your new `VideoProcessor`/`VideoReverser` error handling should follow the same discipline: media APIs report runtime errors via callbacks, not throws.
+- **`OpenLoopViewModel.startBurstCapture` now checks the `Recording?` return** (null → abort to `ReadyToCapture`) and **catches only `IllegalStateException` + `SecurityException`** (Lesson 013). Your new `VideoProcessor`/`VideoReverser` error handling should follow the same discipline: media APIs report runtime errors via callbacks, not throws.
 - **The `LoopingPreview` "Loopify" button is still the intentional placeholder** (deferred to this slice). Slice 02 is where `Finalize(success)` stops going to `LoopingPreview` and instead routes to `Trim(ScratchClip)`.
 
 Lessons **013–017** were written from that PR — they are the distilled, web-verified knowledge behind these changes. Read them; they're cheaper than re-deriving the CameraX throwable set or the predictive-back rules.
@@ -41,7 +41,7 @@ These are your ground truth. They contain decisions, conventions, and constraint
 2. **Every file in `docs/lessons_learned/`** — start with `README.md`, then read **001 through 017** in order. **Non-negotiable** per CLAUDE.md "Required Reading." Especially relevant to slice 02:
    - Lesson 003 (DataStore IOException wrapping) and Lesson 004 (no `Context` on ViewModel methods — your new repository methods are subject to this).
    - Lesson 008 (JVM test patterns: `TemporaryFolder`, single `TestDispatcher`) **and Lesson 017** (instrumented tests can't use `mockk`; write inline fakes — your `VideoReverserTest`/`TrimScreenTest` are instrumented).
-   - **Lesson 012 + 014** — the post-capture routing you're rewiring. Routing now lives in the extracted, exhaustive `OpenRangNavHost` (no `else`); the `ReadyToCapture, Recording` pair shares one `CameraScreenHost` branch — don't split it, and don't add an `else`.
+   - **Lesson 012 + 014** — the post-capture routing you're rewiring. Routing now lives in the extracted, exhaustive `OpenLoopNavHost` (no `else`); the `ReadyToCapture, Recording` pair shares one `CameraScreenHost` branch — don't split it, and don't add an `else`.
    - **Lesson 013** — Media3 `Transformer`/`MediaCodec` report runtime errors via listener callbacks (`Transformer.Listener.onError`), **not** synchronous throws; catch only documented throwables and check return/failure signals. This is the heart of `VideoReverser`/`VideoProcessor` error handling.
    - **Lesson 015** — `Trim` and `Processing` each need a deliberate `BackHandler` decision (predictive back is default-on at target 36; default behavior is "finish the Activity and lose the work").
    - **Lesson 016** — defer the `Trim` scrubber/preview-position reads behind `() -> T` lambdas; don't read tick-rate state at the `TrimScreen` root next to the ExoPlayer `AndroidView`.
@@ -85,20 +85,20 @@ If any signature has drifted from what the slice doc / research doc implies, **s
 
 Work the technical deltas listed in `docs/active/boomerang-rollout/02-auto-route-trim-and-default-save.md` §"Technical deltas":
 
-- **`OpenRangUiState.kt`** — add `Trim(source: EditorSource)` state, the `EditorSource` sealed interface with `ScratchClip` (only — `GalleryClip` is slice 07).
-- **`OpenRangViewModel.kt`** — on `Finalize` success, build a `ScratchClip(uuid)` and post `Trim(ScratchClip)` instead of `LoopingPreview`. Add the `editorState: StateFlow<TrimState>` + `updateTrim` / `discardTrim` / `saveBoomerangDefault` mutators. Every repository write wrapped in `try / catch (IOException)` per Lesson 003. No `Context` parameter on any method per Lesson 004.
+- **`OpenLoopUiState.kt`** — add `Trim(source: EditorSource)` state, the `EditorSource` sealed interface with `ScratchClip` (only — `GalleryClip` is slice 07).
+- **`OpenLoopViewModel.kt`** — on `Finalize` success, build a `ScratchClip(uuid)` and post `Trim(ScratchClip)` instead of `LoopingPreview`. Add the `editorState: StateFlow<TrimState>` + `updateTrim` / `discardTrim` / `saveBoomerangDefault` mutators. Every repository write wrapped in `try / catch (IOException)` per Lesson 003. No `Context` parameter on any method per Lesson 004.
 - **`VideoStorageRepository` (interface + impl)** — add `createScratchCapture`, `promoteScratchToRaw`, `discardScratch`, `allocateBoomerangFile`, `registerBoomerang`. Extend `RecordedVideo` with `kind: VideoKind` and `sourceRawId: Long?`. Infer `kind` from the file's parent directory.
 - **`media/VideoReverser.kt`** (new) — implement the two-pass algorithm from `RESEARCH-reverse-video.md` §3 and §5. Cache key `<source-abs-path>_<trimStart>_<trimEnd>`. Decoder + encoder + muxer released in a `finally` block. Cancellable. Strips audio.
 - **`media/VideoProcessor.kt`** (new) — single `renderBoomerang(...)` entry, hard-wired to `mode=FORWARD_THEN_REVERSE, speed=2.0f, reps=1`. Pipeline: trim → call `videoReverser.reverse(...)` → build `Composition` of `[trimmed, reversed]` (with seam offset) → `SpeedChangingVideoEffect(2.0f)` → strip audio → Transformer export.
 - **`ui/TrimScreen.kt`** (new) — preview top ~75% (ExoPlayer with `ClippingConfiguration`, `repeatMode = REPEAT_MODE_ALL`), trim bar with two drag handles, `NEXT` button bottom. Save checkmark **hidden** in this slice. All Flow collection via `collectAsStateWithLifecycle()` (Lesson 002).
 - **`ui/ProcessingScreen.kt`** (new or extended) — centered spinner + "Creating boomerang…" caption.
-- **Routing — `OpenRangNavHost` in `MainActivity.kt` (NOT inline `setContent`).** Slice 01 extracted the state router into a stateless, exhaustive `@Composable fun OpenRangNavHost(...)` with **no `else`** (Lesson 014), and `OpenRangUiState.Processing` **already exists** routed to an `InfinityLoadingScreen()` placeholder marked `// TODO(slice-02)`. So: **replace** the `Processing` placeholder branch with the real `ProcessingScreen`, and **add** the new `is OpenRangUiState.Trim ->` branch — both inside `OpenRangNavHost`. Keep `ReadyToCapture, Recording` on their single `CameraScreenHost` branch (Lesson 012) and keep the `when` exhaustive (do not add an `else`). Adding `Trim` to the sealed interface will fail to compile until it's routed here — that's the guard working.
+- **Routing — `OpenLoopNavHost` in `MainActivity.kt` (NOT inline `setContent`).** Slice 01 extracted the state router into a stateless, exhaustive `@Composable fun OpenLoopNavHost(...)` with **no `else`** (Lesson 014), and `OpenLoopUiState.Processing` **already exists** routed to an `InfinityLoadingScreen()` placeholder marked `// TODO(slice-02)`. So: **replace** the `Processing` placeholder branch with the real `ProcessingScreen`, and **add** the new `is OpenLoopUiState.Trim ->` branch — both inside `OpenLoopNavHost`. Keep `ReadyToCapture, Recording` on their single `CameraScreenHost` branch (Lesson 012) and keep the `when` exhaustive (do not add an `else`). Adding `Trim` to the sealed interface will fail to compile until it's routed here — that's the guard working.
 
 **Stay scoped to slice 02.** Do not introduce: the tabbed `BoomerangEditor` screen (slice 03), direction picker (slice 03), speed slider (slice 04), reps tab (slice 05), `Intent.ACTION_SEND` / FileProvider wiring (slice 06), gallery filter / kind badge / `GalleryClip` source (slice 07). If you find yourself reaching for any of them, you've over-shot the slice.
 
 ## Phase 4: Test
 
-- Unit tests from §"Testing plan / Unit tests": `OpenRangViewModelTest` cases for the new transition, `VideoStorageRepositoryImplTest` cases for the new methods. Use `TemporaryFolder` and a single shared `TestDispatcher` per Lesson 008. Do not mock `File`. Do not stack `MainDispatcherRule` with bare `runTest { }`.
+- Unit tests from §"Testing plan / Unit tests": `OpenLoopViewModelTest` cases for the new transition, `VideoStorageRepositoryImplTest` cases for the new methods. Use `TemporaryFolder` and a single shared `TestDispatcher` per Lesson 008. Do not mock `File`. Do not stack `MainDispatcherRule` with bare `runTest { }`.
 - Instrumented `VideoReverserTest` (needs real MediaCodec — JVM unit tests can't exercise it): cache idempotency, intermediate file cleanup on success/failure/cancellation, first-frame-of-reversed ≈ last-frame-of-source (histogram distance, not pixel equality).
 - Instrumented `TrimScreenTest`: handles drag, `NEXT` disabled below 400 ms, preview rebinds on trim change.
 - End-to-end: record 3 s → trim to 1.5 s → tap `NEXT` → boomerang file exists with expected duration; raw + boomerang both registered; scratch dir cleaned.
@@ -123,11 +123,11 @@ Boot an emulator (or Pixel 10 Pro Fold per `HEY_CLAUDE_ITS_ME.md`), install the 
 - Record 5 s → lands on Trim screen, preview loops the full 5 s, duration indicator reads "5.0s".
 - Drag handles to a 3 s range → preview loops 3 s, indicator updates to "3.0s".
 - Tap `NEXT` → "Creating boomerang…" spinner, then snackbar "Saved — view in gallery". **Record elapsed time** in the PR description. Target ≤ 1.5 s for a 3 s trim on Pixel 10 Pro Fold per `RESEARCH-reverse-video.md` §5 perf estimates.
-- Inspect `cacheDir/scratch/reversed/` via `adb shell run-as com.openrang.app ls` — exactly one reversed `.mp4`; no `_intermediate_*.mp4` lingering.
+- Inspect `cacheDir/scratch/reversed/` via `adb shell run-as com.OpenLoop.app ls` — exactly one reversed `.mp4`; no `_intermediate_*.mp4` lingering.
 - Save a second boomerang from the *same* trim window → noticeably faster (cache hit; no new reversed file).
 - Save a third from a *different* trim window of the same raw → second reversed file appears (cache miss).
 - Discard from Trim screen → confirm dialog → "Yes" returns to camera, scratch cleaned.
-- Force-stop *during* an in-flight render → on relaunch, no zombie intermediate or partial output files; codecs released (`adb shell dumpsys media.codec | grep com.openrang.app` shows no held instances).
+- Force-stop *during* an in-flight render → on relaunch, no zombie intermediate or partial output files; codecs released (`adb shell dumpsys media.codec | grep com.OpenLoop.app` shows no held instances).
 
 **Capture a screenshot of the Trim screen** (preview + trim bar + NEXT button visible) and attach it to the PR description. Foldable/multi-display screencap gotchas in `HEY_CLAUDE_ITS_ME.md`.
 

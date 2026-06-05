@@ -1,6 +1,6 @@
 ## Session Prompt — Implement Boomerang Slice 01
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
 
 The app is in active development. Today's app surface is: 3-step Onboarding → live camera viewfinder with front/back lens toggle → 1.5 s auto-stop burst recording → captured clip lands in a Gallery view. There is no boomerang generation yet. The full boomerang feature is being rolled out in **7 thin vertical slices**. This session is for **slice 01** — the foundational slice that every later slice depends on.
 
@@ -57,15 +57,15 @@ If any signature has drifted from what the slice doc implies, **stop and surface
 
 Work the technical deltas listed in `docs/active/boomerang-rollout/01-capture-variable-length.md` §"Technical deltas":
 
-- `OpenRangViewModel.kt` — remove the 1.5 s `delay()` self-stop; add `stopBurstCapture(...)`; add `recordingElapsedMs: StateFlow<Long>`; add the 30 s auto-cap coroutine.
+- `OpenLoopViewModel.kt` — remove the 1.5 s `delay()` self-stop; add `stopBurstCapture(...)`; add `recordingElapsedMs: StateFlow<Long>`; add the 30 s auto-cap coroutine.
 - `CameraScreen.kt` — shutter button toggles between idle and recording glyphs; progress ring overlay via `Canvas`; `00:00 / 00:30` countdown chip top-center while recording. All Flow collection via `collectAsStateWithLifecycle()` (Lesson 002).
-- No changes to `OpenRangUiState.kt`. No changes to `VideoStorageRepository` (those land in slice 02).
+- No changes to `OpenLoopUiState.kt`. No changes to `VideoStorageRepository` (those land in slice 02).
 
 **Stay scoped to slice 01.** Do not introduce `ScratchCapture`, `BoomerangEditor`, `VideoProcessor`, `VideoReverser`, or any other slice-02+ surface. If you find yourself reaching for them, you've over-shot the slice.
 
 ## Phase 4: Test
 
-- Add the unit tests from §"Testing plan / Unit tests" — `OpenRangViewModelTest` cases for the new behavior. Use `TemporaryFolder` and a single shared `TestDispatcher` per Lesson 008. Do not mock `File`. Do not stack `MainDispatcherRule` with bare `runTest { }`.
+- Add the unit tests from §"Testing plan / Unit tests" — `OpenLoopViewModelTest` cases for the new behavior. Use `TemporaryFolder` and a single shared `TestDispatcher` per Lesson 008. Do not mock `File`. Do not stack `MainDispatcherRule` with bare `runTest { }`.
 - Add the instrumented tests from §"Testing plan / Instrumented tests" — `CameraScreenTest` for the shutter toggle, progress ring visibility, countdown text.
 - Run both:
   ```powershell

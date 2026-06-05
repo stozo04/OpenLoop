@@ -37,6 +37,7 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 | **Preferences** | Jetpack DataStore                 | Async, coroutine-based key-value storage (replaces SharedPreferences)               |
 | **State**       | MVVM + StateFlow                  | Single ViewModel, sealed-interface state machine, unidirectional data flow          |
 | **Testing**     | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
+| **Performance** | Baseline Profiles                 | Pre-compiles "hot" code paths to eliminate Compose jank and speed up startup       |
 
 **SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 36` · `targetSdk 36` — upgraded to **API 36 (Android 16)** for Google Play readiness (`minSdk` stays 26), tracked in [Issue #7](https://github.com/stozo04/OpenLoop/issues/7), with the full behavior-change breakdown in [`docs/android-16/`](docs/android-16/README.md). Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
@@ -111,6 +112,7 @@ The finished app lands at `app/build/outputs/apk/debug/app-debug.apk`.
 | `assembleRelease`           | Builds the optimized, shrunk release APK (the kind that goes to Google Play) |
 | `testDebugUnitTest`         | Runs the fast unit tests — no phone needed                                   |
 | `connectedDebugAndroidTest` | Runs the UI tests — needs a connected device or emulator                     |
+| `generateReleaseBaselineProfile` | Generates a performance "cheat sheet" for the app — needs a device/emulator  |
 
 You can chain them, e.g. `.\gradlew.bat clean assembleDebug`.
 
@@ -172,6 +174,31 @@ for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.
 
 (detekt for Kotlin is deferred — stable detekt doesn't support Kotlin 2.3.x yet; see
 [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).)
+
+## Performance (Baseline Profiles)
+
+**What is a Baseline Profile? (Explained like a 5th grader)**
+
+Imagine you have a new board game. The first time you play, you have to stop and read the rules every few seconds. It feels slow and jerky. But after you've played it 10 times, you know the rules by heart and the game moves fast!
+
+Baseline Profiles are like a **"Cheat Sheet"** for your phone. Usually, when someone downloads your app, the phone has to "read the rules" of how to run the code while the user is using it. This can make the app feel "laggy" or "jerky." 
+
+By building a Baseline Profile, we "play the game" for the phone ahead of time and write down all the rules. When the user opens the app, the phone reads the Cheat Sheet first, so everything feels smooth and fast from the very first tap.
+
+### How we use them
+
+We use the `androidx.baselineprofile` plugin to automate this:
+1. The `:baselineprofile` module "drives" the app through its most important parts (opening, taking a video).
+2. It records which parts of the code were used.
+3. It saves this as a file that gets bundled into the final app (`.aab`) sent to Google Play.
+
+**Automation:** You don't need to run this manually! The project is set up so that whenever you build a "Release" version of the app, Gradle automatically runs the generator to make sure the "Cheat Sheet" is up to date for the latest version.
+
+If you *do* want to run it manually to see it work:
+```powershell
+.\gradlew.bat :app:generateReleaseBaselineProfile
+```
+*(Note: This requires a connected device or emulator.)*
 
 ## Guides
 

@@ -40,7 +40,7 @@ UserPreferencesRepositoryImpl (wraps DataStore, catches IOException)
     ↓ implements
 UserPreferencesRepository (interface — ViewModel depends on this)
     ↓ injected via Factory
-OpenRangViewModel (reads in init, writes on onboarding completion)
+OpenLoopViewModel (reads in init, writes on onboarding completion)
 ```
 
 ### Startup Flow
@@ -54,17 +54,17 @@ OpenRangViewModel (reads in init, writes on onboarding completion)
 ## Files Changed
 
 **New (3):**
-- `app/src/main/java/com/openrang/app/data/UserPreferencesRepository.kt`
-- `app/src/main/java/com/openrang/app/data/UserPreferencesRepositoryImpl.kt`
+- `app/src/main/java/com/OpenLoop/app/data/UserPreferencesRepository.kt`
+- `app/src/main/java/com/OpenLoop/app/data/UserPreferencesRepositoryImpl.kt`
 - `docs/ANDROID_STANDARDS.md`
 
 **Modified (9):**
 - `gradle/libs.versions.toml` — DataStore dependency
 - `app/build.gradle.kts` — DataStore dependency
-- `OpenRangUiState.kt` — `Initializing` state
-- `OpenRangViewModel.kt` — constructor injection, init block, Factory
+- `OpenLoopUiState.kt` — `Initializing` state
+- `OpenLoopViewModel.kt` — constructor injection, init block, Factory
 - `MainActivity.kt` — factory creation, LaunchedEffect, Initializing handling
-- `OpenRangViewModelTest.kt` — FakeRepo, 3 new tests (19 total)
+- `OpenLoopViewModelTest.kt` — FakeRepo, 3 new tests (19 total)
 - `CLAUDE.md` — architecture updates
 - `docs/PRD-mission-control.md` — Decision Log #11, architecture diagram
 - `README.md` — rewrite + merge policy
@@ -82,7 +82,7 @@ OpenRangViewModel (reads in init, writes on onboarding completion)
 
 - [x] First-time users see onboarding, then never again after completing it
 - [x] Returning users skip straight to permission check / camera
-- [x] DataStore file created at `files/datastore/openrang_preferences.preferences_pb`
+- [x] DataStore file created at `files/datastore/OpenLoop_preferences.preferences_pb`
 - [x] IOException on corrupted DataStore falls back to showing onboarding (safe degradation)
 - [x] All 19 unit tests pass
 - [x] Future preferences can be added with zero restructuring

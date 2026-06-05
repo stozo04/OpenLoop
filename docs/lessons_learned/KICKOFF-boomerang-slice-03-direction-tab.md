@@ -112,7 +112,7 @@ encode to an instrumented smoke test.
 ## 6. Lessons that specifically apply to slice 03
 
 - **Lesson 014 (exhaustive `when`, no `else`):** adding `BoomerangEditor` means a new branch in
-  `OpenRangNavHost` — route it, no `else`. Build will fail until you do; that's the feature.
+  `OpenLoopNavHost` — route it, no `else`. Build will fail until you do; that's the feature.
 - **Lesson 015 (state-routed `BackHandler`):** the editor can lose work. The PRD says back confirms
   "Discard changes?" only if `mode` changed from default. Gate the `BackHandler` on that condition —
   don't always-intercept, don't let back finish the Activity.

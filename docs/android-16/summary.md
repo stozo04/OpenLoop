@@ -1,18 +1,18 @@
 # Android 16 — Release Summary
 
 > **Source:** https://developer.android.com/about/versions/16/summary · fetched 2026-05-28
-> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenRang (Issue #7)
+> **Part of:** [docs/android-16/ hub](./README.md) — Android 16 (API 36) upgrade knowledge for OpenLoop (Issue #7)
 
-## Impact on OpenRang
+## Impact on OpenLoop
 
-**Verdict:** Partially applies — only a handful of the targetSdk-36 behavior changes touch OpenRang's actual surface (edge-to-edge, predictive back, adaptive layouts, photo picker), and a few "all apps" changes are worth knowing; the large bulk of Android 16 (health, Bluetooth, notifications, TV, ranging, haptics, etc.) is N/A.
+**Verdict:** Partially applies — only a handful of the targetSdk-36 behavior changes touch OpenLoop's actual surface (edge-to-edge, predictive back, adaptive layouts, photo picker), and a few "all apps" changes are worth knowing; the large bulk of Android 16 (health, Bluetooth, notifications, TV, ranging, haptics, etc.) is N/A.
 
-- **Edge-to-edge opt-out is removed for targetSdk 36** (`R.attr#windowOptOutEdgeToEdgeEnforcement` gone). OpenRang already calls `enableEdgeToEdge()` in `MainActivity`, so the job is to *verify* every screen (CameraScreen, OnboardingScreen, PreviewScreen, GalleryScreen) consumes window insets correctly under enforcement — nothing left behind the system bars or display cutout.
-- **Predictive back becomes default-on for targetSdk 36** (`android:enableOnBackInvokedCallback` defaults to `true`; legacy `onBackPressed` / `KEYCODE_BACK` paths get ignored). OpenRang's back navigation is a sealed-interface state machine routed in `MainActivity` — confirm back gestures between states (Gallery to ReadyToCapture, LoopingPreview to ReadyToCapture) flow through the predictive-back/`OnBackInvokedCallback` path, not a swallowed key event.
-- **Adaptive layouts: orientation/aspect-ratio/resizability manifest restrictions are ignored for targetSdk 36.** If OpenRang locks the camera screen to portrait via manifest/`setRequestedOrientation`, that lock stops being honored on large screens — must verify the viewfinder and gallery behave under forced resizability rather than relying on a portrait lock.
-- **App-owned photos in the photo picker (targetSdk 36):** N/A today — OpenRang writes loops to storage but does not currently launch the system photo picker. Flag for the future if an "import a clip" flow is ever added.
-- **Local Network Permission (targetSdk 36):** N/A — OpenRang makes zero network calls and has no LAN features, so the new declaration requirement does not apply.
-- **N/A categories:** Health and fitness (`android.permissions.health`, Health Connect/FHIR), Bluetooth bond-loss intents, progress-centric and all notifications, ranging/Wi-Fi 802.11az, TV `MediaQuality`, richer haptics, live wallpapers, key sharing, Privacy Sandbox — none map to OpenRang's on-device, no-network, no-notification, single-Activity camera surface. Camera2/Media items below are *opt-in* APIs, not forced changes.
+- **Edge-to-edge opt-out is removed for targetSdk 36** (`R.attr#windowOptOutEdgeToEdgeEnforcement` gone). OpenLoop already calls `enableEdgeToEdge()` in `MainActivity`, so the job is to *verify* every screen (CameraScreen, OnboardingScreen, PreviewScreen, GalleryScreen) consumes window insets correctly under enforcement — nothing left behind the system bars or display cutout.
+- **Predictive back becomes default-on for targetSdk 36** (`android:enableOnBackInvokedCallback` defaults to `true`; legacy `onBackPressed` / `KEYCODE_BACK` paths get ignored). OpenLoop's back navigation is a sealed-interface state machine routed in `MainActivity` — confirm back gestures between states (Gallery to ReadyToCapture, LoopingPreview to ReadyToCapture) flow through the predictive-back/`OnBackInvokedCallback` path, not a swallowed key event.
+- **Adaptive layouts: orientation/aspect-ratio/resizability manifest restrictions are ignored for targetSdk 36.** If OpenLoop locks the camera screen to portrait via manifest/`setRequestedOrientation`, that lock stops being honored on large screens — must verify the viewfinder and gallery behave under forced resizability rather than relying on a portrait lock.
+- **App-owned photos in the photo picker (targetSdk 36):** N/A today — OpenLoop writes loops to storage but does not currently launch the system photo picker. Flag for the future if an "import a clip" flow is ever added.
+- **Local Network Permission (targetSdk 36):** N/A — OpenLoop makes zero network calls and has no LAN features, so the new declaration requirement does not apply.
+- **N/A categories:** Health and fitness (`android.permissions.health`, Health Connect/FHIR), Bluetooth bond-loss intents, progress-centric and all notifications, ranging/Wi-Fi 802.11az, TV `MediaQuality`, richer haptics, live wallpapers, key sharing, Privacy Sandbox — none map to OpenLoop's on-device, no-network, no-notification, single-Activity camera surface. Camera2/Media items below are *opt-in* APIs, not forced changes.
 
 ## Summary
 

@@ -118,4 +118,7 @@ interface VideoStorageRepository {
 
     /** Removes the video file and its thumbnail. `suspend` + off the main thread (file I/O). */
     suspend fun deleteVideo(video: RecordedVideo)
+
+    /** Removes the raw video file and its thumbnail by [id]. `suspend` + off the main thread. */
+    suspend fun deleteRawVideo(id: Long)
 }

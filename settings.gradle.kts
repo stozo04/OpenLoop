@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "OpenLoop"
 include(":app")
+include(":baselineprofile")

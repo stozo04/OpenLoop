@@ -1,6 +1,6 @@
 # Jetpack DataStore — Explained Like You're Five
 
-A plain-English guide to the little "memory" OpenRang uses to remember things between
+A plain-English guide to the little "memory" OpenLoop uses to remember things between
 app launches — what it is, where it lives, and how to peek inside it yourself.
 
 No prior knowledge needed. If a word looks technical, it's defined in the
@@ -18,7 +18,7 @@ welcome screens."*
 small settings. It only holds simple things: on/off switches, numbers, short bits of text.
 It does **not** hold your videos — those are saved as real files somewhere else.
 
-Right now OpenRang writes exactly **one** thing on its sticky note:
+Right now OpenLoop writes exactly **one** thing on its sticky note:
 
 | The note says | Meaning | Possible values |
 |---------------|---------|-----------------|
@@ -32,17 +32,17 @@ skips straight to the camera.
 
 ## Where does the sticky note live?
 
-It's a small file tucked inside OpenRang's own private folder on the phone:
+It's a small file tucked inside OpenLoop's own private folder on the phone:
 
 ```
-/data/data/com.openrang.app/files/datastore/openrang_preferences.preferences_pb
+/data/data/com.OpenLoop.app/files/datastore/OpenLoop_preferences.preferences_pb
 ```
 
 Two things to know:
 
 - **It's private.** Other apps can't read it. Even *you* can't browse to it with a normal
   file manager — you need a developer tool (explained below).
-- **`com.openrang.app` is the app's "package name"** — basically the app's unique ID on the
+- **`com.OpenLoop.app` is the app's "package name"** — basically the app's unique ID on the
   phone. Every app has one.
 
 ---
@@ -72,14 +72,14 @@ This uses **Device Explorer**, a built-in file browser for your phone.
 1. In Android Studio, open the menu: **View → Tool Windows → Device Explorer**.
 2. At the top, pick your phone/emulator from the dropdown.
 3. In the file tree, navigate to:
-   `data` → `data` → `com.openrang.app` → `files` → `datastore`
-4. Double-click `openrang_preferences.preferences_pb` to open it (or right-click → **Save As**
+   `data` → `data` → `com.OpenLoop.app` → `files` → `datastore`
+4. Double-click `OpenLoop_preferences.preferences_pb` to open it (or right-click → **Save As**
    to copy it to your computer).
 
 You'll see mostly gibberish with a readable word in the middle. See
 [How to read the gibberish](#how-to-read-the-gibberish) below.
 
-> Note: this only works because OpenRang is a **debug build** (the version you build yourself).
+> Note: this only works because OpenLoop is a **debug build** (the version you build yourself).
 > You can't do this to apps installed from the Play Store.
 
 ### Way 2 — The command-line way (adb)
@@ -115,7 +115,7 @@ Copy the name on the left of the device you're testing on. We'll call it `<YOUR_
 text on the right) so it doesn't turn into garbage in the terminal:
 
 ```powershell
-& $adb -s <YOUR_DEVICE> shell run-as com.openrang.app toybox xxd files/datastore/openrang_preferences.preferences_pb
+& $adb -s <YOUR_DEVICE> shell run-as com.OpenLoop.app toybox xxd files/datastore/OpenLoop_preferences.preferences_pb
 ```
 
 (`run-as` is the magic word that lets you peek into the app's private folder. It only works on
@@ -132,7 +132,7 @@ You'll get something like:
 
 If you don't care about the file and only want the answer, ask the app to print it for you.
 
-Add this one line inside `OpenRangViewModel`'s `init { ... }` block (temporarily, for testing):
+Add this one line inside `OpenLoopViewModel`'s `init { ... }` block (temporarily, for testing):
 
 ```kotlin
 viewModelScope.launch {
@@ -205,16 +205,16 @@ them.
 **Option A — forget only the onboarding note (keeps your recorded videos):**
 
 ```powershell
-& $adb -s <YOUR_DEVICE> shell run-as com.openrang.app rm files/datastore/openrang_preferences.preferences_pb
-& $adb -s <YOUR_DEVICE> shell am force-stop com.openrang.app
+& $adb -s <YOUR_DEVICE> shell run-as com.OpenLoop.app rm files/datastore/OpenLoop_preferences.preferences_pb
+& $adb -s <YOUR_DEVICE> shell am force-stop com.OpenLoop.app
 ```
 
-Next time you open OpenRang, onboarding appears again. Your saved loops are untouched.
+Next time you open OpenLoop, onboarding appears again. Your saved loops are untouched.
 
 **Option B — wipe everything (a totally fresh app, like a brand-new install):**
 
 ```powershell
-& $adb -s <YOUR_DEVICE> shell pm clear com.openrang.app
+& $adb -s <YOUR_DEVICE> shell pm clear com.OpenLoop.app
 ```
 
 ⚠️ This deletes **everything** — the onboarding note **and** all your recorded videos and
@@ -232,14 +232,14 @@ $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 & $adb devices
 
 # Peek at the saved note (hex dump)
-& $adb -s <YOUR_DEVICE> shell run-as com.openrang.app toybox xxd files/datastore/openrang_preferences.preferences_pb
+& $adb -s <YOUR_DEVICE> shell run-as com.OpenLoop.app toybox xxd files/datastore/OpenLoop_preferences.preferences_pb
 
 # Forget onboarding only (keeps videos)
-& $adb -s <YOUR_DEVICE> shell run-as com.openrang.app rm files/datastore/openrang_preferences.preferences_pb
-& $adb -s <YOUR_DEVICE> shell am force-stop com.openrang.app
+& $adb -s <YOUR_DEVICE> shell run-as com.OpenLoop.app rm files/datastore/OpenLoop_preferences.preferences_pb
+& $adb -s <YOUR_DEVICE> shell am force-stop com.OpenLoop.app
 
 # Wipe everything (fresh install)  -- deletes videos too!
-& $adb -s <YOUR_DEVICE> shell pm clear com.openrang.app
+& $adb -s <YOUR_DEVICE> shell pm clear com.OpenLoop.app
 ```
 
 ---
@@ -251,7 +251,7 @@ $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 | **DataStore** | The app's "sticky note" for small settings it remembers between launches. |
 | **SQLite / database** | A different, bigger kind of storage (rows and columns). DataStore is *not* this. |
 | **Database Inspector** | An Android Studio tool — only for databases, so it can't show DataStore. |
-| **package name** (`com.openrang.app`) | The app's unique ID on the phone. |
+| **package name** (`com.OpenLoop.app`) | The app's unique ID on the phone. |
 | **adb** | "Android Debug Bridge" — a tool that lets your computer talk to your phone. |
 | **emulator** | A pretend Android phone running on your computer. |
 | **physical device** | A real phone plugged in (or on the same Wi-Fi). |
@@ -264,6 +264,6 @@ $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 
 ## Want the deeper version?
 
-- The exact key and file name are defined in `app/src/main/java/com/openrang/app/data/UserPreferencesRepositoryImpl.kt`.
+- The exact key and file name are defined in `app/src/main/java/com/OpenLoop/app/data/UserPreferencesRepositoryImpl.kt`.
 - Google's official explanation: [App Architecture: Data Layer – DataStore](https://developer.android.com/topic/libraries/architecture/datastore).
 - Why we wrap writes safely: `docs/lessons_learned/003-datastore-write-ioexception.md`.

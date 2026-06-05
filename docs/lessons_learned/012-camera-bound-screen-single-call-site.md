@@ -9,12 +9,12 @@ On the **Pixel 10 Pro Fold** (real hardware), every recording self-terminated ~1
 the shutter tap. Logcat told the story:
 
 ```
-t+0ms    OpenRangViewModel: Video burst recording started.
+t+0ms    OpenLoopViewModel: Video burst recording started.
 t+25ms   Detaching [Preview, VideoCapture] from UseCaseManager   ← unbindAll()
 t+25ms   Recorder: RECORDING --> STOPPING                         ← source went away
 t+25ms   Attaching [Preview, VideoCapture] (new instances)        ← startCamera() ran again
 t+1000ms Sending VideoRecordEvent Finalize [error: ERROR_SOURCE_INACTIVE]  (code 4)
-         OpenRangViewModel: Video burst recording failed: 4
+         OpenLoopViewModel: Video burst recording failed: 4
 ```
 
 Root cause was in **`MainActivity.kt` routing**, not the recording logic. `ReadyToCapture`
@@ -22,8 +22,8 @@ and `Recording` were rendered from **two separate `when` branches**, each with i
 `CameraScreen(...)` call:
 
 ```text
-is OpenRangUiState.ReadyToCapture -> { CameraScreen(viewModel, cameraManager) }  // call site A
-is OpenRangUiState.Recording      -> { CameraScreen(viewModel, cameraManager) }  // call site B
+is OpenLoopUiState.ReadyToCapture -> { CameraScreen(viewModel, cameraManager) }  // call site A
+is OpenLoopUiState.Recording      -> { CameraScreen(viewModel, cameraManager) }  // call site B
 ```
 
 In Compose, two calls at two positions in a `when` are **two different call sites** — distinct
@@ -50,8 +50,8 @@ transition:
 
 ```text
 // MainActivity.kt — ONE branch, ONE CameraScreen instance for both capture states.
-is OpenRangUiState.ReadyToCapture,
-is OpenRangUiState.Recording -> {
+is OpenLoopUiState.ReadyToCapture,
+is OpenLoopUiState.Recording -> {
     CameraScreenHost(uiState) {
         CameraScreen(viewModel = viewModel, cameraManager = cameraManager)
     }
@@ -67,7 +67,7 @@ back into per-state branches.** More generally: any composable that binds the ca
 
 - There must be exactly **one** `CameraScreen(` call site reachable during capture:
   ```
-  grep -n "CameraScreen(" app/src/main/java/com/openrang/app/MainActivity.kt
+  grep -n "CameraScreen(" app/src/main/java/com/OpenLoop/app/MainActivity.kt
   ```
   Capture states (`ReadyToCapture`, `Recording`, and any future capture-time state) must funnel
   through the single `CameraScreenHost` branch — never their own branches.

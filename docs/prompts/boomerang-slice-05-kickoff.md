@@ -1,12 +1,12 @@
 # Boomerang Slice 05 — Kickoff Prompt for a Fresh Claude Code Session
 
-Copy everything below the line into a fresh Claude Code session with the OpenRang folder mounted. This kickoff is specific to **slice 05 (Repetitions tab)**. Assumes slices 01–04 have shipped and are merged to `main`.
+Copy everything below the line into a fresh Claude Code session with the OpenLoop folder mounted. This kickoff is specific to **slice 05 (Repetitions tab)**. Assumes slices 01–04 have shipped and are merged to `main`.
 
 ---
 
 ## Session Prompt — Implement Boomerang Slice 05
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
 
 The editor has Direction and Speed tabs (slices 03–04 shipped). After this slice the editor is **feature-complete** — direction + speed + reps all dial-able, plus the long-boomerang warning that protects against accidental 5-minute renders.
 
@@ -57,7 +57,7 @@ If anything has drifted, **stop and surface** before coding.
 
 ## Phase 3: Implement to the slice spec
 
-- **`OpenRangViewModel.kt`** — extend `EditorTabState` with `repetitions: Int = 1` and add `REPETITIONS` to the `EditorTab` enum. Mutator `updateRepetitions(reps: Int)` with `coerceIn(1, 4)`. Add the derived `outputDurationMs` computed property (`cycle_ms × reps / speed`, where `cycle_ms` depends on mode). `saveBoomerang()` blocks (and emits a "too long" event) when `outputDurationMs > 60_000`.
+- **`OpenLoopViewModel.kt`** — extend `EditorTabState` with `repetitions: Int = 1` and add `REPETITIONS` to the `EditorTab` enum. Mutator `updateRepetitions(reps: Int)` with `coerceIn(1, 4)`. Add the derived `outputDurationMs` computed property (`cycle_ms × reps / speed`, where `cycle_ms` depends on mode). `saveBoomerang()` blocks (and emits a "too long" event) when `outputDurationMs > 60_000`.
 - **`media/VideoProcessor.kt`** — append the cycle `repetitions` times to the `Composition`. Apply the 1-frame seam offset at cycle boundaries too (not just at the F→R seam).
 - **`ui/BoomerangEditorScreen.kt`** — render 3-icon tab bar. Add `RepetitionsTabContent` composable: row of 4 circular buttons, 56 dp, single-select with gradient. Rebuild preview composition on `repetitions` change. Output-duration label updates live. Warning chip slides in/out at the 30 s threshold; save button disables at the 60 s threshold (with tab-icon pulse on long-press of save when blocked).
 - **`MainActivity.kt`** — no route changes.
@@ -66,7 +66,7 @@ If anything has drifted, **stop and surface** before coding.
 
 ## Phase 4: Test
 
-- Unit tests: `OpenRangViewModelTest` for `updateRepetitions` clamping, `outputDurationMs` math across all 4 modes × edge speeds × reps, `saveBoomerang` no-op + "too long" event at > 60 s. `VideoProcessorTest` for `mode=F→R, trim=2s, speed=1×, reps=3` ≈ 12 s output; `mode=FWD, trim=1s, speed=2×, reps=4` ≈ 2 s output.
+- Unit tests: `OpenLoopViewModelTest` for `updateRepetitions` clamping, `outputDurationMs` math across all 4 modes × edge speeds × reps, `saveBoomerang` no-op + "too long" event at > 60 s. `VideoProcessorTest` for `mode=F→R, trim=2s, speed=1×, reps=3` ≈ 12 s output; `mode=FWD, trim=1s, speed=2×, reps=4` ≈ 2 s output.
 - Instrumented `BoomerangEditorScreenTest`: 3-icon tab bar, reps button selection, warning chip at 30 s threshold, save disable at 60 s threshold, tab persistence across switches.
 - End-to-end: capture → trim → editor → F→R, 1× speed, 3 reps → save → output duration ≈ 9 s.
 - Run:

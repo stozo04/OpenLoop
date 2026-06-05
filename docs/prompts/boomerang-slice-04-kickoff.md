@@ -1,12 +1,12 @@
 # Boomerang Slice 04 — Kickoff Prompt for a Fresh Claude Code Session
 
-Copy everything below the line into a fresh Claude Code session with the OpenRang folder mounted. This kickoff is specific to **slice 04 (Speed tab)**. Assumes slices 01–03 have shipped and are merged to `main`.
+Copy everything below the line into a fresh Claude Code session with the OpenLoop folder mounted. This kickoff is specific to **slice 04 (Speed tab)**. Assumes slices 01–03 have shipped and are merged to `main`.
 
 ---
 
 ## Session Prompt — Implement Boomerang Slice 04
 
-You are working on **OpenRang** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
+You are working on **OpenLoop** — an open-source Android camera app (Kotlin/Jetpack Compose) for creating speed-controlled video loops ("Boomerangs"). Repo: `stozo04/OpenLoop`. Owner: Steven Gates (@stozo04). Apache 2.0.
 
 The editor has a Direction tab and saves boomerangs at a hard-coded 2.0× speed (slices 02–03 shipped). This slice adds the **Speed tab** as the second icon in the bottom tab bar and a horizontal slider that controls both preview playback speed (live) and render speed.
 
@@ -60,8 +60,8 @@ If anything has drifted, **stop and surface** before coding.
 
 ## Phase 3: Implement to the slice spec
 
-- **`OpenRangViewModel.kt`** — extend `EditorTabState` with `speed: Float = 2.0f` and `activeTab: EditorTab = EditorTab.DIRECTION`. Add `enum class EditorTab { DIRECTION, SPEED }` (REPS lands in slice 05). Mutators: `updateSpeed(speed: Float)` with `coerceIn(0.25f, 3.0f)`, `switchTab(tab: EditorTab)`.
-- **`media/VideoProcessor.kt`** — **no change needed.** `renderBoomerang(speed=…)` already applies `SpeedChangeEffect(speed)` per clip (the `speed` param has been threaded since slice 02). The only render-side change is in `OpenRangViewModel.saveBoomerang()`: pass `speed = _editorTabState.value.speed` instead of `DEFAULT_SPEED`.
+- **`OpenLoopViewModel.kt`** — extend `EditorTabState` with `speed: Float = 2.0f` and `activeTab: EditorTab = EditorTab.DIRECTION`. Add `enum class EditorTab { DIRECTION, SPEED }` (REPS lands in slice 05). Mutators: `updateSpeed(speed: Float)` with `coerceIn(0.25f, 3.0f)`, `switchTab(tab: EditorTab)`.
+- **`media/VideoProcessor.kt`** — **no change needed.** `renderBoomerang(speed=…)` already applies `SpeedChangeEffect(speed)` per clip (the `speed` param has been threaded since slice 02). The only render-side change is in `OpenLoopViewModel.saveBoomerang()`: pass `speed = _editorTabState.value.speed` instead of `DEFAULT_SPEED`.
 - **`ui/BoomerangEditorScreen.kt`** — render the tab bar with 2 entries instead of 1, driven by `editorTabState.activeTab`. Add `SpeedTabContent` composable with Compose `Slider` + floating value label + haptic tick at 1.0×. Debounce slider emissions (~50 ms) before calling `player.setPlaybackSpeed(...)`. Animate tab content cross-fade with `AnimatedContent` (200 ms fade).
 - **`MainActivity.kt`** — no route changes.
 
@@ -69,7 +69,7 @@ If anything has drifted, **stop and surface** before coding.
 
 ## Phase 4: Test
 
-- Unit tests: `OpenRangViewModelTest` for `updateSpeed` clamping, `switchTab` state change, `saveBoomerang` passing current speed to `VideoProcessor`. `VideoProcessorTest` for each of `[0.25, 0.5, 1.0, 1.5, 2.0, 3.0]` producing output duration ≈ `cycle_ms / speed` (±1 frame).
+- Unit tests: `OpenLoopViewModelTest` for `updateSpeed` clamping, `switchTab` state change, `saveBoomerang` passing current speed to `VideoProcessor`. `VideoProcessorTest` for each of `[0.25, 0.5, 1.0, 1.5, 2.0, 3.0]` producing output duration ≈ `cycle_ms / speed` (±1 frame).
 - Instrumented `BoomerangEditorScreenTest`: tab bar shows 2 icons, Speed tab shows slider, slider drag updates state + preview `playbackSpeed`, output-duration indicator updates as speed changes.
 - End-to-end: capture → trim → editor → switch to Speed tab → drag to 0.5× → preview slow → save → output duration ≈ `cycle_ms × reps / speed`.
 - Run:
