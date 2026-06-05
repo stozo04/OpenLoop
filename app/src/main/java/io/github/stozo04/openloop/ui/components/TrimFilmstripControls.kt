@@ -45,9 +45,11 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
@@ -255,6 +257,7 @@ private fun FilmstripTrimSelector(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
     val handleVisualPx = with(density) { HANDLE_VISUAL_WIDTH.toPx() }
     val handleTouchPx = with(density) { HANDLE_TOUCH_WIDTH.toPx() }
     val minGapMs = OpenLoopViewModel.MIN_TRIM_MS
@@ -435,6 +438,9 @@ private fun FilmstripTrimSelector(
                                 distStart <= distEnd -> TrimDragTarget.START
                                 else -> TrimDragTarget.END
                             }
+                            if (dragging != TrimDragTarget.NONE) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                             dragAnchorPx = pos.x
                             dragAnchorMs = when (dragging) {
                                 TrimDragTarget.START -> curStartMs
@@ -451,13 +457,24 @@ private fun FilmstripTrimSelector(
                     ) { change, _ ->
                         if (dragging == TrimDragTarget.NONE) return@detectDragGestures
                         change.consume()
+
                         // Anchored delta: handle value = (value at grab) + (how far the finger moved).
-                        val target = dragAnchorMs + pxToMs(change.position.x - dragAnchorPx)
+                        val targetMs = dragAnchorMs + pxToMs(change.position.x - dragAnchorPx)
                         when (dragging) {
-                            TrimDragTarget.START ->
-                                startDrag(target.coerceIn(0L, curEndMs - minGapMs))
-                            TrimDragTarget.END ->
-                                endDrag(target.coerceIn(curStartMs + minGapMs, durationMs))
+                            TrimDragTarget.START -> {
+                                val clamped = targetMs.coerceIn(0L, curEndMs - minGapMs)
+                                if (clamped != curStartMs) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    startDrag(clamped)
+                                }
+                            }
+                            TrimDragTarget.END -> {
+                                val clamped = targetMs.coerceIn(curStartMs + minGapMs, durationMs)
+                                if (clamped != curEndMs) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    endDrag(clamped)
+                                }
+                            }
                             TrimDragTarget.NONE -> {}
                         }
                     }
