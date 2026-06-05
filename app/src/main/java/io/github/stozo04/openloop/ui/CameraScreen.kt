@@ -118,8 +118,8 @@ fun CameraScreen(
 
     // Static cap label ("00:30") for the countdown chip — independent of elapsed time.
     val capLabel = "%02d:%02d".format(
-        OpenLoopViewModel.MAX_RECORDING_MS / 60_000,
-        (OpenLoopViewModel.MAX_RECORDING_MS / 1000) % 60
+        OpenLoopViewModel.MAX_RECORDING.inWholeMinutes,
+        OpenLoopViewModel.MAX_RECORDING.inWholeSeconds % 60
     )
 
     // Set up standard aspect-ratio responsive PreviewView
@@ -215,7 +215,7 @@ fun CameraScreen(
                 ShutterButton(
                     isRecording = isRecording,
                     progressFraction = {
-                        (recordingElapsedState.value.toFloat() / OpenLoopViewModel.MAX_RECORDING_MS)
+                        (recordingElapsedState.value.toFloat() / OpenLoopViewModel.MAX_RECORDING.inWholeMilliseconds)
                             .coerceIn(0f, 1f)
                     },
                     onClick = {
