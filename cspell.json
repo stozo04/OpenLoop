@@ -35,7 +35,8 @@
     "dumpsys", "sdcard", "lowmemorykiller", "armeabi", "Foldables",
     "LASTEXITCODE", "LOCALAPPDATA",
     "GLSL", "snackbars", "backgrounded",
-    "pushback", "repoints", "unrouted",
+    "pushback", "repoints", "unrouted", "unfindable",
+    "Take-aways", "loopifying", "openloop", "EACCES", "EINVAL",
     "Banuba", "arthenica", "sixo", "sisik", "Taner", "Sener", "Agam", "Koradiya"
   ],
   "flagWords": []

@@ -43,7 +43,12 @@ coroutine, and crashed the test. The codebase already knew this API quirk — `V
 and `VideoStorageRepositoryImpl.kt` both catch `RuntimeException` with the comment
 "MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions" — and
 `TrimFrameExtractor` itself caught it around `getFrameAtTime`, three lines below the
-`setDataSource` call it didn't protect. The two fixed call sites were the only stragglers.
+`setDataSource` call it didn't protect. The two fixed call sites were the only unguarded
+**screen-side** decoders — but the PR #66 review applied the take-away grep below and found two
+more in the save path: `VideoStorageRepositoryImpl.promoteScratchToRaw` and `registerBoomerang`
+caught only `IOException`/`IllegalArgumentException` around `extractThumbnail` (which has no
+catch of its own; the gallery-scan caller in `loadFrom` was already guarded). Both are now fixed
+in the same pattern in this PR.
 
 **Why this matters beyond tests:** this is a **production crash path**. A source file that
 becomes unreadable behind the Trim/Editor screens (truncated scratch, cleared cache, bad
@@ -138,8 +143,10 @@ component's own documented tag is the node's tag again.
 
 1. **A "best-effort" media helper must catch what the API actually throws, not what it
    documents.** `MediaMetadataRetriever` throws bare `RuntimeException`s from native; the repo
-   knew this in three places and missed it in two. Grep candidate:
-   every `MediaMetadataRetriever` use must have a `RuntimeException` catch.
+   knew this in three places and missed it in **four** — two screen-side decoders fixed first,
+   then the PR #66 review applied this very grep and caught two more (`promoteScratchToRaw` /
+   `registerBoomerang` around the uncaught `extractThumbnail`). Grep candidate, now satisfied:
+   every `MediaMetadataRetriever` use must have a `RuntimeException` catch on its path.
 2. **WorkManager progress is only observable while RUNNING** — asserting it on a terminal
    `WorkInfo` is a race you sometimes win. Observe in-flight.
 3. **One node, one `testTag`** — a second tag earlier in the modifier chain silently shadows

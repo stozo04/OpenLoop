@@ -74,6 +74,12 @@ class VideoStorageRepositoryImpl(
                 // MediaMetadataRetriever.setDataSource on an unreadable scratch file.
                 Log.e(TAG, "Failed to promote scratch capture ${scratch.uuid} to raw", e)
                 null
+            } catch (e: RuntimeException) {
+                // MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions
+                // ("setDataSource failed: status = 0x...") — extractThumbnail has no catch of
+                // its own, so an unreadable copy must fail promotion here, not crash (PR #66).
+                Log.e(TAG, "Failed to promote scratch capture ${scratch.uuid} to raw", e)
+                null
             }
         }
 
@@ -143,6 +149,12 @@ class VideoStorageRepositoryImpl(
                 Log.e(TAG, "Failed to register boomerang ${file.name}", e)
                 null
             } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "Failed to register boomerang ${file.name}", e)
+                null
+            } catch (e: RuntimeException) {
+                // MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions
+                // ("setDataSource failed: status = 0x...") — extractThumbnail has no catch of
+                // its own, so a corrupt rendered file must fail registration here, not crash (PR #66).
                 Log.e(TAG, "Failed to register boomerang ${file.name}", e)
                 null
             }
