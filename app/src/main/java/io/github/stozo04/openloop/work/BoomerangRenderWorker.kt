@@ -8,6 +8,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import io.github.stozo04.openloop.BuildConfig
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.media.MediaComponents
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
@@ -42,7 +44,30 @@ class BoomerangRenderWorker(
         val parsed = BoomerangRenderWorkerInput.from(inputData)
             ?: return Result.failure()
 
-        setForeground(BoomerangRenderNotifications.createForegroundInfo(applicationContext, 0))
+        try {
+            setForeground(BoomerangRenderNotifications.createForegroundInfo(applicationContext, 0))
+        } catch (e: IllegalStateException) {
+            // setForegroundAsync's documented failure: "will fail with an IllegalStateException when
+            // the process is subject to foreground service restrictions" (ListenableWorker docs) —
+            // concretely ForegroundServiceStartNotAllowedException (its API 31+ subclass) when
+            // WorkManager re-runs persisted work after process death / reboot while the app is
+            // backgrounded. The render needs the FGS to survive, so fail gracefully instead of
+            // letting the exception escape doWork with no cleanup or telemetry (Issue #67 F1).
+            // The ViewModel's failBackToEditor reporter is gone in that scenario (process died),
+            // so this is the only Crashlytics signal for the lost render.
+            Log.e(TAG, "FGS promotion denied; failing render without retry", e)
+            deletePartialOutput(parsed.outputFile) // a pre-death attempt may have left a partial
+            ReverseCrashlytics.reportSaveFailure(
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                source = parsed.scratch.file,
+                trimStartMs = parsed.trimStartMs,
+                trimEndMs = parsed.trimEndMs,
+                outcome = "fgs_promotion_denied: ${e.javaClass.simpleName}",
+                cause = e,
+            )
+            return Result.failure()
+        }
 
         return coroutineScope {
             val latestProgress = AtomicReference(0f)
@@ -122,7 +147,16 @@ class BoomerangRenderWorker(
                 .putInt(BoomerangRenderWorkerKeys.PROGRESS_PERCENT, clamped)
                 .build(),
         )
-        setForeground(BoomerangRenderNotifications.createForegroundInfo(applicationContext, clamped))
+        try {
+            setForeground(BoomerangRenderNotifications.createForegroundInfo(applicationContext, clamped))
+        } catch (e: IllegalStateException) {
+            // The FGS is already promoted by doWork's guarded call; a refresh can still race a
+            // service stop (cancellation, Android 15+ mediaProcessing timeout). Losing one
+            // notification update must not kill an otherwise-healthy render — without this catch
+            // the exception escapes the progressPublisher coroutine and cancels the whole
+            // coroutineScope mid-encode (Issue #67 F1).
+            Log.w(TAG, "FGS notification refresh skipped at $clamped%", e)
+        }
     }
 
     private fun deletePartialOutput(file: File) {
