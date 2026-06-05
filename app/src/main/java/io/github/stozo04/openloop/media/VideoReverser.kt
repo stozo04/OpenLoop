@@ -119,16 +119,16 @@ class VideoReverser(
                         output.delete()
                         ReversePreviewLog.i(
                             if (preferSoftwareEncoder) "reverse.zero_frame_retry" else "reverse.contention_retry",
-                            "attempt=${attempt + 1}/$maxAttempts delayMs=$SAMSUNG_CODEC_CONTENTION_RETRY_MS " +
+                            "attempt=${attempt + 1}/$maxAttempts delayMs=${SAMSUNG_CODEC_CONTENTION_RETRY.inWholeMilliseconds} " +
                                 "preferSoftwareEncoder=$preferSoftwareEncoder",
                         )
-                        delay(SAMSUNG_CODEC_CONTENTION_RETRY_MS)
+                        delay(SAMSUNG_CODEC_CONTENTION_RETRY)
                     } else {
                         ReversePreviewLog.d(
                             "reverse.settle",
-                            "preReverseDelayMs=$PRE_REVERSE_CODEC_SETTLE_MS",
+                            "preReverseDelayMs=${PRE_REVERSE_CODEC_SETTLE.inWholeMilliseconds}",
                         )
-                        delay(PRE_REVERSE_CODEC_SETTLE_MS)
+                        delay(PRE_REVERSE_CODEC_SETTLE)
                     }
                     ReversePreviewLog.d("reverse.pass1.start", "dest=${intermediate.name}")
                     transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate, preferSoftwareEncoder) { frac ->
@@ -1037,7 +1037,7 @@ class VideoReverser(
         /**
          * Process-wide memo that this device's HW-encoder surface path produced a zero-frame pass
          * (S23/API 33 wedge): later [reverse] calls start directly on the software encoder instead
-         * of re-paying a doomed attempt + [SAMSUNG_CODEC_CONTENTION_RETRY_MS]. Deliberately not
+         * of re-paying a doomed attempt + [SAMSUNG_CODEC_CONTENTION_RETRY]. Deliberately not
          * persisted — a reboot/codec-update may fix the device, and the cost of rediscovery is one
          * extra attempt.
          */

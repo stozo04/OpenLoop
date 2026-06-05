@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.io.IOException
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Instrumented tests for [VideoReverser] — requires a real [MediaCodec], so it cannot run on the JVM.
@@ -77,13 +78,13 @@ class VideoReverserTest {
 
     /**
      * RTL regression (SM-S921B, 2026-06-03): pass 1 aborted ~113ms after Transformer when
-     * [SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS] was zero. On Samsung hardware, reverse must survive
+     * [SAMSUNG_POST_TRANSFORM_CODEC_SETTLE] was zero. On Samsung hardware, reverse must survive
      * pass 1 after the same settle [Media3VideoProcessor] applies before [VideoReverser.reverse].
      */
     @Test
     fun reverse_pass1SurvivesOnSamsung_afterPostTransformSettle() = runBlocking {
         assumeTrue("Samsung-only RTL regression", isSamsungDevice())
-        delay(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS)
+        delay(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE)
         val output = reverser.reverse(fixture, 0L, durationMs)
         assertTrue(output.exists())
         assertTrue(output.length() > 0L)

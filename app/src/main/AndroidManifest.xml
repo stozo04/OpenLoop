@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingClass">
 
     <!-- Video-only capture — no microphone; exported loops are silent. -->
     <uses-permission android:name="android.permission.CAMERA" />

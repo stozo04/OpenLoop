@@ -1,5 +1,7 @@
 package io.github.stozo04.openloop.ui
 
+import kotlin.time.Duration.Companion.milliseconds
+
 /**
  * Playlist rebind policy for [BoomerangEditorScreen]: debounce rapid trim/mode changes and always tear
  * down the prior [androidx.media3.exoplayer.ExoPlayer] playlist before preparing a new one (reduces
@@ -7,8 +9,8 @@ package io.github.stozo04.openloop.ui
  */
 object EditorPlaylistBind {
 
-    /** Debounce window for trim / mode / seam rebinding (similar to [SPEED_DEBOUNCE_MS]). */
-    const val PLAYLIST_DEBOUNCE_MS = 150L
+    /** Debounce window for trim / mode / seam rebinding (similar to [SPEED_DEBOUNCE]). */
+    val PLAYLIST_DEBOUNCE = 150.milliseconds
 
     /**
      * When true, the bind job should stop/clear the player and skip prepare until reverse preview

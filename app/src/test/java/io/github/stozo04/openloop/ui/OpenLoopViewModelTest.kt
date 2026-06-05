@@ -38,6 +38,9 @@ import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import java.io.File
 import java.io.IOException
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule(
@@ -318,7 +321,7 @@ class OpenLoopViewModelTest {
     @Before
     fun setUp() {
         OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = true
-        OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
+        OpenLoopViewModel.reversePreviewTimeoutOverride = null
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
@@ -354,7 +357,7 @@ class OpenLoopViewModelTest {
     @After
     fun tearDown() {
         OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
-        OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
+        OpenLoopViewModel.reversePreviewTimeoutOverride = null
         unmockkStatic(Log::class)
     }
 
@@ -526,7 +529,7 @@ class OpenLoopViewModelTest {
             viewModel.startBurstCapture(cameraManager)
             // Advance just over three ~33 ms ticks; elapsed should have started climbing but
             // stay well under the cap.
-            advanceTimeBy(100)
+            advanceTimeBy(100.milliseconds)
 
             val elapsed = viewModel.recordingElapsedMs.value
             assertTrue("elapsed should advance past 0, was $elapsed", elapsed > 0L)
@@ -752,14 +755,14 @@ class OpenLoopViewModelTest {
     fun `reverse preview times out when ensureReversed never completes`() =
         runTest(mainDispatcherRule.testDispatcher) {
             OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
-            OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
+            OpenLoopViewModel.reversePreviewTimeoutOverride = null
             enterTrimState()
             fakeVideoProcessor.hangReverse = true
             viewModel.onNextFromTrim()
             runCurrent()
             assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
 
-            advanceTimeBy(OpenLoopViewModel.REVERSE_PREVIEW_TIMEOUT_MS + 500)
+            advanceTimeBy(OpenLoopViewModel.REVERSE_PREVIEW_TIMEOUT + 500.milliseconds)
             advanceUntilIdle()
 
             val tab = viewModel.editorTabState.value
@@ -781,17 +784,17 @@ class OpenLoopViewModelTest {
     fun `reverse preview timeout invokes scratch janitor`() =
         runTest(mainDispatcherRule.testDispatcher) {
             OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
-            OpenLoopViewModel.reversePreviewTimeoutMsOverride = 50L
+            OpenLoopViewModel.reversePreviewTimeoutOverride = 50.milliseconds
             enterTrimState()
             fakeVideoProcessor.hangReverse = true
             viewModel.onNextFromTrim()
-            advanceTimeBy(100)
+            advanceTimeBy(100.milliseconds)
             advanceUntilIdle()
             assertTrue(
                 "scratch janitor runs on timeout",
                 fakeVideoProcessor.cleanupReverseIntermediatesCount >= 1,
             )
-            OpenLoopViewModel.reversePreviewTimeoutMsOverride = null
+            OpenLoopViewModel.reversePreviewTimeoutOverride = null
         }
 
     @Test
@@ -860,14 +863,14 @@ class OpenLoopViewModelTest {
     fun `reverse preview timeout resets an active look to ORIGINAL`() =
         runTest(mainDispatcherRule.testDispatcher) {
             OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
-            OpenLoopViewModel.reversePreviewTimeoutMsOverride = 50L
+            OpenLoopViewModel.reversePreviewTimeoutOverride = 50.milliseconds
             enterTrimState()
             fakeVideoProcessor.hangReverse = true
             viewModel.onNextFromTrim()
             runCurrent()
             viewModel.updateFilter(VideoFilter.POP) // user picks a look while reverse generates
 
-            advanceTimeBy(100)
+            advanceTimeBy(100.milliseconds)
             advanceUntilIdle()
 
             val tab = viewModel.editorTabState.value
@@ -1430,7 +1433,7 @@ class OpenLoopViewModelTest {
     fun `init prunes stale scratch with the 24h threshold`() {
         // The ViewModel constructed in setUp() prunes on init (D-8).
         assertEquals(1, fakeVideoStorage.pruneCallCount)
-        assertEquals(OpenLoopViewModel.STALE_SCRATCH_MAX_AGE_MS, fakeVideoStorage.lastPruneOlderThanMs)
+        assertEquals(OpenLoopViewModel.STALE_SCRATCH_MAX_AGE.inWholeMilliseconds, fakeVideoStorage.lastPruneOlderThanMs)
     }
 
     @Test

@@ -34,6 +34,7 @@ import java.io.IOException
 import java.security.MessageDigest
 import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 /** How a boomerang loops its source clip. */
 enum class BoomerangMode { FORWARD, REVERSE, FORWARD_THEN_REVERSE, REVERSE_THEN_FORWARD }
@@ -277,8 +278,8 @@ class Media3VideoProcessor(
         if (isSamsungDevice()) {
             // RTL/S24: reverse start immediately after Transformer release cancels the decoder's
             // first dequeueOutputBuffer ("Pending dequeue output buffer request cancelled").
-            ReversePreviewLog.d("ensureReversed.settle", "delayMs=$SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS")
-            delay(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS)
+            ReversePreviewLog.d("ensureReversed.settle", "delayMs=${SAMSUNG_POST_TRANSFORM_CODEC_SETTLE.inWholeMilliseconds}")
+            delay(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE)
         }
         return reverser.reverse(reverseInput.file, reverseInput.trimStartMs, reverseInput.trimEndMs, onProgress)
             .also {
@@ -515,7 +516,7 @@ class Media3VideoProcessor(
                     if (transformer.getProgress(holder) == Transformer.PROGRESS_STATE_AVAILABLE) {
                         onProgress((holder.progress / 100f).coerceIn(0f, 1f))
                     }
-                    delay(PROGRESS_POLL_MS)
+                    delay(PROGRESS_POLL)
                 }
             }
             try {
@@ -530,6 +531,6 @@ class Media3VideoProcessor(
 
     private companion object {
         const val REVERSE_BUDGET = 0.8f
-        const val PROGRESS_POLL_MS = 100L
+        val PROGRESS_POLL = 100.milliseconds
     }
 }
