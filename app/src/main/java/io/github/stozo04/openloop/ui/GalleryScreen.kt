@@ -63,7 +63,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -166,7 +165,7 @@ fun GalleryContent(
     backEnabledWhenIdle: Boolean = true,
 ) {
     var selectedIds by rememberSaveable(stateSaver = SelectedIdsSaver) {
-        mutableStateOf(emptySet<Long>())
+        mutableStateOf(emptySet())
     }
     val inSelectionMode = selectedIds.isNotEmpty()
 

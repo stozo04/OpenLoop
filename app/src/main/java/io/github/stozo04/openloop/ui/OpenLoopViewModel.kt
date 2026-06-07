@@ -64,7 +64,7 @@ sealed interface BoomerangEvent {
     /**
      * Boomerang rendered + saved; carries the rendered [file] (a `filesDir/videos/boom_*.mp4` loop) so the
      * UI can hand it to the Android share sheet (slice 06). The "Saved — view in gallery" snackbar is
-     * deferred until the share sheet is dismissed (see [BoomerangEvent.Saved] / [onShareSheetClosed]).
+     * deferred until the share sheet is dismissed (see [OpenLoopViewModel.onShareSheetClosed]).
      */
     data class Share(
         val file: File,
@@ -73,7 +73,7 @@ sealed interface BoomerangEvent {
     ) : BoomerangEvent
     /**
      * Show the "Saved — view in gallery" snackbar (with a "View" action into the gallery). Emitted
-     * *after* the share sheet returns control — see [onShareSheetClosed] — so the snackbar isn't wasted
+     * *after* the share sheet returns control — see [OpenLoopViewModel.onShareSheetClosed] — so the snackbar isn't wasted
      * behind the chooser.
      */
     object Saved : BoomerangEvent
@@ -108,7 +108,7 @@ sealed interface BoomerangEvent {
 
     /**
      * One or more gallery loops were marked for deletion (Issue #35). Drives the Undo snackbar; the
-     * real file delete is **deferred** until the snackbar is dismissed (see [commitPendingDeletion]).
+     * real file delete is **deferred** until the snackbar is dismissed (see [OpenLoopViewModel.commitPendingDeletion]).
      * [count] is how many loops the user removed in this batch, so the snackbar can pluralize.
      */
     data class LoopsDeleted(val count: Int) : BoomerangEvent
@@ -239,7 +239,7 @@ class OpenLoopViewModel(
 
     /**
      * The batch backing the current pending deletion, held in memory (NOT on disk). Safe-by-design:
-     * because the real `videoStorage.deleteVideo` is deferred to [commitPendingDeletion], process
+     * because the real `videoStorage.deleteVideo` is deferred to [OpenLoopViewModel.commitPendingDeletion], process
      * death before the commit leaves every file intact — an implicit Undo, never data loss.
      */
     private var pendingBatch: List<RecordedVideo> = emptyList()
@@ -753,7 +753,7 @@ class OpenLoopViewModel(
         val current = _editorTabState.value
         if (current.speed == clamped) return
         _editorTabState.value = current.copy(speed = clamped)
-        showBriefPreviewLoading(EditorLoadingKind.HOLD_TIGHT)
+        showBriefPreviewLoading()
     }
 
     /**
@@ -1011,18 +1011,18 @@ class OpenLoopViewModel(
         }
     }
 
-    private fun showBriefPreviewLoading(kind: EditorLoadingKind) {
+    private fun showBriefPreviewLoading() {
         val tab = _editorTabState.value
         if (tab.previewLoading == EditorLoadingKind.TRIMMING ||
             tab.previewLoading == EditorLoadingKind.LOOPIFYING
         ) {
             return
         }
-        _editorTabState.value = tab.copy(previewLoading = kind)
+        _editorTabState.value = tab.copy(previewLoading = EditorLoadingKind.HOLD_TIGHT)
         effectLoadingJob?.cancel()
         effectLoadingJob = viewModelScope.launch {
             delay(EFFECT_LOADING_MIN_DURATION)
-            clearPreviewLoading(kind)
+            clearPreviewLoading(EditorLoadingKind.HOLD_TIGHT)
         }
     }
 
@@ -1305,7 +1305,7 @@ class OpenLoopViewModel(
 
         /**
          * When true, preview reverse has no [select] timeout (unit tests only). Virtual-time
-         * [kotlinx.coroutines.test.advanceUntilIdle] otherwise elapses the 120s deadline before IO mocks finish.
+         * `advanceUntilIdle()` (kotlinx-coroutines-test) otherwise elapses the 120s deadline before IO mocks finish.
          */
         @Volatile
         var reversePreviewTimeoutDisabledForTests: Boolean = false

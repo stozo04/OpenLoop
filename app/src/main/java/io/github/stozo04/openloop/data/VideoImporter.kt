@@ -6,6 +6,7 @@ import android.content.res.AssetFileDescriptor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Log
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -47,14 +48,34 @@ class VideoImporterImpl(context: Context) : VideoImporter {
         try {
             readDurationMs(retriever, source)
         } catch (e: IllegalArgumentException) {
-            Log.e(TAG, "probe failed", e); 0L
+            Log.e(TAG, "probe failed", e)
+            ReverseCrashlytics.reportMediaRetrieverFailure(
+                "import_duration_probe", "illegal_argument", e,
+                sourceLabel = source.lastPathSegment ?: "content_uri",
+            )
+            0L
         } catch (e: IOException) {
-            Log.e(TAG, "probe open failed", e); 0L
+            Log.e(TAG, "probe open failed", e)
+            ReverseCrashlytics.reportMediaRetrieverFailure(
+                "import_duration_probe", "io", e,
+                sourceLabel = source.lastPathSegment ?: "content_uri",
+            )
+            0L
         } catch (e: SecurityException) {
-            Log.e(TAG, "probe not permitted", e); 0L
+            Log.e(TAG, "probe not permitted", e)
+            ReverseCrashlytics.reportMediaRetrieverFailure(
+                "import_duration_probe", "security", e,
+                sourceLabel = source.lastPathSegment ?: "content_uri",
+            )
+            0L
         } catch (e: RuntimeException) {
             // MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions.
-            Log.e(TAG, "probe decode failed", e); 0L
+            Log.e(TAG, "probe decode failed", e)
+            ReverseCrashlytics.reportMediaRetrieverFailure(
+                "import_duration_probe", "runtime", e,
+                sourceLabel = source.lastPathSegment ?: "content_uri",
+            )
+            0L
         } finally {
             retriever.release()
         }

@@ -79,10 +79,9 @@ enum class EditorLoadingKind(val message: String) {
     HOLD_TIGHT("Hold Tight.."),
     FILTERING("Filtering.."),
     DELETING("Deleting.."),
-    CREATING("Creating.."),
 }
 
-/** True while [VideoReverser] preview pass is running (pass 1/2); ExoPlayer must release codecs first. */
+/** True while VideoReverser preview pass is running (pass 1/2); ExoPlayer must release codecs first. */
 internal fun EditorLoadingKind?.isReversePreviewLoading(): Boolean =
     this == EditorLoadingKind.TRIMMING || this == EditorLoadingKind.LOOPIFYING
 
@@ -113,7 +112,7 @@ enum class EditorTab {
  * baked into [reversedFile], so changing speed never invalidates the cached reverse.
  *
  * [filter] is the color look (default [VideoFilter.ORIGINAL]): a Media3 video effect applied live in
- * the preview (`setVideoEffects`) and baked into the render. Like [speed] it's an effect, not a
+ * the preview (`ExoPlayer.setVideoEffects`) and baked into the render. Like [speed] it's an effect, not a
  * re-trim, so it never touches [reversedFile] or the output duration.
  *
  * [reversedFile] caches the reversed clip the preview plays for any reverse-containing [mode]; it is
@@ -136,7 +135,7 @@ data class EditorTabState(
     /** Plain-text diagnostic for the "Send debug info" action when [reverseFailed] is true. */
     val reverseSupportReport: String? = null,
     /**
-     * When false, the editor skips ExoPlayer [setVideoEffects] (forward-only preview) after reverse
+     * When false, the editor skips ExoPlayer `setVideoEffects` (forward-only preview) after reverse
      * preview failure or a low-memory signal — reduces GL/native retention under heap pressure.
      */
     val effectsPreviewEnabled: Boolean = true,
