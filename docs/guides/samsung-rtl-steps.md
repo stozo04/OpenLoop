@@ -97,6 +97,21 @@ If install fails with a signature mismatch (older debug/Play build on the lab de
 adb -s localhost:52172 uninstall io.github.stozo04.openloop
 ```
 
+### Git Bash (MINGW64) variant
+
+Two bash-specific snags: backslash paths get eaten (`app\build\...` → use forward
+slashes), and a shell opened before the PATH change won't see `adb` — fix in-session
+with the `export` below, or just open a fresh Git Bash.
+
+```bash
+export PATH="$PATH:/c/Users/gates/AppData/Local/Android/Sdk/platform-tools"  # if adb not found
+
+adb -s localhost:52172 install -r app/build/outputs/apk/release/app-release.apk
+adb -s localhost:52172 logcat -c
+adb -s localhost:52172 logcat -v time | tee ~/openloop-s23-release.txt   # own window
+adb -s localhost:52172 shell am start -n io.github.stozo04.openloop/.MainActivity
+```
+
 ---
 
 ## 4. Smoke-test flow
