@@ -3,6 +3,7 @@ package io.github.stozo04.openloop.data
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.util.Log
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -69,16 +70,25 @@ class VideoStorageRepositoryImpl(
                 )
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to promote scratch capture ${scratch.uuid} to raw", e)
+                ReverseCrashlytics.reportMediaRetrieverFailure(
+                    "storage_promote", "io", e, source = scratch.file,
+                )
                 null
             } catch (e: IllegalArgumentException) {
                 // MediaMetadataRetriever.setDataSource on an unreadable scratch file.
                 Log.e(TAG, "Failed to promote scratch capture ${scratch.uuid} to raw", e)
+                ReverseCrashlytics.reportMediaRetrieverFailure(
+                    "storage_promote", "illegal_argument", e, source = scratch.file,
+                )
                 null
             } catch (e: RuntimeException) {
                 // MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions
                 // ("setDataSource failed: status = 0x...") — extractThumbnail has no catch of
                 // its own, so an unreadable copy must fail promotion here, not crash (PR #66).
                 Log.e(TAG, "Failed to promote scratch capture ${scratch.uuid} to raw", e)
+                ReverseCrashlytics.reportMediaRetrieverFailure(
+                    "storage_promote", "runtime", e, source = scratch.file,
+                )
                 null
             }
         }
@@ -147,15 +157,24 @@ class VideoStorageRepositoryImpl(
                 )
             } catch (e: IOException) {
                 Log.e(TAG, "Failed to register boomerang ${file.name}", e)
+                ReverseCrashlytics.reportMediaRetrieverFailure(
+                    "storage_register_boomerang", "io", e, source = file,
+                )
                 null
             } catch (e: IllegalArgumentException) {
                 Log.e(TAG, "Failed to register boomerang ${file.name}", e)
+                ReverseCrashlytics.reportMediaRetrieverFailure(
+                    "storage_register_boomerang", "illegal_argument", e, source = file,
+                )
                 null
             } catch (e: RuntimeException) {
                 // MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions
                 // ("setDataSource failed: status = 0x...") — extractThumbnail has no catch of
                 // its own, so a corrupt rendered file must fail registration here, not crash (PR #66).
                 Log.e(TAG, "Failed to register boomerang ${file.name}", e)
+                ReverseCrashlytics.reportMediaRetrieverFailure(
+                    "storage_register_boomerang", "runtime", e, source = file,
+                )
                 null
             }
         }
@@ -168,10 +187,16 @@ class VideoStorageRepositoryImpl(
         } catch (e: IllegalArgumentException) {
             // setDataSource throws this for an unreadable/invalid file.
             Log.e(TAG, "Failed to read duration for ${file.name}", e)
+            ReverseCrashlytics.reportMediaRetrieverFailure(
+                "storage_duration_probe", "illegal_argument", e, source = file,
+            )
             0L
         } catch (e: RuntimeException) {
             // MediaMetadataRetriever surfaces decode failures as bare RuntimeExceptions.
             Log.e(TAG, "Failed to read duration for ${file.name}", e)
+            ReverseCrashlytics.reportMediaRetrieverFailure(
+                "storage_duration_probe", "runtime", e, source = file,
+            )
             0L
         } finally {
             retriever.release()
@@ -230,11 +255,17 @@ class VideoStorageRepositoryImpl(
                     extractThumbnail(file, thumbFile)
                 } catch (e: IOException) {
                     Log.e(TAG, "Failed to extract on-demand thumbnail for ${file.name}", e)
+                    ReverseCrashlytics.reportMediaRetrieverFailure(
+                        "storage_gallery_thumb", "io", e, source = file,
+                    )
                     // Fall through: still list the clip, just with a (possibly missing) thumb path.
                 } catch (e: RuntimeException) {
                     // MediaMetadataRetriever.setDataSource / decode failures surface as runtime
                     // exceptions (e.g. IllegalArgumentException) — still list the clip.
                     Log.e(TAG, "Failed to extract on-demand thumbnail for ${file.name}", e)
+                    ReverseCrashlytics.reportMediaRetrieverFailure(
+                        "storage_gallery_thumb", "runtime", e, source = file,
+                    )
                 }
             }
             RecordedVideo(id, file.absolutePath, thumbFile.absolutePath, kind, sourceRawId)

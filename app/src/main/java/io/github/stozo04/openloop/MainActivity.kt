@@ -403,7 +403,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Pop the Android share sheet for a rendered loop [file] (slice 06). The file lives in
+     * Pop the Android share sheet for a rendered loop `file` (slice 06). The file lives in
      * `filesDir/videos/`, exposed by the manifest's FileProvider; [FileProvider.getUriForFile]
      * mints a `content://` URI and the [Intent.FLAG_GRANT_READ_URI_PERMISSION] set in
      * [buildBoomerangShareIntent] grants the chosen receiver temporary read access. We flag

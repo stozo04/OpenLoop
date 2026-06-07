@@ -10,34 +10,25 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,38 +37,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.setProgress
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -94,7 +71,6 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.ui.components.EditorBottomToolbar
 import io.github.stozo04.openloop.ui.components.EditorLoadingOverlay
-import io.github.stozo04.openloop.ui.components.EditorToolbarSlot
 import io.github.stozo04.openloop.ui.components.FilterTabPanel
 import io.github.stozo04.openloop.ui.components.LoopTabPanel
 import io.github.stozo04.openloop.ui.components.SpeedTabPanel
@@ -104,7 +80,6 @@ import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.LimeInk
 import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
 import io.github.stozo04.openloop.ui.theme.OverlayScrim
-import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
@@ -125,9 +100,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /** Hit target ≥ 48 dp (Material / ANDROID_STANDARDS §7 minimum) for the top-bar buttons and chips. */
 private val CONTROL_SIZE = 56.dp
-
-/** Max width of the tab-content row so chips / slider stay centered (not edge-spread) on ≥ 600 dp displays. */
-private val CONTENT_MAX_WIDTH = 520.dp
 
 /** Tab-panel heights: fixed per tab so the bottom toolbar stays put; Speed is tallest (slider + pill). */
 private fun editorPanelHeight(tab: EditorTab) = when (tab) {
@@ -725,12 +697,21 @@ private fun extractRepresentativeFrame(file: File, trimStartMs: Long, trimEndMs:
         val midUs = ((trimStartMs + trimEndMs) / 2L) * 1000L
         retriever.getFrameAtTime(midUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
     } catch (e: IllegalArgumentException) {
+        ReverseCrashlytics.reportFilterThumbnailExtractFailure(
+            file, trimStartMs, trimEndMs, "illegal_argument", e,
+        )
         null // unreadable / unsupported source path
     } catch (e: IllegalStateException) {
+        ReverseCrashlytics.reportFilterThumbnailExtractFailure(
+            file, trimStartMs, trimEndMs, "illegal_state", e,
+        )
         null // retriever not configured (setDataSource failed)
     } catch (e: RuntimeException) {
         // MediaMetadataRetriever surfaces native decode/open failures as bare RuntimeExceptions
         // ("setDataSource failed: status = 0x..."), same as VideoImporter/VideoStorageRepositoryImpl.
+        ReverseCrashlytics.reportFilterThumbnailExtractFailure(
+            file, trimStartMs, trimEndMs, "runtime", e,
+        )
         null
     } finally {
         retriever.release()

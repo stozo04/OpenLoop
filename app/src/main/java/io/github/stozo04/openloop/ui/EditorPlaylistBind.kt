@@ -19,9 +19,9 @@ object EditorPlaylistBind {
     fun shouldHoldPlaylist(reversePreviewLoading: Boolean): Boolean = reversePreviewLoading
 
     /**
-     * [ExoPlayer.stop] does not release decoder slots — only [ExoPlayer.release] does (Media3 lifecycle
-     * guidance). The screen must bump [BoomerangEditorScreen]'s `playerEpoch` when reverse loading
-     * starts so the prior instance is released before [VideoReverser] pass 1 opens codecs.
+     * `ExoPlayer.stop()` does not release decoder slots — only `ExoPlayer.release()` does (Media3
+     * lifecycle guidance). The screen must bump [BoomerangEditorScreen]'s `playerEpoch` when reverse
+     * loading starts so the prior instance is released before VideoReverser pass 1 opens codecs.
      */
     fun requiresPlayerEpochBumpForReversePreview(): Boolean = true
 

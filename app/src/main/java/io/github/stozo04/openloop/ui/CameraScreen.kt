@@ -22,9 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
 import io.github.stozo04.openloop.R
-
-
-
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -284,7 +281,7 @@ fun HomeButton(
 /**
  * Tap-to-start / tap-to-stop shutter with a progress ring.
  *
- * Stateless and hoisted (mirrors [OnboardingNavigation]) so it can be exercised in Compose UI
+ * Stateless and hoisted (mirrors [OpenLoopUiState.Onboarding]) so it can be exercised in Compose UI
  * tests without binding the camera. While [isRecording], a [CoralRed] ring sweeps clockwise from
  * 12 o'clock proportional to [progressFraction] (0f..1f toward the 30 s cap), the interior dims,
  * and the dot is replaced by a square "stop" glyph.
@@ -380,7 +377,7 @@ fun ShutterButton(
 /**
  * Top-center countdown chip shown only while recording: monospaced `MM:SS / 00:30` on a glass
  * surface (OverlayScrim 80% over a OverlayWhite 20% base). Renders nothing when [visible] is false,
- * so the visibility rule itself is testable (mirrors [OnboardingNavigation]'s hoisted pattern).
+ * so the visibility rule itself is testable (mirrors [OpenLoopUiState.Onboarding]'s hoisted pattern).
  *
  * [text] is a lambda, not a value: it is read inside this chip's composition (REC-1) so an
  * elapsed-time tick recomposes only the chip, never the camera screen above it.

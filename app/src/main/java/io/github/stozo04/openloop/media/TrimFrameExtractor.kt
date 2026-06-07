@@ -2,6 +2,7 @@ package io.github.stozo04.openloop.media
 
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import java.io.File
 
 /**
@@ -29,13 +30,22 @@ fun extractTrimFilmstripFrames(
                 null
             }
         }
-    } catch (_: IllegalArgumentException) {
+    } catch (e: IllegalArgumentException) {
+        ReverseCrashlytics.reportMediaRetrieverFailure(
+            "trim_filmstrip", "illegal_argument", e, source = file,
+        )
         List(frameCount) { null }
-    } catch (_: IllegalStateException) {
+    } catch (e: IllegalStateException) {
+        ReverseCrashlytics.reportMediaRetrieverFailure(
+            "trim_filmstrip", "illegal_state", e, source = file,
+        )
         List(frameCount) { null }
-    } catch (_: RuntimeException) {
+    } catch (e: RuntimeException) {
         // setDataSource surfaces native open failures as bare RuntimeExceptions ("setDataSource
         // failed: status = 0x...") — the getFrameAtTime catch above doesn't cover this one.
+        ReverseCrashlytics.reportMediaRetrieverFailure(
+            "trim_filmstrip", "runtime", e, source = file,
+        )
         List(frameCount) { null }
     } finally {
         retriever.release()

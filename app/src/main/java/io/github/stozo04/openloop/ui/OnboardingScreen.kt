@@ -6,7 +6,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,7 +33,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -74,7 +72,7 @@ private data class OnboardingPage(
 
 // Single-screen onboarding: one strong value/trust screen, then straight into the camera. Per Google's
 // onboarding guidance (developer.android.com/design/ui/mobile/guides/patterns/onboarding) a one-tap app
-// doesn't need a multi-page walkthrough, and camera permission is primed in-context at the shutter — not
+// doesn't need a multipage walkthrough, and camera permission is primed in-context at the shutter — not
 // as a startup gate (developer.android.com/training/permissions/usage-notes).
 private val onboardingPage = OnboardingPage(
     headline = "Free. Forever.",
@@ -106,7 +104,7 @@ fun OnboardingScreen(
     ) {
         // Full-bleed, edge-to-edge looping demo with a baked-in scrim so the floating title/CTA stay
         // legible over any frame. Playback is lifecycle-aware (pauses when backgrounded).
-        OnboardingPageMedia(page = onboardingPage, playing = true)
+        OnboardingPageMedia(playing = true)
 
         // Floating bottom stack — title + trust badges + the single launch CTA — anchored over the scrim
         // and kept clear of the system bars by safeDrawingPadding (media stays edge-to-edge behind it).
@@ -118,7 +116,7 @@ fun OnboardingScreen(
                 .padding(bottom = 32.dp, start = 28.dp, end = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            OnboardingTitle(page = onboardingPage)
+            OnboardingTitle()
 
             Spacer(modifier = Modifier.height(36.dp))
 
@@ -153,19 +151,19 @@ internal fun GetStartedButton(onClick: () -> Unit, modifier: Modifier = Modifier
  * under the title/CTA.
  */
 @Composable
-private fun OnboardingPageMedia(page: OnboardingPage, playing: Boolean = false) {
+private fun OnboardingPageMedia(playing: Boolean = false) {
     Box(modifier = Modifier.fillMaxSize()) {
         // A Compose @Preview / inspection host can't run an ExoPlayer, so fall back to the static
         // drawable there; on-device the video plays full-bleed.
-        if (page.videoRawRes != null && !LocalInspectionMode.current) {
+        if (onboardingPage.videoRawRes != null && !LocalInspectionMode.current) {
             OnboardingVideoCard(
-                rawResId = page.videoRawRes,
+                rawResId = onboardingPage.videoRawRes,
                 playing = playing,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
             Image(
-                painter = painterResource(id = page.drawableRes),
+                painter = painterResource(id = onboardingPage.drawableRes),
                 contentDescription = "Onboarding visual asset representing loops",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -192,18 +190,18 @@ private fun OnboardingPageMedia(page: OnboardingPage, playing: Boolean = false) 
 // ── Title + benefit badges ──
 
 @Composable
-private fun OnboardingTitle(page: OnboardingPage) {
+private fun OnboardingTitle() {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = page.headline,
+            text = onboardingPage.headline,
             style = MaterialTheme.typography.displayMedium,
             color = Color.White,
             textAlign = TextAlign.Center
         )
-        page.badges.forEach { badge ->
+        onboardingPage.badges.forEach { badge ->
             Spacer(modifier = Modifier.height(12.dp))
             BenefitBadge(text = badge)
         }
@@ -239,7 +237,7 @@ private fun BenefitBadge(text: String) {
  * in a [DisposableEffect]) but inline and silent. Plays only while [playing] and pauses on `ON_STOP` so a
  * backgrounded app stays idle. There is intentionally no *runtime* still-image fallback: the bundled clip
  * is the product demo, and a decode failure simply leaves the scrimmed gradient background (per the
- * onboarding-video PRD). The static [drawableRes] is only the inspection-mode fallback —
+ * onboarding-video PRD). The static `OnboardingPage.drawableRes` is only the inspection-mode fallback —
  * [OnboardingPageMedia] swaps it in under `LocalInspectionMode` since a Compose @Preview can't host an
  * ExoPlayer.
  *

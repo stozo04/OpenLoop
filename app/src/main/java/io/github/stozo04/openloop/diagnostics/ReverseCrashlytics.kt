@@ -101,6 +101,60 @@ internal object ReverseCrashlytics {
         }
     }
 
+    /** Looks-tab filter-chip thumbnail decode failed — non-fatal for aggregate triage. */
+    fun reportFilterThumbnailExtractFailure(
+        source: File,
+        trimStartMs: Long,
+        trimEndMs: Long,
+        failureKind: String,
+        cause: Throwable,
+    ) = reportMediaRetrieverFailure(
+        operation = "editor_filter_frame",
+        failureKind = failureKind,
+        cause = cause,
+        source = source,
+        trimStartMs = trimStartMs,
+        trimEndMs = trimEndMs,
+    )
+
+    /**
+     * Best-effort [android.media.MediaMetadataRetriever] failure — non-fatal for aggregate triage.
+     * Used anywhere a retriever decode/probe is expected to fail gracefully (filter chips, trim
+     * filmstrip, gallery thumbnails, duration probes, import pre-check).
+     */
+    fun reportMediaRetrieverFailure(
+        operation: String,
+        failureKind: String,
+        cause: Throwable,
+        source: File? = null,
+        sourceLabel: String? = null,
+        trimStartMs: Long? = null,
+        trimEndMs: Long? = null,
+    ) {
+        val crashlytics = crashlyticsOrNull() ?: return
+        val builder = CustomKeysAndValues.Builder()
+            .putString("mmr_operation", operation.take(1024))
+            .putString("mmr_failure_kind", failureKind.take(1024))
+        source?.let {
+            builder
+                .putLong("source_bytes", it.length())
+                .putString("source_name", it.name.take(1024))
+        }
+        sourceLabel?.let { builder.putString("source_label", it.take(1024)) }
+        trimStartMs?.let { builder.putLong("trim_start_ms", it) }
+        trimEndMs?.let { builder.putLong("trim_end_ms", it) }
+        if (trimStartMs != null && trimEndMs != null) {
+            builder.putLong("trim_window_ms", (trimEndMs - trimStartMs).coerceAtLeast(0L))
+        }
+        val keys = builder.build()
+        runCatching {
+            crashlytics.log("mmr_failure: $operation/$failureKind")
+            crashlytics.recordException(cause, keys)
+        }.onFailure { e ->
+            Log.w(TAG, "Crashlytics recordException failed", e)
+        }
+    }
+
     fun supportReportForShare(
         versionName: String,
         versionCode: Int,

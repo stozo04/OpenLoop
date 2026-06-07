@@ -60,7 +60,7 @@ import java.io.File
 /**
  * Post-capture Trim screen: video preview on top, filmstrip trim controls + bottom toolbar below.
  * SAVE (or Speed / Loop / Filter on the toolbar) advances into the tabbed editor when the trim
- * window meets [OpenLoopViewModel.MIN_TRIM_MS].
+ * window meets [OpenLoopViewModel.MIN_TRIM_DURATION].
  */
 @OptIn(UnstableApi::class)
 @Composable
