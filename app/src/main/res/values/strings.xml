@@ -47,4 +47,8 @@
     <string name="import_too_long_title">That clip\'s a bit long</string>
     <string name="import_too_long_body">OpenLoop makes loops from videos up to 30 seconds. Pick a shorter clip and we\'ll loop it.</string>
     <string name="import_too_long_button">Got it</string>
+
+    <!-- In-app updates (gentle nudge — docs/active/in-app-updates/IMPLEMENTATION.md) -->
+    <string name="update_ready_message">Update ready — restart to install.</string>
+    <string name="update_ready_action">Restart</string>
 </resources>
