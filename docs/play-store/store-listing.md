@@ -22,7 +22,7 @@ Speed-controlled video loops. 100% on-device. No ads, no signup, open source.
 
 ### Full description (max 4000 characters)
 ```
-OpenLoop turns a quick clip into a smooth, speed-controlled video loop — a "boomerang" that plays forward and back. Everything happens right on your phone. No account, no ads, no subscriptions, and nothing is ever uploaded.
+OpenLoop turns a quick clip into a smooth, speed-controlled video loop — a "boomerang" that plays forward and back. All video editing happens right on your phone. No account, no ads, no subscriptions, and your videos are never uploaded.
 
 WHAT YOU CAN DO
 • Capture a short clip with the built-in camera, or import one you already have.
@@ -33,7 +33,7 @@ WHAT YOU CAN DO
 • Share your loop anywhere using your phone's normal share sheet.
 
 PRIVATE BY DESIGN
-OpenLoop does 100% of its video processing on your device. It has no servers and doesn't even use the internet permission, so your videos physically cannot be sent anywhere by the app. There are no accounts, no analytics, and no advertising. The clips you create stay in the app until you delete them or uninstall.
+OpenLoop does 100% of its video editing on your device. Your clips and the boomerangs you make are never uploaded — they stay in the app until you delete them or uninstall. There are no accounts, no ads, and no subscriptions, and the app does not use an advertising ID. To keep OpenLoop stable and to understand which features are used, the app includes Google Analytics for Firebase and Firebase Crashlytics, which collect limited usage and crash-diagnostic data that doesn't personally identify you. There's no advertising ID and we don't sell your data. See our privacy policy for the details.
 
 IMPORT WITHOUT GIVING UP YOUR LIBRARY
 Importing uses Android's Photo Picker, so you choose one video to bring in without granting access to your whole gallery — and with no storage permission.
@@ -42,8 +42,7 @@ OPEN SOURCE
 OpenLoop is free and open source under the Apache 2.0 license. You can read every line, file issues, or contribute: https://github.com/stozo04/OpenLoop
 
 PERMISSIONS
-• Camera — to record video in the app. Exported loops are silent video-only.
-Both are used only on your device.
+• Camera — to record video in the app, used only on your device. Exported loops are silent (video only).
 
 Made for people who just want to point, tap, and loop.
 ```
