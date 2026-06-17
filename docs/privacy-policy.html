@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OpenLoop — Privacy Policy</title>
-  <meta name="description" content="Privacy policy for OpenLoop, an on-device video loop maker. No data collected.">
+  <meta name="description" content="Privacy policy for OpenLoop, an on-device video loop maker. Video stays on your device; limited usage and crash diagnostics are collected via Google Analytics for Firebase and Firebase Crashlytics.">
   <style>
     :root { color-scheme: light dark; }
     body {
@@ -25,32 +25,60 @@
 <body>
   <h1>OpenLoop — Privacy Policy</h1>
   <p class="meta">
-    Effective date: 30 May 2026 · App: OpenLoop (<code>io.github.stozo04.openloop</code>)<br>
+    Effective date: 17 June 2026 · App: OpenLoop (<code>io.github.stozo04.openloop</code>)<br>
     Developer: Steven Gates · <a href="mailto:gates.steven@gmail.com">gates.steven@gmail.com</a><br>
     Source code: <a href="https://github.com/stozo04/OpenLoop">github.com/stozo04/OpenLoop</a> (open source, Apache License 2.0)
   </p>
 
   <h2>Summary</h2>
   <p>OpenLoop is a camera app for creating speed-controlled video loops (&ldquo;boomerangs&rdquo;).
-  <strong>All processing happens entirely on your device. OpenLoop does not collect, transmit, sell, or
-  share any personal data, and it has no servers, accounts, analytics, or advertising.</strong> The app
-  does not even request the <code>INTERNET</code> permission, so it is technically incapable of sending
-  your data anywhere.</p>
+  <strong>All video editing happens on your device, and your videos are never uploaded to us or anyone
+  else.</strong> To keep the app stable and to understand which features people use, OpenLoop does collect
+  a limited amount of <strong>usage and crash-diagnostic data</strong> through Google Analytics for Firebase
+  and Firebase Crashlytics. This data does not personally identify you. There are no accounts, no ads, and no
+  advertising ID, and we do not sell your data.</p>
 
   <h2>Information we collect</h2>
-  <p><strong>None.</strong> OpenLoop does not collect or transmit any personal or usage data off your
-  device. There is no sign-up, no account, no login, and no analytics or crash-reporting service in the app.</p>
-
-  <h2>Camera</h2>
-  <p>OpenLoop uses the following device permission, solely on your device, only while you use the
-  relevant feature:</p>
+  <p><strong>Your videos stay on your device.</strong> Everything you record, import, edit, and export is
+  processed entirely on your device and is never sent to us or to any third party by OpenLoop.</p>
+  <p>OpenLoop includes two Google/Firebase tools that send a limited amount of diagnostic and usage data to
+  Google, which processes it on our behalf:</p>
   <ul>
-    <li><strong>Camera</strong> (<code>CAMERA</code>) — to record video in the app&rsquo;s viewfinder.
-    Video is written only to the app&rsquo;s private storage on your device. Exported boomerang loops
-    are silent (video only).</li>
+    <li><strong>Google Analytics for Firebase</strong> — records app-usage events (for example, which screens
+    you open and actions such as saving or sharing a loop), an <strong>approximate location</strong>
+    (country/region/city level) that Google derives from your IP address, and a random
+    <strong>app-installation identifier</strong> (the Firebase App Instance ID).</li>
+    <li><strong>Firebase Crashlytics</strong> — if the app crashes, records the crash details: a stack trace,
+    the app&rsquo;s state at the time, point-in-time device information, and a random installation identifier
+    used to count how many users a given crash affected.</li>
   </ul>
-  <p>Captured and imported video never leaves your device through OpenLoop. It is not uploaded, backed up
-  to any OpenLoop server (there are none), or shared with us or any third party.</p>
+  <p>This data <strong>does not personally identify you.</strong> It is linked only to a random, resettable
+  per-installation identifier (a &ldquo;pseudonymous&rdquo; ID) &mdash; not to your name, email, or any
+  account, because OpenLoop has no accounts or sign-in. OpenLoop <strong>does not use an advertising ID</strong>,
+  shows no ads, and does not sell or share this data with third parties for their own purposes. All of it is
+  sent securely over HTTPS.</p>
+  <p>Because these tools communicate with Google&rsquo;s servers, the app requests the <code>INTERNET</code>
+  permission. It is used only for the usage and crash reporting described here &mdash; never to upload your
+  videos.</p>
+
+  <h2>What we do not collect</h2>
+  <ul>
+    <li>Your name, email address, phone number, or any account &mdash; there is no sign-up or login.</li>
+    <li>Your photos or videos &mdash; these never leave your device through OpenLoop.</li>
+    <li>An advertising ID &mdash; ad-ID collection is disabled and the app shows no ads.</li>
+    <li>Precise (GPS) location, contacts, messages, or audio.</li>
+  </ul>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><strong>Camera</strong> (<code>CAMERA</code>) &mdash; to record video in the app&rsquo;s viewfinder.
+    Video is written only to the app&rsquo;s private storage on your device. Exported boomerang loops are
+    silent (video only).</li>
+    <li><strong>Internet</strong> (<code>INTERNET</code>) &mdash; used only to send the usage and crash
+    diagnostics described above. It is not used to transmit your videos.</li>
+    <li><strong>Notifications</strong> (<code>POST_NOTIFICATIONS</code>) &mdash; to show progress while a
+    loop is being saved in the background.</li>
+  </ul>
 
   <h2>Videos you import</h2>
   <p>When you import an existing video, OpenLoop uses the Android <strong>Photo Picker</strong>, which lets
@@ -66,16 +94,27 @@
   <h2>Sharing</h2>
   <p>When you tap <strong>Share</strong>, Android&rsquo;s system share sheet opens and <strong>you</strong>
   choose where to send the boomerang (for example a messaging or social app). That transfer is performed by
-  Android and the app you select — it is initiated and controlled entirely by you. OpenLoop does not transmit
-  your video on its own and is not involved beyond handing the file to the app you pick.</p>
+  Android and the app you select &mdash; it is initiated and controlled entirely by you. OpenLoop does not
+  transmit your video on its own and is not involved beyond handing the file to the app you pick.</p>
 
   <h2>Children&rsquo;s privacy</h2>
-  <p>OpenLoop does not knowingly collect any data from anyone, including children. Because the app collects
-  no data at all, it does not process personal information of children.</p>
+  <p>OpenLoop is a general-audience app and is not directed at children. We do not knowingly collect personal
+  information from children. The usage and crash diagnostics described above are pseudonymous and are not used
+  to identify or build profiles of individual users.</p>
 
   <h2>Data retention and deletion</h2>
-  <p>OpenLoop stores nothing off-device, so there is nothing for us to retain or delete. On-device videos
-  remain until you delete them in the app or uninstall OpenLoop.</p>
+  <p>Your on-device videos remain until you delete them in the app or uninstall OpenLoop. The usage and crash
+  diagnostics are retained by Firebase for a limited period under Google&rsquo;s standard retention settings
+  and then deleted automatically.</p>
+  <p>The diagnostics are pseudonymous and are not linked to your name, email, or any account, so we have no
+  way to identify or single out one individual&rsquo;s records &mdash; and therefore cannot action a request
+  to delete a specific person&rsquo;s diagnostic data. You stay in control in these ways:</p>
+  <ul>
+    <li><strong>Uninstalling OpenLoop stops all further data collection.</strong></li>
+    <li><strong>Clearing the app&rsquo;s storage (or uninstalling) resets the random installation
+    identifiers</strong>, so future data can&rsquo;t be tied to past data.</li>
+    <li><strong>Firebase automatically deletes the diagnostic data</strong> after its retention period.</li>
+  </ul>
 
   <h2>Changes to this policy</h2>
   <p>If this policy changes, the updated version will be published at this same URL with a new effective date.</p>
