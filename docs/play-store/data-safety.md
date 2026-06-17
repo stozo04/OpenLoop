@@ -35,11 +35,24 @@ answers to enter. Keep it in sync if the app's behavior ever changes.
 |---|---|
 | Does your app collect or share any of the required user data types? | **Yes** |
 | Is all of the user data collected by your app encrypted in transit? | **Yes** — Firebase transmits over HTTPS/TLS ([source](https://firebase.google.com/docs/android/play-data-disclosure)). |
+| Which account-creation methods does your app support? | **My app does not allow users to create an account** — OpenLoop has no sign-up. |
+| Can users log in with accounts created outside of the app? | **No.** |
 | Do you provide a way for users to request that their data be deleted? | **No.** The diagnostics are pseudonymous and not linked to any name, email, or account, so there is no way to locate an individual user's records to action a per-user deletion request. The controls that exist: uninstalling stops all collection; clearing app storage (or uninstalling) resets the random installation identifiers; Firebase auto-deletes the data after its retention window. *(See "Open decision" below.)* |
+
+> The deletion question also offers **"No, but user data is automatically deleted within 90 days."**
+> We use the plain **No** instead, because that badge must hold for *all* collected data and GA4
+> event-data retention is configurable up to **14 months** — we have not verified (or committed to
+> keeping) it ≤ 90 days. Plain **No** is always-accurate and zero-maintenance. If you later set
+> GA Admin → Data settings → Data retention to **2 months** and keep it there, the 90-day option
+> becomes defensible.
+
+> **Additional badges** (Independent security review · UPI Payments verified) — **not applicable**;
+> leave both off.
 
 For **every** declared type below: **Collected = Yes, Shared = No** (Google acts as OpenLoop's data
 processor for Analytics/Crashlytics — using these Google SDKs is "collection" but not third-party
-"sharing"), **Processed ephemerally = No** (Firebase retains the data), **Users can choose whether
+"sharing", under Play's **"Service providers"** sharing exemption — see "Why the exemptions apply"
+below), **Processed ephemerally = No** (Firebase retains the data), **Users can choose whether
 it's collected = No / required** (there is no in-app opt-out toggle yet — see "Open decision").
 
 ---
@@ -75,7 +88,7 @@ it's collected = No / required** (there is no in-app opt-out toggle yet — see 
 - [x] **Device or other IDs → Device or other IDs** — Collected, not shared, not ephemeral, required. Purpose: Analytics, App functionality.
 - [x] **Location → Approximate location** — Collected, not shared, not ephemeral, required. Purpose: Analytics.
 - [ ] Advertising ID — **NOT collected** (disabled in manifest).
-- [ ] Photos and videos — **NOT collected** (stay on-device; share sheet is user-initiated).
+- [ ] Photos and videos — **NOT collected** (on-device processing exemption; the share sheet is a user-initiated transfer — see "Why the exemptions apply").
 - [ ] Personal info / Financial info / Contacts / Calendar / Messages / Audio / Files / Health — **NOT collected.**
 
 ---
@@ -96,6 +109,37 @@ If you later want to offer real user control, the parked in-app opt-out toggle
 whether this data is collected" to **Yes** for every type above. That is an opt-out of *collection*,
 which is cleaner and more honest than a deletion workflow you can't action. Schedule it for a future
 release; it is not required to ship today.
+
+---
+
+## Why the exemptions apply (official Play rules)
+
+Every "not collected" / "not shared" call above maps to a **named exemption** in Google's
+[Data safety form guidance](https://support.google.com/googleplay/android-developer/answer/10787469).
+Quoting the exact rules so a future reviewer or audit can trace the reasoning:
+
+- **`Shared = No` for Analytics + Crashlytics → "Service providers" sharing exemption.**
+  Google: *"Transferring user data to a 'service provider' that processes it on behalf of the
+  developer"* is exempt from disclosure as sharing. Firebase/Google processes the telemetry on
+  OpenLoop's behalf, so it is **Collected (Yes)** but **not Shared**. Note the SDK data **must** still
+  be declared as *collected*: *"This includes user data transmitted off device from your app by
+  libraries and/or SDKs … irrespective of whether data is transmitted to you or a third-party server."*
+
+- **Videos not declared → "On-device processing" collection exemption.**
+  Google: *"User data … that is only processed locally on the user's device and not sent off device
+  does not need to be disclosed."* Capture, trim, edit, and export all happen on-device; the app never
+  transmits the video.
+
+- **Share sheet not declared → "User-initiated action" sharing exemption.**
+  Google: a transfer *"based on a specific user-initiated action, where the user reasonably expects the
+  data to be shared"* is exempt. Tapping Share and choosing a destination is exactly that; Android (not
+  OpenLoop) performs the transfer.
+
+- **We do NOT rely on the "Anonymous data" exemption.** That one covers data *"fully anonymized so that
+  it can no longer be associated with an individual user."* Our telemetry is **pseudonymous** (keyed to
+  a random install ID), **not** anonymized, so it would not qualify — which is precisely why the docs
+  say "pseudonymous," never "anonymous," and why the **Service providers** exemption (above) is the one
+  doing the work for `Shared = No`.
 
 ---
 
