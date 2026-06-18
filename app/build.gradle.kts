@@ -48,6 +48,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // In-app updates: Play's clientVersionStalenessDays returns null/0 over Internal App
+            // Sharing, so without a bypass the FLEXIBLE-update snackbar can't be manually verified
+            // pre-merge. Debug = true so IAS testing surfaces the prompt; release = false so the
+            // production threshold genuinely gates. See docs/active/in-app-updates/IMPLEMENTATION.md.
+            buildConfigField("boolean", "UPDATE_BYPASS_STALENESS", "true")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -63,6 +70,10 @@ android {
             // Sign the release (APK/AAB) only when the keystore is present; otherwise leave it
             // unsigned so non-publishing tasks still build.
             signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else null
+            // Release ALWAYS honors the real staleness threshold — bypass exists only for debug
+            // IAS verification. Wiring it here (not just relying on the debug branch) makes the
+            // intent explicit and means a release AAB cannot ship with the bypass on.
+            buildConfigField("boolean", "UPDATE_BYPASS_STALENESS", "false")
         }
     }
     compileOptions {
@@ -170,6 +181,10 @@ dependencies {
     implementation(libs.androidx.media3.transformer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.effect)
+
+    // Play In-App Updates — gentle "update ready" nudge on cold start (FLEXIBLE flow).
+    // See docs/active/in-app-updates/IMPLEMENTATION.md. -ktx pulls -core transitively.
+    implementation(libs.play.app.update.ktx)
 
     // Testing
     testImplementation(libs.junit)

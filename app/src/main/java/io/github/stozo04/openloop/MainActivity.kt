@@ -12,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -47,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +72,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.work.WorkManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
@@ -90,6 +93,7 @@ import io.github.stozo04.openloop.ui.OpenLoopUiState
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
 import io.github.stozo04.openloop.ui.ProcessingScreen
 import io.github.stozo04.openloop.ui.TrimScreen
+import io.github.stozo04.openloop.update.AppUpdateController
 import io.github.stozo04.openloop.ui.theme.Canvas
 import io.github.stozo04.openloop.ui.theme.CoralRed
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -100,6 +104,7 @@ import io.github.stozo04.openloop.ui.theme.OutlineVariant
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextPrimary
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -132,6 +137,13 @@ class MainActivity : ComponentActivity() {
     private lateinit var cameraManager: CameraManager
 
     /**
+     * Play In-App Updates controller (FLEXIBLE flow). Constructed in [onCreate] once the launcher
+     * below is registered. See `docs/active/in-app-updates/IMPLEMENTATION.md` for the design and
+     * the verification plan (T1 unit, T2 fake, T3 Internal App Sharing, T4 internal track).
+     */
+    private lateinit var appUpdateController: AppUpdateController
+
+    /**
      * Set when a boomerang share sheet is launched (slice 06); consumed on the next [onResume]. The
      * "Saved — view in gallery" snackbar is deferred until then so it shows when the user is actually
      * back on the camera — not behind the chooser or the share target. (A `withResumed { }` right after
@@ -155,6 +167,20 @@ class MainActivity : ComponentActivity() {
     private val requestPostNotificationsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { /* granted or denied — export continues either way; notification is best-effort */ }
+
+    /**
+     * Play In-App Updates flow launcher (FLEXIBLE — non-blocking). Registered here as a class
+     * property so it's wired before `STARTED`, per the Activity Result API contract; the launched
+     * intent is owned by Play and shows its own confirmation dialog. A non-OK result just means
+     * the user declined or Play failed — nothing else in the app depends on it.
+     */
+    private val appUpdateLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode != AppUpdateController.RESULT_OK) {
+            Log.w(TAG, "In-app update flow declined or failed: resultCode=${result.resultCode}")
+        }
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -203,6 +229,13 @@ class MainActivity : ComponentActivity() {
             savedInstanceState?.getBoolean(KEY_DEFERRED_SHARE_SHOW_SAVED, true) != false
         cameraManager = CameraManager(this)
 
+        // Wire the Play In-App Updates controller (FLEXIBLE flow). The Activity owns the
+        // ActivityResultLauncher above; the controller owns the AppUpdateManager + listener.
+        // onUpdateDownloaded is set inside setContent below, after snackbarHostState exists.
+        appUpdateController = AppUpdateController(
+            appUpdateManager = AppUpdateManagerFactory.create(applicationContext),
+        ).apply { attach(appUpdateLauncher) }
+
         setContent {
             OpenLoopTheme {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -222,6 +255,10 @@ class MainActivity : ComponentActivity() {
                 val reversePreviewReportAction = stringResource(R.string.snackbar_reverse_preview_report_action)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
                 val undoAction = stringResource(R.string.undo)
+                // In-app update prompt copy (read in composable scope so the resource lookup is
+                // invalidated on configuration change).
+                val updateReadyMessage = stringResource(R.string.update_ready_message)
+                val updateReadyAction = stringResource(R.string.update_ready_action)
                 // The "N loops deleted" plural is count-dependent, so we capture resources here (in a
                 // composable scope) and resolve the quantity string inside the collect lambda below.
                 // LocalResources (not LocalContext.current.resources) so the read is invalidated on a
@@ -230,10 +267,37 @@ class MainActivity : ComponentActivity() {
 
                 val lifecycleOwner = LocalLifecycleOwner.current
 
+                // Coroutine scope for the in-app update snackbar — onUpdateDownloaded fires from a
+                // Play listener callback (not a coroutine), so we need a scope to drive the
+                // suspend showSnackbar. rememberCoroutineScope is tied to the composition's
+                // lifetime; it cancels with the Activity.
+                val updateSnackbarScope = rememberCoroutineScope()
+
                 LaunchedEffect(Unit) {
                     viewModel.requestPostNotifications.collect {
                         maybeRequestPostNotificationsPermission()
                     }
+                }
+
+                // Wire the in-app update prompt and fire the cold-start check exactly once.
+                // onUpdateDownloaded fires from a Play install-state callback (not a coroutine),
+                // so the closure dispatches via updateSnackbarScope into the host's suspend queue.
+                // Indefinite + action: restart-required, never auto-dismiss. The styled
+                // SnackbarHost below renders this with the Electric-Lime accent.
+                LaunchedEffect(Unit) {
+                    appUpdateController.onUpdateDownloaded = {
+                        updateSnackbarScope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = updateReadyMessage,
+                                actionLabel = updateReadyAction,
+                                duration = SnackbarDuration.Indefinite,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                appUpdateController.completeUpdate()
+                            }
+                        }
+                    }
+                    appUpdateController.checkOnStart()
                 }
 
                 // Collect one-shot boomerang events → share sheet + snackbars (the app's only
@@ -465,6 +529,9 @@ class MainActivity : ComponentActivity() {
             awaitingShareReturn = false
             viewModel.onShareSheetClosed()
         }
+        // Re-surface the "Update ready" prompt if a Play download completed while the app was
+        // backgrounded (Google's recommended stalled-update handling).
+        appUpdateController.checkOnResume()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -478,6 +545,9 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraManager.shutdown()
+        // Release the Play InstallStateUpdatedListener. The ActivityResultLauncher unregisters
+        // automatically with the Activity.
+        if (::appUpdateController.isInitialized) appUpdateController.detach()
     }
 }
 

@@ -889,12 +889,10 @@ class OpenLoopViewModelTest {
             fakeVideoProcessor.failReverse = true
 
             viewModel.onNextFromTrim() // default FORWARD_THEN_REVERSE → reverse generation runs + fails
-            // Reverse runs on Dispatchers.IO (real pool in JVM tests) — poll until the UI updates.
-            withTimeout(5_000) {
-                while (viewModel.editorTabState.value.previewLoading != null) {
-                    delay(10)
-                }
-            }
+            // Reverse runs on real Dispatchers.IO (see ensureReversedSegment) — virtual-time delay()
+            // burns through the polling budget before the IO thread can dispatch. Use the same
+            // real-time spin helper the rest of the suite uses for reverse-failure fallback.
+            awaitReversePreviewFailedFallback()
 
             val tab = viewModel.editorTabState.value
             assertFalse("user can continue with forward-only preview", tab.reverseFailed)
@@ -1063,10 +1061,16 @@ class OpenLoopViewModelTest {
             assertEquals(1, fakeRenderScheduler.enqueueCount)
             assertEquals(1, fakeVideoProcessor.renderCount)
 
-            // One RAW (promoted) + one BOOMERANG (registered), boomerang points at the raw.
-            val raw = fakeVideoStorage.saved.single { it.kind == VideoKind.RAW }
+            // The boomerang is registered and carries sourceRawId pointing at the raw it came from;
+            // the raw itself is deleted after rendering (commit 7d202bf "Delete source video" —
+            // the boomerang is the final artifact, the raw is no longer kept). So we should see
+            // exactly one BOOMERANG and zero RAW entries after a successful save.
             val boomerang = fakeVideoStorage.saved.single { it.kind == VideoKind.BOOMERANG }
-            assertEquals(raw.id, boomerang.sourceRawId)
+            assertTrue("boomerang must reference its source raw", (boomerang.sourceRawId ?: 0L) > 0L)
+            assertTrue(
+                "raw must be deleted after the boomerang is rendered",
+                fakeVideoStorage.saved.none { it.kind == VideoKind.RAW },
+            )
             assertEquals(1, fakeVideoStorage.discardedScratches.size) // scratch cleaned up after save
             assertNull(viewModel.editorState.value)
 

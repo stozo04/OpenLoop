@@ -4,6 +4,7 @@ import android.os.Build
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 /** RTL device API (SM-S921B); JVM unit tests default to SDK 0 without this. */
 private const val RTL_SDK_INT = Build.VERSION_CODES.BAKLAVA
@@ -33,7 +34,7 @@ class SamsungReversePreviewRegressionTest {
     /** Log: Transformer Release 28.303 → reverse start 28.324 — settle must be non-zero. */
     @Test
     fun postTransformSettleMs_isPositive() {
-        assertTrue(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS >= 200L)
+        assertTrue(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE >= 200.milliseconds)
     }
 
     /**
