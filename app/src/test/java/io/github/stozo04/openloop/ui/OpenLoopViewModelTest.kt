@@ -108,6 +108,15 @@ class FakeVideoStorageRepository : VideoStorageRepository {
     /** UUIDs passed to [discardScratch], for assertions. */
     val discardedScratches = mutableListOf<String>()
 
+    /**
+     * Id minted by the most recent [promoteScratchToRaw]. Save tests assert the registered
+     * boomerang's [RecordedVideo.sourceRawId] links back to the raw it was promoted from — even
+     * though the raw row itself is deleted after a successful render (BoomerangRenderWorker:
+     * "the original raw video is no longer needed after a successful boomerang render").
+     */
+    var lastPromotedRawId: Long = -1L
+        private set
+
     /** Count of [createScratchCapture] calls, so import tests can assert "no scratch was minted". */
     var createScratchCount: Int = 0
         private set
@@ -142,6 +151,7 @@ class FakeVideoStorageRepository : VideoStorageRepository {
     override suspend fun promoteScratchToRaw(scratch: ScratchCapture): RecordedVideo? {
         if (failPromote) return null
         val id = nextId++
+        lastPromotedRawId = id
         return RecordedVideo(
             id = id,
             videoPath = File(tempRoot, "clip_$id.mp4").absolutePath,
@@ -1063,10 +1073,16 @@ class OpenLoopViewModelTest {
             assertEquals(1, fakeRenderScheduler.enqueueCount)
             assertEquals(1, fakeVideoProcessor.renderCount)
 
-            // One RAW (promoted) + one BOOMERANG (registered), boomerang points at the raw.
-            val raw = fakeVideoStorage.saved.single { it.kind == VideoKind.RAW }
+            // The render worker registers the BOOMERANG, then deletes the now-intermediate RAW
+            // (BoomerangRenderWorker: "the original raw video is no longer needed after a successful
+            // boomerang render"). So after save: exactly one BOOMERANG remains, no RAW, and the
+            // boomerang still links back to the raw it was promoted from.
             val boomerang = fakeVideoStorage.saved.single { it.kind == VideoKind.BOOMERANG }
-            assertEquals(raw.id, boomerang.sourceRawId)
+            assertTrue(
+                "raw must be cleaned up after a successful render",
+                fakeVideoStorage.saved.none { it.kind == VideoKind.RAW },
+            )
+            assertEquals(fakeVideoStorage.lastPromotedRawId, boomerang.sourceRawId)
             assertEquals(1, fakeVideoStorage.discardedScratches.size) // scratch cleaned up after save
             assertNull(viewModel.editorState.value)
 
