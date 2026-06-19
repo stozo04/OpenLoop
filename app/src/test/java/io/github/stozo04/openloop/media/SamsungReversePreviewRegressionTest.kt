@@ -33,7 +33,7 @@ class SamsungReversePreviewRegressionTest {
     /** Log: Transformer Release 28.303 → reverse start 28.324 — settle must be non-zero. */
     @Test
     fun postTransformSettleMs_isPositive() {
-        assertTrue(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE_MS >= 200L)
+        assertTrue(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE.inWholeMilliseconds >= 200L)
     }
 
     /**
