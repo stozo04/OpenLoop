@@ -177,6 +177,44 @@ class VideoReverserTest {
         }
     }
 
+    /**
+     * The fix for Crashlytics 47233ad7 (LG LM-X540, Android 10): when the device's hardware AVC codec
+     * rejects start with `IllegalArgumentException: start failed`, [VideoReverser] must retry once on
+     * the **software** encoder + decoder and still produce a valid reversed clip — on any manufacturer,
+     * not just Samsung.
+     *
+     * The 3-device emulator sweep never exercised this branch (emulators already use the software
+     * codec, so nothing ever rejects start). This test closes that gap by injecting the exact failure
+     * on attempt 0 via [VideoReverser.attemptHook], then asserting (a) a valid playable output still
+     * comes out, and (b) the retry actually flipped to the software encoder AND decoder.
+     */
+    @Test
+    fun reverse_recoversFromCodecStartFailure_viaSoftwareFallback() = runBlocking {
+        val attempts = mutableListOf<Triple<Int, Boolean, Boolean>>()
+        reverser.attemptHook = { attempt, preferSoftwareEncoder, preferSoftwareDecoder ->
+            attempts.add(Triple(attempt, preferSoftwareEncoder, preferSoftwareDecoder))
+            // Simulate the LG hardware codec refusing to start on the first attempt only.
+            if (attempt == 0) throw IllegalArgumentException("start failed")
+        }
+
+        val output = reverser.reverse(fixture, 0L, durationMs)
+
+        // (a) Recovery produced a real, valid, playable reversed clip — not an empty shell.
+        val validation = ReverseOutputValidator.validateReversedOutput(output)
+        assertTrue("expected a valid recovered reverse, got ${validation.reason}", validation.valid)
+        assertTrue("expected >=1 muxed sample, got ${validation.sampleCount}", validation.sampleCount >= 1)
+
+        // (b) It recovered via the software-codec retry: attempt 0 failed on the default path, and the
+        // retry (attempt 1) forced BOTH the software encoder and the software decoder.
+        assertTrue("expected the reverse to retry, got attempts=$attempts", attempts.size >= 2)
+        assertEquals("first attempt index", 0, attempts[0].first)
+        assertTrue("first attempt must not force the software decoder", !attempts[0].third)
+        val retry = attempts[1]
+        assertEquals("retry must be attempt index 1", 1, retry.first)
+        assertTrue("retry must force the software ENCODER", retry.second)
+        assertTrue("retry must force the software DECODER", retry.third)
+    }
+
     // ── Fixture acquisition ──────────────────────────────────────────────────────────────────────
 
     /** Bundled asset → synthetic generation → skip. Never returns a non-existent file. */

@@ -9,6 +9,7 @@ import android.media.MediaMuxer
 import android.os.Build
 import android.util.Log
 import android.view.Surface
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -51,6 +52,16 @@ class VideoReverser(
     /** Pass 1 surface encoder that published an output format; reused for pass 2. */
     @Volatile
     private var lastSurfaceEncoderName: String? = null
+
+    /**
+     * Test-only fault-injection seam. Invoked at the start of every [reverse] attempt with the
+     * attempt index and the software-codec preferences that attempt will use. An instrumented test
+     * throws `IllegalArgumentException("start failed")` from here on attempt 0 to simulate the LG
+     * LM-X540 hardware-codec start rejection (Crashlytics 47233ad7), then asserts the reverse retries
+     * on the software encoder + decoder and still produces a valid clip. Always null in production.
+     */
+    @VisibleForTesting
+    internal var attemptHook: ((attempt: Int, preferSoftwareEncoder: Boolean, preferSoftwareDecoder: Boolean) -> Unit)? = null
 
     /**
      * Reverse [source] over `[trimStartMs, trimEndMs]`, returning the reversed MP4 [File].
@@ -103,6 +114,12 @@ class VideoReverser(
         // HW-encoder attempt will wedge again — skip straight to the software encoder instead of
         // paying a doomed attempt + retry delay on each preview/save (S23/API 33, RESEARCH.md §7c).
         var zeroFrameFailure = zeroFrameEncoderWedgeSticky
+        // Set after a codec-initialization failure (e.g. LG LM-X540 `IllegalArgumentException:
+        // start failed`): the device's HW AVC codec rejected start/configure, so the retry forces
+        // BOTH the software encoder AND the software decoder, on any manufacturer (Crashlytics
+        // 47233ad7). Distinct from zeroFrameFailure (encoder-only flip) and the Samsung contention
+        // retry (same codecs, just a settle delay).
+        var softwareCodecFallback = false
         try {
             for (attempt in 0 until maxAttempts) {
                 // Zero-frame retry pairing (spec §5.8, revised on-device 2026-06-04): on the S23/API 33
@@ -110,17 +127,23 @@ class VideoReverser(
                 // HW-encoder pairing throws CodecException 0xe at queueInputBuffer — so the retry
                 // flips the ENCODER to software (decoder stays per normal selection). The contention
                 // retry path is unchanged.
-                val preferSoftwareEncoder = zeroFrameFailure
+                val preferSoftwareEncoder = zeroFrameFailure || softwareCodecFallback
+                val preferSoftwareDecoder = softwareCodecFallback
                 try {
                     coroutineContext.ensureActive()
+                    attemptHook?.invoke(attempt, preferSoftwareEncoder, preferSoftwareDecoder)
                     if (attempt > 0) {
                         lastSurfaceEncoderName = null
                         intermediate.delete()
                         output.delete()
                         ReversePreviewLog.i(
-                            if (preferSoftwareEncoder) "reverse.zero_frame_retry" else "reverse.contention_retry",
+                            when {
+                                softwareCodecFallback -> "reverse.software_codec_retry"
+                                preferSoftwareEncoder -> "reverse.zero_frame_retry"
+                                else -> "reverse.contention_retry"
+                            },
                             "attempt=${attempt + 1}/$maxAttempts delayMs=${SAMSUNG_CODEC_CONTENTION_RETRY.inWholeMilliseconds} " +
-                                "preferSoftwareEncoder=$preferSoftwareEncoder",
+                                "preferSoftwareEncoder=$preferSoftwareEncoder preferSoftwareDecoder=$preferSoftwareDecoder",
                         )
                         delay(SAMSUNG_CODEC_CONTENTION_RETRY)
                     } else {
@@ -131,7 +154,9 @@ class VideoReverser(
                         delay(PRE_REVERSE_CODEC_SETTLE)
                     }
                     ReversePreviewLog.d("reverse.pass1.start", "dest=${intermediate.name}")
-                    transcodeToAllKeyframes(source, trimStartMs, trimEndMs, intermediate, preferSoftwareEncoder) { frac ->
+                    transcodeToAllKeyframes(
+                        source, trimStartMs, trimEndMs, intermediate, preferSoftwareEncoder, preferSoftwareDecoder,
+                    ) { frac ->
                         onProgress(frac * 0.5f)
                     }
                     ReversePreviewLog.i("reverse.pass1.done", "intermediateBytes=${intermediate.length()}")
@@ -140,7 +165,7 @@ class VideoReverser(
                         "reverse.pass2.start",
                         "dest=${output.name} pass1Encoder=$lastSurfaceEncoderName",
                     )
-                    reverseAllKeyframeVideo(intermediate, output, preferSoftwareEncoder) { frac ->
+                    reverseAllKeyframeVideo(intermediate, output, preferSoftwareEncoder, preferSoftwareDecoder) { frac ->
                         onProgress(0.5f + frac * 0.5f)
                     }
                     // A pass 2 starved of frames exits "cleanly" with a sample-less shell that the
@@ -178,6 +203,16 @@ class VideoReverser(
                     if (t is ReverseOutputInvalidException && attempt < maxAttempts - 1) {
                         zeroFrameFailure = true
                         zeroFrameEncoderWedgeSticky = true
+                        continue
+                    }
+                    // HW codec rejected configure/start (e.g. `IllegalArgumentException: start
+                    // failed`) — retry once on the software encoder + decoder, any device.
+                    if (shouldRetryReverseWithSoftwareCodec(t, attempt, maxAttempts)) {
+                        softwareCodecFallback = true
+                        ReversePreviewLog.i(
+                            "reverse.software_codec_fallback",
+                            "after ${t.javaClass.simpleName}: ${t.message}",
+                        )
                         continue
                     }
                     if (!shouldRetryMediaCodecContention(t, attempt, maxAttempts, isSamsungDevice())) {
@@ -219,6 +254,7 @@ class VideoReverser(
         trimEndMs: Long,
         dest: File,
         preferSoftwareEncoder: Boolean = false,
+        preferSoftwareDecoder: Boolean = false,
         onProgress: (Float) -> Unit,
     ) {
         val extractor = MediaExtractor()
@@ -284,6 +320,7 @@ class VideoReverser(
                 decoderMime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
                 decoderFormat = inputFormat,
                 preferSoftwareEncoder = preferSoftwareEncoder,
+                preferSoftwareDecoder = preferSoftwareDecoder,
             )
             decoder = pipeline.decoder
             encoder = pipeline.encoder
@@ -339,6 +376,7 @@ class VideoReverser(
         source: File,
         dest: File,
         preferSoftwareEncoder: Boolean = false,
+        preferSoftwareDecoder: Boolean = false,
         onProgress: (Float) -> Unit,
     ) {
         val extractor = MediaExtractor()
@@ -400,6 +438,7 @@ class VideoReverser(
                 decoderMime = inputFormat.getString(MediaFormat.KEY_MIME)!!,
                 decoderFormat = inputFormat,
                 preferSoftwareEncoder = preferSoftwareEncoder,
+                preferSoftwareDecoder = preferSoftwareDecoder,
             )
             decoder = pass2Pipeline.decoder
             encoder = pass2Pipeline.encoder
@@ -812,6 +851,7 @@ class VideoReverser(
         decoderMime: String,
         decoderFormat: MediaFormat,
         preferSoftwareEncoder: Boolean = false,
+        preferSoftwareDecoder: Boolean = false,
     ): SurfaceCodecPipeline {
         var lastFailure: Throwable? = null
         repeat(SURFACE_CODEC_PIPELINE_MAX_ATTEMPTS) { attempt ->
@@ -828,7 +868,7 @@ class VideoReverser(
                     lastFailure = IOException("encoder input surface invalid after createInputSurface")
                     return@repeat
                 }
-                val decoder = openAvcDecoderForReverse(decoderMime, decoderFormat, surface)
+                val decoder = openAvcDecoderForReverse(decoderMime, decoderFormat, surface, preferSoftwareDecoder)
                 return SurfaceCodecPipeline(decoder, encoder, surface)
             } catch (t: Throwable) {
                 lastFailure = t
@@ -922,23 +962,31 @@ class VideoReverser(
 
     /**
      * On Samsung, avoid [MediaCodec.createDecoderByType] defaulting to Exynos while ExoPlayer or pass 1
-     * still holds codec slots — pair software Google decoder with [openSurfaceAvcEncoder].
+     * still holds codec slots — pair software Google decoder with [openSurfaceAvcEncoder]. The same
+     * software try-order is used on ANY device when [preferSoftwareDecoder] is set, i.e. after a
+     * hardware codec-init failure tripped the software fallback (LG LM-X540 `IllegalArgumentException:
+     * start failed`, Crashlytics 47233ad7) — the HW decoder rejected start, so the software one is the
+     * only remaining option.
      *
      * Note (spec §5.8, on-device 2026-06-04): swapping THIS side to the platform decoder was tried
      * for the S23 zero-frame wedge and failed harder (CodecException 0xe at queueInputBuffer with
-     * the HW decoder feeding the HW encoder surface) — the working fallback flips the ENCODER to
-     * software instead; the carve-out here stays unconditional.
+     * the HW decoder feeding the HW encoder surface) — that zero-frame fallback flips only the ENCODER
+     * to software. The init-failure fallback here additionally forces the software decoder because the
+     * decoder's own start is what failed.
      */
     private fun openAvcDecoderForReverse(
         mime: String,
         format: MediaFormat,
         outputSurface: Surface,
+        preferSoftwareDecoder: Boolean = false,
     ): MediaCodec {
         val installedDecoders = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
             .filter { !it.isEncoder && it.supportedTypes.any { t -> t.equals(mime, ignoreCase = true) } }
             .map { it.name }
             .toSet()
-        if (isSamsungDevice()) {
+        // Software-decoder carve-out: always on Samsung (Exynos contention), and on any device once a
+        // codec-init failure has tripped the software fallback (LG LM-X540 `start failed`, 47233ad7).
+        if (isSamsungDevice() || preferSoftwareDecoder) {
             for (name in samsungSoftwareAvcDecoderTryOrder(installedDecoders)) {
                 var decoder: MediaCodec? = null
                 try {
