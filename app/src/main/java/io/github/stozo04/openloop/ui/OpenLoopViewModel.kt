@@ -121,7 +121,7 @@ class OpenLoopViewModel(
     private val videoImporter: VideoImporter,
     private val renderScheduler: BoomerangRenderScheduler,
     // 6th param wired in for the staged Firebase Analytics rollout — see
-    // docs/active/firebase-analytics/IMPLEMENTATION.md. Option 1 ships the abstraction only;
+    // AnalyticsReporter (option 1 — abstraction only; see AnalyticsReporter.kt KDoc).
     // options 2 (screen tracking) and 3 (custom events) populate call sites incrementally. The
     // production impl comes from FirebaseAnalyticsReporterImpl.create(applicationContext); tests and
     // CI builds without google-services.json fall back to NoOpAnalyticsReporter.

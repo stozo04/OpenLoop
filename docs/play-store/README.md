@@ -12,6 +12,8 @@ in**. Keep these in sync if the app's behavior changes.
 | [`store-listing.md`](store-listing.md) | Title, descriptions, asset specs, screenshot checklist | Store presence → Main store listing |
 | [`release-signing-and-aab.md`](release-signing-and-aab.md) | Generate the upload key + build the signed `.aab` | Release → upload bundle |
 
+**Private (your machine only, gitignored):** `docs/local/play-store-beginner-guide.md` — plain-English walkthrough of tracks, keys, versionCode, and the release checklist. Not on GitHub.
+
 ---
 
 ## Pre-submission checklist

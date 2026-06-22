@@ -67,7 +67,7 @@ Show reasoning, not just conclusions. I value breadth and rigor equally — cast
 
 When operating in a specific subfolder that has its own CLAUDE.md, respect that folder's voice and approach. The root CLAUDE.md (this file) provides defaults; subfolder overrides take precedence.
 
-All project documentation (`.md` files) belongs in the `docs/` directory — not the project root. The only exceptions are `CLAUDE.md` and `README.md` which live at the root by convention.
+All project documentation (`.md` files) belongs in the `docs/` directory — not the project root. The only exceptions are `CLAUDE.md` and `README.md` which live at the root by convention. **Folder map and placement rules:** [`docs/README.md`](docs/README.md) (markdown layout, image assets, gitignored `docs/local/` for private notes).
 
 ## Architecture Snapshot
 
@@ -83,7 +83,7 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 | Build | Gradle 9.0.0, AGP 8.13.2 | — |
 | Target | compileSdk 36, minSdk 26, targetSdk 36 | — |
 
-> **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26 — clearing Google Play's target-API floor (currently API 35). The upgrade also moved to Kotlin 2.3.21 + the Compose Compiler Gradle plugin (required by the latest CameraX/Media3), and the native libraries are 16 KB page-aligned (uncompressed packaging). Behavior-change detail: [`docs/android-16/`](docs/android-16/README.md). Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
+> **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26 — clearing Google Play's target-API floor (currently API 35). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and `ANDROID_STANDARDS.md` §11. Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
 ### Source Layout
 
@@ -138,17 +138,13 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 
 | Document | Purpose |
 |----------|--------|
+| [`docs/README.md`](docs/README.md) | **Documentation layout** — where every `.md` and doc image belongs; enforcement rules |
 | `docs/DEFINITION_OF_DONE.md` | **The "Ready for PR" verification gate** — build + test + *run the app + screenshot* before anything is called done. Non-negotiable for non-trivial changes. |
 | `docs/lessons_learned/` | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.** |
 | `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
-| `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. **OEM lanes:** [`docs/guides/oem-regression-testing.md`](guides/oem-regression-testing.md). |
+| `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. **OEM lanes:** [`docs/guides/oem-regression-testing.md`](docs/guides/oem-regression-testing.md). |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
 | `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the `lint-baseline.xml` policy, and severity mapping. |
-| `docs/android-16/` | **Android 16 (API 36) upgrade knowledge hub.** Per-page summaries of Google's Android 16 docs, each with an OpenLoop impact verdict and the official source URL. Durable reference for the `targetSdk 36` upgrade (Issue #7) — does not move to `completed/`. |
-| `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
-| `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
-| `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs (e.g. `jetpack-datastore-explained.md`, **`oem-regression-testing.md`** — API 34 / Samsung / LG regression lanes; **`robolectric-test-catalog.md`** — Robolectric test inventory). |
+| `docs/guides/` | **Plain-English how-tos and durable reference** (reverse algorithm, Robolectric, OEM lanes). Index: [`docs/guides/README.md`](docs/guides/README.md). |
+| `docs/play-store/` | **Play Console submission pack** — privacy policy, data safety, store listing copy, signing. |
 | `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |
-
-
-Words of wisdom from a previous Claude `HEY_CLAUDE_ITS_ME.md`.

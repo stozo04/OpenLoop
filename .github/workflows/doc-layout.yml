@@ -1,0 +1,61 @@
+name: Doc layout
+
+# Hard gate: new Markdown files must live under docs/ (except root README.md and CLAUDE.md).
+# Design: docs/README.md § Enforcement
+
+on:
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  markdown-placement:
+    name: New .md file placement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fail on new Markdown outside docs/
+        run: |
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            BASE='${{ github.event.pull_request.base.sha }}'
+            HEAD='${{ github.event.pull_request.head.sha }}'
+          else
+            git fetch --no-tags --depth=1 origin "${{ github.event.repository.default_branch }}" || true
+            BASE="origin/${{ github.event.repository.default_branch }}"
+            HEAD='HEAD'
+          fi
+
+          ADDED=$(git diff --name-only --diff-filter=A "$BASE" "$HEAD" -- '*.md' || true)
+          if [ -z "$ADDED" ]; then
+            echo "No new Markdown files in this diff."
+            exit 0
+          fi
+
+          echo "New Markdown files:"
+          echo "$ADDED"
+
+          VIOLATIONS=""
+          for f in $ADDED; do
+            case "$f" in
+              README.md|CLAUDE.md)
+                ;;
+              docs/*)
+                ;;
+              *)
+                VIOLATIONS="${VIOLATIONS}${f}\n"
+                ;;
+            esac
+          done
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::New Markdown must live under docs/ (except root README.md and CLAUDE.md)."
+            printf '%b' "$VIOLATIONS"
+            exit 1
+          fi
+
+          echo "All new Markdown files are in allowed locations."

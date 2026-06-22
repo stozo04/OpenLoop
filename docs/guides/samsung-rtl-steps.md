@@ -139,7 +139,7 @@ On a **release** build specifically:
 |---|---|
 | `ClassNotFoundException` / `NoSuchMethodException` | R8 strict full mode stripped a reflectively-used class/constructor → add an explicit keep rule in `app/proguard-rules.pro` |
 | `Resources$NotFoundException` | Optimized resource shrinking removed a runtime-only resource → `tools:keep` in a `res/raw/keep.xml` |
-| `MediaCodec` errors / reverse timeouts | Device codec behavior — see `docs/lessons_learned/020` and `023` |
+| `MediaCodec` errors / reverse timeouts | Device codec behavior — see `docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md` and `023-media-pipeline-stages-must-count-output-samples.md` |
 
 ---
 

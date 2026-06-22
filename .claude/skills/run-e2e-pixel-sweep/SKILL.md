@@ -59,7 +59,7 @@ Loopify save with `InvalidForegroundServiceTypeException: Starting FGS with type
 (Crashlytics 9663c743, Galaxy A55). The fix gates to `dataSync` on API 29–34. After the three
 API-35+ emulators pass, this device is the **mandatory FGS regression gate**: a green save +
 `Worker result SUCCESS` for `BoomerangRenderWorker` and **zero** `InvalidForegroundServiceTypeException`
-lines in logcat. See `docs/e2e/2026-06-22_082330-api34-fgs-fix.md` for the first verified run.
+lines in logcat. See [`docs/guides/oem-regression-testing.md`](../../../docs/guides/oem-regression-testing.md) lane 1 (API 34 FGS).
 
 ```powershell
 $avd = "Pixel_6"   # then Pixel_8, then Pixel_10_Pro_Fold, then Pixel_8_API34
@@ -102,7 +102,7 @@ and block `setprop`; the emulator still reports `Google` / goldfish codecs.
 
 ### Samsung RTL sweep (real Galaxy hardware)
 
-Setup: [`docs/guides/samsung-rtl-steps.md`](../../docs/guides/samsung-rtl-steps.md) — reserve device,
+Setup: [`docs/guides/samsung-rtl-steps.md`](../../../docs/guides/samsung-rtl-steps.md) — reserve device,
 start RDB, verify `adb devices` shows `localhost:<port>`.
 
 ```powershell

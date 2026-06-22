@@ -21,7 +21,7 @@ internal val SAMSUNG_POST_TRANSFORM_CODEC_SETTLE = 500.milliseconds
  * This is a *settle*, not a handshake: `ExoPlayer.release()` is synchronous, but the OS codec-slot
  * reclaim it triggers is **not observable from app code**, so we cannot deterministically wait for
  * "slot free." This delay covers that unobservable reclaim window. See
- * `docs/active/editor-codec-churn/IMPLEMENTATION.md` (finding 2 / step 2).
+ * `docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md` (finding 2 / step 2).
  */
 internal val PRE_REVERSE_CODEC_SETTLE = 400.milliseconds
 

@@ -221,7 +221,7 @@ dependencies {
 }
 
 // Crashlytics mapping upload + Firebase config only when the console JSON is present locally.
-// See docs/diagnostics/firebase-crashlytics-trimming.md and app/google-services.json.README.
+// See ReverseCrashlytics.kt and app/google-services.json.README.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
     apply(plugin = "com.google.firebase.crashlytics")

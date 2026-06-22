@@ -2,10 +2,9 @@
 
 > **Status: GOAL MET 2026-06-04** (branch `feature/e2e-fold-loop-fixes`). Iteration 1 found and
 > fixed BUG-1 (pass-1 jitter subsampling → 15 fps + corrupted reverse half, commit `731b26b`);
-> iteration 2 confirmed a zero-change clean sweep on all three devices. Reports + state:
-> `docs/e2e/fold-loop/`. BUG-2 (skip-at-input corruption for >30 fps sources) remains open —
-> see STATE.md. Re-run this loop after any media-pipeline change, or whenever a Pixel-family
-> regression is suspected.
+> iteration 2 confirmed a zero-change clean sweep on all three devices. Historical reports were
+> archived during doc cleanup. BUG-2 (skip-at-input corruption for >30 fps sources) may still apply —
+> re-run this loop after any media-pipeline change, or whenever a Pixel-family regression is suspected.
 
 ## THE GOAL
 
@@ -33,16 +32,14 @@ needed a mid-run fix doesn't count; the next iteration must confirm).
 
 ## Session bootstrap (context does not persist between sessions)
 
-1. Read `CLAUDE.md` + every numbered lesson in `docs/lessons_learned/` (013, 018–023 are the
-   media-pipeline ones you'll need).
-2. Read `docs/e2e/fold-loop/STATE.md` — iteration number, open bugs with fix-attempt counts,
-   what to do first. Missing = iteration 1: create it (template at bottom).
-3. Read `.claude/skills/run-e2e-pixel-sweep/SKILL.md` in full — **it IS the mechanics** (the
+1. Read `CLAUDE.md` + skim `docs/PRD-mission-control.md` media-pipeline sections and
+   `docs/guides/oem-regression-testing.md` (media-pipeline / codec lanes).
+2. Read `.claude/skills/run-e2e-pixel-sweep/SKILL.md` — **it IS the mechanics** (the
    scripted prep/drive/gate phases, validated 2026-06-04). Its parent `run-e2e` skill supplies
    `scan-logcat.ps1` + the signature catalog and the honesty rules; both apply verbatim.
-4. Git: branch `feature/e2e-fold-loop-fixes` (create from `main` if absent). Never commit to
+3. Git: branch `feature/e2e-fold-loop-fixes` (create from `main` if absent). Never commit to
    `main`. Never commit the video (gitignored).
-5. **Do not trust training data.** Before any claim about Android API behavior or any fix
+4. **Do not trust training data.** Before any claim about Android API behavior or any fix
    design, WebSearch `developer.android.com` scoped to the repo's actual versions (re-read the
    table in `CLAUDE.md` / `gradle/libs.versions.toml` — currently targetSdk 36, Kotlin 2.3.21,
    Media3 1.10.1, CameraX 1.6.1). Pure-math fixes verified by device evidence in front of you

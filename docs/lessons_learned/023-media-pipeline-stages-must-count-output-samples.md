@@ -1,8 +1,7 @@
 # Lesson 023 — A media pipeline stage must count its own output samples; a zero-frame stage can exit "cleanly"
 
-> Origin: the Samsung S23 "Could not save loop" bug (2026-06-04) — full forensics in
-> `docs/active/reverse-output-validation/RESEARCH.md`, plain-English version in
-> `EXPLAINED-SIMPLY.md` in the same folder.
+> Origin: the Samsung S23 "Could not save loop" bug (2026-06-04) — PR #62 / Crashlytics `3a506c4e`.
+> Origin: Samsung S23 zero-frame wedge (PR #62 / Crashlytics `3a506c4e`). See lessons 020 and [`docs/guides/reverse-video-research.md`](../guides/reverse-video-research.md).
 
 ## What went wrong
 
@@ -66,5 +65,5 @@ file all along — the reverse half of the preview was a ~0-duration clip nobody
 
 - [MediaCodec — surface input, EOS semantics](https://developer.android.com/reference/android/media/MediaCodec)
 - [Media3 Transformer troubleshooting](https://developer.android.com/media/media3/transformer/troubleshooting)
-- `docs/active/reverse-output-validation/` (IMPLEMENTATION.md spec, RESEARCH.md forensics + on-device pairing matrix)
-- Originating work: PR #62 (branch `fix/crashlytics-3a506c4e-pass1-codec-lifecycle`); fixture-matrix follow-up: Issue #64.
+- [`docs/guides/reverse-video-research.md`](../guides/reverse-video-research.md) — reverse pipeline reference
+- Originating work: PR #62; fixture-matrix follow-up: Issue #64.

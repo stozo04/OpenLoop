@@ -13,7 +13,6 @@ LG phone when it isn't.
 | [`docs/guides/robolectric-testing-explained.md`](robolectric-testing-explained.md) | Robolectric setup and when to use it |
 | [`docs/guides/robolectric-test-catalog.md`](robolectric-test-catalog.md) | Inventory of all Robolectric tests, run commands, device complements |
 | [`docs/guides/samsung-rtl-steps.md`](samsung-rtl-steps.md) | One-time Samsung Remote Test Lab (RTL) setup |
-| [`docs/e2e/2026-06-22_082330-api34-fgs-fix.md`](../e2e/2026-06-22_082330-api34-fgs-fix.md) | First verified API-34 FGS fix run |
 | [`docs/lessons_learned/024-fgs-type-constant-api-gating.md`](../lessons_learned/024-fgs-type-constant-api-gating.md) | FGS type must gate on the API that *added* the constant |
 
 **Agent skills** (same content, runnable commands): `.claude/skills/run-e2e-pixel-sweep/SKILL.md`
@@ -237,7 +236,6 @@ Pass: `tests=1 failures=0 errors=0`.
 | `.claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-prep.ps1` | RTL device prep |
 | `.claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-sweep.ps1` | Full RTL regression |
 | `.claude/skills/run-e2e/scripts/scan-logcat.ps1` | Includes FGS-type-unknown CRASH signature |
-| `docs/e2e/2026-06-22_082330-api34-fgs-fix.md` | First live API-34 pass report + screenshots |
 
 ---
 

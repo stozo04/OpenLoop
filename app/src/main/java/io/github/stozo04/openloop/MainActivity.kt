@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity() {
             WorkManagerBoomerangRenderScheduler(WorkManager.getInstance(applicationContext)),
             // Firebase Analytics reporter — falls back to NoOpAnalyticsReporter when
             // google-services.json is absent (CI / fresh clone). See
-            // docs/active/firebase-analytics/IMPLEMENTATION.md for the staged rollout.
+            // AnalyticsReporter wired here; see AnalyticsReporter.kt and docs/play-store/data-safety.md.
             FirebaseAnalyticsReporterImpl.create(applicationContext),
             // Proactive low-memory probe (ActivityManager.getMemoryInfo). Android 14+ delivers no
             // foreground onTrimMemory pressure levels, so the ViewModel polls this at editor entry
