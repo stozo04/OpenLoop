@@ -10,6 +10,8 @@ No prior knowledge needed. Technical words are defined in the [Glossary](#glossa
 > **OEM regression (Samsung / LG / API 34):** Robolectric is one lane in a larger matrix.
 > See **[`oem-regression-testing.md`](oem-regression-testing.md)** for the full picture (emulator
 > sweeps, Samsung RTL, LG fault injection, and when each applies).
+>
+> **Test inventory (run commands, every class/method):** **[`robolectric-test-catalog.md`](robolectric-test-catalog.md)**.
 
 ---
 
@@ -181,9 +183,12 @@ The five things every Robolectric test needs:
 
 ## Implemented tests (synced with `app/src/test/`)
 
-Three test classes cover the Robolectric work shipped so far. Two use `@RunWith(RobolectricTestRunner)`;
-the third is a **plain JVM** companion that pins the same FGS contract without building framework
-objects (cheaper, but it cannot catch resource/manifest wiring bugs).
+Eight test classes cover Phases 1–2 (Tier 1 + Tier 2). Seven use `@RunWith(RobolectricTestRunner)`;
+`BoomerangRenderNotificationsTest` is a **plain JVM** companion that pins the FGS SDK mapping without
+building framework objects (cheaper, but it cannot catch resource/manifest wiring bugs).
+
+**Full method-level inventory, run-all command, and device complements:**
+[`robolectric-test-catalog.md`](robolectric-test-catalog.md).
 
 | Test class | Runner | Tier | What it validates |
 |------------|--------|------|-------------------|
@@ -495,6 +500,9 @@ code). From the repo root:
 
 # Run every unit test (plain + Robolectric) in the debug variant
 ./gradlew :app:testDebugUnitTest
+
+# Run every *Robolectric-named* test class only
+./gradlew :app:testDebugUnitTest --tests "*RobolectricTest"
 ```
 
 On Windows use `gradlew.bat` instead of `./gradlew`. In Android Studio you can also click the green

@@ -82,6 +82,8 @@ LG hardware codec). Stock emulators cannot spoof Samsung/LG identity or vendor c
 
 **Authoritative guide:** [`docs/guides/oem-regression-testing.md`](guides/oem-regression-testing.md)
 
+**Robolectric inventory (all JVM framework tests, run commands):** [`docs/guides/robolectric-test-catalog.md`](guides/robolectric-test-catalog.md)
+
 | Lane | What | Where |
 |------|------|-------|
 | API 34 FGS | `Pixel_8_API34` AVD + save smoke; Robolectric `ForegroundInfo` tests | Emulator + `test/` |
@@ -103,7 +105,8 @@ media-pipeline or FGS changes.
 | **MockK** | Kotlin-first mocking library | `test/` (for Android framework classes like `Context`, `Log`) |
 | **Fakes** | Hand-written test doubles using real interfaces | `test/` (preferred over mocks for Flow-based interfaces) |
 | **kotlinx-coroutines-test** | `TestDispatcher`, `runTest`, virtual time control | `test/` |
-| **Robolectric 4.16.1** | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (see [`docs/guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)) |
+| **Robolectric 4.16.1** | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (tutorial: [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md) · catalog: [`robolectric-test-catalog.md`](guides/robolectric-test-catalog.md)) |
+| **androidx.work.testing** | `TestListenableWorkerBuilder` for worker guard tests without a device | `test/` (+ `androidTest/` for full encode) |
 | **Compose UI Test** | `createComposeRule`, semantic matchers, UI assertions | `androidTest/` |
 | **AndroidJUnit4** | Instrumented test runner | `androidTest/` |
 
@@ -172,6 +175,8 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 ## Current Test Inventory
 
 ### Local Unit Tests (`app/src/test/`) — see `./gradlew :app:testDebugUnitTest` for current count
+
+**Robolectric suite (Phases 1–2):** full method list and `./gradlew :app:testDebugUnitTest --tests "*RobolectricTest"` in [`guides/robolectric-test-catalog.md`](guides/robolectric-test-catalog.md).
 
 **OEM / API regression (Robolectric + JVM):**
 
@@ -251,6 +256,9 @@ These are areas that need tests but don't have them yet:
 | Accessibility (contrast, touch targets) | Needs automated accessibility checks | High |
 | Screen UI tests beyond onboarding | Gallery, Camera, Preview screens untested | Medium |
 | Error recovery flows | Corrupted DataStore, permission revocation mid-use | Medium |
+| Robolectric Compose (Tier 3) | No JVM Compose harness yet; onboarding interaction tests stay on device | Low |
+
+**Closed gaps (Robolectric):** real DataStore implementation (`UserPreferencesRepositoryImplRobolectricTest`), import stream copy (`VideoImporterImportRobolectricTest`), FGS/notification channel (`BoomerangRender*`), worker guards (`BoomerangRenderWorkerRobolectricTest`), POST_NOTIFICATIONS gate (`PostNotificationsGateRobolectricTest`).
 
 ---
 
@@ -259,11 +267,12 @@ These are areas that need tests but don't have them yet:
 When adding a new feature, follow this checklist:
 
 1. **Write unit tests first** (`test/`) — cover every state transition, error path, and edge case in the ViewModel
-2. **Use fakes for repositories** — implement the interface with `MutableStateFlow` under the hood
-3. **Use MockK for framework classes** — `Context`, `Log`, Android SDK types
-4. **Add UI tests if layout matters** (`androidTest/`) — if a button position, visibility, or centering is critical, guard it with a Compose UI test
-5. **Name tests descriptively** — use backtick-delimited names: `` `returning user skips onboarding on second launch` ``
-6. **Test error paths** — if something can fail, test that it fails gracefully
+2. **Use Robolectric when the code touches Android framework objects but not real codecs** — see [`guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md) and add to [`guides/robolectric-test-catalog.md`](guides/robolectric-test-catalog.md)
+3. **Use fakes for repositories** — implement the interface with `MutableStateFlow` under the hood
+4. **Use MockK for framework classes** — `Context`, `Log`, Android SDK types
+5. **Add UI tests if layout matters** (`androidTest/`) — if a button position, visibility, or centering is critical, guard it with a Compose UI test
+6. **Name tests descriptively** — use backtick-delimited names: `` `returning user skips onboarding on second launch` ``
+7. **Test error paths** — if something can fail, test that it fails gracefully
 
 ---
 

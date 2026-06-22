@@ -147,7 +147,7 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | `docs/android-16/` | **Android 16 (API 36) upgrade knowledge hub.** Per-page summaries of Google's Android 16 docs, each with an OpenLoop impact verdict and the official source URL. Durable reference for the `targetSdk 36` upgrade (Issue #7) — does not move to `completed/`. |
 | `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
 | `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
-| `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs (e.g. `jetpack-datastore-explained.md`, **`oem-regression-testing.md`** — API 34 / Samsung / LG regression lanes). |
+| `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs (e.g. `jetpack-datastore-explained.md`, **`oem-regression-testing.md`** — API 34 / Samsung / LG regression lanes; **`robolectric-test-catalog.md`** — Robolectric test inventory). |
 | `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |
 
 
