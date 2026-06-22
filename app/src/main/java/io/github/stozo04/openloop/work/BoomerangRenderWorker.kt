@@ -124,6 +124,7 @@ class BoomerangRenderWorker(
                 progressPublisher.cancel()
                 Log.e(TAG, "Boomerang render failed (IO)", e)
                 deletePartialOutput(parsed.outputFile)
+                reportRenderFailure(parsed, "io", e)
                 Result.failure()
             } catch (e: ExportException) {
                 // Media3's documented async failure type (Transformer.Listener.onError, rethrown by
@@ -134,11 +135,13 @@ class BoomerangRenderWorker(
                 progressPublisher.cancel()
                 Log.e(TAG, "Boomerang render failed (export)", e)
                 deletePartialOutput(parsed.outputFile)
+                reportRenderFailure(parsed, "export", e)
                 Result.failure()
             } catch (e: RuntimeException) {
                 progressPublisher.cancel()
                 Log.e(TAG, "Boomerang render failed", e)
                 deletePartialOutput(parsed.outputFile)
+                reportRenderFailure(parsed, "runtime", e)
                 Result.failure()
             }
         }
@@ -161,6 +164,26 @@ class BoomerangRenderWorker(
             // coroutineScope mid-encode (Issue #67 F1).
             Log.w(TAG, "FGS notification refresh skipped at $clamped%", e)
         }
+    }
+
+    /**
+     * Record the worker's real render failure to Crashlytics as a non-fatal. Without this the only
+     * signal was the ViewModel's bare `BoomerangRenderWorkResult.Failure` (WorkManager does not carry
+     * the worker's exception across the process boundary), reported with a synthetic stand-in cause —
+     * so the actual codec/Transformer exception (e.g. LG LM-X540 `IllegalArgumentException: start
+     * failed`, Crashlytics 47233ad7) lived only in this process's logcat ("details in
+     * BoomerangRenderWorker log") and never reached Firebase. This carries the genuine stack trace.
+     */
+    private fun reportRenderFailure(parsed: BoomerangRenderWorkerInput.Parsed, kind: String, cause: Throwable) {
+        ReverseCrashlytics.reportSaveFailure(
+            versionName = BuildConfig.VERSION_NAME,
+            versionCode = BuildConfig.VERSION_CODE,
+            source = parsed.scratch.file,
+            trimStartMs = parsed.trimStartMs,
+            trimEndMs = parsed.trimEndMs,
+            outcome = "render_failed_$kind: ${cause.javaClass.simpleName}: ${cause.message}",
+            cause = cause,
+        )
     }
 
     private fun deletePartialOutput(file: File) {

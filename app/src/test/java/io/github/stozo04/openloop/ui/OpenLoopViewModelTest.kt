@@ -105,6 +105,14 @@ class FakeVideoStorageRepository : VideoStorageRepository {
     /** Saved videos (raws + boomerangs), exposed for assertions. */
     val saved = mutableListOf<RecordedVideo>()
 
+    /**
+     * Every raw ever promoted, retained for assertions even after [deleteRawVideo] removes it from
+     * [saved]. A successful boomerang render intentionally deletes the source raw
+     * ([io.github.stozo04.openloop.work.BoomerangRenderWorker]: "no longer needed after a successful
+     * boomerang render"), so provenance (`boomerang.sourceRawId`) can only be checked against this.
+     */
+    val promotedRaws = mutableListOf<RecordedVideo>()
+
     /** UUIDs passed to [discardScratch], for assertions. */
     val discardedScratches = mutableListOf<String>()
 
@@ -147,7 +155,7 @@ class FakeVideoStorageRepository : VideoStorageRepository {
             videoPath = File(tempRoot, "clip_$id.mp4").absolutePath,
             thumbnailPath = File(tempRoot, "clip_$id.jpg").absolutePath,
             kind = VideoKind.RAW,
-        ).also { saved.add(it) }
+        ).also { saved.add(it); promotedRaws.add(it) }
     }
 
     override fun discardScratch(scratch: ScratchCapture) {
@@ -1063,10 +1071,17 @@ class OpenLoopViewModelTest {
             assertEquals(1, fakeRenderScheduler.enqueueCount)
             assertEquals(1, fakeVideoProcessor.renderCount)
 
-            // One RAW (promoted) + one BOOMERANG (registered), boomerang points at the raw.
-            val raw = fakeVideoStorage.saved.single { it.kind == VideoKind.RAW }
+            // The scratch is promoted to a raw, the boomerang is registered pointing at that raw, and
+            // the source raw is then intentionally deleted (BoomerangRenderWorker: "no longer needed
+            // after a successful boomerang render"). So `saved` keeps only the BOOMERANG, while its
+            // sourceRawId still records the (now-deleted) promoted raw for provenance.
+            val raw = fakeVideoStorage.promotedRaws.single()
             val boomerang = fakeVideoStorage.saved.single { it.kind == VideoKind.BOOMERANG }
             assertEquals(raw.id, boomerang.sourceRawId)
+            assertTrue(
+                "source raw should be deleted after a successful render",
+                fakeVideoStorage.saved.none { it.kind == VideoKind.RAW },
+            )
             assertEquals(1, fakeVideoStorage.discardedScratches.size) // scratch cleaned up after save
             assertNull(viewModel.editorState.value)
 

@@ -6,6 +6,17 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 
 ---
 
+## Production zero-error rule (non-negotiable)
+
+**OpenLoop is live in Production and reachable by billions of users. Any error the agent encounters while working — a failing test, a compile error, a lint error, a crash — MUST be fixed before a PR is created. No exceptions, even for pre-existing failures the agent did not introduce.**
+
+- "Not my change" is **not** a reason to leave a red build. If you touch a module and its tests don't compile or don't pass, you fix them as part of the work (or, if the fix is genuinely out of scope, you **stop and flag it to the owner and get explicit direction** — you do not open a PR on top of a known-broken baseline).
+- A PR must be opened only from a **fully green** state: clean debug + release build, **0 test failures**, **0 new lint errors**. A known failing test in the branch is a release blocker, full stop.
+- If you discover the breakage was already on `main`, that makes it **more** urgent, not less — a broken gate on `main` means the safety net is down for every future change. Repair it (or escalate) immediately; never build on top of it.
+- Capture the green proof (build verdict + exit 0 + test counts, per the gate below) in the PR.
+
+---
+
 ## The gate (run top to bottom)
 
 ### 0. Baseline — before you change anything
@@ -89,6 +100,7 @@ A command finishing is **not** a passed build. Confirm all three:
 ## Copy-paste checklist for a PR
 
 ```
+- [ ] Production zero-error rule honored: NO known failing test / compile / lint error left behind (pre-existing included), or escalated to the owner
 - [ ] Baseline green before changes (clean assembleDebug)
 - [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))

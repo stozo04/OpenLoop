@@ -1,5 +1,6 @@
 package io.github.stozo04.openloop.media
 
+import android.media.MediaCodec
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.isActive
 import kotlin.coroutines.coroutineContext
@@ -65,3 +66,47 @@ internal fun shouldRetryMediaCodecContention(
     if (failedAttemptIndex >= maxAttempts - 1 || !isMediaCodecLifecycleFailure(error)) return false
     return samsung || isMediaCodecSurfaceReleasedFailure(error)
 }
+
+/**
+ * A [MediaCodec] that fails to **initialize** — `configure()` / `start()` rejecting the request —
+ * as opposed to a benign teardown ([isMediaCodecLifecycleFailure]) or a healthy-codec data problem.
+ *
+ * The motivating signature is `IllegalArgumentException: start failed` (LG LM-X540 / Android 10,
+ * Crashlytics 47233ad7): "start failed" is the JNI message `android.media.MediaCodec.native_start()`
+ * passes to `throwExceptionAsNecessary`, and a `BAD_VALUE` native status surfaces it as an
+ * [IllegalArgumentException]. On a low-end (often MediaTek) device under memory pressure the *hardware*
+ * AVC codec can reject start outright; the software codec usually still comes up. These failures are
+ * NOT Samsung-specific, so [shouldRetryMediaCodecContention] never recovered them — the reverse died
+ * on the first attempt with no fallback.
+ *
+ * [MediaCodec.CodecException] (the documented codec-error type) also counts, except when it presents
+ * as a benign lifecycle teardown (already filtered out above).
+ */
+internal fun isMediaCodecInitializationFailure(error: Throwable): Boolean {
+    if (isMediaCodecLifecycleFailure(error)) return false
+    return when (error) {
+        is MediaCodec.CodecException -> true
+        is IllegalArgumentException, is IllegalStateException -> {
+            val message = error.message.orEmpty()
+            message.contains("start failed", ignoreCase = true) ||
+                message.contains("configure failed", ignoreCase = true) ||
+                message.contains("codec failed", ignoreCase = true) ||
+                message.contains("Failed to initialize", ignoreCase = true) ||
+                message.contains("Error initializing", ignoreCase = true)
+        }
+        else -> false
+    }
+}
+
+/**
+ * Whether [VideoReverser.reverse] should retry the failed pass with **software** codecs after a
+ * codec-initialization failure ([isMediaCodecInitializationFailure]). Unlike
+ * [shouldRetryMediaCodecContention], this is device-agnostic — the hardware codec rejecting
+ * `start()` is the failure, so the only useful next move is the software encoder + decoder, on any
+ * manufacturer. Retries only while an attempt remains (mirrors the contention/zero-frame guards).
+ */
+internal fun shouldRetryReverseWithSoftwareCodec(
+    error: Throwable,
+    failedAttemptIndex: Int,
+    maxAttempts: Int,
+): Boolean = failedAttemptIndex < maxAttempts - 1 && isMediaCodecInitializationFailure(error)

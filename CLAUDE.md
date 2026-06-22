@@ -51,6 +51,8 @@ Before anything destructive (deleting files, overwriting code, sending communica
 
 ### Definition of Done — required before "done" or "Ready for PR"
 
+**Production zero-error rule (non-negotiable):** OpenLoop is live in Production and reachable by billions of users. **Any error the agent encounters while working — a failing test, a compile error, a lint error, a crash — MUST be resolved before a PR is created, even pre-existing failures the agent did not introduce.** "Not my change" is never a reason to open a PR on a red baseline; fix it as part of the work, or stop and escalate to the owner for explicit direction. A PR is opened only from a fully green state (clean debug + release build, 0 test failures, 0 new lint errors). Full policy in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**.
+
 A change is **not done because it compiles.** Before calling any non-trivial change done or opening a PR, clear the verification gate in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**: baseline → clean build (debug **and** release) genuinely green → requirement checks (e.g. 16 KB `zipalign`) → unit + instrumented tests with 0 failures → **static analysis clean** (Android Lint reports zero *new* errors via `./gradlew :app:lintDebug`, and IDE "Inspect Code" / `inspect.bat` run locally — see **[`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md)**) → **actually run the app on an emulator, launch it, and capture a screenshot as proof** → honestly state what could not be verified + a manual QA checklist → attach the screenshot to the PR. "Genuinely green" = `BUILD SUCCESSFUL` **and** exit code 0 **and** zero `e:` errors (never trust a `| tail`-masked exit code). This is the standard, not a nice-to-have.
 
 ### Note-taking
