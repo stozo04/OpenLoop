@@ -428,12 +428,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun maybeRequestPostNotificationsPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
+        if (!shouldRequestPostNotificationsPermission(Build.VERSION.SDK_INT, granted)) return
         requestPostNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
@@ -494,11 +491,26 @@ private const val TAG = "MainActivity"
 
 @Composable
 private fun rememberNotificationExportHint(): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
     val context = LocalContext.current
-    return ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+    val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
         PackageManager.PERMISSION_GRANTED
+    return shouldShowNotificationExportHint(Build.VERSION.SDK_INT, granted)
 }
+
+/**
+ * Pure API-33+ gate for [maybeRequestPostNotificationsPermission]: request only when
+ * [Manifest.permission.POST_NOTIFICATIONS] is not yet granted. Below API 33 the permission does
+ * not exist — always no-op.
+ */
+fun shouldRequestPostNotificationsPermission(sdkInt: Int, notificationsGranted: Boolean): Boolean =
+    sdkInt >= Build.VERSION_CODES.TIRAMISU && !notificationsGranted
+
+/**
+ * Pure API-33+ gate for [rememberNotificationExportHint] on [ProcessingScreen]: show the
+ * background-export hint when notification permission is missing. Below API 33 always false.
+ */
+fun shouldShowNotificationExportHint(sdkInt: Int, notificationsGranted: Boolean): Boolean =
+    sdkInt >= Build.VERSION_CODES.TIRAMISU && !notificationsGranted
 
 /**
  * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] with the given

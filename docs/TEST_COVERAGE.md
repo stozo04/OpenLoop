@@ -179,7 +179,12 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 |------------|-------------------|
 | `BoomerangRenderNotificationsTest` | SDK → FGS type mapping (API 34 must not get `mediaProcessing`) |
 | `BoomerangRenderForegroundInfoRobolectricTest` | Real `ForegroundInfo.foregroundServiceType` under `@Config(sdk=[34/35/36])` |
+| `BoomerangRenderNotificationsRobolectricTest` | Channel idempotency, progress clamp, `PendingIntent.FLAG_IMMUTABLE` |
+| `VideoImporterImportRobolectricTest` | `importToFile` copy contract via `ShadowContentResolver` |
+| `UserPreferencesRepositoryImplRobolectricTest` | Real DataStore round-trip (onboarding flag) |
 | `DeviceMediaHintsOemRobolectricTest` | `ShadowBuild` Samsung/LG identity → preview cap + encoder order |
+| `BoomerangRenderWorkerRobolectricTest` | Worker guard paths: invalid input, `getForegroundInfo`, FGS denied + partial cleanup |
+| `PostNotificationsGateRobolectricTest` | POST_NOTIFICATIONS gate: API 32 no-op vs API 33+ active/denied |
 | `SamsungReversePreviewRegressionTest` | Samsung encoder ranking (RTL-derived, explicit `isSamsung=true`) |
 
 **Core ViewModel / storage (representative rows):**
@@ -240,7 +245,6 @@ These are areas that need tests but don't have them yet:
 
 | Area | Why It's Missing | Priority |
 |------|-----------------|----------|
-| `UserPreferencesRepositoryImpl` | Robolectric DataStore round-trip planned — see [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md) | Medium |
 | Samsung vendor codec on emulator | **Impossible** — use Samsung RTL sweep ([`oem-regression-testing.md`](guides/oem-regression-testing.md)) | N/A (use RTL) |
 | LG on literal LM-X540 hardware | No LG RTL; instrumented injection covers logic only | Low |
 | `CameraManager` | Hardware-dependent, hard to unit test | Low (manual testing) |
