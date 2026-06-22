@@ -141,13 +141,13 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | `docs/DEFINITION_OF_DONE.md` | **The "Ready for PR" verification gate** — build + test + *run the app + screenshot* before anything is called done. Non-negotiable for non-trivial changes. |
 | `docs/lessons_learned/` | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.** |
 | `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
-| `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. |
+| `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. **OEM lanes:** [`docs/guides/oem-regression-testing.md`](guides/oem-regression-testing.md). |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
 | `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the `lint-baseline.xml` policy, and severity mapping. |
 | `docs/android-16/` | **Android 16 (API 36) upgrade knowledge hub.** Per-page summaries of Google's Android 16 docs, each with an OpenLoop impact verdict and the official source URL. Durable reference for the `targetSdk 36` upgrade (Issue #7) — does not move to `completed/`. |
 | `docs/active/` | **Active feature folders.** Each feature gets a folder with at least one IMPLEMENTATION.md. See `docs/active/README.md` for the convention. |
 | `docs/completed/` | **Shipped features.** Moved here from `docs/active/` after merge to main. |
-| `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs of project concepts (e.g. `jetpack-datastore-explained.md` — what DataStore is and how to inspect/reset it on a device). |
+| `docs/guides/` | **Plain-English how-to guides.** Beginner-friendly walkthroughs (e.g. `jetpack-datastore-explained.md`, **`oem-regression-testing.md`** — API 34 / Samsung / LG regression lanes). |
 | `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |
 
 

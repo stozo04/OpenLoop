@@ -9,6 +9,10 @@ Galaxy hardware.
 > Samsung's lab**, streamed to your browser. That's why camera capture shows a wall and
 > why you test the media pipeline via **import** instead.
 
+> **Automated sweep:** After RDB connect, run the scripted regression:
+> `pwsh .claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-sweep.ps1 -ArtifactDir $env:TEMP\openloop_rtl\s23`
+> Full OEM context: [`oem-regression-testing.md`](oem-regression-testing.md).
+
 ---
 
 ## 1. One-time setup

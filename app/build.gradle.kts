@@ -24,8 +24,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 23
-        versionName = "1.0.23"
+        versionCode = 24
+        versionName = "1.0.24"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -75,6 +75,13 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            // Robolectric needs the merged manifest + resources on the unit-test classpath so a test
+            // can build real framework objects (notifications, ForegroundInfo, etc.) on the JVM.
+            isIncludeAndroidResources = true
+        }
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -116,6 +123,20 @@ kotlin {
         // Must match compileOptions source/targetCompatibility above.
         jvmTarget = JvmTarget.JVM_17
     }
+}
+
+// App code targets/compiles to Java 17 (above), but the JVM that *runs* the unit tests is pinned to
+// JDK 21. Robolectric must run on JDK 21 to load the API-36 android-all jar (Android's SDK 36 jars
+// are compiled with Java 21), and Robolectric defaults to the project's targetSdk (36). Running
+// Java-17 test bytecode on a JDK-21 launcher is fully supported, so this unblocks device-free,
+// per-API-level testing (e.g. @Config(sdk=[34]) FGS-type regression) without disturbing the
+// documented Java-17 app toolchain.
+tasks.withType<Test>().configureEach {
+    javaLauncher.set(
+        javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        },
+    )
 }
 
 dependencies {
@@ -175,6 +196,11 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Robolectric — run real Android framework code on the JVM at a chosen API level
+    // (@Config(sdk=[...])), so version-gated platform behavior is verifiable without a device.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
 
     // Compose UI Testing (instrumented)
     androidTestImplementation(platform(libs.androidx.compose.bom))

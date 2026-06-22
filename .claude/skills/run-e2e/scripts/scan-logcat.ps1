@@ -23,6 +23,7 @@ $sigs = @(
   @{ Name = 'surface has been released (b09e527)';    Class = 'CRASH';   Pattern = 'surface has been released' }
   @{ Name = 'dequeueOutputBuffer native (3a506c4e)';  Class = 'CRASH';   Pattern = 'native_dequeueOutputBuffer' }
   @{ Name = 'MediaCodec CodecException';              Class = 'CRASH';   Pattern = 'CodecException' }
+  @{ Name = 'FGS type unknown (API 34 regression)';  Class = 'CRASH';   Pattern = 'InvalidForegroundServiceTypeException|Starting FGS with type unknown' }
   @{ Name = 'reverse preview timeout (120s bucket)';  Class = 'TIMEOUT'; Pattern = 'ensureReversed\.timeout|Timed out after' }
   @{ Name = 'reverse preview failure (non-fatal)';    Class = 'TIMEOUT'; Pattern = 'reverse_preview_failure' }
   @{ Name = 'codec reclaim pressure';                 Class = 'CHURN';   Pattern = 'keep callback message for reclaim' }

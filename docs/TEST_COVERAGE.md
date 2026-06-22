@@ -75,6 +75,26 @@ Full user flows across multiple screens. Most expensive to write and maintain. R
 
 ---
 
+## OEM & API-level regression testing
+
+Some crashes only reproduce on **one API level** (Android 14 FGS) or **one OEM** (Samsung Exynos,
+LG hardware codec). Stock emulators cannot spoof Samsung/LG identity or vendor codecs.
+
+**Authoritative guide:** [`docs/guides/oem-regression-testing.md`](guides/oem-regression-testing.md)
+
+| Lane | What | Where |
+|------|------|-------|
+| API 34 FGS | `Pixel_8_API34` AVD + save smoke; Robolectric `ForegroundInfo` tests | Emulator + `test/` |
+| Samsung app logic | `DeviceMediaHintsOemRobolectricTest` (ShadowBuild) | `test/` |
+| Samsung vendor codecs | `samsung-rtl-sweep.ps1` on Samsung Remote Test Lab | Real Galaxy |
+| LG `start failed` recovery | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` | `androidTest/` on any device |
+
+The **4-emulator pixel sweep** (`Pixel_6` → `Pixel_8` → `Pixel_10_Pro_Fold` → `Pixel_8_API34`)
+is documented in `.claude/skills/run-e2e-pixel-sweep/SKILL.md`. Run the full OEM matrix before
+media-pipeline or FGS changes.
+
+---
+
 ## Frameworks & Tools
 
 | Tool | Purpose | Used In |
@@ -83,6 +103,7 @@ Full user flows across multiple screens. Most expensive to write and maintain. R
 | **MockK** | Kotlin-first mocking library | `test/` (for Android framework classes like `Context`, `Log`) |
 | **Fakes** | Hand-written test doubles using real interfaces | `test/` (preferred over mocks for Flow-based interfaces) |
 | **kotlinx-coroutines-test** | `TestDispatcher`, `runTest`, virtual time control | `test/` |
+| **Robolectric 4.16.1** | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (see [`docs/guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)) |
 | **Compose UI Test** | `createComposeRule`, semantic matchers, UI assertions | `androidTest/` |
 | **AndroidJUnit4** | Instrumented test runner | `androidTest/` |
 
@@ -150,7 +171,18 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 ## Current Test Inventory
 
-### Local Unit Tests (`app/src/test/`) — 24 tests
+### Local Unit Tests (`app/src/test/`) — see `./gradlew :app:testDebugUnitTest` for current count
+
+**OEM / API regression (Robolectric + JVM):**
+
+| Test class | What it validates |
+|------------|-------------------|
+| `BoomerangRenderNotificationsTest` | SDK → FGS type mapping (API 34 must not get `mediaProcessing`) |
+| `BoomerangRenderForegroundInfoRobolectricTest` | Real `ForegroundInfo.foregroundServiceType` under `@Config(sdk=[34/35/36])` |
+| `DeviceMediaHintsOemRobolectricTest` | `ShadowBuild` Samsung/LG identity → preview cap + encoder order |
+| `SamsungReversePreviewRegressionTest` | Samsung encoder ranking (RTL-derived, explicit `isSamsung=true`) |
+
+**Core ViewModel / storage (representative rows):**
 
 | Test | Category | What It Validates |
 |------|----------|------------------|
@@ -179,10 +211,16 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 | `deleteVideo removes files and reloads empty list` | Storage | Deletion flow works |
 | `recordedVideos flow starts as empty list` | State | Initial state is clean |
 
-### Instrumented UI Tests (`app/src/androidTest/`) — 10 tests
+### Instrumented Tests (`app/src/androidTest/`)
 
-| Test | What It Guards |
-|------|---------------|
+**Media / OEM:**
+
+| Test | What it guards |
+|------|----------------|
+| `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` | LG 47233ad7 — `start failed` → software codec retry (fault injection) |
+| `VideoReverserTest` (Samsung-only cases) | Skip on emulator; run on Samsung RTL hardware |
+
+**Onboarding UI (Compose):**
 | `page0_nextButton_isDisplayedAndCentered` | Button centering regression (page 1) |
 | `page1_backAndNextButtons_areDisplayedAndCentered` | Button centering regression (page 2) |
 | `page2_ctaButton_isDisplayedAndFillsWidth` | CTA layout regression (page 3) |
@@ -202,7 +240,9 @@ These are areas that need tests but don't have them yet:
 
 | Area | Why It's Missing | Priority |
 |------|-----------------|----------|
-| `UserPreferencesRepositoryImpl` | Needs instrumented test with real DataStore | Medium |
+| `UserPreferencesRepositoryImpl` | Robolectric DataStore round-trip planned — see [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md) | Medium |
+| Samsung vendor codec on emulator | **Impossible** — use Samsung RTL sweep ([`oem-regression-testing.md`](guides/oem-regression-testing.md)) | N/A (use RTL) |
+| LG on literal LM-X540 hardware | No LG RTL; instrumented injection covers logic only | Low |
 | `CameraManager` | Hardware-dependent, hard to unit test | Low (manual testing) |
 | Accessibility (contrast, touch targets) | Needs automated accessibility checks | High |
 | Screen UI tests beyond onboarding | Gallery, Camera, Preview screens untested | Medium |

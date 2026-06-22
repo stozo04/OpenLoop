@@ -1,23 +1,25 @@
 ---
 name: run-e2e-pixel-sweep
 description: >-
-  Run the repeatable OpenLoop 3-emulator E2E sweep (Pixel 6, Pixel 8, Pixel 10 Pro Fold) using
-  the canonical imported test video: build once, then per device cold-boot → scripted
-  import → trim → speed → all four loop directions (real reverse previews) → B&W look → save →
-  share sheet → gallery playback, followed by a programmatic output-quality gate (per-half fps,
-  mirror SSIM, freeze/green/black scans) and a logcat scan. Use whenever the user says "pixel
-  sweep", "run the 3-device e2e", "/run-e2e-pixel-sweep", "regression-test the boomerang flow
-  on the emulators", or wants proof a media-pipeline change didn't break the import→save path
-  on Google devices. Scripts compute every gesture from uiautomator bounds, so they run
-  unmodified on any screen size.
+  Run the repeatable OpenLoop 4-emulator E2E sweep (Pixel 6, Pixel 8, Pixel 10 Pro Fold, Pixel 8
+  API 34) using the canonical imported test video: build once, then per device cold-boot →
+  scripted import → trim → speed → all four loop directions (real reverse previews) → B&W look →
+  save → share sheet → gallery playback, followed by a programmatic output-quality gate (per-half
+  fps, mirror SSIM, freeze/green/black scans) and a logcat scan. Use whenever the user says
+  "pixel sweep", "run the 4-device e2e", "/run-e2e-pixel-sweep", "api 34 fgs regression",
+  "samsung rtl sweep", "/samsung-rtl-sweep", "regression-test the boomerang flow on the emulators",
+  or wants proof a media-pipeline or foreground-service change didn't break the import→save path
+  on Google devices and Android 14. Scripts compute every gesture from uiautomator bounds, so they
+  run unmodified on any screen size.
 ---
 
-# run-e2e-pixel-sweep — the repeatable 3-emulator OpenLoop sweep
+# run-e2e-pixel-sweep — the repeatable 4-emulator OpenLoop sweep
 
 Proven end-to-end on 2026-06-04 (fold-loop iterations 1–2 + scripted validation runs on
-Pixel 6 and the Fold). One sweep ≈ 10 minutes/device, ~30 minutes total, fully scripted —
-your job is to run the phases, read the PASS/FAIL lines, and apply judgment where the scripts
-explicitly hand it back (borderline SSIM, any FAIL, churn growth).
+Pixel 6 and the Fold) and 2026-06-22 (API-34 FGS fix verification on `Pixel_8_API34`).
+One sweep ≈ 10 minutes/device, ~40 minutes total, fully scripted — your job is to run the
+phases, read the PASS/FAIL lines, and apply judgment where the scripts explicitly hand it back
+(borderline SSIM, any FAIL, churn growth).
 
 `<skill>` = this directory. Sibling skill `run-e2e` provides `scripts/scan-logcat.ps1` and
 `scripts/uiauto.ps1` (manual driving / debugging) — reuse them, don't duplicate.
@@ -34,8 +36,11 @@ tell the user; do not substitute another video.
 
 ## Preconditions (verify, never assume)
 
-- AVDs `Pixel_6`, `Pixel_8`, `Pixel_10_Pro_Fold` exist
+- AVDs `Pixel_6`, `Pixel_8`, `Pixel_10_Pro_Fold`, and **`Pixel_8_API34`** exist
   (`& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -list-avds`).
+  If `Pixel_8_API34` is missing, create it:
+  `pwsh <skill>\scripts\create-api34-avd.ps1` (requires the
+  `system-images;android-34;google_apis_playstore;x86_64` SDK image).
 - ffmpeg/ffprobe on PATH (`winget install Gyan.FFmpeg` if not).
 - `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"`.
 - No emulator already running (`adb devices` empty) — sweep-prep refuses otherwise.
@@ -45,11 +50,19 @@ tell the user; do not substitute another video.
 
 ## The sweep (run for each AVD, sequentially, in this order)
 
-Order: `Pixel_6` → `Pixel_8` → `Pixel_10_Pro_Fold`. One emulator at a time — parallel
-emulators fight over host CPU/codecs and fake contention bugs.
+Order: `Pixel_6` → `Pixel_8` → `Pixel_10_Pro_Fold` → **`Pixel_8_API34`**. One emulator at a
+time — parallel emulators fight over host CPU/codecs and fake contention bugs.
+
+**Why `Pixel_8_API34` last:** it runs **Android 14 (API 34)** — the OS level where
+`FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING` (8192) is *not recognized* and v1.0.23 crashed every
+Loopify save with `InvalidForegroundServiceTypeException: Starting FGS with type unknown`
+(Crashlytics 9663c743, Galaxy A55). The fix gates to `dataSync` on API 29–34. After the three
+API-35+ emulators pass, this device is the **mandatory FGS regression gate**: a green save +
+`Worker result SUCCESS` for `BoomerangRenderWorker` and **zero** `InvalidForegroundServiceTypeException`
+lines in logcat. See `docs/e2e/2026-06-22_082330-api34-fgs-fix.md` for the first verified run.
 
 ```powershell
-$avd = "Pixel_6"   # then Pixel_8, then Pixel_10_Pro_Fold
+$avd = "Pixel_6"   # then Pixel_8, then Pixel_10_Pro_Fold, then Pixel_8_API34
 $dir = "$env:TEMP\openloop_sweep\$avd"
 
 # 1. Cold-boot + install (fresh app state) + push video + start logcat capture + launch.
@@ -73,6 +86,48 @@ adb -s $serial emu kill
 A device passes when: all drive-flow steps PASS + quality gate PASS + scan shows **0 in every
 CRASH and TIMEOUT row**. Anything else is a finding — root-cause it (see "Reading failures").
 
+## OEM regression lanes (API 34 / Samsung / LG)
+
+Not all OEM bugs reproduce on stock emulators. Use the right lane:
+
+| Lane | What it catches | How to run | Emulator? |
+|------|-----------------|------------|-----------|
+| **API 34 FGS** | `InvalidForegroundServiceTypeException` on Android 14 saves (9663c743) | 4th device in sweep: `Pixel_8_API34` | ✅ Stock AVD |
+| **Samsung codec + preview cap** | Exynos/QC wedging, 480p preview cap, `c2.google` encoder order | **Samsung RTL sweep** (real Galaxy) | ❌ Use RTL |
+| **Samsung app logic (identity)** | `isSamsungDevice()` branches, preview cap, encoder ordering policy | JVM: `DeviceMediaHintsOemRobolectricTest` + `SamsungReversePreviewRegressionTest` | ✅ Robolectric |
+| **LG `start failed` recovery** | Hardware codec rejects `start()` → software fallback (47233ad7) | Instrumented: `VideoReverserTest.reverse_recoversFromCodecStartFailure_viaSoftwareFallback` | ✅ Any device/emulator |
+
+**Do NOT** add fake `Pixel_8_Samsung` AVDs — Google Play images ignore `-prop ro.product.manufacturer`
+and block `setprop`; the emulator still reports `Google` / goldfish codecs.
+
+### Samsung RTL sweep (real Galaxy hardware)
+
+Setup: [`docs/guides/samsung-rtl-steps.md`](../../docs/guides/samsung-rtl-steps.md) — reserve device,
+start RDB, verify `adb devices` shows `localhost:<port>`.
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+& "<repo>\gradlew.bat" :app:assembleDebug
+pwsh <skill>\scripts\samsung-rtl-sweep.ps1 -ArtifactDir $env:TEMP\openloop_rtl\s23
+# Optional: -Serial localhost:52172  (port changes every RTL session)
+```
+
+Pass = drive-flow PASS + quality-gate PASS + scan **0 CRASH/TIMEOUT** + grep shows
+`ensureReversed.ok` and `Worker result SUCCESS … BoomerangRenderWorker`.
+
+### LG instrumented lane (headless on emulator)
+
+LG has no public RTL. The recovery path is fault-injected on any attached device:
+
+```powershell
+& "<repo>\gradlew.bat" :app:assembleDebug :app:installDebug
+adb shell am instrument -w -r `
+  -e class io.github.stozo04.openloop.media.VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback `
+  io.github.stozo04.openloop.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Pass = `tests=1 failures=0`. Literal LM-X540 hardware still needs a physical device if available.
+
 ## What the scripts verify (and what they hand back to you)
 
 | Phase | Hard checks | Judgment handed to the agent |
@@ -95,6 +150,7 @@ device-specific Crashlytics issue is fixed from emulator evidence alone).
 | first-half fps ≈ 15, second ≈ 30 | Pass-1 subsampling regression (BUG-1 family) — check `reverse pass1:` log line for `skipped=` ≠ 0 on this 30 fps source. |
 | Moving-region macroblock smear in reversed half, static background clean | Compressed samples dropped before the decoder (broken P-frame references). Pull the cached reversed clip from `cache/scratch/reversed/` to isolate reverser vs Transformer. |
 | `MPEG4Writer … encoded 0 frames` + tiny output | Zero-frame completion (S23 family, PR #62 validator territory) — different from a timeout. |
+| `InvalidForegroundServiceTypeException` / `Starting FGS with type unknown` on API 34 | **FGS type regression** — the worker is passing `mediaProcessing` (8192) on Android 14. Check `BoomerangRenderNotifications.foregroundServiceTypeForSdk` gates on `VANILLA_ICE_CREAM` (35), not `UPSIDE_DOWN_CAKE` (34). Only fires on `Pixel_8_API34`; the three API-35+ emulators won't catch it. |
 | `ChooserPreview: Could not read content://…fileprovider…` ×3 | Cosmetic — the OS share-sheet preview can't query FileProvider metadata. Ignore. |
 
 ## Field notes (each of these cost real time once — don't relearn them)

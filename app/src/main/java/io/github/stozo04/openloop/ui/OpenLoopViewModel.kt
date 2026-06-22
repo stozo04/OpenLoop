@@ -19,7 +19,7 @@ import io.github.stozo04.openloop.diagnostics.AnalyticsReporter
 import io.github.stozo04.openloop.diagnostics.NoOpAnalyticsReporter
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.media.ReversePreviewLog
-import io.github.stozo04.openloop.media.SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE
+import io.github.stozo04.openloop.media.previewReverseMaxShortSideOrNull
 import io.github.stozo04.openloop.media.isSamsungDevice
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
@@ -844,8 +844,7 @@ class OpenLoopViewModel(
                 // the cancelled worker and can surface CancellationException without reverseFailed.
                 // runCatching + Result in select so a failed async child does not cancel this
                 // launch before we can set reverseFailed (Lesson 013 still applies to the job itself).
-                val previewReverseCap =
-                    if (isSamsungDevice()) SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE else null
+                val previewReverseCap = previewReverseMaxShortSideOrNull()
                 val outcome = if (reversePreviewTimeoutDisabledForTests()) {
                     // JVM tests: avoid Main awaiting an IO [async] child (deadlocks with Unconfined).
                     withContext(Dispatchers.IO) {

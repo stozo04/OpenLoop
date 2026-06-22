@@ -17,9 +17,15 @@
         android:name="com.google.android.gms.permission.AD_ID"
         tools:node="remove" />
 
-    <!-- Loopifying export — WorkManager long-running worker + mediaProcessing FGS (Issue #40). -->
+    <!-- Loopifying export — WorkManager long-running worker FGS (Issue #40). The render service is
+         typed `mediaProcessing` on Android 15+ (API 35, where that type was ADDED) and falls back to
+         `dataSync` on API 29–34 — passing the API-35-only mediaProcessing type to an Android 14
+         device crashes with InvalidForegroundServiceTypeException "type unknown" (Crashlytics
+         9663c743, Galaxy A55). Both permissions are declared so each version's chosen type is
+         honored. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- API 33+ runtime — progress notification while the user is in another app. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
@@ -84,11 +90,15 @@
              no clean per-line manifest suppression for it — so those red markers are accepted, not a
              defect. Do NOT remove the <service> to clear them: it is what gives API 26–29 the picker.
              See https://developer.android.com/training/data-storage/shared/photopicker -->
-        <!-- WorkManager's merged foreground service — typed for media export (Issue #40).
+        <!-- WorkManager's merged foreground service — typed for media export (Issue #40). Declares
+             BOTH dataSync and mediaProcessing: the worker requests mediaProcessing on API 35+ and
+             dataSync on API 29–34 (mediaProcessing doesn't exist before API 35 and crashes Android
+             14 — see BoomerangRenderNotifications.foregroundServiceTypeForSdk). The requested type is
+             always a subset of what's declared here, which the platform requires.
              https://developer.android.com/develop/background-work/background-tasks/persistent/how-to/long-running -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
-            android:foregroundServiceType="mediaProcessing"
+            android:foregroundServiceType="dataSync|mediaProcessing"
             tools:node="merge" />
 
         <service

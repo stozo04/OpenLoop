@@ -9,7 +9,8 @@ description: >-
   end test", "/run-e2e", "full app test on the emulator", "exercise the editor tabs", "smoke test
   the boomerang flow", or wants the app driven through its real UI (not unit tests) with a logcat
   findings report at the end. Drives via adb input + uiautomator (NOT screenshots, which hit a
-  per-session image limit).
+  per-session image limit). Also see sibling skill `run-e2e-pixel-sweep` for the 4-emulator sweep,
+  API-34 FGS gate, Samsung RTL sweep, and OEM regression lanes.
 ---
 
 # run-e2e — OpenLoop end-to-end emulator test
@@ -28,9 +29,26 @@ run them with `pwsh <skill>/scripts/<name>.ps1 ...`. The app package is
 - An emulator/device is attached: `adb devices` shows one `device`. Capture its serial (e.g.
   `emulator-5556`) into `$Serial` and pass `-s $Serial` to every adb call — never rely on a
   default when more than one may exist.
+- For **Android 14 (API 34) FGS regression** (Crashlytics 9663c743 family), use AVD
+  **`Pixel_8_API34`**. Create if missing:
+  `pwsh <repo>\.claude\skills\run-e2e-pixel-sweep\scripts\create-api34-avd.ps1`.
+  This is also the **4th and final device** in the `run-e2e-pixel-sweep` repeatable sweep.
 - A JDK for the build: `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"`.
 - You're at the repo root for gradle. If the working dir has drifted, call gradle with an explicit
   project dir: `& "<repo>\gradlew.bat" -p "<repo>" ...`.
+
+## OEM regression lanes (when the bug is OEM-specific)
+
+See **`run-e2e-pixel-sweep` → "OEM regression lanes"** for the full matrix. Quick reference:
+
+| OEM / issue | Headless on emulator? | Command |
+|-------------|----------------------|---------|
+| Android 14 FGS crash | ✅ | Cold-boot `Pixel_8_API34`, capture→save or import sweep |
+| Samsung identity logic | ✅ | `./gradlew :app:testDebugUnitTest --tests DeviceMediaHintsOemRobolectricTest` |
+| Samsung vendor codecs | ❌ | `pwsh …/samsung-rtl-sweep.ps1` after Samsung RTL RDB connect |
+| LG `start failed` fallback | ✅ (injected) | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` via `adb shell am instrument` |
+
+Stock emulators **cannot** spoof Samsung/LG `Build.MANUFACTURER` — verified 2026-06-22 (`-prop` ignored).
 
 ## 1. Build + install
 
