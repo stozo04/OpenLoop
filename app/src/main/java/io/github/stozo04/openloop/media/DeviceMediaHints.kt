@@ -34,3 +34,7 @@ internal const val SAMSUNG_REVERSE_PASS_MAX_ATTEMPTS = 2
 internal fun isSamsungDevice(): Boolean =
     Build.MANUFACTURER.equals("samsung", ignoreCase = true) ||
         Build.BRAND.equals("samsung", ignoreCase = true)
+
+/** Preview reverse cap passed to [io.github.stozo04.openloop.media.VideoProcessor.ensureReversed]; null elsewhere. */
+internal fun previewReverseMaxShortSideOrNull(): Int? =
+    SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE.takeIf { isSamsungDevice() }

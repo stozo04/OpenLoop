@@ -122,8 +122,13 @@ Step "import" {
   Start-Sleep -Seconds 4
   if (-not (Tap "Video taken on")) { return $false }   # the pushed clip in the system photo picker
   Start-Sleep -Seconds 2
-  if (-not (Tap "Done")) { return $false }
-  Start-Sleep -Seconds 6
+  # Some OEM pickers (Samsung RTL) land on Trim immediately; others need "Done" first.
+  if (-not (Find-Node (Get-Nodes) "TRIM YOUR VIDEO")) {
+    if (-not (Tap "Done")) { return $false }
+    Start-Sleep -Seconds 6
+  } else {
+    Start-Sleep -Seconds 2
+  }
   [bool](Find-Node (Get-Nodes) "TRIM YOUR VIDEO")
 }
 

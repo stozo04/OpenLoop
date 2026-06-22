@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationCompat
 import androidx.work.ForegroundInfo
 import io.github.stozo04.openloop.MainActivity
@@ -81,17 +82,40 @@ object BoomerangRenderNotifications {
 
     fun createForegroundInfo(context: Context, progressPercent: Int): ForegroundInfo {
         val notification = buildProgressNotification(context, progressPercent)
-        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            @Suppress("InlinedApi")
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
-        } else {
-            0
-        }
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ForegroundInfo(NOTIFICATION_ID, notification, fgsType)
+            ForegroundInfo(NOTIFICATION_ID, notification, foregroundServiceTypeForSdk(Build.VERSION.SDK_INT))
         } else {
             @Suppress("DEPRECATION")
             ForegroundInfo(NOTIFICATION_ID, notification)
         }
+    }
+
+    /**
+     * Foreground-service type to pass to `startForeground()` for the OS version actually running.
+     *
+     * `mediaProcessing` ([ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING] = 8192) is only a
+     * *recognized* FGS type from **API 35 (Android 15)** — the version that ADDED it. Passing it on
+     * API 34 (Android 14) makes the platform reject it as an unknown type and abort the service with
+     * `InvalidForegroundServiceTypeException: Starting FGS with type unknown ... has been prohibited`
+     * — a fatal crash (Crashlytics 9663c743…, Samsung Galaxy A55 / Android 14, v1.0.23). The original
+     * code gated this on `UPSIDE_DOWN_CAKE` (API 34), one version too low: the constant *compiles*
+     * against compileSdk 36 but the value isn't honored by an API-34 device's service validator.
+     *
+     * On API 29–34 fall back to `dataSync` ([ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC] = 1,
+     * added API 29) — Google's documented type for "import/export … transfer over network" work and
+     * the type WorkManager's own long-running-worker sample uses. Both types are declared on the
+     * merged `SystemForegroundService` in the manifest, so the requested type is always a subset of
+     * what's declared. Below API 29 there is no typed FGS, so 0 (untyped).
+     */
+    // InlinedApi: the FGS-type constants (DATA_SYNC API 29, MEDIA_PROCESSING API 35) are above
+    // minSdk 26, but they're compile-time int literals chosen behind an explicit SDK_INT guard here,
+    // so inlining them is exactly the intent.
+    @VisibleForTesting
+    @Suppress("InlinedApi")
+    fun foregroundServiceTypeForSdk(sdkInt: Int): Int = when {
+        sdkInt >= Build.VERSION_CODES.VANILLA_ICE_CREAM ->
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
+        sdkInt >= Build.VERSION_CODES.Q -> ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        else -> 0
     }
 }
