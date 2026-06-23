@@ -3,6 +3,7 @@
 Operational notes for the Crashlytics → GitHub → Claude auto-triage system. Design and rationale live in [`PRD-crashlytics-autotriage.md`](PRD-crashlytics-autotriage.md); this file is the day-to-day "what is it and how do I fix it" reference.
 
 **Firebase project:** `openloop-8c266` · **Repo:** `stozo04/OpenLoop` · **Plan:** Blaze (required for the alert function)
+**Project Console:** <https://console.firebase.google.com/project/openloop-8c266/overview>
 
 ---
 
