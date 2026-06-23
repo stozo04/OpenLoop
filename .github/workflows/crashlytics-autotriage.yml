@@ -61,10 +61,20 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
+      # Install the Firebase CLI up front so the MCP server (npx firebase-tools mcp)
+      # starts instantly. Otherwise it cold-downloads the whole package at MCP-startup
+      # time and exceeds the SDK's connection window — the server then "fails to connect"
+      # and the crashlytics_* tools never load.
+      - name: Pre-install Firebase CLI
+        run: npm install -g firebase-tools@latest
+
       - name: Triage the crash with Claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Temporary: surfaces the MCP server startup logs so we can diagnose connection
+          # issues. Remove once the Firebase MCP server connects reliably.
+          show_full_output: "true"
           prompt: |
             You are triaging an automated Crashlytics crash report filed as GitHub issue
             #${{ github.event.issue.number || github.event.inputs.issue_number }} in stozo04/OpenLoop.

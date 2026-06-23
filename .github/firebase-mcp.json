@@ -1,9 +1,9 @@
 {
-  "_comment": "Firebase MCP server config for the crashlytics-autotriage workflow. `--only crashlytics` activates the (experimental) Crashlytics tool group — it is NOT in the default tool set, so without it the crashlytics_* tools never surface. Requires Application Default Credentials (from google-github-actions/auth) on a service account with roles/firebasecrashlytics.viewer. See docs/PRD-crashlytics-autotriage.md.",
+  "_comment": "Firebase MCP server config for the crashlytics-autotriage workflow. `--only crashlytics` activates the (experimental) Crashlytics tool group — it is NOT in the default tool set. Uses the firebase-tools pre-installed by the workflow step (no `@latest`, so npx resolves the cached global copy instantly instead of cold-downloading at MCP startup). Requires ADC (from google-github-actions/auth) on a service account with roles/firebasecrashlytics.viewer. See docs/PRD-crashlytics-autotriage.md.",
   "mcpServers": {
     "firebase": {
       "command": "npx",
-      "args": ["-y", "firebase-tools@latest", "mcp", "--dir", ".", "--project", "openloop-8c266", "--only", "crashlytics"]
+      "args": ["-y", "firebase-tools", "mcp", "--dir", ".", "--project", "openloop-8c266", "--only", "crashlytics"]
     }
   }
 }
