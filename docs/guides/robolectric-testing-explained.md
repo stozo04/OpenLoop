@@ -10,6 +10,8 @@ No prior knowledge needed. Technical words are defined in the [Glossary](#glossa
 > **OEM regression (Samsung / LG / API 34):** Robolectric is one lane in a larger matrix.
 > See **[`oem-regression-testing.md`](oem-regression-testing.md)** for the full picture (emulator
 > sweeps, Samsung RTL, LG fault injection, and when each applies).
+>
+> **Test inventory (run commands, every class/method):** **[`robolectric-test-catalog.md`](robolectric-test-catalog.md)**.
 
 ---
 
@@ -81,6 +83,7 @@ testImplementation(libs.kotlinx.coroutines.test)
 testImplementation(libs.robolectric)        // org.robolectric:robolectric:4.16.1
 testImplementation(libs.androidx.test.core) // ApplicationProvider, etc.
 testImplementation(libs.androidx.test.ext.junit) // AndroidJUnit4 runner
+testImplementation(libs.androidx.work.testing) // TestListenableWorkerBuilder (Tier 2 #4)
 ```
 
 All three are `testImplementation` — they're on the **unit-test** classpath (`src/test/`), *not*
@@ -131,8 +134,8 @@ Java-17 toolchain.
 
 ## A minimal annotated example
 
-Here's the smallest real Robolectric test, modeled on the one already in this repo at
-`app/src/test/java/io/github/stozo04/openloop/work/BoomerangRenderForegroundInfoRobolectricTest.kt`:
+Here's the smallest real Robolectric test, modeled on
+`BoomerangRenderForegroundInfoRobolectricTest` (see the [Implemented tests](#implemented-tests-synced-with-appsrc-test) table):
 
 ```kotlin
 import android.content.Context
@@ -168,13 +171,37 @@ class ExampleRobolectricTest {
 The five things every Robolectric test needs:
 
 1. `@RunWith(RobolectricTestRunner::class)` on the class (or `@RunWith(AndroidJUnit4::class)`, which
-   resolves to Robolectric in `src/test/` — both work; this repo's first test uses
+   resolves to Robolectric in `src/test/` — both work; this repo's Robolectric tests use
    `RobolectricTestRunner` directly).
 2. `ApplicationProvider.getApplicationContext()` for a real `Context`.
 3. `@Config(sdk = [...])` to choose the Android version. You can pass several:
    `@Config(sdk = [29, 34, 35])` runs the test once per version.
 4. Call the **actual production method** — that's the point; you're exercising real framework code.
 5. Assert on the real result.
+
+---
+
+## Implemented tests (synced with `app/src/test/`)
+
+Eight test classes cover Phases 1–2 (Tier 1 + Tier 2). Seven use `@RunWith(RobolectricTestRunner)`;
+`BoomerangRenderNotificationsTest` is a **plain JVM** companion that pins the FGS SDK mapping without
+building framework objects (cheaper, but it cannot catch resource/manifest wiring bugs).
+
+**Full method-level inventory, run-all command, and device complements:**
+[`robolectric-test-catalog.md`](robolectric-test-catalog.md).
+
+| Test class | Runner | Tier | What it validates |
+|------------|--------|------|-------------------|
+| `work/BoomerangRenderForegroundInfoRobolectricTest` | Robolectric | 1 (FGS) | Real `ForegroundInfo.foregroundServiceType` under `@Config(sdk=[34/35/36])` — reproduces Crashlytics 9663c743 |
+| `work/BoomerangRenderNotificationsTest` | Plain JVM | 1 (FGS) | `foregroundServiceTypeForSdk()` mapping: API 34 → `dataSync`, API 35+ → `mediaProcessing`, below Q → untyped (`0`) |
+| `work/BoomerangRenderNotificationsRobolectricTest` | Robolectric | 1 (channel/progress) | `ensureChannel` idempotency + `IMPORTANCE_LOW`; progress clamp 0–100; `PendingIntent.FLAG_IMMUTABLE` |
+| `data/VideoImporterImportRobolectricTest` | Robolectric | 1 (import) | `importToFile` copy success; `false` on `IOException`, `SecurityException`, missing file |
+| `data/UserPreferencesRepositoryImplRobolectricTest` | Robolectric | 1 (DataStore) | Real `preferencesDataStore` round-trip: default `false`, write `true` → read `true` |
+| `media/DeviceMediaHintsOemRobolectricTest` | Robolectric | 2 (#6) | `ShadowBuild` Samsung/LG identity → `isSamsungDevice()`, preview cap, encoder try-order |
+| `work/BoomerangRenderWorkerRobolectricTest` | Robolectric | 2 (#4) | Guard-only `doWork` (invalid input → failure; FGS denied → failure + partial cleanup); `getForegroundInfo` |
+| `PostNotificationsGateRobolectricTest` | Robolectric | 2 (#5) | API 32 no-op vs API 33+ gate via `shouldRequestPostNotificationsPermission` / `shouldShowNotificationExportHint` |
+
+Run any of them with `./gradlew :app:testDebugUnitTest --tests "…fully.qualified.ClassName"`.
 
 ---
 
@@ -185,7 +212,7 @@ dependency blocks a plain JUnit test today), and **which `@Config(sdk=[…])` le
 
 ### Tier 1 — do these first
 
-**1. `work/BoomerangRenderNotifications.kt` — notifications, channel, and FGS type**
+**1. ✅ `work/BoomerangRenderNotifications.kt` — notifications, channel, and FGS type**
 - *What:* That `createForegroundInfo` picks `dataSync` below API 35 and `mediaProcessing` on API 35+
   (the exact Android-14 crash, Crashlytics 9663c743); that `ensureChannel` creates a single
   `IMPORTANCE_LOW` channel and is idempotent; that `buildProgressNotification` clamps progress to
@@ -195,11 +222,10 @@ dependency blocks a plain JUnit test today), and **which `@Config(sdk=[…])` le
   none constructible in a plain JUnit test.
 - *`@Config`:* `[26]` (below Q → untyped FGS, value `0`), `[34]` (`dataSync`), `[35]` and `[36]`
   (`mediaProcessing`).
-- *Note:* the FGS-type portion is **already being added** by another worker
-  (`BoomerangRenderForegroundInfoRobolectricTest.kt`). The channel / progress / PendingIntent
-  behaviors are still open and are the natural follow-ups.
+- *Status:* **✅ Done** — `BoomerangRenderForegroundInfoRobolectricTest` + `BoomerangRenderNotificationsTest`
+  (FGS type) + `BoomerangRenderNotificationsRobolectricTest` (channel, progress clamp, immutability).
 
-**2. `data/VideoImporter.kt` (`VideoImporterImpl.importToFile`) — the import error contract**
+**2. ✅ `data/VideoImporter.kt` (`VideoImporterImpl.importToFile`) — the import error contract**
 - *What:* That copying a readable `content://` URI into a dest file succeeds and returns `true`, and
   that an unreadable / revoked URI (`IOException` / `SecurityException`) returns **`false`** instead
   of throwing — the contract the ViewModel relies on to show a friendly snackbar instead of crashing.
@@ -209,8 +235,9 @@ dependency blocks a plain JUnit test today), and **which `@Config(sdk=[…])` le
 - *`@Config`:* not version-sensitive; any SDK is fine.
 - *Boundary:* `probeDurationMs` uses `MediaMetadataRetriever` (native decode) — that part stays a
   device test; only the stream-copy contract is a Robolectric win.
+- *Status:* **✅ Done** — `VideoImporterImportRobolectricTest` (`ShadowContentResolver`).
 
-**3. `data/UserPreferencesRepositoryImpl.kt` — real DataStore round-trip, device-free**
+**3. ✅ `data/UserPreferencesRepositoryImpl.kt` — real DataStore round-trip, device-free**
 - *What:* Write `setOnboardingCompleted(true)` then read `hasCompletedOnboarding.first()` → `true`;
   a fresh store defaults to `false`. This is the **real** `Context.dataStore` delegate end-to-end.
 - *Why Robolectric:* `TEST_COVERAGE.md` currently lists this class under *Coverage Gaps* as "needs
@@ -220,10 +247,11 @@ dependency blocks a plain JUnit test today), and **which `@Config(sdk=[…])` le
 - *`@Config`:* not version-sensitive.
 - *Boundary:* the existing JVM tests fake this repository with a `MutableStateFlow`; those stay (they
   test the ViewModel). This new test would cover the *real implementation* that the fakes stand in for.
+- *Status:* **✅ Done** — `UserPreferencesRepositoryImplRobolectricTest`.
 
 ### Tier 2 — strong, with a small caveat
 
-**4. `work/BoomerangRenderWorker.kt` — orchestration guards only**
+**4. ✅ `work/BoomerangRenderWorker.kt` — orchestration guards only**
 - *What:* `doWork()` returns `Result.failure()` on missing/invalid input; `getForegroundInfo()`
   returns a valid `ForegroundInfo`; the FGS-promotion-denied path (`setForeground` throws
   `IllegalStateException`) ends in `Result.failure()` + partial-output cleanup, not a crash.
@@ -233,11 +261,11 @@ dependency blocks a plain JUnit test today), and **which `@Config(sdk=[…])` le
 - *Caveat / boundary:* `doWork` calls `videoProcessor.renderBoomerang`, which is **real Media3
   Transformer + MediaCodec** — that cannot run under Robolectric and must not be faked. So Robolectric
   covers the *guards around* the render (input parsing, foreground info, the denied-FGS branch), while
-  the actual encode stays in `androidTest` (`BoomerangRenderWorkerTest`). Also note `work-testing` is
-  currently only on the `androidTest` classpath; using it here would require also adding it as
-  `testImplementation` — a deliberate dependency change, not assumed by this guide.
+  the actual encode stays in `androidTest` (`BoomerangRenderWorkerTest`). `work-testing` is also on the
+  `testImplementation` classpath (see `app/build.gradle.kts`).
+- *Status:* **✅ Done** — `BoomerangRenderWorkerRobolectricTest` (guard paths only; never reaches encode).
 
-**5. `MainActivity` permission decisions — the API-33 `POST_NOTIFICATIONS` gate**
+**5. ✅ `MainActivity` permission decisions — the API-33 `POST_NOTIFICATIONS` gate**
 - *What:* `maybeRequestPostNotificationsPermission()` / `rememberNotificationExportHint()` do nothing
   below API 33 and only ask/hint when the permission is missing on 33+. The camera-permission
   branching (`granted → ready`, `denied-once → rationale`, `else → request`) is the other piece.
@@ -249,8 +277,10 @@ dependency blocks a plain JUnit test today), and **which `@Config(sdk=[…])` le
 - *Caveat:* the camera-branch logic lives inside an Activity method tied to permission launchers, so
   testing it cleanly may want a small extraction into a pure decision function first. The pure
   *state* transitions are already covered in `OpenLoopViewModelTest`.
+- *Status:* **✅ Done** — extracted `shouldRequestPostNotificationsPermission` /
+  `shouldShowNotificationExportHint`; `PostNotificationsGateRobolectricTest`.
 
-**6. `media/DeviceMediaHints.kt` (`isSamsungDevice`)** — **implemented**
+**6. ✅ `media/DeviceMediaHints.kt` (`isSamsungDevice`)**
 - *Tests:* `DeviceMediaHintsOemRobolectricTest` (ShadowBuild Samsung/LG identity, preview cap,
   encoder order). See [`oem-regression-testing.md`](oem-regression-testing.md) lane 2.
 - *What:* The manufacturer-OR-brand, case-insensitive Samsung check that gates the Samsung reverse
@@ -267,6 +297,152 @@ Compose UI tests on the JVM, which could take some of our `androidTest` onboardi
 checks off the emulator and make them much faster. This adds configuration and can be flaky around
 graphics, so it's a "when we have time" item — and **screenshot tests
 (`LoopifyingScreenshotTest`) and benchmarks stay on a real device.**
+
+*Evaluated June 2026:* skipped for now. The repo has no Robolectric Compose harness yet (would need
+`ui-test-junit4` on `testImplementation` + graphics shadow tuning). The only low-hanging candidates
+are two `GetStartedButton` tests in `OnboardingScreenTest` — not worth the setup risk until more
+non-graphical Compose tests accumulate.
+
+---
+
+## Copy-paste recipes (Tier 1 — shipped)
+
+The recipes below match the checked-in Phase 1 tests. Use them as templates for Tier 2 work.
+
+### Reference: `VideoImporter.importToFile` (ShadowContentResolver)
+
+Implemented in `VideoImporterImportRobolectricTest`. Key patterns:
+
+Plain JUnit cannot construct a working `content://` `Uri` or `ContentResolver`. Robolectric's
+`ShadowContentResolver` lets you register fake stream bytes for a URI and drive the real
+`VideoImporterImpl.importToFile` copy logic on the JVM.
+
+```kotlin
+package io.github.stozo04.openloop.data
+
+import android.content.Context
+import android.net.Uri
+import androidx.test.core.app.ApplicationProvider
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.InputStream
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
+import org.robolectric.shadows.ShadowContentResolver
+
+@RunWith(RobolectricTestRunner::class)
+class VideoImporterImportRobolectricTest {
+
+    private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    @Test
+    fun importToFile_copiesRegisteredContentUri() = runTest {
+        val uri = Uri.parse("content://test/import.mp4")
+        val payload = "fake-mp4-bytes".toByteArray()
+        shadowContentResolver().registerInputStreamSupplier(uri) {
+            ByteArrayInputStream(payload)
+        }
+
+        val dest = File(context.cacheDir, "imported.mp4")
+        val importer = VideoImporterImpl(context)
+
+        assertTrue(importer.importToFile(uri, dest))
+        assertArrayEquals(payload, dest.readBytes())
+    }
+
+    @Test
+    fun importToFile_returnsFalseWhenUriHasNoRegisteredStream() = runTest {
+        val uri = Uri.parse("content://test/revoked.mp4")
+        // No registration → openInputStream fails during copy → importToFile returns false (never throws)
+        val dest = File(context.cacheDir, "imported.mp4")
+        val importer = VideoImporterImpl(context)
+
+        assertFalse(importer.importToFile(uri, dest))
+    }
+
+    @Test
+    fun importToFile_returnsFalseWhenStreamThrowsOnRead() = runTest {
+        val uri = Uri.parse("content://test/corrupt.mp4")
+        shadowContentResolver().registerInputStream(uri, object : InputStream() {
+            override fun read(): Int = throw java.io.IOException("simulated revoked URI")
+        })
+
+        val dest = File(context.cacheDir, "imported.mp4")
+        val importer = VideoImporterImpl(context)
+
+        assertFalse(importer.importToFile(uri, dest))
+    }
+
+    private fun shadowContentResolver(): ShadowContentResolver =
+        Shadows.shadowOf(context.contentResolver)
+}
+```
+
+> Use `registerInputStreamSupplier` (not `registerInputStream`) when a test opens the same URI more
+> than once — Robolectric closes a registered stream after the first read. Unregistered `content://`
+> URIs return Robolectric's `UnregisteredInputStream` (not real device behavior) — register explicit
+> streams for failure cases instead.
+
+### Reference: `UserPreferencesRepositoryImpl` (DataStore round-trip)
+
+Implemented in `UserPreferencesRepositoryImplRobolectricTest`. Key patterns:
+
+Robolectric supplies the real `Context` the top-level `preferencesDataStore` delegate needs, so
+the production `UserPreferencesRepositoryImpl` can run against a temp file on the JVM — turning the
+"needs instrumented test with real DataStore" gap in `TEST_COVERAGE.md` into a fast unit test.
+
+```kotlin
+package io.github.stozo04.openloop.data
+
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import java.io.File
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+@RunWith(RobolectricTestRunner::class)
+class UserPreferencesRepositoryImplRobolectricTest {
+
+    private val context: Context get() = ApplicationProvider.getApplicationContext()
+
+    @Before
+    fun clearDataStoreFile() {
+        // preferencesDataStore(name = "openloop_preferences") → this path under filesDir/datastore/
+        File(context.filesDir, "datastore/openloop_preferences.preferences_pb").delete()
+    }
+
+    @Test
+    fun freshStore_defaultsOnboardingIncomplete() = runTest {
+        val repo = UserPreferencesRepositoryImpl(context.dataStore)
+
+        assertFalse(repo.hasCompletedOnboarding.first())
+    }
+
+    @Test
+    fun setOnboardingCompleted_persistsAndReadsBack() = runTest {
+        val repo = UserPreferencesRepositoryImpl(context.dataStore)
+
+        repo.setOnboardingCompleted(true)
+
+        assertTrue(repo.hasCompletedOnboarding.first())
+    }
+}
+```
+
+> The `@Before` delete matters: DataStore is a process-wide singleton keyed by file name. Without
+> clearing it, test order can leak state between methods.
 
 ---
 
@@ -324,6 +500,9 @@ code). From the repo root:
 
 # Run every unit test (plain + Robolectric) in the debug variant
 ./gradlew :app:testDebugUnitTest
+
+# Run every *Robolectric-named* test class only
+./gradlew :app:testDebugUnitTest --tests "*RobolectricTest"
 ```
 
 On Windows use `gradlew.bat` instead of `./gradlew`. In Android Studio you can also click the green
@@ -355,9 +534,17 @@ gutter arrow next to the test — just confirm the Gradle JDK is 21+ first (see 
 
 ## Want the deeper version?
 
-- The first real Robolectric test in this repo:
-  `app/src/test/java/io/github/stozo04/openloop/work/BoomerangRenderForegroundInfoRobolectricTest.kt`.
-- The class it tests: `app/src/main/java/io/github/stozo04/openloop/work/BoomerangRenderNotifications.kt`.
+- Robolectric tests in this repo:
+  - `app/src/test/java/io/github/stozo04/openloop/work/BoomerangRenderForegroundInfoRobolectricTest.kt`
+  - `app/src/test/java/io/github/stozo04/openloop/work/BoomerangRenderNotificationsRobolectricTest.kt`
+  - `app/src/test/java/io/github/stozo04/openloop/data/VideoImporterImportRobolectricTest.kt`
+  - `app/src/test/java/io/github/stozo04/openloop/data/UserPreferencesRepositoryImplRobolectricTest.kt`
+  - `app/src/test/java/io/github/stozo04/openloop/media/DeviceMediaHintsOemRobolectricTest.kt`
+  - `app/src/test/java/io/github/stozo04/openloop/work/BoomerangRenderWorkerRobolectricTest.kt`
+  - `app/src/test/java/io/github/stozo04/openloop/PostNotificationsGateRobolectricTest.kt`
+- Plain-JVM companion (same FGS contract, no framework objects):
+  `app/src/test/java/io/github/stozo04/openloop/work/BoomerangRenderNotificationsTest.kt`
+- The class under test for notifications: `app/src/main/java/io/github/stozo04/openloop/work/BoomerangRenderNotifications.kt`.
 - The testing strategy and pyramid: `docs/TEST_COVERAGE.md`.
 - Why JVM File tests use a real temp dir and one dispatcher: `docs/lessons_learned/008-jvm-test-file-and-dispatcher-pitfalls.md`.
 - Why `mockk` and JVM fakes can't be used in `androidTest`: `docs/lessons_learned/017-androidtest-no-mockk-and-sweep-meaningful-mock-returns.md`.

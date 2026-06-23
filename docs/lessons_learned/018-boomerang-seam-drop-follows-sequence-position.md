@@ -66,6 +66,6 @@ when `dropLeadingFrame` is true. The preview applies the same rule.
 
 ## Reference
 
-- Parent design `docs/active/boomerang-editor/IMPLEMENTATION.md` §6.4 (seam handling).
+- Parent design [`docs/PRD-mission-control.md`](../PRD-mission-control.md) §6.4 (seam handling).
 - `app/src/main/java/com/OpenLoop/app/media/BoomerangSequence.kt` + `BoomerangSequenceTest.kt`.
 - Related: [[008-jvm-test-file-and-dispatcher-pitfalls]] / [[017-androidtest-no-mockk-and-sweep-meaningful-mock-returns]] (why the seam math is pure-JVM but the encoded is instrumented).

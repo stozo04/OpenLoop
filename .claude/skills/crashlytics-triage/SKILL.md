@@ -26,9 +26,8 @@ Official workflow: [Crashlytics AI assistance MCP](https://firebase.google.com/d
 | Android **appId** (required on every MCP call) | `1:95815153197:android:c30254bb713d1e6ae96aa4` |
 | Package / applicationId | `io.github.stozo04.openloop` |
 | `google-services.json` | `app/google-services.json` (gitignored; plugins apply only when present) |
-| Non-fatal reverse failures | `ReverseCrashlytics` — keys like `reverse_outcome`, `video_mime` |
-| Product doc | `docs/diagnostics/firebase-crashlytics-trimming.md` |
-| Issue `3a506c4e` verification | `docs/diagnostics/crashlytics-issue-3a506c4e-verification.md` |
+| Non-fatal reverse failures | `ReverseCrashlytics.kt` — keys like `reverse_outcome`, `video_mime` |
+| Codec churn / issue `3a506c4e` | [`docs/lessons_learned/020-*.md`](../../../docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md), [`023-*.md`](../../../docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md), [`reverse-video-research.md`](../../../docs/guides/reverse-video-research.md) |
 
 Non-fatals upload on **next app launch**, not instantly.
 
@@ -99,7 +98,7 @@ When the user gives an issue id, console URL, or picks one from Mode A:
 3. `crashlytics_batch_get_events` using `sampleEvent` from the issue response; more samples via `crashlytics_list_events` with the same filters (`issueId`, versions, error types).
 4. `crashlytics_list_notes` — resume prior on-call context.
 5. Read stack frames in the repo (`VideoReverser`, `OpenLoopViewModel`, `ReverseCrashlytics`, etc.).
-6. Cross-check `docs/active/` and `docs/diagnostics/` for known incidents (e.g. editor OOM `ef2823cf…`, trimming doc).
+6. Cross-check [`docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md`](../../../docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md), [`023-media-pipeline-stages-must-count-output-samples.md`](../../../docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md), and [`docs/guides/reverse-video-research.md`](../../../docs/guides/reverse-video-research.md) for known reverse/codec incidents.
 7. Produce the investigation plan (do not implement until user confirms):
 
 ```markdown

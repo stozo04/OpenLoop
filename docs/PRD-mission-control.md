@@ -147,7 +147,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Purpose:** 3-page horizontal carousel introducing the app.
 
 **Architecture:**
-- Page data modeled as `OnboardingPage(title, drawableRes, glowColor, videoRawRes?)` data class with a list of 3 instances. `videoRawRes` is optional: when set, the card autoplays a muted, looping `res/raw` clip via an ExoPlayer-in-`AndroidView` (`OnboardingVideoCard`) instead of the static `drawableRes`; `drawableRes` remains the inspection-mode (`@Preview`) fallback. See `docs/active/onboarding-video/IMPLEMENTATION.md`.
+- Page data modeled as `OnboardingPage(title, drawableRes, glowColor, videoRawRes?)` data class with a list of 3 instances. `videoRawRes` is optional: when set, the card autoplays a muted, looping `res/raw` clip via an ExoPlayer-in-`AndroidView` (`OnboardingVideoCard`) instead of the static `drawableRes`; `drawableRes` remains the inspection-mode (`@Preview`) fallback. See `OnboardingVideoCard` in `OnboardingScreen.kt`.
 - Navigation extracted into `OnboardingNavigation` (internal composable) — **MUST remain extracted to avoid ColumnScope.AnimatedVisibility bug** (see decision log)
 - Dot indicators use `animateFloatAsState` for smooth size transitions
 - Navigation buttons use `AnimatedVisibility` with `fadeIn + scaleIn` / `fadeOut + scaleOut`

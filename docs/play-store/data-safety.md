@@ -63,7 +63,7 @@ it's collected = No / required** (there is no in-app opt-out toggle yet — see 
 
 | Category | Data type | Purpose(s) | Source of the data |
 |---|---|---|---|
-| **App activity** | **App interactions** | Analytics | Automatic events (`first_open`, `session_start`, `screen_view`) + the app's custom events (export success/failure, editor direction/speed/filter changes, gallery/import events) per `docs/active/firebase-analytics/IMPLEMENTATION.md` §4. |
+| **App activity** | **App interactions** | Analytics | Automatic SDK events (`first_open`, `session_start`, …) plus planned custom events (export, editor tabs, gallery) — see `AnalyticsReporter.kt`. Option 1 (abstraction) shipped; full instrumentation not wired yet. |
 | **Location** | **Approximate location** | Analytics | Coarse location Google Analytics derives from the (masked) IP address. Not GPS; the app holds no location permission. |
 | **Device or other IDs** | **Device or other IDs** | Analytics | Firebase **App Instance ID** (pseudonymous). |
 
@@ -102,8 +102,7 @@ that maps a request to a person, there is no way to find and delete "this user's
 per-user deletion would be a promise that can't be kept. "No" is permitted by Play and is the
 truthful answer for pseudonymous-only telemetry.
 
-If you later want to offer real user control, the parked in-app opt-out toggle
-(`docs/active/firebase-analytics/IMPLEMENTATION.md` §7) — a Settings switch calling
+If you later want to offer real user control, add an in-app opt-out toggle — a Settings switch calling
 `FirebaseAnalytics.setAnalyticsCollectionEnabled(false)` +
 `FirebaseCrashlytics.setCrashlyticsCollectionEnabled(false)` — would let you flip "users can choose
 whether this data is collected" to **Yes** for every type above. That is an opt-out of *collection*,

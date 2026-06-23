@@ -24,8 +24,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 25
-        versionName = "1.0.25"
+        versionCode = 26
+        versionName = "1.0.26"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -201,6 +201,8 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)
+    // WorkManager test harness (TestListenableWorkerBuilder) for Robolectric worker guard tests
+    testImplementation(libs.androidx.work.testing)
 
     // Compose UI Testing (instrumented)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -219,7 +221,7 @@ dependencies {
 }
 
 // Crashlytics mapping upload + Firebase config only when the console JSON is present locally.
-// See docs/diagnostics/firebase-crashlytics-trimming.md and app/google-services.json.README.
+// See ReverseCrashlytics.kt and app/google-services.json.README.
 if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
     apply(plugin = "com.google.firebase.crashlytics")

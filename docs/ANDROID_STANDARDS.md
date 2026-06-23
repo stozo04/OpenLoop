@@ -193,7 +193,7 @@ Platform Layer    →  CameraX, Media3, system APIs
 
 **Target API level.** New apps and app updates submitted to Google Play must currently target at least **API 35 (Android 15)** — in force since **August 31, 2025** (the extension window closed November 1, 2025). The floor is expected to rise to **API 36 (Android 16)** around **August 2026** on Google's annual cadence, but as of this review the [requirements page](https://developer.android.com/google/play/requirements/target-sdk) had **not** published an exact date for the API 36 requirement — re-verify before release rather than trusting this line. (Wear OS, Android Automotive, and Android TV trail by one level — not relevant to OpenLoop.)
 
-> **OpenLoop status — satisfied ([Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36** (`app/build.gradle.kts`: `compileSdk`/`targetSdk` 36, `minSdk` 26), clearing the current Play floor of API 35 — going straight to 36 to avoid a second bump when the floor rises. Native libraries are 16 KB page-aligned (CameraX/Media3 upgraded, uncompressed packaging). See the [Android 16 hub](android-16/README.md) for the behavior-change detail behind the upgrade.
+> **OpenLoop status — satisfied ([Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36** (`app/build.gradle.kts`: `compileSdk`/`targetSdk` 36, `minSdk` 26), clearing the current Play floor of API 35 — going straight to 36 to avoid a second bump when the floor rises. Native libraries are 16 KB page-aligned (CameraX/Media3 upgraded, uncompressed packaging). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and §11 below.
 
 **64-bit support.** All apps must include 64-bit native libraries if they include any native code.
 
@@ -243,9 +243,9 @@ These conventions apply specifically to OpenLoop and are consistent with the Goo
 
 ## 11. Android Version Targeting (API 36 / Android 16)
 
-**Google Guide:** [Behavior changes — targeting Android 16](https://developer.android.com/about/versions/16/behavior-changes-16) · **OpenLoop detail:** [`docs/android-16/`](android-16/README.md)
+**Google Guide:** [Behavior changes — targeting Android 16](https://developer.android.com/about/versions/16/behavior-changes-16)
 
-These rules are **in force** — OpenLoop targets **API 36** (see §8). Each was carried as `Status: pending — Issue #7` during the docs-prep phase and flipped to satisfied when the [007 upgrade](completed/007-target-sdk-upgrade/IMPLEMENTATION.md) landed, keeping this doc honest rather than aspirational ([Lesson 007](lessons_learned/007-standards-doc-must-match-code.md)).
+These rules are **in force** — OpenLoop targets **API 36** (see §8). Each was carried as `Status: pending — Issue #7` during the docs-prep phase and flipped to satisfied when the [Issue #7 upgrade](https://github.com/stozo04/OpenLoop/issues/7) landed, keeping this doc honest rather than aspirational ([Lesson 007](lessons_learned/007-standards-doc-must-match-code.md)).
 
 **Target the current Play floor.** `compileSdk` and `targetSdk` track Google Play's required level (see §8). Bump in a dedicated upgrade, never bundled with feature work ([Lesson 005](lessons_learned/005-play-store-target-api-level.md)).
 `Status: satisfied (Issue #7)` — `compileSdk`/`targetSdk` = 36 in `app/build.gradle.kts`.

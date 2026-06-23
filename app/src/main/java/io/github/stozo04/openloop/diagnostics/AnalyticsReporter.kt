@@ -6,8 +6,8 @@ package io.github.stozo04.openloop.diagnostics
  * interface — never on the [com.google.firebase.analytics.FirebaseAnalytics] SDK directly — so unit
  * tests can swap in a fake without touching Firebase.
  *
- * See [docs/active/firebase-analytics/IMPLEMENTATION.md] for the staged rollout (option 1 — abstraction
- * only; option 2 — screen tracking; option 3 — full PRD instrumentation) and the event schema.
+ * See [docs/play-store/data-safety.md] for the analytics disclosure schema. Staged rollout: option 1
+ * (abstraction only) is shipped; screen tracking and custom events are not wired yet.
  *
  * Firebase Analytics has hard constraints on names and params:
  *  - Event/property names: ≤40 chars, alphanumeric + underscore, must start with a letter.
@@ -45,8 +45,7 @@ interface AnalyticsReporter {
  * No-op fallback used in three places:
  *  - Unit tests that don't care about analytics calls.
  *  - CI / fresh-clone builds where `app/google-services.json` is absent — see
- *    [docs/diagnostics/firebase-crashlytics-trimming.md] for the parallel Crashlytics no-op pattern
- *    in `ReverseCrashlytics.crashlyticsOrNull()`.
+ *    `ReverseCrashlytics.crashlyticsOrNull()` for the parallel Crashlytics no-op pattern.
  *  - As the constructor fallback inside [FirebaseAnalyticsReporterImpl] if `FirebaseApp` failed to
  *    initialize (no `google-services.json` present at runtime).
  *

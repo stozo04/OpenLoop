@@ -115,9 +115,7 @@ locally before opening/merging a PR, and the merge policy requires it to be clea
 
 - **Slow** — minutes, because it boots a headless Studio. It's a pre-merge step, not a fast loop.
 - **Gradle/IDE lock** — do **not** run while Android Studio has this project open, or while a
-  `gradlew` task is running. Same build-lock deadlock documented in Lesson 012's hand-off notes
-  (`docs/lessons_learned/012-camera-bound-screen-single-call-site.md`, lands on `main` with the
-  slice-01 PR — referenced as a path, not a link, so this doc stays valid before that merges).
+  `gradlew` task is running. Same build-lock deadlock documented in [Lesson 012](lessons_learned/012-camera-bound-screen-single-call-site.md).
 - **Environment-gated** — if `inspect.bat` isn't present (a cloud/CI runner without Studio), the
   reviewer must state Engine 2 was **not run** rather than implying a pass. See Tier 3.
 
@@ -179,11 +177,15 @@ locally. Re-evaluate when detekt 2.0 ships stable; tracked in #21.
 Running `markdown-link-check` across the changed docs immediately surfaced genuine **pre-existing
 broken references on `main`** (not introduced by this work):
 
-- `README.md` and `CLAUDE.md` linked to **`docs/android-16/README.md`**, which existed on no
-  branch — the hub had been renamed to `docs/completed/android-16/` against its documented
-  evergreen convention. **Fixed in [#23](https://github.com/stozo04/OpenLoop/pull/23)** (restored to root).
+- `README.md` and `CLAUDE.md` once linked to a missing **`docs/android-16/README.md`** hub (path drift vs git). **Fixed in [#23](https://github.com/stozo04/OpenLoop/pull/23)**; the hub was later removed in the doc-layout cleanup — Android 16 policy now lives in `ANDROID_STANDARDS.md` §11 and Google's behavior-changes page.
 - `README.md` linked to a **`LICENSE`** file that did not exist (the project states Apache 2.0).
   **Fixed in [#23](https://github.com/stozo04/OpenLoop/pull/23)** (added verbatim Apache 2.0 text).
+
+### Doc layout gate — GitHub Actions (hard)
+
+**`.github/workflows/doc-layout.yml`** runs on every pull request. It fails if the PR **adds** any
+`*.md` file outside `docs/` (allowed exceptions: root `README.md`, `CLAUDE.md`). Policy:
+[`docs/README.md`](README.md) § Enforcement.
 
 ### Hosting Tier 3 — GitHub Actions (active)
 

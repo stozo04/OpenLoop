@@ -25,7 +25,7 @@ What `scan-logcat.ps1` greps for, what each means, and how to treat it. Classes:
 ## CHURN — advisory (resource-pressure smell)
 
 These rarely fail a run on their own, but a cluster of them around a reverse that stalled is the
-fingerprint of the editor-codec-churn disease (`docs/active/editor-codec-churn/IMPLEMENTATION.md`).
+fingerprint of the editor-codec-churn disease (see [`docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md`](../../../../docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md)).
 
 | Signature | Meaning |
 |-----------|---------|
@@ -50,6 +50,7 @@ one that stalls to the 120 s timeout — clip length is not the driver, editor c
 
 ## Related repo context
 
-- `docs/active/editor-codec-churn/IMPLEMENTATION.md` — root-cause analysis of the churn/timeout.
-- `docs/diagnostics/crashlytics-issue-3a506c4e-verification.md` — the two Crashlytics issues.
+- [`docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md`](../../../../docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md) — codec churn / output-sample counting
+- [`docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md`](../../../../docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md) — Crashlytics issues `3a506c4e` / `b09e527`
+- `ReverseCrashlytics.kt` — custom keys and non-fatal recording
 - Memory `project-trim-handle-touch-sensitivity-bug` — why the trim handles fight you.

@@ -11,6 +11,6 @@ npx -y firebase-tools@latest apps:sdkconfig ANDROID \
 
 Save stdout (JSON only) as `app/google-services.json`.
 
-Setup and Crashlytics viewing: `docs/diagnostics/firebase-crashlytics-trimming.md`
+Setup and Crashlytics triage: `ReverseCrashlytics.kt` and the `/crashlytics-triage` skill (`.claude/skills/crashlytics-triage/SKILL.md`).
 
 This file is not used by the build; the JSON is gitignored.

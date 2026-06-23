@@ -26,7 +26,7 @@ import kotlin.coroutines.coroutineContext
  * Produces a time-reversed copy of a video's trimmed window using a two-pass MediaCodec pipeline.
  *
  * Media3 1.10.x ships no reverse effect and FFmpegKit is retired, so reversal is done by hand
- * (the verified rationale + algorithm live in `docs/active/boomerang-rollout/RESEARCH-reverse-video.md`,
+ * (the verified rationale + algorithm live in `docs/guides/reverse-video-research.md`,
  * mirroring the MIT-licensed sisik.eu reference at github.com/sixo/reverse-video):
  *
  *  - **Pass 1** transcodes the trim window `[trimStartMs, trimEndMs]` to an intermediate MP4 in which
@@ -280,7 +280,7 @@ class VideoReverser(
             // returned the SAME dims and there was no mismatch; a >1080p import is the first to exercise
             // the downscale). The resolution cap now lives ONLY in the Media3 render (Presentation),
             // which downscales the forward AND reversed clips together via a correct GL pipeline — so the
-            // halves still match. See docs/lessons_learned (reverse-downscale-surface-mismatch).
+            // halves still match. See docs/lessons_learned/021-reverse-downscale-surface-mismatch.md.
             val width = evenDown(srcWidth)
             val height = evenDown(srcHeight)
             val frameRate = inputFormat.frameRateOrDefault().coerceAtMost(MAX_PASS1_ENCODE_FPS)
@@ -292,7 +292,7 @@ class VideoReverser(
             // muxer below, so an auto-rotating decoder would DOUBLE-rotate the reversed half. Clearing
             // it forces coded-orientation pixels + a metadata-only hint — structurally identical to
             // the source — so Media3 rotates the forward and reversed halves symmetrically. Verify on
-            // a real portrait recording (see docs/lessons_learned/HANDOFF + SECOND-REVIEW notes).
+            // a real portrait recording (see docs/lessons_learned/019-reverse-rotation-strip-decoder-restamp-muxer.md).
             val rotationDegrees = inputFormat.rotationDegreesOrZero()
             inputFormat.setInteger(MediaFormat.KEY_ROTATION, 0)
             inputFormat.requestSdrToneMapping() // HDR/10-bit source → SDR for the 8-bit AVC encoder

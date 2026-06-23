@@ -39,7 +39,7 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 | **Testing**     | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
 | **Performance** | Baseline Profiles                 | Pre-compiles "hot" code paths to eliminate Compose jank and speed up startup       |
 
-**SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 36` · `targetSdk 36` — upgraded to **API 36 (Android 16)** for Google Play readiness (`minSdk` stays 26), tracked in [Issue #7](https://github.com/stozo04/OpenLoop/issues/7), with the full behavior-change breakdown in [`docs/android-16/`](docs/android-16/README.md). Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
+**SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 36` · `targetSdk 36` — upgraded to **API 36 (Android 16)** for Google Play readiness, tracked in [Issue #7](https://github.com/stozo04/OpenLoop/issues/7). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) §11. Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
 ### State Machine
 
@@ -206,6 +206,8 @@ Plain-English, beginner-friendly walkthroughs live in [`docs/guides/`](docs/guid
 
 - [**Jetpack DataStore — Explained Like You're Five**](docs/guides/jetpack-datastore-explained.md) — what the app's little "memory" is, where it lives on the phone, three ways to peek inside it, and how to reset onboarding for testing.
 
+Full documentation layout (where every `.md` and image belongs): [`docs/README.md`](docs/README.md).
+
 ## Brand Assets
 
 The visual identity in one place — colors, the on-device launcher icon, and the assets Google Play hosts on the store listing.
@@ -224,7 +226,7 @@ For the full Play Store submission pack (copy, data safety, content rating, sign
 
 ## Development Standards
 
-This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. We treat these as non-negotiable — if Google recommends it, we follow it. For Android 16 / `targetSdk 36`-specific guidance behind the in-progress upgrade, see the [`docs/android-16/`](docs/android-16/README.md) knowledge hub.
+This project follows Google's official Android development guidance. See [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) for the full standards reference with links to Google's specs. For Android 16 / `targetSdk 36`, see §11 and [Google's behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16).
 
 ### PR Merge Policy
 
@@ -256,11 +258,7 @@ Android Studio's *Analyze → Inspect Code* produces, run headlessly. There are 
 
 ### Fixing Review Feedback
 
-When a PR gets review feedback, open a new Cowork session with the OpenLoop folder mounted and say:
-
-> Start addressing PR feedback following `docs/prompts/PR-FEEDBACK-RESOLUTION.md` — here is the PR: https://github.com/stozo04/OpenLoop/pull/XX
-
-Replace `XX` with your PR number. The agent will read the review comments, web-search Google's latest standards to verify each finding, fix the code, push, post a response comment explaining what was fixed and why, then run a fresh review to confirm zero FAILs.
+When a PR gets review feedback, open a new session with the OpenLoop folder mounted and ask the agent to address each review comment: verify findings against Google's latest docs, fix the code, push, post a response comment explaining what was fixed and why, then run a fresh standards review to confirm zero FAILs. Point it at the PR URL (e.g. `https://github.com/stozo04/OpenLoop/pull/XX`).
 
 ## Build Status
 
