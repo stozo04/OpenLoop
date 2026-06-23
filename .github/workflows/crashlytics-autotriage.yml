@@ -52,21 +52,24 @@ jobs:
       # Application Default Credentials.
       #
       # Phase 0 (simple): a service-account key JSON stored as the secret GCP_SA_KEY.
-      # More secure later: swap credentials_json for keyless Workload Identity Federation:
-      #   with:
-      #     workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-      #     service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      # More secure later: swap credentials_json for keyless Workload Identity Federation.
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # Install the Firebase CLI up front so the MCP server (npx firebase-tools mcp)
-      # starts instantly. Otherwise it cold-downloads the whole package at MCP-startup
-      # time and exceeds the SDK's connection window — the server then "fails to connect"
-      # and the crashlytics_* tools never load.
+      # Install the Firebase CLI up front so the MCP server doesn't cold-download at startup.
       - name: Pre-install Firebase CLI
         run: npm install -g firebase-tools@latest
+
+      # The Claude CLI's MCP startup timeout defaults to 30s, which the firebase-tools MCP
+      # server exceeds while booting + authenticating to Google. Raise it (and the per-tool
+      # timeout for slow Crashlytics API calls). MCP_TIMEOUT propagation via GITHUB_ENV is
+      # fixed upstream: anthropics/claude-code-action#1152.
+      - name: Raise MCP startup / tool timeouts
+        run: |
+          echo "MCP_TIMEOUT=120000" >> "$GITHUB_ENV"
+          echo "MCP_TOOL_TIMEOUT=120000" >> "$GITHUB_ENV"
 
       - name: Triage the crash with Claude
         uses: anthropics/claude-code-action@v1
