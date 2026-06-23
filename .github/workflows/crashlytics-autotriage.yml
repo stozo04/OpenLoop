@@ -75,9 +75,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Temporary: surfaces the MCP server startup logs so we can diagnose connection
-          # issues. Remove once the Firebase MCP server connects reliably.
-          show_full_output: "true"
           prompt: |
             You are triaging an automated Crashlytics crash report filed as GitHub issue
             #${{ github.event.issue.number || github.event.inputs.issue_number }} in stozo04/OpenLoop.
@@ -107,5 +104,5 @@ jobs:
           claude_args: |
             --mcp-config .github/firebase-mcp.json
             --allowedTools "mcp__firebase__crashlytics_get_issue,mcp__firebase__crashlytics_list_events,mcp__firebase__crashlytics_batch_get_events,mcp__firebase__crashlytics_get_report,mcp__firebase__crashlytics_list_notes,Bash,Read,Edit,Write,Glob,Grep"
-            --max-turns 25
+            --max-turns 40
             --model claude-sonnet-4-6
