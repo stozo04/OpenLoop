@@ -48,3 +48,7 @@ functions/firebase-debug.log
 openloop-google-service-account-key-DO-NOT-COMMIT.json
 *service-account*.json
 *-DO-NOT-COMMIT.*
+
+# Firebase Functions local secrets (for emulator / functions:shell) — NEVER commit
+*.secret.local
+functions/.secret.local
