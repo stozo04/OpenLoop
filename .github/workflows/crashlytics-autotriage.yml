@@ -1,0 +1,97 @@
+name: Crashlytics auto-triage
+
+# ============================================================================
+# DRAFT — NOT YET ENABLED. Pending owner sign-off of docs/PRD-crashlytics-autotriage.md.
+# Do not enable until the secrets / service account in the PRD exist.
+#
+# Trigger: a Crashlytics-sourced GitHub issue (created by the Cloud Function in functions/)
+# carrying the `crashlytics-auto` label is opened. Claude reads the crash via the Firebase
+# MCP server, posts a root-cause comment, and — when confident — opens a DRAFT PR with a
+# first-pass fix. Nothing is ever auto-merged. See the PRD for the full design.
+# ============================================================================
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to triage manually (Phase 0 testing)"
+        required: true
+
+permissions:
+  contents: write        # create branch + commit a candidate fix
+  pull-requests: write   # open the draft PR
+  issues: write          # comment / label the issue
+  id-token: write        # service-account / WIF auth to Google Cloud
+
+concurrency:
+  group: crashlytics-triage-${{ github.event.issue.number || github.event.inputs.issue_number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    # Only run for Crashlytics-sourced issues (label gate) or an explicit manual dispatch,
+    # so human-filed issues never spend tokens.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.action == 'opened' &&
+        contains(join(github.event.issue.labels.*.name, ','), 'crashlytics-auto')) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'crashlytics-auto')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}   # for the `gh` CLI used by Claude
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Lets the Firebase MCP server read Crashlytics. google-github-actions/auth
+      # exports GOOGLE_APPLICATION_CREDENTIALS, which firebase-tools picks up as
+      # Application Default Credentials.
+      #
+      # Phase 0 (simple): a service-account key JSON stored as the secret GCP_SA_KEY.
+      # More secure later: swap credentials_json for keyless Workload Identity Federation:
+      #   with:
+      #     workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      #     service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Triage the crash with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are triaging an automated Crashlytics crash report filed as GitHub issue
+            #${{ github.event.issue.number || github.event.inputs.issue_number }} in stozo04/OpenLoop.
+
+            Follow this repo's CLAUDE.md and docs/DEFINITION_OF_DONE.md.
+
+            Steps:
+            1. Read the issue: `gh issue view ${{ github.event.issue.number || github.event.inputs.issue_number }}`.
+               Extract the `Crashlytics-Issue-ID:` value from the body.
+            2. Use the Firebase MCP Crashlytics tools (crashlytics_get_issue, crashlytics_list_events,
+               crashlytics_batch_get_events) to fetch the stacktrace and a few sample events for that
+               issue ID. If an MCP call fails (the tools are Experimental), proceed with whatever
+               metadata is in the issue body and say so.
+            3. Read the relevant source and docs/lessons_learned/ (several past lessons are
+               Crashlytics-sourced) to locate the likely cause.
+            4. ALWAYS post a root-cause comment on the issue with: the failing stack frame, the most
+               likely cause, and the file(s) involved. Use `gh issue comment`.
+            5. Decision:
+               - HIGH confidence (you can point to a specific cause in the code): create a branch
+                 `feature/crashlytics-<shortId>`, make the MINIMAL fix, push, and open a **DRAFT** PR
+                 with `gh pr create --draft`. The PR body must say "Fixes #<issue>", list which
+                 DEFINITION_OF_DONE steps were NOT run on CI (release build, emulator run + screenshot,
+                 instrumented tests), and include the manual QA checklist. NEVER mark it ready; NEVER merge.
+               - LOW confidence (OEM-specific, OOM, third-party SDK, or unclear): do NOT write code.
+                 Add the `needs-human` label (`gh issue edit ... --add-label needs-human`) and explain why.
+            6. Be honest about uncertainty. A wrong patch that looks authoritative is worse than none.
+          claude_args: |
+            --mcp-config .github/firebase-mcp.json
+            --allowedTools "mcp__firebase__crashlytics_get_issue,mcp__firebase__crashlytics_list_events,mcp__firebase__crashlytics_batch_get_events,mcp__firebase__crashlytics_get_report,mcp__firebase__crashlytics_list_notes,Bash,Read,Edit,Write,Glob,Grep"
+            --max-turns 25
+            --model claude-sonnet-4-6
