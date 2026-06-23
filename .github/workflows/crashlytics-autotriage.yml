@@ -1,18 +1,21 @@
 name: Crashlytics auto-triage
 
 # ============================================================================
-# DRAFT — NOT YET ENABLED. Pending owner sign-off of docs/PRD-crashlytics-autotriage.md.
-# Do not enable until the secrets / service account in the PRD exist.
+# ENABLED — Phase 0 (triage + draft PR). See docs/PRD-crashlytics-autotriage.md and
+# docs/FIREBASE.md for the full design and runbook.
 #
-# Trigger: a Crashlytics-sourced GitHub issue (created by the Cloud Function in functions/)
-# carrying the `crashlytics-auto` label is opened. Claude reads the crash via the Firebase
-# MCP server, posts a root-cause comment, and — when confident — opens a DRAFT PR with a
-# first-pass fix. Nothing is ever auto-merged. See the PRD for the full design.
+# Trigger: when an issue is LABELED `crashlytics-auto`. The Cloud Function applies that
+# label when it files a crash; a human can also add it to an existing issue. Claude reads
+# the crash via the Firebase MCP server, posts a root-cause comment, and — when confident —
+# opens a DRAFT PR with a first-pass fix. Nothing is ever auto-merged.
+#
+# We trigger ONLY on `labeled` (not `opened`) so an issue created-with-label fires exactly
+# one triage run instead of two (which would double the Claude API spend per crash).
 # ============================================================================
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -31,12 +34,10 @@ concurrency:
 
 jobs:
   triage:
-    # Only run for Crashlytics-sourced issues (label gate) or an explicit manual dispatch,
-    # so human-filed issues never spend tokens.
+    # Only run when the `crashlytics-auto` label is applied, or on an explicit manual dispatch,
+    # so other labels and human-filed issues never spend tokens.
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.action == 'opened' &&
-        contains(join(github.event.issue.labels.*.name, ','), 'crashlytics-auto')) ||
       (github.event.action == 'labeled' && github.event.label.name == 'crashlytics-auto')
     runs-on: ubuntu-latest
     env:
