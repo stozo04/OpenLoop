@@ -43,3 +43,8 @@ functions/node_modules/
 .firebase/
 firebase-debug.log
 functions/firebase-debug.log
+
+# Google service-account key (private credential) — NEVER commit
+openloop-google-service-account-key-DO-NOT-COMMIT.json
+*service-account*.json
+*-DO-NOT-COMMIT.*
