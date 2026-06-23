@@ -64,10 +64,61 @@ The `GITHUB_TOKEN` secret the Cloud Function uses to file GitHub issues is a **f
 firebase functions:list                                   # is the function deployed?
 firebase deploy --only functions:crashlytics-autotriage   # (re)deploy
 firebase functions:secrets:set GITHUB_TOKEN               # set/rotate the token (paste at hidden prompt)
-firebase functions:secrets:access GITHUB_TOKEN            # confirm a value exists (does not print it)
+firebase functions:secrets:access GITHUB_TOKEN            # reveal the stored value (handy for .secret.local)
 ```
 
 To read function logs (e.g. to see a `401` from an expired token): Firebase Console → Functions → `crashlyticsToGithub` → Logs, or Google Cloud Console → Logging.
+
+## Testing locally — fake a crash end-to-end (`functions:shell`)
+
+You can exercise the whole chain (function → GitHub issue → workflow → Claude) without waiting
+for a real crash, using the Firebase **functions shell**. It runs the real function code locally
+but **really** calls GitHub, so it creates a real issue that really triggers the workflow.
+
+**One-time setup**
+
+1. The shell needs `firebase-admin` installed:
+
+   ```
+   cd functions
+   npm install --save firebase-admin
+   ```
+
+2. Create `functions/.secret.local` (gitignored — never commit) holding the token the function
+   uses, so `GITHUB_TOKEN.value()` resolves locally:
+
+   ```
+   GITHUB_TOKEN=<your fine-grained PAT>
+   ```
+
+   Retrieve the value if you don't have it saved: `firebase functions:secrets:access GITHUB_TOKEN`
+
+**Fire a fake crash**
+
+```
+cd functions
+firebase functions:shell
+```
+
+At the `firebase >` prompt, invoke the function. The object you pass becomes the event's `data`,
+so the issue must sit at `payload.issue` — **no outer `data:` wrapper** — and use **plain ASCII**:
+
+```js
+crashlyticsToGithub({payload:{issue:{id:'<crashlytics-issue-id>',title:'Fake crash - e2e test',subtitle:'NullPointerException',appVersion:'1.2.3'}}})
+```
+
+Expected log line: `Created GitHub issue #NN for Crashlytics <id>`. Type `.exit` to leave the shell.
+
+**Gotchas (learned the hard way)**
+
+- **Payload shape:** pass `{payload:{issue:{...}}}`. Wrapping it as `{data:{payload:...}}` makes the
+  id read as `unknown` (the shell already nests your argument under `event.data`).
+- **Plain ASCII only:** an em-dash (`—`) in a value throws `SyntaxError ... in JSON`. Use `-`.
+- **`firebase-admin` required:** the emulator refuses to load functions without it.
+- **ADC warning is expected:** the shell uses your local Application Default Credentials and hits
+  **production** GitHub — fine for testing, but it creates real issues. Close the test issues after.
+- **Dedupe 422:** currently logs `Dedupe search failed (422); proceeding to create.` — non-fatal
+  (the issue still gets created) but duplicate-suppression isn't working via this path yet; revisit.
 
 ## Troubleshooting — in priority order
 
