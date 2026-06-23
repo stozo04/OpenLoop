@@ -71,6 +71,21 @@ jobs:
           echo "MCP_TIMEOUT=120000" >> "$GITHUB_ENV"
           echo "MCP_TOOL_TIMEOUT=120000" >> "$GITHUB_ENV"
 
+      # Sanity-check: firebase mcp rejects unknown flags (e.g. --project) and exits immediately,
+      # leaving Claude with mcp_servers[].status == "pending" and no Crashlytics tools.
+      - name: Verify Firebase MCP server starts
+        run: |
+          firebase mcp --dir . --only crashlytics &
+          MCP_PID=$!
+          sleep 5
+          if kill -0 "$MCP_PID" 2>/dev/null; then
+            echo "Firebase MCP server started (PID $MCP_PID)"
+            kill "$MCP_PID"
+          else
+            echo "::error::Firebase MCP server crashed on startup — check .github/firebase-mcp.json args"
+            exit 1
+          fi
+
       - name: Triage the crash with Claude
         uses: anthropics/claude-code-action@v1
         with:

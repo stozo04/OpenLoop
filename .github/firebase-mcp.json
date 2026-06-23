@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "firebase": {
-      "command": "npx",
-      "args": ["-y", "firebase-tools", "mcp", "--dir", ".", "--project", "openloop-8c266", "--only", "crashlytics"]
+      "command": "firebase",
+      "args": ["mcp", "--dir", ".", "--only", "crashlytics"]
     }
   }
 }
