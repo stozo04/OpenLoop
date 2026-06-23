@@ -81,13 +81,17 @@ jobs:
 
             Follow this repo's CLAUDE.md and docs/DEFINITION_OF_DONE.md.
 
+            The Firebase Android app ID is `1:95815153197:android:c30254bb713d1e6ae96aa4`. Pass it
+            directly to the Crashlytics tools; do NOT search the repo for it (google-services.json is
+            gitignored and absent in CI).
+
             Steps:
             1. Read the issue: `gh issue view ${{ github.event.issue.number || github.event.inputs.issue_number }}`.
                Extract the `Crashlytics-Issue-ID:` value from the body.
             2. Use the Firebase MCP Crashlytics tools (crashlytics_get_issue, crashlytics_list_events,
-               crashlytics_batch_get_events) to fetch the stacktrace and a few sample events for that
-               issue ID. If an MCP call fails (the tools are Experimental), proceed with whatever
-               metadata is in the issue body and say so.
+               crashlytics_batch_get_events) with that app ID to fetch the stacktrace and a few sample
+               events for the issue ID. If an MCP call fails (the tools are Experimental), proceed with
+               whatever metadata is in the issue body and say so.
             3. Read the relevant source and docs/lessons_learned/ (several past lessons are
                Crashlytics-sourced) to locate the likely cause.
             4. ALWAYS post a root-cause comment on the issue with: the failing stack frame, the most
