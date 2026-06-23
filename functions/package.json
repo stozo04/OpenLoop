@@ -1,0 +1,12 @@
+{
+  "name": "openloop-crashlytics-autotriage",
+  "description": "DRAFT Cloud Function: new fatal Crashlytics issue -> GitHub issue. See docs/PRD-crashlytics-autotriage.md",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-functions": "^6.0.0"
+  }
+}
