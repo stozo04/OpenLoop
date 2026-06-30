@@ -191,7 +191,7 @@ works and the output plays smoothly.
 
 - **Disk:** the intermediate keyframe-only file is roughly 2–4× the size of
   the source. For a 30 s 1080p source (~80 MB) the intermediate is 160–320 MB.
-  Lives in `cacheDir/scratch/` and is deleted after the reversed output is
+  Lives in `cacheDir/scratch/reversed/` and is deleted after the reversed output is
   produced.
 - **Time:** two-pass means roughly 2× the time of a single transcode. On a
   Pixel 10 Pro Fold class device, expect ~0.5 s per 1 s of source for the
@@ -300,7 +300,7 @@ Cache key: the source file's absolute path + the trim window
 (`<sourcePath>_<trimStart>_<trimEnd>.reversed.mp4`). Trim must be part of the
 key because changing trim changes the reversed content. Live in
 `cacheDir/scratch/reversed/`. Pruned by the same 24 h sweep that handles
-orphan scratch captures (parent doc D-8).
+orphan scratch captures in `filesDir/scratch/` (parent doc D-8).
 
 ### Estimated implementation effort
 

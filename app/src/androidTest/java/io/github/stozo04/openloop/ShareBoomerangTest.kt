@@ -20,7 +20,7 @@ import java.io.File
  *
  * 1. **FileProvider scope** — the provider in AndroidManifest + res/xml/file_paths.xml must expose
  *    `filesDir/videos/`. A persisted clip resolves to a `content://` URI; scratch files under
- *    `cacheDir/scratch/` must NOT (so in-flight captures can never leak through the share sheet).
+ *    `filesDir/scratch/` must NOT (so in-flight captures can never leak through the share sheet).
  * 2. **Share intent shape** — [buildBoomerangShareIntent] must produce an ACTION_SEND `video/mp4`
  *    intent carrying the URI as EXTRA_STREAM, the subject, and the temporary read-grant flag.
  *
@@ -48,8 +48,8 @@ class ShareBoomerangTest {
 
     @Test
     fun fileProvider_rejectsScratchCapture_notInConfiguredPaths() {
-        // In-flight captures live in cacheDir/scratch/ — deliberately NOT listed in file_paths.xml.
-        val scratch = File(context.cacheDir, "scratch").apply { mkdirs() }
+        // In-flight captures live in filesDir/scratch/ — deliberately NOT listed in file_paths.xml.
+        val scratch = File(context.filesDir, "scratch").apply { mkdirs() }
         val scratchFile = File(scratch, "raw_test.mp4").apply { writeBytes(ByteArray(4)) }
         try {
             assertThrows(IllegalArgumentException::class.java) {

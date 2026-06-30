@@ -1,10 +1,14 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.baselineprofile)
+    jacoco
 }
 
 // Release signing is driven by a gitignored keystore.properties at the repo root (never commit
@@ -125,6 +129,46 @@ kotlin {
     }
 }
 
+jacoco {
+    // 0.8.13 supports the Java 21 test runtime used by Robolectric in this project.
+    toolVersion = "0.8.13"
+}
+
+val debugCoverageClassExcludes = listOf(
+    // Android/AGP generated classes.
+    "**/R.class",
+    "**/R$*.class",
+    "**/BuildConfig.*",
+    "**/Manifest*.*",
+    "**/*Test*.*",
+    // Compose compiler and Kotlin synthetic implementation details that do not map cleanly to
+    // source-level business logic coverage.
+    "**/*ComposableSingletons*.*",
+)
+
+fun debugUnitCoverageClassDirectories() =
+    files(
+        layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes"),
+        layout.buildDirectory.dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"),
+    ).asFileTree.matching {
+        exclude(debugCoverageClassExcludes)
+    }
+
+fun debugViewModelCoverageClassDirectories() =
+    debugUnitCoverageClassDirectories().matching {
+        include("**/ui/OpenLoopViewModel*.class")
+        exclude(
+            "**/OpenLoopViewModel\$Companion.class",
+            "**/OpenLoopViewModel\$Factory.class",
+            "**/OpenLoopViewModel\$WhenMappings.class",
+        )
+    }
+
+val debugUnitCoverageSourceDirectories = files(
+    "src/main/java",
+    "src/main/kotlin",
+)
+
 // App code targets/compiles to Java 17 (above), but the JVM that *runs* the unit tests is pinned to
 // JDK 21. Robolectric must run on JDK 21 to load the API-36 android-all jar (Android's SDK 36 jars
 // are compiled with Java 21), and Robolectric defaults to the project's targetSdk (36). Running
@@ -137,6 +181,50 @@ tasks.withType<Test>().configureEach {
             languageVersion.set(JavaLanguageVersion.of(21))
         },
     )
+    extensions.configure(JacocoTaskExtension::class) {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
+tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
+    group = "verification"
+    description = "Runs debug JVM/Robolectric unit tests and generates JaCoCo coverage reports."
+
+    dependsOn("testDebugUnitTest")
+
+    classDirectories.setFrom(debugUnitCoverageClassDirectories())
+    sourceDirectories.setFrom(debugUnitCoverageSourceDirectories)
+    executionData.setFrom(layout.buildDirectory.file("jacoco/testDebugUnitTest.exec"))
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+tasks.register<JacocoCoverageVerification>("jacocoDebugViewModelCoverageVerification") {
+    group = "verification"
+    description = "Fails when debug JVM/Robolectric coverage for the ViewModel state machine drops below 90%."
+
+    dependsOn("jacocoDebugUnitTestReport")
+
+    classDirectories.setFrom(debugViewModelCoverageClassDirectories())
+    sourceDirectories.setFrom(debugUnitCoverageSourceDirectories)
+    executionData.setFrom(layout.buildDirectory.file("jacoco/testDebugUnitTest.exec"))
+
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.90".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn("jacocoDebugViewModelCoverageVerification")
 }
 
 dependencies {

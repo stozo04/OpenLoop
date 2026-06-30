@@ -129,6 +129,9 @@ class FakeVideoStorageRepository : VideoStorageRepository {
     /** Toggles to simulate failure paths. */
     var failPromote: Boolean = false
     var failRegister: Boolean = false
+    var promoteGate: CompletableDeferred<Unit>? = null
+    var promoteCallCount: Int = 0
+        private set
 
     /** Fixed duration [durationOf] reports for any file. */
     var fixedDurationMs: Long = 3_000L
@@ -148,6 +151,8 @@ class FakeVideoStorageRepository : VideoStorageRepository {
     }
 
     override suspend fun promoteScratchToRaw(scratch: ScratchCapture): RecordedVideo? {
+        promoteCallCount++
+        promoteGate?.await()
         if (failPromote) return null
         val id = nextId++
         return RecordedVideo(
@@ -1136,6 +1141,25 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.REVERSE_THEN_FORWARD, viewModel.editorTabState.value.mode)
 
             job.cancel()
+        }
+
+    @Test
+    fun `saveBoomerang ignores duplicate taps while promotion is in flight`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoStorage.promoteGate = CompletableDeferred()
+
+            viewModel.saveBoomerang()
+            viewModel.saveBoomerang()
+
+            assertEquals(1, fakeVideoStorage.promoteCallCount)
+
+            fakeVideoStorage.promoteGate!!.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(1, fakeRenderScheduler.enqueueCount)
         }
 
     // ── Speed tab (slice 04) ──

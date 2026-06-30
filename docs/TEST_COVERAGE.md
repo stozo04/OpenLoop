@@ -106,6 +106,7 @@ media-pipeline or FGS changes.
 | **Fakes** | Hand-written test doubles using real interfaces | `test/` (preferred over mocks for Flow-based interfaces) |
 | **kotlinx-coroutines-test** | `TestDispatcher`, `runTest`, virtual time control | `test/` |
 | **Robolectric 4.16.1** | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (tutorial: [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md) · catalog: [`robolectric-test-catalog.md`](guides/robolectric-test-catalog.md)) |
+| **JaCoCo 0.8.13** | JVM/Robolectric unit-test coverage reports and the ViewModel coverage gate | Gradle tasks: `jacocoDebugUnitTestReport`, `jacocoDebugViewModelCoverageVerification` |
 | **androidx.work.testing** | `TestListenableWorkerBuilder` for worker guard tests without a device | `test/` (+ `androidTest/` for full encode) |
 | **Compose UI Test** | `createComposeRule`, semantic matchers, UI assertions | `androidTest/` |
 | **AndroidJUnit4** | Instrumented test runner | `androidTest/` |
@@ -117,6 +118,32 @@ Google recommends fakes for Flow-based interfaces because they're more readable 
 Use MockK for Android framework classes that can't easily be faked (e.g., `Context`, `Log`, `VideoRecordEvent`).
 
 **Source:** [Testing Fundamentals](https://developer.android.com/training/testing/fundamentals)
+
+---
+
+## Coverage Commands
+
+OpenLoop uses JaCoCo for device-free JVM/Robolectric coverage. The full report task runs
+`testDebugUnitTest` first, then writes:
+
+- HTML: `app/build/reports/jacoco/jacocoDebugUnitTestReport/html/index.html`
+- XML: `app/build/reports/jacoco/jacocoDebugUnitTestReport/jacocoDebugUnitTestReport.xml`
+
+```powershell
+.\gradlew.bat :app:jacocoDebugUnitTestReport
+```
+
+The CI-friendly gate is intentionally scoped to the ViewModel state machine, where the local JVM
+suite is expected to stay above 90%. Whole-app coverage is still reported, but not gated yet because
+large UI/media/hardware paths require instrumented and OEM-device lanes.
+
+```powershell
+.\gradlew.bat :app:jacocoDebugViewModelCoverageVerification
+.\gradlew.bat :app:check
+```
+
+When raising coverage outside the ViewModel layer, add targeted tests first, then expand the
+verification class set in `app/build.gradle.kts`. Do not lower the 90% gate to make CI pass.
 
 ---
 
