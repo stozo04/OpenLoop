@@ -137,6 +137,7 @@ internal object ReverseCrashlytics {
             .putString("mmr_failure_kind", failureKind.take(1024))
         source?.let {
             builder
+                .putBoolean("source_exists", it.exists())
                 .putLong("source_bytes", it.length())
                 .putString("source_name", it.name.take(1024))
         }
@@ -198,6 +199,7 @@ internal object ReverseCrashlytics {
             .putLong("trim_start_ms", trimStartMs)
             .putLong("trim_end_ms", trimEndMs)
             .putLong("trim_window_ms", (trimEndMs - trimStartMs).coerceAtLeast(0L))
+            .putBoolean("source_exists", source.exists())
             .putLong("source_bytes", source.length())
             .putString("source_name", source.name.take(1024))
         if (diagnostics != null) {

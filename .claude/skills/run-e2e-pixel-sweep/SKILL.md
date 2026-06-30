@@ -194,3 +194,7 @@ device-specific Crashlytics issue is fixed from emulator evidence alone).
 14. **Emulator quirks:** all three AVDs report model `sdk_gphone16k_x86_64` (verify identity
     with `adb emu avd name`, not the model prop); adb sometimes holds a stale
     `localhost:NNNNN` transport — always pass `-s $serial`.
+15. **API 34 Photo Picker + Download/:** `sweep-prep` pushes the fixture to `Download/` on
+    every device, and **also** to `DCIM/Camera/` when `ro.build.version.sdk` ≤ 34 — otherwise
+    `Pixel_8_API34` import flakes with an empty picker ("No photos or videos") even though
+    the file is on disk. Not an app bug; drive-flow still taps `"Video taken on"`.

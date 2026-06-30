@@ -57,6 +57,8 @@ class VideoStorageRepositoryImplTest {
 
     private fun videosDir() = File(filesDir, "videos")
     private fun thumbnailsDir() = File(filesDir, "thumbnails")
+    private fun scratchDir() = File(filesDir, "scratch")
+    private fun legacyCacheScratchDir() = File(cacheDir, "scratch")
 
     /** Pre-creates a clip + matching thumbnail so the lazy MediaMetadataRetriever path is skipped. */
     private fun seedClipWithThumbnail(timestamp: Long) {
@@ -82,7 +84,7 @@ class VideoStorageRepositoryImplTest {
         val a = repository.createScratchCapture()
         val b = repository.createScratchCapture()
 
-        assertEquals(File(cacheDir, "scratch").absolutePath, a.file.parentFile?.absolutePath)
+        assertEquals(scratchDir().absolutePath, a.file.parentFile?.absolutePath)
         assertTrue(a.file.name.startsWith("raw_") && a.file.name.endsWith(".mp4"))
         assertFalse(a.file.exists()) // the camera creates it later by recording into it
         assertNotEquals(a.uuid, b.uuid)
@@ -290,8 +292,6 @@ class VideoStorageRepositoryImplTest {
 
     // ── Stale-scratch prune (slice 07 / D-8) ──
 
-    private fun scratchDir() = File(cacheDir, "scratch")
-
     @Test
     fun `pruneStaleScratch deletes old scratch files and keeps recent ones`() = runBlocking {
         val scratch = scratchDir().apply { mkdirs() }
@@ -311,7 +311,7 @@ class VideoStorageRepositoryImplTest {
 
     @Test
     fun `pruneStaleScratch also prunes stale reversed clips but keeps fresh ones and the directory`() = runBlocking {
-        val scratch = scratchDir().apply { mkdirs() }
+        val scratch = legacyCacheScratchDir().apply { mkdirs() }
         // VideoReverser caches reversed clips in scratch/reversed/ (one per trim window, never
         // overwritten — the heaviest orphans), so the prune must reach them too (review W2).
         val reversed = File(scratch, "reversed").apply { mkdirs() }
@@ -327,6 +327,23 @@ class VideoStorageRepositoryImplTest {
         assertFalse("stale reversed clip should be deleted", staleClip.exists())
         assertTrue("fresh reversed clip should survive", freshClip.exists())
         assertTrue("reversed subdirectory itself must survive (only files are pruned)", reversed.exists())
+    }
+
+    @Test
+    fun `pruneStaleScratch also prunes legacy cache scratch captures`() = runBlocking {
+        val scratch = legacyCacheScratchDir().apply { mkdirs() }
+        val old = File(scratch, "raw_old_cache_layout.mp4").apply { writeBytes(ByteArray(4)) }
+        val fresh = File(scratch, "raw_fresh_cache_layout.mp4").apply { writeBytes(ByteArray(4)) }
+
+        val now = System.currentTimeMillis()
+        old.setLastModified(now - 48L * 60 * 60 * 1_000)
+        fresh.setLastModified(now - 1L * 60 * 60 * 1_000)
+
+        val deleted = repository.pruneStaleScratch(24L * 60 * 60 * 1_000)
+
+        assertEquals(1, deleted)
+        assertFalse("stale legacy cache scratch should be deleted", old.exists())
+        assertTrue("fresh legacy cache scratch should survive", fresh.exists())
     }
 
     @Test

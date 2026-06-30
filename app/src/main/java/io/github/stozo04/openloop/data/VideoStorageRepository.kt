@@ -31,7 +31,7 @@ data class RecordedVideo(
 )
 
 /**
- * A per-capture scratch target under `cacheDir/scratch/`, identified by a UUID.
+ * A per-capture scratch target under `filesDir/scratch/`, identified by a UUID.
  *
  * One [ScratchCapture] is minted per shutter press ([VideoStorageRepository.createScratchCapture]).
  * The camera records into [file]; on a successful capture the scratch is promoted to a persistent
@@ -45,7 +45,7 @@ data class ScratchCapture(val uuid: String, val file: File)
  * Contract for persisting and reading recorded clips (raws + boomerangs).
  *
  * Backed by the app's private filesystem:
- * - `cacheDir/scratch/raw_<uuid>.mp4` — per-capture scratch (volatile; cache-evictable)
+ * - `filesDir/scratch/raw_<uuid>.mp4` — per-capture scratch, pruned after abandonment
  * - `filesDir/videos/clip_<ts>.mp4` — persisted raw captures
  * - `filesDir/videos/boom_<ts>_from_<rawTs>.mp4` — rendered loops
  * - `filesDir/thumbnails/<stem>.jpg` — thumbnails for both kinds
@@ -57,7 +57,7 @@ data class ScratchCapture(val uuid: String, val file: File)
 interface VideoStorageRepository {
 
     /**
-     * Mint a fresh per-capture scratch target (`cacheDir/scratch/raw_<uuid>.mp4`). The returned
+     * Mint a fresh per-capture scratch target (`filesDir/scratch/raw_<uuid>.mp4`). The returned
      * [ScratchCapture.file] does NOT yet exist on disk — the camera creates it by recording into it.
      */
     fun createScratchCapture(): ScratchCapture
@@ -76,14 +76,14 @@ interface VideoStorageRepository {
     fun discardScratch(scratch: ScratchCapture)
 
     /**
-     * Delete scratch files under `cacheDir/scratch/` whose `lastModified()` is older than
+     * Delete scratch files under `filesDir/scratch/` whose `lastModified()` is older than
      * [olderThanMs] (i.e. age > [olderThanMs]); returns the count deleted (parent D-8). Best-effort
      * cleanup of orphaned captures/imports left behind by an interrupted session — imports raise this
-     * churn since an abandoned copy can be a whole library video. Sweeps both the top-level scratch
-     * captures/imports AND the cached reversed clips in `scratch/reversed/` (one ≤1080p MP4 per
-     * distinct trim window, never overwritten — the heaviest orphans), so the reclaim reaches the
-     * cache that actually grows. Younger files (a session possibly still in flight) are left
-     * untouched. `suspend` + off the main thread (filesystem scan).
+     * churn since an abandoned copy can be a whole library video. Also sweeps legacy
+     * `cacheDir/scratch/raw_*.mp4` captures and the cached reversed clips in
+     * `cacheDir/scratch/reversed/` (one ≤1080p MP4 per distinct trim window, never overwritten), so
+     * reclaim reaches both the old layout and the cache that actually grows. Younger files (a session
+     * possibly still in flight) are left untouched. `suspend` + off the main thread (filesystem scan).
      */
     suspend fun pruneStaleScratch(olderThanMs: Long): Int
 

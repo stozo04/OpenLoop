@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   FileProvider path map (slice 06). The <files-path> root is Context.getFilesDir(), so this exposes
-  filesDir/videos/ — persisted clips and rendered loops. Scratch clips (cacheDir/scratch/) are
+  filesDir/videos/ — persisted clips and rendered loops. Scratch clips (filesDir/scratch/) are
   deliberately NOT listed, so in-flight captures can never leak through the share sheet.
 -->
 <paths>

@@ -302,6 +302,9 @@ class OpenLoopViewModel(
     private val _renderProgress = MutableStateFlow(0f)
     val renderProgress: StateFlow<Float> = _renderProgress.asStateFlow()
 
+    /** Guards against repeated Save taps while promotion/enqueue/render is already active. */
+    private var saveInProgress = false
+
     /** One-shot snackbar events (see [BoomerangEvent]); collected once by MainActivity. */
     private val _events = Channel<BoomerangEvent>(Channel.BUFFERED)
     val events: Flow<BoomerangEvent> = _events.receiveAsFlow()
@@ -346,7 +349,7 @@ class OpenLoopViewModel(
 
         _uiState.value = OpenLoopUiState.Recording
 
-        // Per-capture scratch file (cacheDir/scratch/raw_<uuid>.mp4) instead of a single fixed path,
+        // Per-capture scratch file (filesDir/scratch/raw_<uuid>.mp4) instead of a single fixed path,
         // so the captured clip has a stable identity for the Trim screen and back-to-back captures
         // can't clobber each other.
         val scratch = videoStorage.createScratchCapture()
@@ -1045,6 +1048,8 @@ class OpenLoopViewModel(
     fun saveBoomerang() {
         val editor = _editorState.value ?: return
         val scratch = activeScratch ?: return
+        if (saveInProgress || _uiState.value is OpenLoopUiState.Processing) return
+        saveInProgress = true
         val tab = _editorTabState.value
         val mode = tab.mode
 
@@ -1121,6 +1126,7 @@ class OpenLoopViewModel(
         // End the WorkManager observer without canceling this coroutine mid-collect.
         renderObserveJob = null
         activeRenderScratchUuid = null
+        saveInProgress = false
         cancelReverseJob()
         activeScratch = null
         promotedRaw = null
@@ -1159,6 +1165,7 @@ class OpenLoopViewModel(
         renderObserveJob?.cancel()
         renderObserveJob = null
         activeRenderScratchUuid = null
+        saveInProgress = false
         _renderProgress.value = 0f
         val editor = _editorState.value
         val trimStartMs = editor?.trimStartMs ?: 0L
@@ -1250,6 +1257,7 @@ class OpenLoopViewModel(
         renderObserveJob?.cancel()
         renderObserveJob = null
         activeRenderScratchUuid = null
+        saveInProgress = false
     }
 
     /** Clear the active editing session (after discard or navigation away). Does NOT touch on-disk files. */

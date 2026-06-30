@@ -18,7 +18,7 @@ import java.util.UUID
  * `Factory` bridges Context to these paths once, in `MainActivity`.
  *
  * On-disk layout:
- * - scratch capture:  `cacheDir/scratch/raw_<uuid>.mp4` (per capture; cache-evictable)
+ * - scratch capture:  `filesDir/scratch/raw_<uuid>.mp4` (per capture; private app data)
  * - persisted clips:  `filesDir/videos/` — raws as `clip_<timestamp>.mp4`, rendered loops as
  *   `boom_<timestamp>_from_<rawTimestamp>.mp4` (same directory; distinguished by filename prefix)
  * - thumbnails:       `filesDir/thumbnails/<same-stem>.jpg` (JPEG, 90% quality)
@@ -30,7 +30,9 @@ class VideoStorageRepositoryImpl(
 
     private val videosDir = File(filesDir, "videos")
     private val thumbnailsDir = File(filesDir, "thumbnails")
-    private val scratchDir = File(cacheDir, "scratch")
+    private val scratchDir = File(filesDir, "scratch")
+    private val legacyCacheScratchDir = File(cacheDir, "scratch")
+    private val reversedScratchDir = File(legacyCacheScratchDir, REVERSED_SUBDIR)
 
     /**
      * Last minted millis-timestamp id. Two saves in the same wall-clock millisecond would otherwise
@@ -105,15 +107,12 @@ class VideoStorageRepositoryImpl(
 
     override suspend fun pruneStaleScratch(olderThanMs: Long): Int = withContext(Dispatchers.IO) {
         val cutoff = System.currentTimeMillis() - olderThanMs
-        // Prune BOTH the per-capture/import scratch files directly under scratch/ (raw_<uuid>.mp4)
-        // AND the cached reversed clips under scratch/reversed/. The reversed cache is where the
-        // heaviest orphans accumulate — one ≤1080p reversed MP4 per distinct trim window, written
-        // once and never overwritten (keyed by sha1(path_trimStart_trimEnd) in VideoReverser) — so
-        // D-8's reclaim must reach it. The prior sweep only looked at the top level and skipped the
-        // reversed/ directory entirely (isFile == false for it), leaving it to grow until opaque OS
-        // cache eviction. (Dir name mirrors VideoReverser's scratchDir = cacheDir/scratch/reversed.)
+        // Prune active capture/import scratch files in filesDir/scratch/ plus legacy raw scratch
+        // files from the old cacheDir/scratch/ layout. Reverse-preview cache files remain under
+        // cacheDir/scratch/reversed/ because they are reproducible and safely cache-evictable.
         val deleted = pruneStaleFilesIn(scratchDir, cutoff) +
-            pruneStaleFilesIn(File(scratchDir, REVERSED_SUBDIR), cutoff)
+            pruneStaleFilesIn(legacyCacheScratchDir, cutoff) +
+            pruneStaleFilesIn(reversedScratchDir, cutoff)
         if (deleted > 0) Log.d(TAG, "Pruned $deleted stale scratch file(s)")
         deleted
     }
