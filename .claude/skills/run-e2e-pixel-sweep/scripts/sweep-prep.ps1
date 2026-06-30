@@ -67,8 +67,22 @@ adb -s $serial install -r -g $apk | Out-Null
 # drive-flow's step 0 self-heals by relaunching if the race still fires.
 adb -s $serial shell pm clear $pkg | Out-Null
 adb -s $serial shell pm grant $pkg android.permission.CAMERA
-adb -s $serial push $video /sdcard/Download/ | Out-Null
-adb -s $serial shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/$VideoName" | Out-Null
+
+# Stage the canonical fixture for drive-flow's Gallery → Import → Photo Picker path.
+adb -s $serial push $video "/sdcard/Download/$VideoName" | Out-Null
+adb -s $serial shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE `
+  -d "file:///sdcard/Download/$VideoName" | Out-Null
+# Android 14 (API 34) Photo Picker often shows "No photos or videos" for Download/ only —
+# drive-flow taps "Video taken on" in the default Photos grid, which indexes DCIM/Camera.
+$sdk = [int](((adb -s $serial shell getprop ro.build.version.sdk) -join '').Trim())
+if ($sdk -le 34) {
+  adb -s $serial shell mkdir -p /sdcard/DCIM/Camera | Out-Null
+  adb -s $serial push $video "/sdcard/DCIM/Camera/$VideoName" | Out-Null
+  adb -s $serial shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE `
+    -d "file:///sdcard/DCIM/Camera/$VideoName" | Out-Null
+  Start-Sleep -Seconds 3
+}
+
 # 3-button nav so the trim-handle edge drag can't fire the back gesture.
 adb -s $serial shell cmd overlay enable com.android.internal.systemui.navbar.threebutton
 
