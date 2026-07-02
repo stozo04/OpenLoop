@@ -37,6 +37,7 @@ Each lesson follows the same shape:
 | 022 | [Release CameraX when the PreviewView leaves composition, not only when the Activity stops](./022-release-camera-when-preview-leaves-composition.md) | Issue #36 |
 | 023 | [A media pipeline stage must count its own output samples; a zero-frame stage can exit "cleanly"](./023-media-pipeline-stages-must-count-output-samples.md) | PR #62 (S23 zero-frame wedge) |
 | 024 | [Gate a foreground-service type on the API level that ADDED it, not one below](./024-fgs-type-constant-api-gating.md) | Crashlytics 9663c743 (Galaxy A55 / Android 14) |
+| 025 | [`coerceIn` with runtime-derived bounds throws on short clips; clamp the bound and JVM-test the math](./025-trim-coercein-range-guard-short-clip.md) | Crashlytics 7169b499 (Issue #95) |
 
 ## Adding a new lesson
 

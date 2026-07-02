@@ -391,7 +391,7 @@ private fun FilmstripTrimSelector(
             valueMs = startMs,
             rangeMs = 0f..durationMs.toFloat(),
             onSetValueMs = { target ->
-                val clamped = target.coerceIn(0L, endMs - minGapMs)
+                val clamped = clampTrimStartMs(target, endMs, minGapMs)
                 onStartDrag(clamped)
                 onDragEnd()
             },
@@ -407,7 +407,7 @@ private fun FilmstripTrimSelector(
             valueMs = endMs,
             rangeMs = 0f..durationMs.toFloat(),
             onSetValueMs = { target ->
-                val clamped = target.coerceIn(startMs + minGapMs, durationMs)
+                val clamped = clampTrimEndMs(target, startMs, durationMs, minGapMs)
                 onEndDrag(clamped)
                 onDragEnd()
             },
@@ -462,14 +462,14 @@ private fun FilmstripTrimSelector(
                         val targetMs = dragAnchorMs + pxToMs(change.position.x - dragAnchorPx)
                         when (dragging) {
                             TrimDragTarget.START -> {
-                                val clamped = targetMs.coerceIn(0L, curEndMs - minGapMs)
+                                val clamped = clampTrimStartMs(targetMs, curEndMs, minGapMs)
                                 if (clamped != curStartMs) {
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     startDrag(clamped)
                                 }
                             }
                             TrimDragTarget.END -> {
-                                val clamped = targetMs.coerceIn(curStartMs + minGapMs, durationMs)
+                                val clamped = clampTrimEndMs(targetMs, curStartMs, durationMs, minGapMs)
                                 if (clamped != curEndMs) {
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     endDrag(clamped)
