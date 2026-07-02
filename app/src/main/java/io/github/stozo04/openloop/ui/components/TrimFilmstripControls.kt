@@ -391,7 +391,9 @@ private fun FilmstripTrimSelector(
             valueMs = startMs,
             rangeMs = 0f..durationMs.toFloat(),
             onSetValueMs = { target ->
-                val clamped = target.coerceIn(0L, endMs - minGapMs)
+                // Guard: if the clip is shorter than minGapMs the range would be inverted.
+                val maxMs = (endMs - minGapMs).coerceAtLeast(0L)
+                val clamped = target.coerceIn(0L, maxMs)
                 onStartDrag(clamped)
                 onDragEnd()
             },
@@ -407,7 +409,9 @@ private fun FilmstripTrimSelector(
             valueMs = endMs,
             rangeMs = 0f..durationMs.toFloat(),
             onSetValueMs = { target ->
-                val clamped = target.coerceIn(startMs + minGapMs, durationMs)
+                // Guard: if the clip is shorter than minGapMs the range would be inverted.
+                val minMs = (startMs + minGapMs).coerceAtMost(durationMs)
+                val clamped = target.coerceIn(minMs, durationMs)
                 onEndDrag(clamped)
                 onDragEnd()
             },
@@ -462,14 +466,18 @@ private fun FilmstripTrimSelector(
                         val targetMs = dragAnchorMs + pxToMs(change.position.x - dragAnchorPx)
                         when (dragging) {
                             TrimDragTarget.START -> {
-                                val clamped = targetMs.coerceIn(0L, curEndMs - minGapMs)
+                                // Guard: clip shorter than minGapMs would invert the range.
+                                val maxMs = (curEndMs - minGapMs).coerceAtLeast(0L)
+                                val clamped = targetMs.coerceIn(0L, maxMs)
                                 if (clamped != curStartMs) {
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     startDrag(clamped)
                                 }
                             }
                             TrimDragTarget.END -> {
-                                val clamped = targetMs.coerceIn(curStartMs + minGapMs, durationMs)
+                                // Guard: clip shorter than minGapMs would invert the range.
+                                val minMs = (curStartMs + minGapMs).coerceAtMost(durationMs)
+                                val clamped = targetMs.coerceIn(minMs, durationMs)
                                 if (clamped != curEndMs) {
                                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     endDrag(clamped)
