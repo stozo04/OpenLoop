@@ -102,8 +102,9 @@ sealed interface BoomerangEvent {
     /**
      * A camera capture finalized shorter than the minimum loopable window, or with no encoded
      * frames at all (`ERROR_NO_VALID_DATA`, a tap-and-release) — issue #95 follow-up. The scratch
-     * is discarded and the user is back on the viewfinder; drives a "hold the record button a
-     * little longer" snackbar instead of a silent return.
+     * is discarded and the user is back on the viewfinder; drives a "record a little longer"
+     * snackbar instead of a silent return. (The shutter is tap-to-start / tap-to-stop, so the
+     * copy says "record longer", not "hold".)
      */
     object CaptureTooShort : BoomerangEvent
 

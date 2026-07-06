@@ -51,5 +51,5 @@
     <!-- Clip shorter than the minimum loopable window (issue #95 follow-up) -->
     <string name="import_too_short_title">That clip\'s a bit short</string>
     <string name="import_too_short_body">OpenLoop needs at least half a second of video to make a loop. Pick a longer clip and we\'ll loop it.</string>
-    <string name="snackbar_capture_too_short">That was quick! Hold the record button a little longer to make a loop.</string>
+    <string name="snackbar_capture_too_short">That was quick! Record a little longer to make a loop.</string>
 </resources>
