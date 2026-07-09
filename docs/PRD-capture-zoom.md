@@ -175,6 +175,18 @@ Why the View-side listener instead of a Compose `pointerInput` overlay:
 - A custom-`View` touch listener wants a `performClick()` call for accessibility (standard
   `ClickableViewAccessibility` lint contract) — handled above.
 
+> **Implementation deviation (shipped, PR #100).** The design above did not survive hardware
+> testing: on Fold-class devices both a Compose `pointerInput` overlay and
+> `PreviewView.setOnTouchListener` stop receiving events at the second pointer down, so the
+> pinch never starts. The shipped implementation wraps `PreviewView` in
+> `camera/PinchZoomLayout.kt` — a `FrameLayout` whose `onInterceptTouchEvent` steals the stream
+> when `pointerCount >= 2` (or a scale gesture is in progress) and feeds its own
+> `ScaleGestureDetector`, with the `performClick()` accessibility contract implemented on the
+> layout itself. `CameraScreen` hands it `PinchZoomCallbacks` wired into
+> `CameraManager.onPinchZoomBegin / applyPinchZoom / onPinchZoomEnd`. Everything else in this
+> section (detector math, clamp-through-`CameraManager`, overlays keeping their own touches)
+> holds as written. Full pattern: `docs/lessons_learned/025-previewview-pinch-needs-parent-intercept.md`.
+
 ### 4.4 Zoom ratio chip (new composable in `ui/CameraScreen.kt`)
 
 `ZoomRatioChip(visible: Boolean, text: () -> String)` — same hoisted, stateless shape and glass

@@ -1,6 +1,7 @@
 package io.github.stozo04.openloop.camera
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -60,6 +61,34 @@ class ZoomMathTest {
             assertTrue("ratio $ratio escaped [$min, $max]", ratio in min..max)
         }
         assertEquals(min, ratio, 0f)
+    }
+
+    // ── D3 reset-on-rebind: decided from the FIRST ZoomState emission after bind ──
+
+    @Test
+    fun zoomResetTargetAfterBind_alreadyAtDefault_noReset() {
+        assertNull(zoomResetTargetAfterBind(reportedRatio = 1.0f, minRatio = 0.55f, maxRatio = 8.0f))
+    }
+
+    @Test
+    fun zoomResetTargetAfterBind_sub1xFirstEmission_resetsToDefault() {
+        // Fold-class ultra-wide: first emission after bind reports ~0.5x.
+        val target = zoomResetTargetAfterBind(reportedRatio = 0.506f, minRatio = 0.506f, maxRatio = 8.0f)
+        assertEquals(1.0f, target!!, 0f)
+    }
+
+    @Test
+    fun zoomResetTargetAfterBind_degenerateRange_noReset() {
+        // Emulator back camera reports [1.0, 1.0].
+        assertNull(zoomResetTargetAfterBind(reportedRatio = 1.0f, minRatio = 1.0f, maxRatio = 1.0f))
+    }
+
+    @Test
+    fun zoomResetTargetAfterBind_minAboveDefault_targetsClampedFloor() {
+        // Range floor above 1.0x: the default clamps up to the floor, and a ratio parked
+        // above it still resets down to that clamped default.
+        val target = zoomResetTargetAfterBind(reportedRatio = 3.0f, minRatio = 2.0f, maxRatio = 10.0f)
+        assertEquals(2.0f, target!!, 0f)
     }
 
     // ── Snap to 1.0x on gesture end when near default (not ultra-wide) ──

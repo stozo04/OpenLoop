@@ -91,6 +91,7 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 io.github.stozo04.openloop/
 ├── camera/
 │   ├── CameraManager.kt         # CameraX lifecycle, recording, lens toggle, pinch-zoom control
+│   ├── PinchZoomLayout.kt       # FrameLayout that intercepts multi-touch for pinch (Fold-safe)
 │   └── ZoomUi.kt                # Pure zoom snapshot + clamp/chip-format math (JVM-tested)
 ├── data/
 │   ├── UserPreferencesRepository.kt(+Impl)   # DataStore: onboarding flag (Flow reads + suspend writes)

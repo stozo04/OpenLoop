@@ -1,8 +1,6 @@
 package io.github.stozo04.openloop.camera
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
@@ -41,6 +39,8 @@ class CameraManager(private val context: Context) {
     private var pinchSessionRatio: Float? = null
     /** Max ratio reached this pinch — detects zoom-in-then-out undershoot below 1.0x. */
     private var pinchSessionPeakRatio: Float? = null
+    /** One-shot: enforce PRD D3's 1.0x default on the FIRST ZoomState emission after each bind. */
+    private var resetToDefaultOnNextEmission = false
 
     /** Live zoom snapshot for the UI; `null` while no camera is bound. */
     private val _zoomUi = MutableStateFlow<ZoomUi?>(null)
@@ -83,7 +83,6 @@ class CameraManager(private val context: Context) {
                     videoCapture
                 )
                 attachZoomObserver()
-                resetZoomToDefaultAfterBind()
                 Log.i(
                     TAG,
                     "Camera bound (lens=${if (lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"})"
@@ -212,26 +211,6 @@ class CameraManager(private val context: Context) {
     }
 
     /**
-     * PRD D3: every rebind starts at 1.0x. CameraX usually resets on unbind, but some devices
-     * (Fold-class ultra-wide) report a sub-1.0 ratio on first [ZoomState] emission.
-     */
-    private fun resetZoomToDefaultAfterBind() {
-        Handler(Looper.getMainLooper()).post {
-            val bounds = currentZoomBounds() ?: return@post
-            val target = clampZoom(DEFAULT_ZOOM_RATIO, bounds.min, bounds.max)
-            if (kotlin.math.abs(bounds.ratio - target) > 0.01f) {
-                setZoomRatio(target)
-                _zoomUi.value = ZoomUi(
-                    ratio = target,
-                    minRatio = bounds.min,
-                    maxRatio = bounds.max,
-                )
-                Log.i(TAG, "Reset zoom to ${target}x after bind (was ${bounds.ratio})")
-            }
-        }
-    }
-
-    /**
      * Clamps [requested] to the device-reported [ZoomState] range and applies it to all bound use
      * cases (Preview *and* VideoCapture — this is what bakes zoom into the recording). Safe no-op
      * when no camera is bound, e.g. a late gesture event arriving after [releaseCamera].
@@ -264,6 +243,7 @@ class CameraManager(private val context: Context) {
             Log.w(TAG, "attachZoomObserver: cameraInfo.zoomState unavailable — pinch zoom disabled")
             return
         }
+        resetToDefaultOnNextEmission = true
         val observer = Observer<ZoomState> { state ->
             val previous = _zoomUi.value
             if (previous == null ||
@@ -277,6 +257,29 @@ class CameraManager(private val context: Context) {
                     "Zoom range [${state.minZoomRatio}, ${state.maxZoomRatio}], " +
                         "ratio ${state.zoomRatio}"
                 )
+            }
+            if (resetToDefaultOnNextEmission) {
+                // PRD D3: enforce the 1.0x default here, on the first emission, rather than a
+                // posted one-shot that races this observer and silently no-ops when the range is
+                // not yet known (the pre-fix failure mode on Fold-class hardware).
+                resetToDefaultOnNextEmission = false
+                val target = zoomResetTargetAfterBind(
+                    reportedRatio = state.zoomRatio,
+                    minRatio = state.minZoomRatio,
+                    maxRatio = state.maxZoomRatio,
+                )
+                if (target != null) {
+                    camera?.cameraControl?.setZoomRatio(target)
+                    // Mirror the forced default, not the stale pre-reset ratio; CameraX's
+                    // confirming emission follows with the same value.
+                    _zoomUi.value = ZoomUi(
+                        ratio = target,
+                        minRatio = state.minZoomRatio,
+                        maxRatio = state.maxZoomRatio,
+                    )
+                    Log.i(TAG, "Reset zoom to ${target}x on first emission after bind (was ${state.zoomRatio})")
+                    return@Observer
+                }
             }
             _zoomUi.value = ZoomUi(
                 ratio = state.zoomRatio,
@@ -298,6 +301,7 @@ class CameraManager(private val context: Context) {
         observedZoomState = null
         pinchSessionRatio = null
         pinchSessionPeakRatio = null
+        resetToDefaultOnNextEmission = false
         _zoomUi.value = null
     }
 

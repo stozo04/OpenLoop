@@ -46,6 +46,25 @@ internal fun snapZoomToDefaultIfNear(ratio: Float): Float =
         ratio
     }
 
+/** Reported ratio within this margin of the default is "already reset" — no forced write. */
+internal const val ZOOM_RESET_EPSILON = 0.01f
+
+/**
+ * PRD D3: every rebind starts at [DEFAULT_ZOOM_RATIO]. CameraX resets zoom when the camera
+ * closes, but some devices (Fold-class ultra-wide) report a sub-1.0 ratio on the first zoom-state
+ * emission after bind. Decides, from that first emission, the ratio to force — or `null` when the
+ * reported ratio already sits at the range-clamped default (e.g. a degenerate `[1.0, 1.0]`
+ * emulator range).
+ */
+internal fun zoomResetTargetAfterBind(
+    reportedRatio: Float,
+    minRatio: Float,
+    maxRatio: Float,
+): Float? {
+    val target = clampZoom(DEFAULT_ZOOM_RATIO, minRatio, maxRatio)
+    return if (kotlin.math.abs(reportedRatio - target) > ZOOM_RESET_EPSILON) target else null
+}
+
 /**
  * Final ratio within this margin of [minRatio] is intentional ultra-wide — do not snap to 1.0x.
  */

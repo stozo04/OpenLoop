@@ -39,8 +39,13 @@ class PinchZoomLayout @JvmOverloads constructor(
         },
     )
 
+    /** Whether the touch stream that is currently down ever became a pinch. */
+    private var pinchInStream = false
+
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) pinchInStream = false
         if (event.pointerCount >= 2 || scaleDetector.isInProgress) {
+            pinchInStream = true
             scaleDetector.onTouchEvent(event)
             return true
         }
@@ -48,7 +53,22 @@ class PinchZoomLayout @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // When no child consumed ACTION_DOWN this view is the touch target and interception is
+        // never consulted again — a pinch must still mark the stream here.
+        if (event.pointerCount >= 2 || scaleDetector.isInProgress) pinchInStream = true
         scaleDetector.onTouchEvent(event)
+        // Accessibility contract for a touch-handling view (ClickableViewAccessibility): a
+        // completed single-finger tap must route through performClick(). After a pinch the final
+        // ACTION_UP also lands here (interception redirected the stream) — that is not a tap.
+        if (event.actionMasked == MotionEvent.ACTION_UP && !pinchInStream) {
+            performClick()
+        }
+        return true
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        // The viewfinder has no tap action today (tap-to-focus would hook in here).
         return true
     }
 }

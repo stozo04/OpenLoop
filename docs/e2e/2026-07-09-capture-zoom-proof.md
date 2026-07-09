@@ -27,3 +27,16 @@ Also verified in logcat during the run:
 back camera reports `[1.0, 1.0]` — only the *front* camera exposes the usable digital range to
 CameraX here. Encoded-output framing, ramp smoothness, and OEM behavior remain real-hardware
 checks (PRD §6.3 matrix in the PR).
+
+## Post-review fix pass (same day)
+
+Re-proof after the review fixes (dead Compose gesture layer removed, `performClick` contract,
+D3 reset moved into the zoom observer's first emission, chip semantics announce the value):
+
+| Proof | Device | Screenshot |
+|-------|--------|------------|
+| Pinch on **front** lens mid-hold: chip tracks live to `1.9x`, capture requests ramp `android.control.zoomRatio` 1.51 → 1.87 (CXCP logcat), full gesture log chain `Pinch gesture started (view)` → `Pinch session started at 1.0x` → `Pinch gesture ended (view)` | Pixel 6 AVD (API 37, google_apis) | [fix pass 1.9x](2026-07-09-capture-zoom-fixpass-front-1.9x-pixel6.png) |
+
+Injection note for reruns: this virtio multi-touch device reports `ABS_MT_PRESSURE`, so a
+`sendevent` stream **must set a non-zero pressure (and touch-major) per contact** or the kernel
+treats the contacts as hover and the app never sees the pinch.

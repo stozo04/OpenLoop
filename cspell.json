@@ -37,7 +37,9 @@
     "GLSL", "snackbars", "backgrounded",
     "pushback", "repoints", "unrouted", "unfindable",
     "Take-aways", "loopifying", "openloop", "EACCES", "EINVAL",
-    "Banuba", "arthenica", "sixo", "sisik", "Taner", "Sener", "Agam", "Koradiya"
+    "Banuba", "arthenica", "sixo", "sisik", "Taner", "Sener", "Agam", "Koradiya",
+    "MVVM", "Robolectric", "jank", "Exynos", "CXCP", "uiautomator", "autotriage",
+    "sendevent", "virtio", "rootable", "previewview"
   ],
   "flagWords": []
 }

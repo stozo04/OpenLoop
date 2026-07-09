@@ -134,8 +134,9 @@ class CameraScreenTest {
         }
         composeTestRule.onNodeWithTag("zoom_chip").assertIsDisplayed()
         composeTestRule.onNodeWithText("2.3x").assertIsDisplayed()
-        // Informational semantics only — the chip is never a touch target.
-        composeTestRule.onNodeWithContentDescription("Zoom level").assertIsDisplayed()
+        // Informational semantics only (never a touch target) — and TalkBack must announce the
+        // live value, not just "Zoom level".
+        composeTestRule.onNodeWithContentDescription("Zoom level, 2.3x").assertIsDisplayed()
     }
 
     /**

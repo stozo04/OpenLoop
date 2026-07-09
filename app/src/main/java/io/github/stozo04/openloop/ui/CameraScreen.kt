@@ -11,7 +11,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -42,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -146,7 +144,7 @@ fun CameraScreen(
     var pinchInProgress by remember { mutableStateOf(false) }
     var pinchEndCount by remember { mutableIntStateOf(0) }
 
-    // Hoist pinch callbacks for the Compose pointerInput layer (below).
+    // Chip-visibility flips wired into the PinchZoomCallbacks handed to [PinchZoomLayout] below.
     val onPinchBegin = rememberUpdatedState { pinchInProgress = true }
     val onPinchEnd = rememberUpdatedState {
         pinchInProgress = false
@@ -449,40 +447,6 @@ fun ShutterButton(
 /** Log tag for pinch gesture delivery diagnostics (distinct from [CameraManager]'s tag). */
 private const val PINCH_LOG_TAG = "OpenLoopPinchZoom"
 
-/**
- * Compose-level pinch-to-zoom on a full-screen overlay above [AndroidView]. [detectTransformGestures]
- * does not receive multi-touch when attached to [AndroidView] on some OEMs (Pixel Fold cover display)
- * because [PreviewView]'s [android.view.SurfaceView] consumes pointers first.
- *
- * Control overlays (shutter, flip, home) are composed above this layer and keep their touches.
- */
-internal fun Modifier.pinchToZoom(
-    cameraManager: CameraManager,
-    onPinchBegin: () -> Unit,
-    onPinchEnd: () -> Unit,
-): Modifier = pointerInput(cameraManager) {
-    while (true) {
-        var gestureStarted = false
-        detectTransformGestures { _, _, zoom, _ ->
-            if (!cameraManager.isCameraBound()) return@detectTransformGestures
-            if (!gestureStarted) {
-                Log.i(PINCH_LOG_TAG, "Pinch gesture started")
-                cameraManager.onPinchZoomBegin()
-                onPinchBegin()
-                gestureStarted = true
-            }
-            if (zoom != 1f) {
-                cameraManager.applyPinchZoom(zoom)
-            }
-        }
-        if (gestureStarted) {
-            Log.i(PINCH_LOG_TAG, "Pinch gesture ended")
-            cameraManager.onPinchZoomEnd()
-            onPinchEnd()
-        }
-    }
-}
-
 /** How long the zoom ratio chip lingers after the pinch gesture ends before fading out. */
 internal const val ZOOM_CHIP_LINGER_MS = 1_000L
 
@@ -513,7 +477,9 @@ fun rememberZoomChipVisible(pinchInProgress: Boolean, pinchEndCount: Int): Boole
  *
  * [text] is a lambda, not a value: during a pinch the ratio updates every frame, so the read is
  * deferred into this chip's composition (REC-1 / Lesson 016) and each tick recomposes only the
- * chip, never the camera screen above it.
+ * chip, never the camera screen above it. The merged semantics include the live value
+ * ("Zoom level, 2.3x") so TalkBack announces what the zoom actually is, not just that a zoom
+ * control exists; that read is likewise confined to this node.
  */
 @Composable
 fun ZoomRatioChip(
@@ -535,7 +501,7 @@ fun ZoomRatioChip(
                 .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
                 .padding(horizontal = 14.dp, vertical = 6.dp)
                 .testTag("zoom_chip")
-                .semantics { contentDescription = "Zoom level" }
+                .semantics(mergeDescendants = true) { contentDescription = "Zoom level, ${text()}" }
         ) {
             Text(
                 text = text(),
