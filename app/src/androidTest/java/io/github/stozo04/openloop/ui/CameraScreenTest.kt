@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -113,6 +115,66 @@ class CameraScreenTest {
         composeTestRule.onNodeWithContentDescription("Gallery")
             .assertWidthIsAtLeast(48.dp)
             .assertHeightIsAtLeast(48.dp)
+    }
+
+    // ── Zoom ratio chip: hidden by default, shows the live ratio, lingers after the pinch ──
+
+    @Test
+    fun zoomChip_isHidden_whenNotVisible() {
+        composeTestRule.setContent {
+            ZoomRatioChip(visible = false, text = { "2.3x" })
+        }
+        composeTestRule.onNodeWithTag("zoom_chip").assertDoesNotExist()
+    }
+
+    @Test
+    fun zoomChip_showsRatioText_whenVisible() {
+        composeTestRule.setContent {
+            ZoomRatioChip(visible = true, text = { "2.3x" })
+        }
+        composeTestRule.onNodeWithTag("zoom_chip").assertIsDisplayed()
+        composeTestRule.onNodeWithText("2.3x").assertIsDisplayed()
+        // Informational semantics only — the chip is never a touch target.
+        composeTestRule.onNodeWithContentDescription("Zoom level").assertIsDisplayed()
+    }
+
+    /**
+     * Drives [rememberZoomChipVisible] through a full gesture: appear on pinch start, linger after
+     * the pinch ends ([ZOOM_CHIP_LINGER_MS]), then fade away. The linger `delay` runs on the real
+     * effect dispatcher (the Compose test clock does not drive `LaunchedEffect` delays), so the
+     * disappearance is awaited with [androidx.compose.ui.test.junit4.ComposeTestRule.waitUntil]
+     * rather than clock advancement; the "still visible" assertion runs immediately after the
+     * gesture ends, well inside the 1 s window.
+     */
+    @Test
+    fun zoomChip_lingersAfterPinchEnds_thenFades() {
+        val pinchInProgress = mutableStateOf(false)
+        val pinchEndCount = mutableIntStateOf(0)
+        composeTestRule.setContent {
+            ZoomRatioChip(
+                visible = rememberZoomChipVisible(pinchInProgress.value, pinchEndCount.intValue),
+                text = { "1.5x" }
+            )
+        }
+
+        // Idle: no chip.
+        composeTestRule.onNodeWithTag("zoom_chip").assertDoesNotExist()
+
+        // Pinch begins → chip appears.
+        composeTestRule.runOnIdle { pinchInProgress.value = true }
+        composeTestRule.onNodeWithTag("zoom_chip").assertIsDisplayed()
+
+        // Pinch ends → chip lingers…
+        composeTestRule.runOnIdle {
+            pinchInProgress.value = false
+            pinchEndCount.intValue++
+        }
+        composeTestRule.onNodeWithTag("zoom_chip").assertIsDisplayed()
+
+        // …then is gone once the linger window and fade-out elapse.
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithTag("zoom_chip").fetchSemanticsNodes().isEmpty()
+        }
     }
 
     // ── Regression: camera must NOT remount on the ReadyToCapture → Recording transition ──
