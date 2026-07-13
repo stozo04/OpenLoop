@@ -43,7 +43,7 @@ class BoomerangRenderWorker(
 
     override suspend fun doWork(): Result {
         val parsed = BoomerangRenderWorkerInput.from(inputData)
-            ?: return Result.failure()
+            ?: return failureResult(REASON_INPUT_PARSE_FAILED, reportedCause = false)
 
         try {
             setForeground(BoomerangRenderNotifications.createForegroundInfo(applicationContext, 0))
@@ -58,16 +58,17 @@ class BoomerangRenderWorker(
             // so this is the only Crashlytics signal for the lost render.
             Log.e(TAG, "FGS promotion denied; failing render without retry", e)
             deletePartialOutput(parsed.outputFile) // a pre-death attempt may have left a partial
+            val outcome = "fgs_promotion_denied: ${e.javaClass.simpleName}"
             ReverseCrashlytics.reportSaveFailure(
                 versionName = BuildConfig.VERSION_NAME,
                 versionCode = BuildConfig.VERSION_CODE,
                 source = parsed.scratch.file,
                 trimStartMs = parsed.trimStartMs,
                 trimEndMs = parsed.trimEndMs,
-                outcome = "fgs_promotion_denied: ${e.javaClass.simpleName}",
+                outcome = outcome,
                 cause = e,
             )
-            return Result.failure()
+            return failureResult(outcome, reportedCause = true)
         }
 
         return coroutineScope {
@@ -124,8 +125,7 @@ class BoomerangRenderWorker(
                 progressPublisher.cancel()
                 Log.e(TAG, "Boomerang render failed (IO)", e)
                 deletePartialOutput(parsed.outputFile)
-                reportRenderFailure(parsed, "io", e)
-                Result.failure()
+                failureResult(reportRenderFailure(parsed, "io", e), reportedCause = true)
             } catch (e: ExportException) {
                 // Media3's documented async failure type (Transformer.Listener.onError, rethrown by
                 // runTransformer). It extends Exception directly — neither IOException nor
@@ -135,14 +135,12 @@ class BoomerangRenderWorker(
                 progressPublisher.cancel()
                 Log.e(TAG, "Boomerang render failed (export)", e)
                 deletePartialOutput(parsed.outputFile)
-                reportRenderFailure(parsed, "export", e)
-                Result.failure()
+                failureResult(reportRenderFailure(parsed, "export", e), reportedCause = true)
             } catch (e: RuntimeException) {
                 progressPublisher.cancel()
                 Log.e(TAG, "Boomerang render failed", e)
                 deletePartialOutput(parsed.outputFile)
-                reportRenderFailure(parsed, "runtime", e)
-                Result.failure()
+                failureResult(reportRenderFailure(parsed, "runtime", e), reportedCause = true)
             }
         }
     }
@@ -167,24 +165,41 @@ class BoomerangRenderWorker(
     }
 
     /**
-     * Record the worker's real render failure to Crashlytics as a non-fatal. Without this the only
-     * signal was the ViewModel's bare `BoomerangRenderWorkResult.Failure` (WorkManager does not carry
-     * the worker's exception across the process boundary), reported with a synthetic stand-in cause —
-     * so the actual codec/Transformer exception (e.g. LG LM-X540 `IllegalArgumentException: start
-     * failed`, Crashlytics 47233ad7) lived only in this process's logcat ("details in
-     * BoomerangRenderWorker log") and never reached Firebase. This carries the genuine stack trace.
+     * Record the worker's real render failure to Crashlytics as a non-fatal, returning the outcome
+     * string so [failureResult] can carry it across WorkManager. Without this the only signal was
+     * the ViewModel's bare `BoomerangRenderWorkResult.Failure` (WorkManager does not carry the
+     * worker's *exception* across), reported with a synthetic stand-in cause — so the actual
+     * codec/Transformer exception (e.g. LG LM-X540 `IllegalArgumentException: start failed`,
+     * Crashlytics 47233ad7) lived only in this process's logcat ("details in BoomerangRenderWorker
+     * log") and never reached Firebase. This carries the genuine stack trace.
      */
-    private fun reportRenderFailure(parsed: BoomerangRenderWorkerInput.Parsed, kind: String, cause: Throwable) {
+    private fun reportRenderFailure(parsed: BoomerangRenderWorkerInput.Parsed, kind: String, cause: Throwable): String {
+        val outcome = "render_failed_$kind: ${cause.javaClass.simpleName}: ${cause.message}"
         ReverseCrashlytics.reportSaveFailure(
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE,
             source = parsed.scratch.file,
             trimStartMs = parsed.trimStartMs,
             trimEndMs = parsed.trimEndMs,
-            outcome = "render_failed_$kind: ${cause.javaClass.simpleName}: ${cause.message}",
+            outcome = outcome,
             cause = cause,
         )
+        return outcome
     }
+
+    /**
+     * [Result.failure] with the failure [reason] attached as output [Data], so the observing
+     * ViewModel can report *why* instead of a catch-all beacon (Crashlytics 47233ad7 triage).
+     * [reportedCause] marks whether this worker already recorded the genuine exception to
+     * Crashlytics — when true the observer suppresses its duplicate synthetic-cause non-fatal.
+     */
+    private fun failureResult(reason: String, reportedCause: Boolean): Result =
+        Result.failure(
+            Data.Builder()
+                .putString(BoomerangRenderWorkerKeys.FAILURE_REASON, reason.take(FAILURE_REASON_MAX_CHARS))
+                .putBoolean(BoomerangRenderWorkerKeys.FAILURE_REPORTED_CAUSE, reportedCause)
+                .build(),
+        )
 
     private fun deletePartialOutput(file: File) {
         if (file.exists() && !file.delete()) {
@@ -195,5 +210,11 @@ class BoomerangRenderWorker(
     private companion object {
         const val TAG = "BoomerangRenderWorker"
         val PROGRESS_EMIT_INTERVAL = 1000.milliseconds
+
+        /** [BoomerangRenderWorkerInput.from] rejected the input Data — nothing was rendered. */
+        const val REASON_INPUT_PARSE_FAILED = "input_parse_failed"
+
+        /** WorkManager output Data is capped at ~10 KB total; exception messages can be long. */
+        const val FAILURE_REASON_MAX_CHARS = 512
     }
 }

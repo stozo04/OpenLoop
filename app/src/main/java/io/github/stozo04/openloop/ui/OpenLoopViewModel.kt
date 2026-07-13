@@ -1112,10 +1112,12 @@ class OpenLoopViewModel(
             renderScheduler.observeResult(workId).collect { result ->
                 when (result) {
                     is BoomerangRenderWorkResult.Success -> onRenderSucceeded(result)
-                    BoomerangRenderWorkResult.Failure -> failBackToEditor(
+                    is BoomerangRenderWorkResult.Failure -> failBackToEditor(
                         scratch,
-                        "Render worker reported failure (details in BoomerangRenderWorker log)",
+                        outcome = result.reason
+                            ?: "Render worker reported failure (details in BoomerangRenderWorker log)",
                         cause = null,
+                        workerReportedCause = result.workerReportedCause,
                     )
                 }
             }
@@ -1157,11 +1159,20 @@ class OpenLoopViewModel(
     /**
      * Report the save failure (Crashlytics non-fatal + shareable report), emit
      * [BoomerangEvent.SaveFailed], and route back to the editor preserving the direction selection.
-     * [cause] is null when the failure arrived as a bare [BoomerangRenderWorkResult.Failure] —
-     * WorkManager does not carry the worker's exception across; its details are in the
-     * `BoomerangRenderWorker` log and the worker process's own Crashlytics breadcrumbs.
+     * [cause] is null when the failure arrived as a [BoomerangRenderWorkResult.Failure] —
+     * WorkManager does not carry the worker's *exception* across, only the reason string the worker
+     * attached to its failure Data (already folded into [outcome] by the caller).
+     * [workerReportedCause] is true when the worker already recorded the genuine exception as its
+     * own non-fatal; reporting a second, synthetic-cause event here would just re-open the
+     * catch-all beacon issue (Crashlytics 47233ad7) without adding signal, so it is skipped —
+     * the user-facing SaveFailed event and editor routing always happen.
      */
-    private suspend fun failBackToEditor(scratch: ScratchCapture, outcome: String, cause: Throwable?) {
+    private suspend fun failBackToEditor(
+        scratch: ScratchCapture,
+        outcome: String,
+        cause: Throwable?,
+        workerReportedCause: Boolean = false,
+    ) {
         renderObserveJob?.cancel()
         renderObserveJob = null
         activeRenderScratchUuid = null
@@ -1170,15 +1181,17 @@ class OpenLoopViewModel(
         val editor = _editorState.value
         val trimStartMs = editor?.trimStartMs ?: 0L
         val trimEndMs = editor?.trimEndMs ?: 0L
-        ReverseCrashlytics.reportSaveFailure(
-            versionName = BuildConfig.VERSION_NAME,
-            versionCode = BuildConfig.VERSION_CODE,
-            source = scratch.file,
-            trimStartMs = trimStartMs,
-            trimEndMs = trimEndMs,
-            outcome = outcome,
-            cause = cause ?: SaveRenderFailedException(outcome),
-        )
+        if (!workerReportedCause) {
+            ReverseCrashlytics.reportSaveFailure(
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                source = scratch.file,
+                trimStartMs = trimStartMs,
+                trimEndMs = trimEndMs,
+                outcome = outcome,
+                cause = cause ?: SaveRenderFailedException(outcome),
+            )
+        }
         val supportReport = ReverseCrashlytics.supportReportForShare(
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE,

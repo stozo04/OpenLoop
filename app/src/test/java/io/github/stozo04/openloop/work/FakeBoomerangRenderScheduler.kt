@@ -28,6 +28,12 @@ class FakeBoomerangRenderScheduler(
     var enqueueCount: Int = 0
         private set
 
+    /**
+     * When set, emitted instead of the mirrored-worker failure — for tests exercising the
+     * bare/legacy failure path (no reason attached, worker did not report the cause).
+     */
+    var failureOverride: BoomerangRenderWorkResult.Failure? = null
+
     private val progressFlows = ConcurrentHashMap<UUID, MutableStateFlow<Float>>()
     private val resultFlows = ConcurrentHashMap<UUID, MutableSharedFlow<BoomerangRenderWorkResult>>()
 
@@ -68,7 +74,14 @@ class FakeBoomerangRenderScheduler(
                 if (request.outputFile.exists()) {
                     request.outputFile.delete()
                 }
-                results.emit(BoomerangRenderWorkResult.Failure)
+                // Mirror the real worker: it reports the genuine cause itself and carries the
+                // outcome string across as the failure reason (workerReportedCause = true).
+                results.emit(
+                    failureOverride ?: BoomerangRenderWorkResult.Failure(
+                        reason = "render_failed_test: ${e.javaClass.simpleName}: ${e.message}",
+                        workerReportedCause = true,
+                    ),
+                )
             }
         }
         return workId

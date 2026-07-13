@@ -6,6 +6,7 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.RecordedVideo
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.data.ScratchCapture
 import io.github.stozo04.openloop.data.UserPreferencesRepository
 import io.github.stozo04.openloop.data.VideoImporter
@@ -15,6 +16,7 @@ import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
 import io.mockk.*
 import kotlinx.coroutines.CoroutineScope
@@ -1141,6 +1143,65 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.REVERSE_THEN_FORWARD, viewModel.editorTabState.value.mode)
 
             job.cancel()
+        }
+
+    @Test
+    fun `saveBoomerang render failure carries the worker reason into the report and skips the duplicate beacon`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            mockkObject(ReverseCrashlytics)
+            try {
+                val events = mutableListOf<BoomerangEvent>()
+                val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                // The reason the worker attached to its failure Data reaches the shareable report.
+                val saveFailed = events.filterIsInstance<BoomerangEvent.SaveFailed>().single()
+                assertTrue(
+                    "report should contain the worker's failure reason, was: ${saveFailed.supportReport}",
+                    saveFailed.supportReport.orEmpty().contains("render_failed_test"),
+                )
+                // The worker already recorded the genuine exception as its own non-fatal — the
+                // observer must not file the synthetic-cause beacon again (Crashlytics 47233ad7).
+                verify(exactly = 0) {
+                    ReverseCrashlytics.reportSaveFailure(any(), any(), any(), any(), any(), any(), any())
+                }
+                job.cancel()
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
+        }
+
+    @Test
+    fun `saveBoomerang bare render failure without a worker reason still reports the beacon non-fatal`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            // Legacy/edge shape: the work failed without attached Data (process death, or work
+            // persisted by an older app version) — the beacon is the only Crashlytics signal left.
+            fakeRenderScheduler.failureOverride = BoomerangRenderWorkResult.Failure()
+            mockkObject(ReverseCrashlytics)
+            try {
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                verify(exactly = 1) {
+                    ReverseCrashlytics.reportSaveFailure(
+                        any(), any(), any(), any(), any(),
+                        match { it.contains("Render worker reported failure") },
+                        any(),
+                    )
+                }
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
         }
 
     @Test

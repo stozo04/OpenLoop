@@ -42,7 +42,7 @@ class WorkManagerBoomerangRenderScheduler(
     override fun observeResult(workId: UUID): Flow<BoomerangRenderWorkResult> =
         workManager.getWorkInfoByIdFlow(workId)
             .filterNotNull()
-            .map { info -> info.toRenderResult() }
+            .map { info -> renderWorkResultOf(info.state, info.outputData) }
             .filterNotNull()
             .distinctUntilChanged()
 
@@ -50,20 +50,37 @@ class WorkManagerBoomerangRenderScheduler(
         workManager.cancelUniqueWork("render_$scratchUuid")
     }
 
-    private fun WorkInfo.toRenderResult(): BoomerangRenderWorkResult? =
-        when (state) {
-            WorkInfo.State.SUCCEEDED -> {
-                val path = outputData.getString(BoomerangRenderWorkerKeys.OUTPUT_FILE_PATH) ?: return null
+    companion object {
+        const val WORK_TAG = "boomerang_render"
+
+        /** [renderWorkResultOf]'s reason for CANCELLED work — WorkManager attaches no output Data. */
+        const val REASON_CANCELLED = "cancelled"
+    }
+}
+
+/**
+ * Terminal [WorkInfo] state + output [Data] → [BoomerangRenderWorkResult], or null while the work
+ * is still in flight. FAILED reads the reason the worker attached via `Result.failure(Data)`
+ * (null when the work died without one — process death, or work persisted by an older version);
+ * CANCELLED never carries Data, so it gets its own fixed reason. Top-level for JVM unit testing.
+ */
+internal fun renderWorkResultOf(state: WorkInfo.State, outputData: Data): BoomerangRenderWorkResult? =
+    when (state) {
+        WorkInfo.State.SUCCEEDED -> {
+            outputData.getString(BoomerangRenderWorkerKeys.OUTPUT_FILE_PATH)?.let { path ->
                 BoomerangRenderWorkResult.Success(
                     outputFile = File(path),
                     returnToGallery = outputData.getBoolean(BoomerangRenderWorkerKeys.RETURN_TO_GALLERY, false),
                 )
             }
-            WorkInfo.State.FAILED, WorkInfo.State.CANCELLED -> BoomerangRenderWorkResult.Failure
-            else -> null
         }
-
-    companion object {
-        const val WORK_TAG = "boomerang_render"
+        WorkInfo.State.FAILED -> BoomerangRenderWorkResult.Failure(
+            reason = outputData.getString(BoomerangRenderWorkerKeys.FAILURE_REASON),
+            workerReportedCause = outputData.getBoolean(BoomerangRenderWorkerKeys.FAILURE_REPORTED_CAUSE, false),
+        )
+        WorkInfo.State.CANCELLED -> BoomerangRenderWorkResult.Failure(
+            reason = WorkManagerBoomerangRenderScheduler.REASON_CANCELLED,
+            workerReportedCause = false,
+        )
+        else -> null
     }
-}
