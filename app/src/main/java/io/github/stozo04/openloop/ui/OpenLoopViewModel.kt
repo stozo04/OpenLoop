@@ -1119,6 +1119,7 @@ class OpenLoopViewModel(
                         cause = null,
                         workerReportedCause = result.workerReportedCause,
                     )
+                    BoomerangRenderWorkResult.Cancelled -> returnToEditorAfterCancel(scratch)
                 }
             }
         }
@@ -1173,11 +1174,7 @@ class OpenLoopViewModel(
         cause: Throwable?,
         workerReportedCause: Boolean = false,
     ) {
-        renderObserveJob?.cancel()
-        renderObserveJob = null
-        activeRenderScratchUuid = null
-        saveInProgress = false
-        _renderProgress.value = 0f
+        resetActiveRenderState()
         val editor = _editorState.value
         val trimStartMs = editor?.trimStartMs ?: 0L
         val trimEndMs = editor?.trimEndMs ?: 0L
@@ -1203,6 +1200,29 @@ class OpenLoopViewModel(
         )
         _events.send(BoomerangEvent.SaveFailed(supportReport))
         _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
+    }
+
+    /**
+     * Route back to the editor after a render was cancelled ([BoomerangRenderWorkResult.Cancelled]).
+     * A cancel is user intent, not an error: unlike [failBackToEditor] it files **no** Crashlytics
+     * non-fatal (that would re-open the catch-all beacon issue 47233ad7 with a signal-less event)
+     * and emits **no** [BoomerangEvent.SaveFailed]. The scratch survives so the editor resumes.
+     */
+    private fun returnToEditorAfterCancel(scratch: ScratchCapture) {
+        resetActiveRenderState()
+        _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
+    }
+
+    /**
+     * Tear down the in-flight render observation and reset the progress ring. Shared by the failure
+     * and cancellation exits; leaves the editor/scratch state intact so either can resume the editor.
+     */
+    private fun resetActiveRenderState() {
+        renderObserveJob?.cancel()
+        renderObserveJob = null
+        activeRenderScratchUuid = null
+        saveInProgress = false
+        _renderProgress.value = 0f
     }
 
     /** Stand-in cause when a render failure arrives as a bare WorkManager [Result.failure]. */

@@ -29,10 +29,11 @@ class FakeBoomerangRenderScheduler(
         private set
 
     /**
-     * When set, emitted instead of the mirrored-worker failure — for tests exercising the
-     * bare/legacy failure path (no reason attached, worker did not report the cause).
+     * When set, emitted instead of the mirrored-worker failure — for tests exercising terminal
+     * outcomes the happy/failure path can't produce on its own: the bare/legacy failure (no reason,
+     * worker did not report the cause) or a [BoomerangRenderWorkResult.Cancelled].
      */
-    var failureOverride: BoomerangRenderWorkResult.Failure? = null
+    var terminalResultOverride: BoomerangRenderWorkResult? = null
 
     private val progressFlows = ConcurrentHashMap<UUID, MutableStateFlow<Float>>()
     private val resultFlows = ConcurrentHashMap<UUID, MutableSharedFlow<BoomerangRenderWorkResult>>()
@@ -77,7 +78,7 @@ class FakeBoomerangRenderScheduler(
                 // Mirror the real worker: it reports the genuine cause itself and carries the
                 // outcome string across as the failure reason (workerReportedCause = true).
                 results.emit(
-                    failureOverride ?: BoomerangRenderWorkResult.Failure(
+                    terminalResultOverride ?: BoomerangRenderWorkResult.Failure(
                         reason = "render_failed_test: ${e.javaClass.simpleName}: ${e.message}",
                         workerReportedCause = true,
                     ),

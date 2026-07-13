@@ -52,9 +52,6 @@ class WorkManagerBoomerangRenderScheduler(
 
     companion object {
         const val WORK_TAG = "boomerang_render"
-
-        /** [renderWorkResultOf]'s reason for CANCELLED work — WorkManager attaches no output Data. */
-        const val REASON_CANCELLED = "cancelled"
     }
 }
 
@@ -62,7 +59,8 @@ class WorkManagerBoomerangRenderScheduler(
  * Terminal [WorkInfo] state + output [Data] → [BoomerangRenderWorkResult], or null while the work
  * is still in flight. FAILED reads the reason the worker attached via `Result.failure(Data)`
  * (null when the work died without one — process death, or work persisted by an older version);
- * CANCELLED never carries Data, so it gets its own fixed reason. Top-level for JVM unit testing.
+ * CANCELLED is a distinct [BoomerangRenderWorkResult.Cancelled] (user intent, not a failure — no
+ * Crashlytics beacon). Top-level for JVM unit testing.
  */
 internal fun renderWorkResultOf(state: WorkInfo.State, outputData: Data): BoomerangRenderWorkResult? =
     when (state) {
@@ -78,9 +76,6 @@ internal fun renderWorkResultOf(state: WorkInfo.State, outputData: Data): Boomer
             reason = outputData.getString(BoomerangRenderWorkerKeys.FAILURE_REASON),
             workerReportedCause = outputData.getBoolean(BoomerangRenderWorkerKeys.FAILURE_REPORTED_CAUSE, false),
         )
-        WorkInfo.State.CANCELLED -> BoomerangRenderWorkResult.Failure(
-            reason = WorkManagerBoomerangRenderScheduler.REASON_CANCELLED,
-            workerReportedCause = false,
-        )
+        WorkInfo.State.CANCELLED -> BoomerangRenderWorkResult.Cancelled
         else -> null
     }

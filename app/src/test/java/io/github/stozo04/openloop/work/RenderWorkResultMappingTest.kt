@@ -38,12 +38,12 @@ class RenderWorkResultMappingTest {
     }
 
     @Test
-    fun `CANCELLED maps to Failure with the cancelled reason, not worker-reported`() {
+    fun `CANCELLED maps to the distinct Cancelled outcome, not a Failure`() {
         val result = renderWorkResultOf(WorkInfo.State.CANCELLED, Data.EMPTY)
 
-        val failure = result as BoomerangRenderWorkResult.Failure
-        assertEquals(WorkManagerBoomerangRenderScheduler.REASON_CANCELLED, failure.reason)
-        assertFalse(failure.workerReportedCause)
+        // A cancel is user intent, not an error — the observer must not treat it as a failure
+        // (no Crashlytics beacon, no SaveFailed).
+        assertEquals(BoomerangRenderWorkResult.Cancelled, result)
     }
 
     @Test

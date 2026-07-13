@@ -29,7 +29,10 @@ object BoomerangRenderWorkerKeys {
     /** Success output — absolute path to the registered boomerang MP4. */
     const val OUTPUT_FILE_PATH = "output_file_path"
 
-    /** Failure output — why the render failed (the worker's `reverse_outcome` string). */
+    /**
+     * Failure output — why the render failed (the worker's failure `outcome` string, the same value
+     * it also sends to Crashlytics under the `reverse_outcome` custom key).
+     */
     const val FAILURE_REASON = "failure_reason"
 
     /** Failure output — true when the worker already recorded the genuine cause to Crashlytics. */

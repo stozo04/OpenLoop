@@ -1186,7 +1186,7 @@ class OpenLoopViewModelTest {
             fakeVideoProcessor.failRender = true
             // Legacy/edge shape: the work failed without attached Data (process death, or work
             // persisted by an older app version) — the beacon is the only Crashlytics signal left.
-            fakeRenderScheduler.failureOverride = BoomerangRenderWorkResult.Failure()
+            fakeRenderScheduler.terminalResultOverride = BoomerangRenderWorkResult.Failure()
             mockkObject(ReverseCrashlytics)
             try {
                 viewModel.saveBoomerang()
@@ -1199,6 +1199,41 @@ class OpenLoopViewModelTest {
                         any(),
                     )
                 }
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
+        }
+
+    @Test
+    fun `saveBoomerang render cancellation routes to the editor without a beacon or SaveFailed`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            // A cancel is user intent, not an error: the observer must route back to the editor and
+            // file neither a Crashlytics non-fatal (would re-open beacon 47233ad7) nor a SaveFailed.
+            fakeRenderScheduler.terminalResultOverride = BoomerangRenderWorkResult.Cancelled
+            mockkObject(ReverseCrashlytics)
+            try {
+                val events = mutableListOf<BoomerangEvent>()
+                val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                verify(exactly = 0) {
+                    ReverseCrashlytics.reportSaveFailure(any(), any(), any(), any(), any(), any(), any())
+                }
+                assertTrue(
+                    "cancel must not surface a SaveFailed event, saw: $events",
+                    events.none { it is BoomerangEvent.SaveFailed },
+                )
+                assertTrue(
+                    "cancel must route back to the editor, was: ${viewModel.uiState.value}",
+                    viewModel.uiState.value is OpenLoopUiState.BoomerangEditor,
+                )
+                job.cancel()
             } finally {
                 unmockkObject(ReverseCrashlytics)
             }
