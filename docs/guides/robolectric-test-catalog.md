@@ -60,7 +60,7 @@ From the repo root (Windows: `gradlew.bat` instead of `./gradlew`):
 | `media.DeviceMediaHintsOemRobolectricTest` | Robolectric | `DeviceMediaHints.isSamsungDevice()`, preview cap, encoder order | Any | `ShadowBuild.setManufacturer` / `setBrand` | Samsung RTL sweep |
 | `PostNotificationsGateRobolectricTest` | Robolectric | `shouldRequestPostNotificationsPermission()`, `shouldShowNotificationExportHint()` | 32, 33 | `ShadowApplication.grantPermissions` / `denyPermissions` | Manual QA on API 33+ device |
 
-**Total:** 9 test classes · 38 test methods (including JVM companion).
+**Total:** 9 test classes · 34 test methods (including JVM companion).
 
 ---
 
@@ -91,6 +91,14 @@ From the repo root (Windows: `gradlew.bat` instead of `./gradlew`):
 | | `fgsPromotionDenied_failsGracefullyAndDeletesStalePartial` | Issue #67 F1 — denied FGS, partial deleted |
 
 **Never Robolectric:** `VideoProcessor.renderBoomerang` — covered by `androidTest` `BoomerangRenderWorkerTest`.
+
+**Render cancellation (PR #101)** — a cancelled render is user intent, not a failure. This locks the `CANCELLED` → `Cancelled` flow so the observer routes back to the editor **without** a Crashlytics beacon (47233ad7) or `SaveFailed`:
+
+| Class | Test method | Asserts |
+|-------|-------------|---------|
+| `RenderCancellationRobolectricTest` | `cancelledRenderWork_schedulerEmitsCancelled` | Real WorkManager `CANCELLED` → `observeResult` emits `BoomerangRenderWorkResult.Cancelled` (`WorkManagerTestInitHelper` + a no-op worker executor so `BoomerangRenderWorker` never runs) |
+
+**Pure-JVM complement:** `RenderWorkResultMappingTest` (`renderWorkResultOf` for every terminal state) and `OpenLoopViewModelTest` (cancel routes to the editor, no beacon / no `SaveFailed`).
 
 ### Library import
 
