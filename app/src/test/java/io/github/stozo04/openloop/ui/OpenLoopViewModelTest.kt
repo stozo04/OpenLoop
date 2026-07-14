@@ -1019,12 +1019,7 @@ class OpenLoopViewModelTest {
             )
 
             fakeVideoProcessor.releaseReverseGate()
-            var spins = 0
-            while (viewModel.editorTabState.value.reversedFile == null && spins++ < 200) {
-                Thread.sleep(25)
-                runCurrent()
-            }
-            advanceUntilIdle()
+            awaitReverseSettled { viewModel.editorTabState.value.reversedFile != null }
             assertNotNull(viewModel.editorTabState.value.reversedFile)
             assertNull(viewModel.editorTabState.value.previewLoading)
         }
@@ -1548,6 +1543,32 @@ class OpenLoopViewModelTest {
             runCurrent()
         }
         advanceUntilIdle()
+    }
+
+    /**
+     * Wait for a reverse job to fully settle. The job hops to a real [Dispatchers.IO] thread
+     * (`OpenLoopViewModel` line ~853), so its Main-side completion arrives on real, not virtual,
+     * time. Pump the test scheduler on a **generous wall-clock** budget until [condition] holds
+     * (exiting immediately once it does — no cost on the fast path), then drain twice so the
+     * now-finished coroutine can't leak into `runTest`'s teardown as an `UncompletedCoroutinesError`.
+     *
+     * Replaces a fixed 200×25ms (5s) spin that could expire while the IO thread was still starved
+     * under full-suite CPU load, leaving the reverse job in flight at teardown — a pre-existing
+     * ~1-in-3 flake surfaced during PR #101 review.
+     */
+    private fun TestScope.awaitReverseSettled(timeoutMs: Long = 20_000L, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        runCurrent()
+        while (!condition() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+            runCurrent()
+        }
+        // Condition holds → the IO continuation ran. Drain twice (with a real-time gap) so the
+        // launch's completion, or any bookkeeping the IO thread posted at the boundary, is caught.
+        advanceUntilIdle()
+        Thread.sleep(10)
+        advanceUntilIdle()
+        if (!condition()) error("reverse did not settle within ${timeoutMs}ms")
     }
 
     /** Count carried by the single [BoomerangEvent.LoopsDeleted] in [events] (fails if absent). */
