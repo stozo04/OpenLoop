@@ -216,6 +216,7 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 | `UserPreferencesRepositoryImplRobolectricTest` | Real DataStore round-trip (onboarding flag) |
 | `DeviceMediaHintsOemRobolectricTest` | `ShadowBuild` Samsung/LG identity → preview cap + encoder order |
 | `BoomerangRenderWorkerRobolectricTest` | Worker guard paths: invalid input, `getForegroundInfo`, FGS denied + partial cleanup |
+| `RenderCancellationRobolectricTest` | Real WorkManager `CANCELLED` → scheduler emits `BoomerangRenderWorkResult.Cancelled` (no Crashlytics beacon / no `SaveFailed`) |
 | `PostNotificationsGateRobolectricTest` | POST_NOTIFICATIONS gate: API 32 no-op vs API 33+ active/denied |
 | `SamsungReversePreviewRegressionTest` | Samsung encoder ranking (RTL-derived, explicit `isSamsung=true`) |
 
@@ -285,7 +286,7 @@ These are areas that need tests but don't have them yet:
 | Error recovery flows | Corrupted DataStore, permission revocation mid-use | Medium |
 | Robolectric Compose (Tier 3) | No JVM Compose harness yet; onboarding interaction tests stay on device | Low |
 
-**Closed gaps (Robolectric):** real DataStore implementation (`UserPreferencesRepositoryImplRobolectricTest`), import stream copy (`VideoImporterImportRobolectricTest`), FGS/notification channel (`BoomerangRender*`), worker guards (`BoomerangRenderWorkerRobolectricTest`), POST_NOTIFICATIONS gate (`PostNotificationsGateRobolectricTest`).
+**Closed gaps (Robolectric):** real DataStore implementation (`UserPreferencesRepositoryImplRobolectricTest`), import stream copy (`VideoImporterImportRobolectricTest`), FGS/notification channel (`BoomerangRender*`), worker guards (`BoomerangRenderWorkerRobolectricTest`), render cancellation → editor (`RenderCancellationRobolectricTest`), POST_NOTIFICATIONS gate (`PostNotificationsGateRobolectricTest`).
 
 ---
 
