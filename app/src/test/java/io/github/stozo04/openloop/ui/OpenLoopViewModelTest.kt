@@ -6,6 +6,7 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.RecordedVideo
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.data.ScratchCapture
 import io.github.stozo04.openloop.data.UserPreferencesRepository
 import io.github.stozo04.openloop.data.VideoImporter
@@ -15,6 +16,7 @@ import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
 import io.mockk.*
 import kotlinx.coroutines.CoroutineScope
@@ -1017,12 +1019,7 @@ class OpenLoopViewModelTest {
             )
 
             fakeVideoProcessor.releaseReverseGate()
-            var spins = 0
-            while (viewModel.editorTabState.value.reversedFile == null && spins++ < 200) {
-                Thread.sleep(25)
-                runCurrent()
-            }
-            advanceUntilIdle()
+            awaitReverseSettled { viewModel.editorTabState.value.reversedFile != null }
             assertNotNull(viewModel.editorTabState.value.reversedFile)
             assertNull(viewModel.editorTabState.value.previewLoading)
         }
@@ -1141,6 +1138,100 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.REVERSE_THEN_FORWARD, viewModel.editorTabState.value.mode)
 
             job.cancel()
+        }
+
+    @Test
+    fun `saveBoomerang render failure carries the worker reason into the report and skips the duplicate beacon`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            mockkObject(ReverseCrashlytics)
+            try {
+                val events = mutableListOf<BoomerangEvent>()
+                val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                // The reason the worker attached to its failure Data reaches the shareable report.
+                val saveFailed = events.filterIsInstance<BoomerangEvent.SaveFailed>().single()
+                assertTrue(
+                    "report should contain the worker's failure reason, was: ${saveFailed.supportReport}",
+                    saveFailed.supportReport.orEmpty().contains("render_failed_test"),
+                )
+                // The worker already recorded the genuine exception as its own non-fatal — the
+                // observer must not file the synthetic-cause beacon again (Crashlytics 47233ad7).
+                verify(exactly = 0) {
+                    ReverseCrashlytics.reportSaveFailure(any(), any(), any(), any(), any(), any(), any())
+                }
+                job.cancel()
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
+        }
+
+    @Test
+    fun `saveBoomerang bare render failure without a worker reason still reports the beacon non-fatal`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            // Legacy/edge shape: the work failed without attached Data (process death, or work
+            // persisted by an older app version) — the beacon is the only Crashlytics signal left.
+            fakeRenderScheduler.terminalResultOverride = BoomerangRenderWorkResult.Failure()
+            mockkObject(ReverseCrashlytics)
+            try {
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                verify(exactly = 1) {
+                    ReverseCrashlytics.reportSaveFailure(
+                        any(), any(), any(), any(), any(),
+                        match { it.contains("Render worker reported failure") },
+                        any(),
+                    )
+                }
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
+        }
+
+    @Test
+    fun `saveBoomerang render cancellation routes to the editor without a beacon or SaveFailed`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            // A cancel is user intent, not an error: the observer must route back to the editor and
+            // file neither a Crashlytics non-fatal (would re-open beacon 47233ad7) nor a SaveFailed.
+            fakeRenderScheduler.terminalResultOverride = BoomerangRenderWorkResult.Cancelled
+            mockkObject(ReverseCrashlytics)
+            try {
+                val events = mutableListOf<BoomerangEvent>()
+                val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                verify(exactly = 0) {
+                    ReverseCrashlytics.reportSaveFailure(any(), any(), any(), any(), any(), any(), any())
+                }
+                assertTrue(
+                    "cancel must not surface a SaveFailed event, saw: $events",
+                    events.none { it is BoomerangEvent.SaveFailed },
+                )
+                assertTrue(
+                    "cancel must route back to the editor, was: ${viewModel.uiState.value}",
+                    viewModel.uiState.value is OpenLoopUiState.BoomerangEditor,
+                )
+                job.cancel()
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
         }
 
     @Test
@@ -1452,6 +1543,32 @@ class OpenLoopViewModelTest {
             runCurrent()
         }
         advanceUntilIdle()
+    }
+
+    /**
+     * Wait for a reverse job to fully settle. The job hops to a real [Dispatchers.IO] thread
+     * (`OpenLoopViewModel` line ~853), so its Main-side completion arrives on real, not virtual,
+     * time. Pump the test scheduler on a **generous wall-clock** budget until [condition] holds
+     * (exiting immediately once it does — no cost on the fast path), then drain twice so the
+     * now-finished coroutine can't leak into `runTest`'s teardown as an `UncompletedCoroutinesError`.
+     *
+     * Replaces a fixed 200×25ms (5s) spin that could expire while the IO thread was still starved
+     * under full-suite CPU load, leaving the reverse job in flight at teardown — a pre-existing
+     * ~1-in-3 flake surfaced during PR #101 review.
+     */
+    private fun TestScope.awaitReverseSettled(timeoutMs: Long = 20_000L, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        runCurrent()
+        while (!condition() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+            runCurrent()
+        }
+        // Condition holds → the IO continuation ran. Drain twice (with a real-time gap) so the
+        // launch's completion, or any bookkeeping the IO thread posted at the boundary, is caught.
+        advanceUntilIdle()
+        Thread.sleep(10)
+        advanceUntilIdle()
+        if (!condition()) error("reverse did not settle within ${timeoutMs}ms")
     }
 
     /** Count carried by the single [BoomerangEvent.LoopsDeleted] in [events] (fails if absent). */

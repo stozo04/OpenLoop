@@ -179,7 +179,7 @@ class OpenLoopNavHostTest {
         override fun enqueue(request: BoomerangRenderRequest): UUID = UUID.randomUUID()
         override fun observeProgress(workId: UUID): Flow<Float> = MutableStateFlow(0f)
         override fun observeResult(workId: UUID): Flow<BoomerangRenderWorkResult> = MutableStateFlow(
-            BoomerangRenderWorkResult.Failure,
+            BoomerangRenderWorkResult.Failure(),
         )
         override fun cancelRenderWork(scratchUuid: String) = Unit
     }
