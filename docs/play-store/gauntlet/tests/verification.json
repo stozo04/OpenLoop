@@ -1,0 +1,24 @@
+[
+  {
+    "file": "main-image-winner.png",
+    "format": "PNG",
+    "source_mode": "RGB",
+    "dimensions": [
+      1024,
+      500
+    ],
+    "bytes": 336707,
+    "opaque_rgb_export_required": false,
+    "mean_luma": 112.16,
+    "luma_stddev": 30.33,
+    "dark_pixel_share": 0.0103,
+    "bright_pixel_share": 0.0404,
+    "luma_extrema": [
+      22,
+      243
+    ],
+    "passes_feature_graphic_dimensions": true,
+    "passes_file_size_15mb": true,
+    "passes_hierarchy_spread": true
+  }
+]

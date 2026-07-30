@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OpenLoop feature-graphic concepts</title>
+  <style>
+    @font-face {
+      font-family: "Space Grotesk";
+      src: url("../../../../app/src/main/res/font/space_grotesk.ttf");
+    }
+    @font-face {
+      font-family: "Inter";
+      src: url("../../../../app/src/main/res/font/inter.ttf");
+    }
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("../../../../app/src/main/res/font/jetbrains_mono.ttf");
+    }
+    :root {
+      --lime: #cdff4f;
+      --ink: #15200a;
+      --aqua: #34e1d5;
+      --coral: #ff5a5f;
+      --canvas: #0a0a0c;
+      --surface: #17171d;
+      --surface-hi: #26262e;
+      --text: #f3f3f6;
+      --muted: #adadb8;
+      --cream: #fff8e9;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; background: #ddd; }
+    body { display: grid; place-items: center; }
+    .artboard {
+      position: relative;
+      width: 1024px;
+      height: 500px;
+      overflow: hidden;
+      font-family: "Inter", Arial, sans-serif;
+      color: var(--ink);
+      isolation: isolate;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font: 700 19px/1 "Space Grotesk", sans-serif;
+      letter-spacing: -0.02em;
+    }
+    .brand-mark {
+      position: relative;
+      width: 27px;
+      height: 27px;
+      border: 6px solid currentColor;
+      border-radius: 50%;
+    }
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      width: 9px;
+      height: 6px;
+      top: 4px;
+      right: -8px;
+      background: currentColor;
+      transform: rotate(-32deg);
+      border-radius: 2px;
+    }
+    h1 {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
+      letter-spacing: -0.055em;
+    }
+    .eyebrow {
+      font: 700 12px/1 "Inter", sans-serif;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .adfree {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font: 700 13px/1 "Inter", sans-serif;
+      white-space: nowrap;
+    }
+    .adfree i {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: var(--aqua);
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px rgba(52,225,213,.18);
+    }
+    .tool-card {
+      position: relative;
+      overflow: hidden;
+      color: var(--text);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.045), transparent 42%),
+        var(--surface);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 18px 40px rgba(21,32,10,.18);
+    }
+    .tool-card .tool-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text);
+      font: 700 12px/1 "Inter", sans-serif;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .tool-card .tool-title .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--lime);
+      box-shadow: 0 0 0 4px rgba(205,255,79,.10);
+    }
+    .filter-looks {
+      display: flex;
+      gap: 7px;
+      align-items: flex-end;
+    }
+    .look {
+      display: grid;
+      gap: 4px;
+      justify-items: center;
+      color: var(--muted);
+      font: 600 7px/1 "Inter", sans-serif;
+    }
+    .look b {
+      display: block;
+      width: 30px;
+      height: 38px;
+      border-radius: 7px;
+      background:
+        radial-gradient(circle at 62% 28%, #ffd28a 0 12%, transparent 13%),
+        linear-gradient(145deg, #51352b 0 38%, #d28248 39% 66%, #241c1e 67%);
+      border: 1px solid #4a4a54;
+    }
+    .look:nth-child(2) b { filter: grayscale(1); }
+    .look:nth-child(3) b { filter: sepia(.42) saturate(1.35); }
+    .look:nth-child(4) b { filter: hue-rotate(150deg) saturate(.72); }
+    .look:nth-child(5) b { filter: saturate(1.75) contrast(1.12); }
+    .look.active { color: var(--lime); }
+    .look.active b { outline: 2px solid var(--lime); outline-offset: 1px; }
+    .filmstrip {
+      position: relative;
+      height: 46px;
+      border-radius: 7px;
+      background:
+        linear-gradient(90deg, rgba(10,10,12,.62) 0 15%, transparent 15% 83%, rgba(10,10,12,.62) 83%),
+        repeating-linear-gradient(90deg, transparent 0 22px, rgba(255,255,255,.2) 22px 24px),
+        linear-gradient(155deg, #1c86bc, #72c7ed 45%, #1d7845 46% 69%, #203a26);
+      border: 2px solid var(--lime);
+    }
+    .filmstrip::before, .filmstrip::after {
+      content: "Ⅱ";
+      position: absolute;
+      top: 6px;
+      width: 18px;
+      height: 31px;
+      display: grid;
+      place-items: center;
+      border-radius: 5px;
+      color: var(--ink);
+      background: var(--lime);
+      font: 900 10px/1 "Inter";
+    }
+    .filmstrip::before { left: -7px; }
+    .filmstrip::after { right: -7px; }
+    .mono {
+      font-family: "JetBrains Mono", monospace;
+      letter-spacing: -.04em;
+    }
+    .speed-track {
+      position: relative;
+      height: 5px;
+      margin: 16px 3px 10px;
+      background: #555560;
+      border-radius: 99px;
+    }
+    .speed-track::before {
+      content: "";
+      display: block;
+      width: 62%;
+      height: 100%;
+      background: var(--lime);
+      border-radius: inherit;
+    }
+    .speed-track::after {
+      content: "";
+      position: absolute;
+      left: 59%;
+      top: 50%;
+      width: 15px;
+      height: 15px;
+      border: 5px solid rgba(205,255,79,.25);
+      background: var(--lime);
+      border-radius: 50%;
+      transform: translate(-50%,-50%);
+      box-shadow: 0 0 0 2px var(--lime);
+    }
+    .speed-labels {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font: 600 8px/1 "Inter";
+    }
+    .current-speed {
+      width: max-content;
+      margin-top: 8px;
+      border: 1px solid #40404a;
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--muted);
+      font: 500 8px/1 "Inter";
+    }
+    .current-speed b { color: var(--lime); }
+    .direction-options {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+    }
+    .dir {
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      border: 1px solid #3a3a45;
+      background: #232329;
+      color: var(--text);
+      font: 700 20px/1 "Space Grotesk";
+    }
+    .dir.active {
+      background: var(--lime);
+      color: var(--ink);
+      border-color: var(--lime);
+      box-shadow: 0 0 0 5px rgba(205,255,79,.08);
+    }
+    .media-jump {
+      position: relative;
+      overflow: hidden;
+      background: #55b8ec;
+    }
+    .media-jump img {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      top: 0;
+      object-fit: cover;
+      object-position: center;
+    }
+    .loop-glyph {
+      display: grid;
+      place-items: center;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      color: var(--ink);
+      background: var(--lime);
+      font: 800 34px/1 "Space Grotesk";
+      box-shadow: 0 13px 28px rgba(21,32,10,.26);
+    }
+
+    /* Concept A — bright editorial toolkit */
+    .concept-a {
+      background:
+        radial-gradient(circle at 88% 12%, rgba(52,225,213,.28), transparent 22%),
+        radial-gradient(circle at 5% 96%, rgba(205,255,79,.48), transparent 27%),
+        var(--cream);
+    }
+    .concept-a::before {
+      content: "";
+      position: absolute;
+      width: 630px;
+      height: 630px;
+      left: 595px;
+      top: -295px;
+      border: 70px solid var(--lime);
+      border-radius: 50%;
+      z-index: -1;
+      opacity: .9;
+    }
+    .a-copy {
+      position: absolute;
+      left: 54px;
+      top: 44px;
+      width: 410px;
+    }
+    .a-copy .brand { margin-bottom: 49px; }
+    .a-copy h1 {
+      font-size: 58px;
+      line-height: .91;
+      max-width: 390px;
+    }
+    .a-copy .sub {
+      margin: 17px 0 19px;
+      max-width: 335px;
+      font: 600 16px/1.36 "Inter";
+      color: #415033;
+    }
+    .concept-a .adfree {
+      color: var(--text);
+      background: var(--ink);
+      box-shadow: 0 9px 20px rgba(21,32,10,.18);
+    }
+    .a-tools {
+      position: absolute;
+      left: 456px;
+      top: 43px;
+      width: 520px;
+      height: 415px;
+    }
+    .a-tools::before {
+      content: "";
+      position: absolute;
+      left: 55px;
+      top: 184px;
+      width: 400px;
+      height: 130px;
+      border: 3px solid rgba(21,32,10,.24);
+      border-top: 0;
+      border-radius: 0 0 210px 210px;
+      transform: rotate(-5deg);
+    }
+    .concept-a .tool-card { border-radius: 22px; padding: 16px; }
+    .a-filter {
+      position: absolute;
+      width: 174px;
+      height: 131px;
+      left: 0;
+      top: 48px;
+      transform: rotate(-6deg);
+    }
+    .a-filter .filter-looks { margin-top: 15px; }
+    .a-trim {
+      position: absolute;
+      width: 208px;
+      height: 125px;
+      left: 191px;
+      top: 0;
+      transform: rotate(3deg);
+    }
+    .a-trim .filmstrip { margin-top: 17px; }
+    .a-trim .mono { margin-top: 8px; text-align: center; color: var(--muted); font-size: 9px; }
+    .a-speed {
+      position: absolute;
+      width: 178px;
+      height: 142px;
+      left: 31px;
+      top: 220px;
+      transform: rotate(3deg);
+    }
+    .a-direction {
+      position: absolute;
+      width: 190px;
+      height: 135px;
+      left: 200px;
+      top: 196px;
+      transform: rotate(-4deg);
+    }
+    .a-direction .direction-options { margin-top: 20px; }
+    .a-result {
+      position: absolute;
+      right: 30px;
+      bottom: 31px;
+      width: 175px;
+      height: 162px;
+      border-radius: 24px;
+      border: 4px solid var(--ink);
+      box-shadow: 0 25px 50px rgba(21,32,10,.24);
+      transform: rotate(3deg);
+    }
+    .a-result .loop-glyph {
+      position: absolute;
+      left: -30px;
+      top: 52px;
+      width: 58px;
+      height: 58px;
+      font-size: 28px;
+    }
+    .a-result .result-tag {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      text-align: center;
+      background: rgba(10,10,12,.82);
+      color: var(--text);
+      font: 700 11px/1 "Inter";
+      backdrop-filter: blur(5px);
+    }
+
+    /* Concept B — infinity workflow */
+    .concept-b {
+      background: var(--lime);
+      color: var(--ink);
+    }
+    .concept-b::before {
+      content: "";
+      position: absolute;
+      width: 440px;
+      height: 620px;
+      right: -175px;
+      top: -55px;
+      border-radius: 50%;
+      background: var(--ink);
+      z-index: -1;
+    }
+    .concept-b::after {
+      content: "";
+      position: absolute;
+      width: 245px;
+      height: 245px;
+      left: -135px;
+      bottom: -145px;
+      border-radius: 50%;
+      background: var(--aqua);
+      opacity: .75;
+      z-index: -1;
+    }
+    .b-brand {
+      position: absolute;
+      left: 52px;
+      top: 36px;
+    }
+    .b-title {
+      position: absolute;
+      left: 52px;
+      top: 86px;
+      width: 465px;
+      font-size: 51px;
+      line-height: .94;
+    }
+    .b-title em {
+      font-style: normal;
+      color: transparent;
+      -webkit-text-stroke: 2px var(--ink);
+    }
+    .b-loop-path {
+      position: absolute;
+      left: 270px;
+      top: 145px;
+      width: 560px;
+      height: 310px;
+      overflow: visible;
+    }
+    .b-loop-path path {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 23;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .b-loop-path path.echo {
+      stroke: var(--aqua);
+      stroke-width: 7;
+      stroke-dasharray: 2 18;
+    }
+    .b-node {
+      position: absolute;
+      width: 154px;
+      height: 103px;
+      padding: 12px 13px;
+      border-radius: 21px;
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: 0 15px 28px rgba(21,32,10,.24);
+    }
+    .b-node .tool-title { font-size: 11px; }
+    .b-node.filter { left: 227px; top: 198px; transform: rotate(-7deg); }
+    .b-node.trim { left: 399px; top: 296px; transform: rotate(5deg); }
+    .b-node.speed { left: 554px; top: 157px; transform: rotate(-4deg); }
+    .b-node.direction { left: 588px; top: 344px; width: 188px; transform: rotate(3deg); }
+    .b-node.filter .filter-looks { margin-top: 12px; gap: 4px; }
+    .b-node.filter .look b { width: 21px; height: 27px; border-radius: 5px; }
+    .b-node.filter .look { font-size: 0; }
+    .b-node.trim .filmstrip { height: 35px; margin-top: 13px; }
+    .b-node.speed .speed-track { margin-top: 15px; }
+    .b-node.speed .current-speed { margin-top: 7px; }
+    .b-node.direction .direction-options { margin-top: 13px; gap: 4px; }
+    .b-node.direction .dir { height: 35px; border-radius: 12px; font-size: 16px; }
+    .b-outcome {
+      position: absolute;
+      right: 44px;
+      top: 62px;
+      width: 190px;
+      color: var(--text);
+      z-index: 3;
+    }
+    .b-outcome .media-jump {
+      height: 250px;
+      border-radius: 28px;
+      border: 0;
+      box-shadow: 0 24px 42px rgba(0,0,0,.28);
+    }
+    .b-outcome .media-jump img { width: 100%; left: 0; top: 0; }
+    .b-outcome .loop-glyph {
+      position: absolute;
+      left: -35px;
+      top: 165px;
+      width: 64px;
+      height: 64px;
+      font-size: 30px;
+      background: var(--aqua);
+    }
+    .b-outcome h2 {
+      margin: 15px 0 5px;
+      color: var(--text);
+      font: 700 25px/.98 "Space Grotesk";
+      letter-spacing: -.04em;
+    }
+    .b-outcome p {
+      margin: 0;
+      color: #d5dbc9;
+      font: 600 12px/1.2 "Inter";
+    }
+    .b-adfree {
+      position: absolute;
+      left: 52px;
+      bottom: 35px;
+      color: var(--ink);
+      background: rgba(255,255,255,.58);
+      border: 1px solid rgba(21,32,10,.16);
+    }
+
+    /* Concept C — creator result with stacked real-control derivations */
+    .concept-c {
+      background: #f5ecd7 url("../references/generated-loop-backdrop.png") center/cover no-repeat;
+      color: var(--ink);
+    }
+    .concept-c::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255,250,237,.96) 0 42%, rgba(255,250,237,.52) 59%, rgba(255,250,237,.08));
+      z-index: -1;
+    }
+    .c-copy {
+      position: absolute;
+      left: 50px;
+      top: 40px;
+      width: 390px;
+    }
+    .c-copy .brand { margin-bottom: 52px; }
+    .c-copy h1 {
+      font-size: 57px;
+      line-height: .91;
+    }
+    .c-copy .sub {
+      margin: 15px 0 18px;
+      color: #39442e;
+      font: 600 15px/1.35 "Inter";
+      width: 320px;
+    }
+    .concept-c .adfree {
+      color: var(--ink);
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(21,32,10,.12);
+      box-shadow: 0 10px 25px rgba(79,64,24,.10);
+    }
+    .c-tool-stack {
+      position: absolute;
+      left: 424px;
+      top: 84px;
+      width: 340px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      column-gap: 12px;
+      row-gap: 14px;
+      z-index: 2;
+    }
+    .c-tool {
+      position: relative;
+      height: 140px;
+      padding: 16px 14px 12px;
+      border-radius: 19px;
+      color: var(--text);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.05), transparent 46%),
+        rgba(23,23,29,.97);
+      border: 1px solid rgba(255,255,255,.13);
+      box-shadow:
+        0 14px 28px rgba(50,44,25,.16),
+        0 2px 6px rgba(21,32,10,.12);
+    }
+    .c-tool:nth-child(1) { transform: rotate(-1.5deg); }
+    .c-tool:nth-child(2) { transform: rotate(1.5deg) translateY(-4px); }
+    .c-tool:nth-child(3) { transform: rotate(.75deg) translateY(1px); }
+    .c-tool:nth-child(4) { transform: rotate(-1.5deg) translateY(-3px); }
+    .c-tool .tool-icon {
+      position: absolute;
+      right: 12px;
+      top: 10px;
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      color: var(--ink);
+      background: var(--lime);
+      font: 800 14px/1 "Space Grotesk";
+    }
+    .c-tool .tool-title {
+      justify-content: flex-start;
+      width: calc(100% - 50px);
+      font-size: 12px;
+      line-height: 1.05;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+    .c-tool:nth-child(4) .tool-title { font-size: 11px; letter-spacing: .02em; }
+    .c-tool .tool-title .dot { display: none; }
+    .c-tool .mini {
+      margin-top: 27px;
+    }
+    .c-tool .filter-looks { gap: 5px; }
+    .c-tool .look b { width: 22px; height: 31px; border-radius: 5px; }
+    .c-tool .look { font-size: 0; }
+    .c-tool .filmstrip { height: 41px; }
+    .c-tool .filmstrip::before, .c-tool .filmstrip::after { top: 4px; height: 29px; width: 15px; font-size: 7px; }
+    .c-tool .speed-track { margin: 35px 2px 12px; }
+    .c-tool .speed-labels { font-size: 8px; }
+    .c-tool .direction-options { gap: 5px; }
+    .c-tool .dir { height: 39px; border-radius: 11px; font-size: 16px; }
+    .c-result {
+      position: absolute;
+      right: 28px;
+      top: 40px;
+      width: 285px;
+      height: 420px;
+    }
+    .c-result .frame-a,
+    .c-result .frame-b,
+    .c-result .frame-c {
+      position: absolute;
+      width: 215px;
+      height: 340px;
+      border-radius: 23px;
+      border: 5px solid rgba(255,248,233,.92);
+      overflow: hidden;
+      box-shadow:
+        0 22px 44px rgba(34,38,18,.22),
+        0 3px 10px rgba(34,38,18,.12);
+      background: #62bde9;
+    }
+    .c-result img {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+      object-fit: cover;
+      object-position: center;
+    }
+    .c-result .frame-a { left: 0; top: 58px; transform: rotate(-8deg); opacity: .44; }
+    .c-result .frame-b { left: 37px; top: 34px; transform: rotate(-1deg); opacity: .68; }
+    .c-result .frame-c { left: 65px; top: 5px; transform: rotate(7deg); }
+    .c-result .loop-glyph {
+      position: absolute;
+      left: 18px;
+      bottom: 8px;
+      z-index: 5;
+      width: 66px;
+      height: 66px;
+      background: var(--aqua);
+      font-size: 32px;
+      box-shadow: 0 12px 24px rgba(34,38,18,.18);
+    }
+    .c-result .result-tag {
+      position: absolute;
+      right: 10px;
+      bottom: 8px;
+      z-index: 5;
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: var(--text);
+      background: var(--ink);
+      font: 700 12px/1 "Inter";
+      box-shadow: 0 8px 18px rgba(34,38,18,.14);
+    }
+  </style>
+</head>
+<body>
+  <div class="artboard concept-a" data-concept="a">
+    <div class="a-copy">
+      <div class="brand"><span class="brand-mark"></span><span>OpenLoop</span></div>
+      <h1>Make any moment loop.</h1>
+      <p class="sub">Shape a clip with four simple creative controls—then keep the moment moving.</p>
+    </div>
+    <div class="a-tools">
+      <div class="tool-card a-filter">
+        <div class="tool-title"><span>Filter</span><span class="dot"></span></div>
+        <div class="filter-looks">
+          <span class="look active"><b></b>Original</span>
+          <span class="look"><b></b>B&amp;W</span>
+          <span class="look"><b></b>Warm</span>
+          <span class="look"><b></b>Cool</span>
+          <span class="look"><b></b>Pop</span>
+        </div>
+      </div>
+      <div class="tool-card a-trim">
+        <div class="tool-title"><span>Trim</span><span class="dot"></span></div>
+        <div class="filmstrip"></div>
+        <div class="mono">00:02.3 — 00:10.8</div>
+      </div>
+      <div class="tool-card a-speed">
+        <div class="tool-title"><span>Speed</span><span class="dot"></span></div>
+        <div class="speed-track"></div>
+        <div class="speed-labels"><span>0.25×</span><span>1×</span><span>3×</span></div>
+        <div class="current-speed">Current <b>1.5×</b></div>
+      </div>
+      <div class="tool-card a-direction">
+        <div class="tool-title"><span>Loop Direction</span><span class="dot"></span></div>
+        <div class="direction-options">
+          <span class="dir">→</span><span class="dir">←</span><span class="dir active">⇄</span><span class="dir">↔</span>
+        </div>
+      </div>
+    </div>
+    <div class="a-result media-jump">
+      <img src="../references/jump-video-crop.png" alt="" />
+      <span class="loop-glyph">↻</span>
+      <span class="result-tag">Smooth loop ready</span>
+    </div>
+  </div>
+
+  <div class="artboard concept-b" data-concept="b">
+    <div class="brand b-brand"><span class="brand-mark"></span><span>OpenLoop</span></div>
+    <h1 class="b-title">Four edits.<br><em>One smooth loop.</em></h1>
+    <svg class="b-loop-path" viewBox="0 0 560 310" aria-hidden="true">
+      <path d="M38 156 C115 44 216 45 281 155 C350 273 447 269 520 154 C447 42 349 44 281 155 C214 267 113 267 38 156Z"/>
+      <path class="echo" d="M38 156 C115 44 216 45 281 155 C350 273 447 269 520 154 C447 42 349 44 281 155 C214 267 113 267 38 156Z"/>
+    </svg>
+    <div class="b-node filter tool-card">
+      <div class="tool-title"><span>Filter</span><span class="dot"></span></div>
+      <div class="filter-looks">
+        <span class="look active"><b></b></span><span class="look"><b></b></span><span class="look"><b></b></span><span class="look"><b></b></span><span class="look"><b></b></span>
+      </div>
+    </div>
+    <div class="b-node trim tool-card">
+      <div class="tool-title"><span>Trim</span><span class="dot"></span></div>
+      <div class="filmstrip"></div>
+    </div>
+    <div class="b-node speed tool-card">
+      <div class="tool-title"><span>Speed</span><span class="dot"></span></div>
+      <div class="speed-track"></div>
+      <div class="current-speed">Current <b>1.5×</b></div>
+    </div>
+    <div class="b-node direction tool-card">
+      <div class="tool-title"><span>Loop Direction</span><span class="dot"></span></div>
+      <div class="direction-options">
+        <span class="dir">→</span><span class="dir">←</span><span class="dir active">⇄</span><span class="dir">↔</span>
+      </div>
+    </div>
+    <div class="b-outcome">
+      <div class="media-jump"><img src="../references/jump-video-crop.png" alt="" /></div>
+      <span class="loop-glyph">↻</span>
+      <h2>Keep the moment moving.</h2>
+      <p>Loop-ready in a few taps.</p>
+    </div>
+  </div>
+
+  <div class="artboard concept-c" data-concept="c">
+    <div class="c-copy">
+      <div class="brand"><span class="brand-mark"></span><span>OpenLoop</span></div>
+      <h1>Your clip.<br>Made to loop.</h1>
+      <p class="sub">Filter. Trim. Speed. Direction.<br>Everything you need for a seamless loop.</p>
+    </div>
+    <div class="c-tool-stack">
+      <div class="c-tool">
+        <span class="tool-icon">◐</span>
+        <div class="tool-title"><span>Filter</span><span class="dot"></span></div>
+        <div class="filter-looks mini">
+          <span class="look active"><b></b></span><span class="look"><b></b></span><span class="look"><b></b></span><span class="look"><b></b></span><span class="look"><b></b></span>
+        </div>
+      </div>
+      <div class="c-tool">
+        <span class="tool-icon">✂</span>
+        <div class="tool-title"><span>Trim</span><span class="dot"></span></div>
+        <div class="filmstrip mini"></div>
+      </div>
+      <div class="c-tool">
+        <span class="tool-icon">1.5×</span>
+        <div class="tool-title"><span>Speed</span><span class="dot"></span></div>
+        <div class="speed-track mini"></div>
+        <div class="speed-labels"><span>0.25×</span><span>3×</span></div>
+      </div>
+      <div class="c-tool">
+        <span class="tool-icon">⇄</span>
+        <div class="tool-title"><span>Loop Direction</span><span class="dot"></span></div>
+        <div class="direction-options mini">
+          <span class="dir">→</span><span class="dir">←</span><span class="dir active">⇄</span><span class="dir">↔</span>
+        </div>
+      </div>
+    </div>
+    <div class="c-result">
+      <div class="frame-a"><img src="../references/jump-video-crop.png" alt="" /></div>
+      <div class="frame-b"><img src="../references/jump-video-crop.png" alt="" /></div>
+      <div class="frame-c"><img src="../references/jump-video-crop.png" alt="" /></div>
+      <span class="loop-glyph">↻</span>
+      <span class="result-tag">Loop ready</span>
+    </div>
+  </div>
+  <script>
+    const wanted = new URLSearchParams(location.search).get("concept") || "a";
+    document.querySelectorAll("[data-concept]").forEach((node) => {
+      node.style.display = node.dataset.concept === wanted ? "block" : "none";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @font-face { font-family: "Space Grotesk"; src: url("../../../../app/src/main/res/font/space_grotesk.ttf"); }
+    @font-face { font-family: "Inter"; src: url("../../../../app/src/main/res/font/inter.ttf"); }
+    * { box-sizing: border-box; }
+    html,body { margin: 0; width: 1400px; height: 900px; overflow: hidden; background: #f4f0e7; color: #15200a; }
+    body { padding: 35px 42px; font-family: Inter, sans-serif; }
+    h1 { margin: 0; font: 700 40px/1 Space Grotesk; letter-spacing: -.04em; }
+    .bar { margin: 12px 0 24px; width: 100%; height: 5px; border-radius: 99px; background: linear-gradient(90deg,#cdff4f 0 68%,#34e1d5 68% 86%,#ff5a5f 86%); }
+    .grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 15px; }
+    .card { position: relative; height: 340px; padding: 12px; overflow: hidden; border-radius: 20px; background: #fff; box-shadow: 0 10px 25px rgba(21,32,10,.11); }
+    .card img { display:block; width:100%; height:270px; object-fit:cover; object-position: top center; border-radius: 12px; background:#ddd; }
+    .card strong { display:block; margin-top:10px; font:700 15px/1.1 Space Grotesk; }
+    .card span { display:block; margin-top:4px; color:#66705d; font:500 10px/1.25 Inter; }
+    .openloop { margin-top: 23px; display:grid; grid-template-columns: repeat(5,1fr); gap:15px; }
+    .openloop .card { height: 322px; background:#15200a; color:#f3f3f6; }
+    .openloop .card img { height:250px; }
+    .openloop .card span { color:#adadb8; }
+    .quality {
+      position:absolute; left:42px; right:42px; bottom:26px;
+      display:flex; align-items:center; gap:12px; padding:12px 16px;
+      border-radius:15px; background:#cdff4f; font:700 14px/1.25 Space Grotesk;
+    }
+    .quality b { font-size:11px; letter-spacing:.1em; text-transform:uppercase; }
+  </style>
+</head>
+<body>
+  <h1>OpenLoop marketplace quality bar</h1>
+  <div class="bar"></div>
+  <div class="grid">
+    <div class="card"><img src="../references/capcut.png"><strong>CapCut</strong><span>Headline force + clear creator benefit</span></div>
+    <div class="card"><img src="../references/inshot.png"><strong>InShot</strong><span>Warm color + one-feature focus</span></div>
+    <div class="card"><img src="../references/canva.png"><strong>Canva</strong><span>Friendly, colorful creator invitation</span></div>
+    <div class="card"><img src="../references/adobe-express.png"><strong>Adobe Express</strong><span>Premium restraint + product proof</span></div>
+    <div class="card"><img src="../references/vn.png"><strong>VN</strong><span>Authentic UI + confident hierarchy</span></div>
+    <div class="card"><img src="../references/youcut.png"><strong>YouCut</strong><span>Fast benefit scan at thumbnail size</span></div>
+  </div>
+  <div class="openloop">
+    <div class="card"><img src="../../store-filter.png"><strong>Filter</strong><span>Electric Lime + bold action verb</span></div>
+    <div class="card"><img src="../../store-trim.png"><strong>Trim</strong><span>Warm human moment + legible control</span></div>
+    <div class="card"><img src="../../store-speed.png"><strong>Speed</strong><span>Real creative control</span></div>
+    <div class="card"><img src="../../store-loop.png"><strong>Direction</strong><span>Loop-specific product clarity</span></div>
+    <div class="card"><img src="../../store-share.png"><strong>Share</strong><span>Optimistic outcome energy</span></div>
+  </div>
+  <div class="quality"><b>Quality bar</b> Combine Canva/InShot warmth, CapCut/YouCut one-benefit hierarchy, and authentic product-first restraint—then beat loop competitors on immediate loop-specific clarity.</div>
+</body>
+</html>
