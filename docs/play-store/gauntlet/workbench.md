@@ -164,3 +164,25 @@ The selected layout was lifted into an optimistic emerald–teal gradient while 
 Generation 6 separated the bottom benefits into two independently rounded pills with a 12px gap, matching the visual logic of the four non-touching tool chips.
 
 Final selected direction: `concepts/logo-b-g6.png`.
+
+## Generation 7 — deployed-scale readability correction
+
+The Generation 6 graphic was clear at full size but became difficult to read in the
+actual Google Play card. The centered vertical stack reduced the four tool labels to
+roughly 5–8 display pixels, while the medium-dark background further softened their
+edges.
+
+Generation 7 corrects the deployed failure mode:
+
+- Rebuilt the composition as a horizontal lockup with the authentic logo on the left.
+- Enlarged `BOOMERANG` and `VIDEO LOOP MAKER` and switched them to dark ink on a
+  much brighter lime–mint–aqua field.
+- Converted the four small tool pills into a high-contrast 2×2 grid with 20px source
+  labels.
+- Enlarged `AD-FREE` and `NO SIGN-UPS` to 22px and retained a clear 16px gap between
+  their independently rounded pills.
+- Kept critical content inside a center-safe composition for cropped Play Store
+  surfaces.
+- Rechecked the export at 1024×500, 50%, 320×156, and grayscale.
+
+Revised selected direction: `concepts/logo-b-g7.png`.

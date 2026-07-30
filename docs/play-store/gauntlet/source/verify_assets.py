@@ -25,11 +25,22 @@ def technical_report(path: Path) -> dict[str, object]:
 
         half = image.resize((512, 250), Image.Resampling.LANCZOS)
         thumb = image.resize((320, 156), Image.Resampling.LANCZOS)
+        store_crop_width = round(image.height * 16 / 9)
+        store_crop_left = (image.width - store_crop_width) // 2
+        store_card = image.crop(
+            (
+                store_crop_left,
+                0,
+                store_crop_left + store_crop_width,
+                image.height,
+            )
+        ).resize((416, 234), Image.Resampling.LANCZOS)
         grayscale = ImageOps.grayscale(image).convert("RGB")
 
         stem = path.stem
         half.save(TESTS / f"{stem}-50.png", optimize=True)
         thumb.save(TESTS / f"{stem}-thumb.png", optimize=True)
+        store_card.save(TESTS / f"{stem}-store-card.png", optimize=True)
         grayscale.save(TESTS / f"{stem}-gray.png", optimize=True)
 
         return {
