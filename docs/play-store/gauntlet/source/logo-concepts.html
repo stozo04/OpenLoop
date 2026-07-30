@@ -109,98 +109,94 @@
     .a .benefit { color:var(--ink); background:var(--lime); }
     .a .benefit:last-child { background:var(--aqua); }
 
-    /* B: store-scale horizontal lockup */
+    /* B: original centered lockup, enlarged for store-scale readability */
     .b {
-      color:var(--ink);
+      color:#f3f3f6;
       background:
-        radial-gradient(circle at 5% 12%,rgba(205,255,79,.92),transparent 32%),
-        radial-gradient(circle at 96% 92%,rgba(52,225,213,.58),transparent 34%),
-        linear-gradient(135deg,#efffd5 0%,#c4f8d8 48%,#9cecdf 100%);
+        radial-gradient(ellipse at 50% 16%,rgba(133,255,206,.38),transparent 36%),
+        radial-gradient(ellipse at 50% 96%,rgba(205,255,79,.34),transparent 42%),
+        linear-gradient(145deg,#397a44 0%,#318952 46%,#218f86 100%);
     }
     .b::before,.b::after {
       content:"";
       position:absolute;
-      width:430px;
-      height:430px;
-      border:2px solid rgba(21,32,10,.055);
+      width:450px;
+      height:450px;
+      border:1px solid rgba(205,255,79,.10);
       border-radius:50%;
+      top:-220px;
       z-index:-1;
     }
-    .b::before { left:-248px; top:-176px; }
-    .b::after { right:-230px; bottom:-220px; }
+    .b::before { left:-150px; }
+    .b::after { right:-150px; }
     .b .logo {
-      left:78px;
-      top:126px;
-      width:292px;
-      height:176px;
-      filter:drop-shadow(0 16px 22px rgba(21,32,10,.24));
+      left:337px;
+      top:-2px;
+      width:350px;
+      height:188px;
+      filter:drop-shadow(0 0 28px rgba(52,225,213,.22));
     }
     .b .name {
-      left:405px;
-      top:48px;
-      font-size:82px;
-      letter-spacing:-.065em;
-      text-shadow:none;
+      left:0;
+      right:0;
+      top:164px;
+      text-align:center;
+      font-size:78px;
+      text-shadow:0 5px 16px rgba(17,45,25,.30);
     }
     .b .descriptor {
-      left:410px;
-      top:136px;
-      color:#284c3e;
-      font-size:30px;
+      left:0;
+      right:0;
+      top:242px;
+      text-align:center;
+      color:var(--lime);
+      font-size:32px;
       font-weight:800;
-      letter-spacing:.075em;
+      letter-spacing:.08em;
     }
     .b .descriptor::before {
       content:"▶";
       display:inline-block;
       margin-right:12px;
-      color:#168b7f;
-      font-size:20px;
+      color:var(--aqua);
+      font-size:21px;
       transform:translateY(-2px);
     }
     .b .tool-ribbon {
-      left:405px;
-      top:205px;
-      width:500px;
-      justify-content:flex-start;
-      flex-wrap:wrap;
-      gap:12px 14px;
+      left:0;
+      right:0;
+      top:304px;
+      gap:14px;
     }
     .b .tool {
-      width:232px;
-      min-height:54px;
-      justify-content:center;
-      padding:15px 17px;
-      color:#fff;
-      background:#173b35;
-      border:2px solid rgba(255,255,255,.78);
-      box-shadow:0 8px 16px rgba(21,32,10,.16);
+      padding:13px 18px;
+      color:#f3f3f6;
+      background:rgba(10,10,12,.42);
+      border:2px solid rgba(255,255,255,.28);
+      box-shadow:0 8px 18px rgba(0,0,0,.20);
       font-size:20px;
-      letter-spacing:.025em;
+      letter-spacing:.035em;
     }
     .b .tool i {
       width:9px;
       height:9px;
-      box-shadow:none;
+      box-shadow:0 0 0 4px rgba(205,255,79,.12);
     }
     .b .benefit-ribbon {
-      left:405px;
-      bottom:28px;
-      gap:16px;
-      transform:none;
+      bottom:22px;
+      gap:20px;
     }
     .b .benefit {
-      min-width:232px;
-      padding:18px 22px;
+      min-width:238px;
+      padding:17px 30px;
       color:var(--ink);
-      background:#d7ff63;
-      border:2px solid rgba(21,32,10,.16);
+      background:linear-gradient(135deg,#e2ff91,var(--lime));
       border-radius:16px;
-      box-shadow:0 10px 18px rgba(21,32,10,.15);
+      box-shadow:0 10px 18px rgba(21,32,10,.18);
       font-size:22px;
-      letter-spacing:.055em;
+      letter-spacing:.06em;
     }
-    .b .benefit:last-child { background:#63e7dc; }
+    .b .benefit:last-child { background:linear-gradient(135deg,var(--aqua),#8cf0e8); }
 
     /* C: electric-lime poster */
     .c {

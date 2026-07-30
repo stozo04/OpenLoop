@@ -186,3 +186,21 @@ Generation 7 corrects the deployed failure mode:
 - Rechecked the export at 1024×500, 50%, 320×156, and grayscale.
 
 Revised selected direction: `concepts/logo-b-g7.png`.
+
+## Generation 8 — preserve the approved composition
+
+The horizontal Generation 7 correction improved legibility but changed the approved
+design too substantially. Generation 8 returns to the centered emerald–teal
+composition and changes scale only:
+
+- Authentic infinity logo: approximately 13% wider.
+- `BOOMERANG`: 62px to 78px.
+- `VIDEO LOOP MAKER`: 27px to 32px.
+- Tool labels: 14px to 20px.
+- Benefit labels: 14px to 22px.
+- Benefit-pill gap: increased from 12px to 20px.
+
+The canvas remains 1024×500, the palette and centered hierarchy remain intact, and
+the enlarged composition was checked in the 416×234 cropped store-card simulation.
+
+Revised selected direction: `concepts/logo-b-g8.png`.
