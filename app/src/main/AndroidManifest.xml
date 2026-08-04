@@ -5,6 +5,11 @@
 
     <!-- Video-only capture — no microphone; exported loops are silent. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- API 26–28 need legacy write access to add completed loops to MediaStore. Android 10+
+         lets an app add its own media without a storage permission. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <!-- OpenLoop is privacy-first (ANDROID_STANDARDS §8): no ads, no ad-ID-based analytics.
          firebase-analytics (play-services-measurement) merges the AD_ID permission into the

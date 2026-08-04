@@ -235,7 +235,7 @@ These conventions apply specifically to OpenLoop and are consistent with the Goo
 
 **Dark-only theme.** Design system uses `darkColorScheme` exclusively. Glassmorphic vaporwave aesthetic with NeonCoral/NeonPurple palette.
 
-**File-based video storage.** Videos persist in `filesDir/videos/`, thumbnails in `filesDir/thumbnails/`. No Room database unless relational queries become necessary.
+**File-based video storage.** Videos persist in `filesDir/videos/`, thumbnails in `filesDir/thumbnails/`, and completed boomerangs are also published to `MediaStore` under `Movies/OpenLoop` for the device Photos/Gallery app. No Room database unless relational queries become necessary.
 
 **Test naming.** Use backtick-delimited descriptive names: `` `returning user resolves to CheckingPermissions after init` ``.
 

@@ -106,6 +106,8 @@ class BoomerangRenderWorker(
                 videoStorage.registerBoomerang(parsed.outputFile, parsed.rawId)
                     ?: throw IOException("Failed to register boomerang ${parsed.outputFile.name}")
 
+                publishVideoToPhotos(applicationContext, parsed.outputFile)
+
                 videoStorage.discardScratch(parsed.scratch)
 
                 // The original raw video is no longer needed after a successful boomerang render.

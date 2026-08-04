@@ -117,6 +117,21 @@ class CameraScreenTest {
             .assertHeightIsAtLeast(48.dp)
     }
 
+    @Test
+    fun homeButton_bounceCompletesOnce() {
+        var completions = 0
+        composeTestRule.setContent {
+            HomeButton(
+                onClick = {},
+                bounce = true,
+                onBounceFinished = { completions++ },
+            )
+        }
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) { completions == 1 }
+        composeTestRule.runOnIdle { assertEquals(1, completions) }
+    }
+
     // ── Zoom ratio chip: hidden by default, shows the live ratio, lingers after the pinch ──
 
     @Test

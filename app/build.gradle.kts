@@ -28,8 +28,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 29
-        versionName = "1.0.29"
+        versionCode = 30
+        versionName = "1.0.30"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
