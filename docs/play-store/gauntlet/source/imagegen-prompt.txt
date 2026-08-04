@@ -1,9 +1,0 @@
-Use case: ads-marketing
-Asset type: abstract background texture for a Google Play feature graphic, 1024x500 landscape crop
-Primary request: create an original, premium, optimistic motion backdrop that suggests a seamless looping path and fast social-video creativity, with no phones and no text
-Scene/backdrop: warm light cream base with a sweeping continuous ribbon-like loop, subtle paper-cut depth, soft translucent kinetic shapes and restrained grain
-Style/medium: polished editorial graphic design, contemporary mobile creator-app campaign, dimensional but clean
-Composition/framing: very wide landscape; keep the center and left-center relatively calm for product UI and headline overlays; motion should arc from lower left toward upper right and curl back, avoiding busy outer edges
-Lighting/mood: bright, friendly, energetic, effortless, premium
-Color palette: Electric Lime #CDFF4F as the hero accent, Lime Ink #15200A in tiny restrained details, Aqua #34E1D5 and Coral #FF5A5F as secondary accents, plenty of warm cream negative space
-Constraints: original artwork only; no logos; no UI; no devices; no icons; no words; no letters; no numbers; no watermarks; no dark rectangle; no pure white; no muddy gradients; no competitor branding
