@@ -1098,15 +1098,23 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `onShareSheetClosed emits the deferred Saved snackbar event`() =
+    fun `onShareSheetClosed emits Saved and nudges gallery once after a captured loop`() =
         runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
             val events = mutableListOf<BoomerangEvent>()
             val job = backgroundScope.launch { viewModel.events.toList(events) }
 
+            viewModel.saveBoomerang()
+            advanceUntilIdle()
             viewModel.onShareSheetClosed()
             advanceUntilIdle()
 
             assertTrue("expected a Saved event, got $events", events.contains(BoomerangEvent.Saved))
+            assertTrue(viewModel.nudgeGalleryButton.value)
+            viewModel.onGalleryButtonNudgeFinished()
+            assertFalse(viewModel.nudgeGalleryButton.value)
             job.cancel()
         }
 

@@ -1,7 +1,10 @@
 package io.github.stozo04.openloop.work
 
 import android.Manifest
+import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
+import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
@@ -51,6 +54,7 @@ class BoomerangRenderWorkerTest {
 
     private lateinit var context: Context
     private lateinit var workDir: File
+    private val publishedUris = mutableListOf<Uri>()
 
     @Before
     fun setUp() {
@@ -60,6 +64,7 @@ class BoomerangRenderWorkerTest {
 
     @After
     fun tearDown() {
+        publishedUris.forEach { context.contentResolver.delete(it, null, null) }
         workDir.deleteRecursively()
     }
 
@@ -128,6 +133,13 @@ class BoomerangRenderWorkerTest {
             "output should be readable video",
             SyntheticVideoFixtures.durationMs(output) > 0L,
         )
+
+        val publicName = "OpenLoop_Capture_${output.name.removePrefix("boom_").substringBefore('_')}.mp4"
+        val publicUri = findPublishedVideo(publicName)
+        assertNotNull("rendered boomerang missing from MediaStore: $publicName", publicUri)
+        publishedUris += publicUri!!
+        val publicBytes = context.contentResolver.openInputStream(publicUri)?.use { it.readBytes() }
+        assertEquals("MediaStore copy differs from private render", output.length(), publicBytes?.size?.toLong())
 
         assertFalse(
             "scratch should be discarded after successful render",
@@ -265,6 +277,19 @@ class BoomerangRenderWorkerTest {
             Thread.sleep(POLL_MS)
         }
         return latest?.takeIf { it.state.isFinished }
+    }
+
+    private fun findPublishedVideo(displayName: String): Uri? {
+        val collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        return context.contentResolver.query(
+            collection,
+            arrayOf(MediaStore.Video.Media._ID),
+            "${MediaStore.Video.Media.DISPLAY_NAME} = ?",
+            arrayOf(displayName),
+            null,
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) ContentUris.withAppendedId(collection, cursor.getLong(0)) else null
+        }
     }
 
     private companion object {

@@ -156,10 +156,10 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission(),
     ) { /* granted or denied — export continues either way; notification is best-effort */ }
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        viewModel.onPermissionsChecked(granted)
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        viewModel.onPermissionsChecked(grants.values.all { it })
     }
 
     // Android Photo Picker (slice 07): single-select, VIDEO ONLY, no runtime storage permission.
@@ -373,17 +373,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkPermissions() {
+        val missing = requiredCapturePermissions(Build.VERSION.SDK_INT).filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
         when {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED -> viewModel.onPermissionsChecked(true)
+            missing.isEmpty() -> viewModel.onPermissionsChecked(true)
 
             // Denied at least once but not permanently — explain before re-asking.
-            shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ->
+            missing.any(::shouldShowRequestPermissionRationale) ->
                 viewModel.showPermissionRationale()
 
             // First request, or permanently denied — the system handles both. A permanent
             // denial returns granted=false from the launcher, routing to PermissionDenied.
-            else -> requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            else -> requestPermissionsLauncher.launch(missing.toTypedArray())
         }
     }
 
@@ -392,7 +394,14 @@ class MainActivity : ComponentActivity() {
         // Launch the system dialog directly, bypassing checkPermissions(), so we don't
         // re-enter the rationale branch (shouldShowRequestPermissionRationale stays true
         // until the user actually responds to the dialog).
-        requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        val missing = requiredCapturePermissions(Build.VERSION.SDK_INT).filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) {
+            viewModel.onPermissionsChecked(true)
+        } else {
+            requestPermissionsLauncher.launch(missing.toTypedArray())
+        }
     }
 
     private fun openAppSettings() {
@@ -488,6 +497,12 @@ private const val KEY_DEFERRED_SHARE_PATH = "openloop.deferredSharePath"
 private const val KEY_DEFERRED_SHARE_SHOW_SAVED = "openloop.deferredShareShowSaved"
 
 private const val TAG = "MainActivity"
+
+/** Storage permission is needed only on Android 9 and lower when publishing to MediaStore. */
+internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
+    add(Manifest.permission.CAMERA)
+    if (sdkInt <= Build.VERSION_CODES.P) add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+}
 
 @Composable
 private fun rememberNotificationExportHint(): Boolean {

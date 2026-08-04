@@ -302,6 +302,12 @@ class OpenLoopViewModel(
     private val _renderProgress = MutableStateFlow(0f)
     val renderProgress: StateFlow<Float> = _renderProgress.asStateFlow()
 
+    /** One brief gallery-button nudge after a newly captured loop returns from the share sheet. */
+    private val _nudgeGalleryButton = MutableStateFlow(false)
+    val nudgeGalleryButton: StateFlow<Boolean> = _nudgeGalleryButton.asStateFlow()
+
+    private var nudgeGalleryAfterShare = false
+
     /** Guards against repeated Save taps while promotion/enqueue/render is already active. */
     private var saveInProgress = false
 
@@ -1137,6 +1143,7 @@ class OpenLoopViewModel(
         _editorState.value = null
         _editorTabState.value = EditorTabState()
         _renderProgress.value = 0f
+        nudgeGalleryAfterShare = !result.returnToGallery
         loadRecordedVideos()
         _events.send(BoomerangEvent.Share(result.outputFile))
         _uiState.value = if (result.returnToGallery) {
@@ -1154,7 +1161,15 @@ class OpenLoopViewModel(
      * because the activity is still RESUMED at the moment the chooser is launched (slice 06).
      */
     fun onShareSheetClosed() {
+        if (nudgeGalleryAfterShare) {
+            nudgeGalleryAfterShare = false
+            _nudgeGalleryButton.value = true
+        }
         viewModelScope.launch { _events.send(BoomerangEvent.Saved) }
+    }
+
+    fun onGalleryButtonNudgeFinished() {
+        _nudgeGalleryButton.value = false
     }
 
     /**

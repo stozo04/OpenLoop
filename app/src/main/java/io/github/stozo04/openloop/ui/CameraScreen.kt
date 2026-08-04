@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import android.util.Log
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -111,6 +115,7 @@ fun CameraScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val nudgeGalleryButton by viewModel.nudgeGalleryButton.collectAsStateWithLifecycle()
     val isRecording = uiState is OpenLoopUiState.Recording
 
     // REC-1: keep the high-frequency elapsed flow as a raw State and DO NOT read `.value` here in
@@ -237,6 +242,8 @@ fun CameraScreen(
             // Home / Gallery Button — top-left neon gradient circle.
             HomeButton(
                 onClick = { viewModel.navigateToGallery() },
+                bounce = nudgeGalleryButton,
+                onBounceFinished = viewModel::onGalleryButtonNudgeFinished,
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp)
             )
 
@@ -329,10 +336,26 @@ fun CameraScreen(
 @Composable
 fun HomeButton(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    bounce: Boolean = false,
+    onBounceFinished: () -> Unit = {},
 ) {
+    val offset = remember { Animatable(0f) }
+    val bounceDistance = with(LocalDensity.current) { 8.dp.toPx() }
+    val currentOnBounceFinished = rememberUpdatedState(onBounceFinished)
+    LaunchedEffect(bounce) {
+        if (bounce) {
+            repeat(5) {
+                offset.animateTo(-bounceDistance, tween(durationMillis = 90))
+                offset.animateTo(0f, tween(durationMillis = 90))
+            }
+            currentOnBounceFinished.value()
+        }
+    }
+
     Box(
         modifier = modifier
+            .graphicsLayer { translationY = offset.value }
             .size(48.dp)
             .clip(CircleShape)
             .background(ElectricLime)
