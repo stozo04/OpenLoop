@@ -774,15 +774,16 @@ class OpenLoopViewModel(
         val current = _editorTabState.value
         if (current.filter == filter) return
         if (filter != VideoFilter.ORIGINAL) {
-            // Gate closed (reverse failure / memory pressure): the chips are disabled in the UI,
-            // but never trust the UI alone — a non-Original look must not reach the preview.
-            if (!current.effectsPreviewEnabled) return
             // Proactive probe at the exact moment DefaultVideoFrameProcessor would spin up.
             // Android 14+ delivers no foreground onTrimMemory pressure levels (MemoryPressure),
             // so this poll is the only mid-session pressure signal on modern devices: under
             // pressure, close the gate instead of applying the look (WS-3, PR #58 review).
+            // Also the reopen path: a prior trim/lowMemory close must not permanently brick Looks
+            // after pressure clears (Play review: S20 FE "lots of memory" + disabled Looks).
             if (isLowMemoryNow()) {
-                _editorTabState.value = current.copy(effectsPreviewEnabled = false)
+                if (current.effectsPreviewEnabled) {
+                    _editorTabState.value = current.copy(effectsPreviewEnabled = false)
+                }
                 return
             }
         }
@@ -791,7 +792,11 @@ class OpenLoopViewModel(
         } else {
             EditorLoadingKind.FILTERING
         }
-        _editorTabState.value = current.copy(filter = filter, previewLoading = overlay)
+        _editorTabState.value = current.copy(
+            filter = filter,
+            previewLoading = overlay,
+            effectsPreviewEnabled = true,
+        )
     }
 
     /** Called after the preview player has applied the new filter (or cleared effects for Original). */
@@ -799,11 +804,22 @@ class OpenLoopViewModel(
         clearPreviewLoading(EditorLoadingKind.FILTERING)
     }
 
-    /** Switch the editor's active tab (Direction / Speed / Looks); pure UI state, no side effects. */
+    /**
+     * Switch the editor's active tab (Direction / Speed / Looks). Opening Looks while the effects
+     * gate is closed re-probes memory so a cleared-pressure session drops the banner without an
+     * extra chip tap.
+     */
     fun switchTab(tab: EditorTab) {
         val current = _editorTabState.value
         if (current.activeTab == tab) return
-        _editorTabState.value = current.copy(activeTab = tab)
+        val reopenLooks =
+            tab == EditorTab.LOOKS &&
+                !current.effectsPreviewEnabled &&
+                !isLowMemoryNow()
+        _editorTabState.value = current.copy(
+            activeTab = tab,
+            effectsPreviewEnabled = if (reopenLooks) true else current.effectsPreviewEnabled,
+        )
     }
 
     /**
@@ -980,17 +996,14 @@ class OpenLoopViewModel(
         )
         // Let Samsung (and other slow-reverse) users preview and save a forward loop instead of blocking
         // on ping-pong. They can pick a reverse mode again from the Loop tab (Try again / direction).
+        // Looks stay available: filter preview is a Media3 effect on the forward player and does not
+        // depend on the reversed artifact. Closing the gate here blamed "low memory" for OEM reverse
+        // quirks and cost a 1★ Play review (Galaxy S20 FE / 1.0.30).
         _editorTabState.value = latest.copy(
             mode = BoomerangMode.FORWARD,
             previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
             reverseFailed = false,
             reverseSupportReport = supportReport,
-            effectsPreviewEnabled = false,
-            // Reset the look with the gate: the chips lock to disabled, the UI recreates the player
-            // to drop any already-applied effects, and the export must match what the preview now
-            // shows — a non-Original filter left behind would bake a look the user can't see
-            // ("the chip can't lie about the export", VideoFilter doc; PR #58 review).
-            filter = VideoFilter.ORIGINAL,
         )
         reverseJob = null
         cleanupReverseScratchAfterCancel()
@@ -1290,11 +1303,17 @@ class OpenLoopViewModel(
      * pipeline by recreating the player (`setVideoEffects(emptyList())` is forbidden — see the
      * HDR-seam comment in BoomerangEditorScreen), so chips, preview, and export must agree on
      * "no look" once the gate closes (PR #58 review).
+     *
+     * Skipped while reverse preview is generating: pass 1/2 is the heaviest transient allocator in
+     * the editor, and OEM `RUNNING_LOW` during that window is expected — treating it as a permanent
+     * Looks disable left users on API <= 33 (e.g. Galaxy S20 FE / Android 13) with a false
+     * "low memory" banner after reverse finished.
      */
     fun onTrimMemory() {
         if (_editorState.value == null) return
         val tab = _editorTabState.value
         if (!tab.effectsPreviewEnabled) return
+        if (tab.previewLoading.isReversePreviewLoading()) return
         _editorTabState.value = tab.copy(
             effectsPreviewEnabled = false,
             filter = VideoFilter.ORIGINAL,

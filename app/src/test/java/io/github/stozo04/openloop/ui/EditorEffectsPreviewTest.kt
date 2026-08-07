@@ -28,7 +28,7 @@ class EditorEffectsPreviewTest {
 
     @Test
     fun `teardown required when applied effects are no longer allowed`() {
-        // Gate closed (reverse failure / memory pressure) with a look still attached to the player.
+        // Gate closed (memory pressure) with a look still attached to the player.
         assertTrue(
             shouldTearDownEffectsPlayer(
                 playerHasAppliedEffects = true,
