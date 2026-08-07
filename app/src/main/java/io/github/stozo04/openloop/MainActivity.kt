@@ -1,6 +1,7 @@
 package io.github.stozo04.openloop
 
 import android.Manifest
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -414,8 +415,9 @@ class MainActivity : ComponentActivity() {
     /**
      * Pop the Android share sheet for a rendered loop `file` (slice 06). The file lives in
      * `filesDir/videos/`, exposed by the manifest's FileProvider; [FileProvider.getUriForFile]
-     * mints a `content://` URI and the [Intent.FLAG_GRANT_READ_URI_PERMISSION] set in
-     * [buildBoomerangShareIntent] grants the chosen receiver temporary read access. We flag
+     * mints a `content://` URI and [buildBoomerangShareIntent] grants temporary read access via
+     * [Intent.FLAG_GRANT_READ_URI_PERMISSION] **and** [ClipData] (so Samsung/system ChooserActivity
+     * can peek a preview — EXTRA_STREAM alone is not copied onto the chooser Intent). We flag
      * [awaitingShareReturn] so the "Saved" snackbar fires on the next [onResume] (when the user is
      * back on the camera), not now (while the chooser is about to cover the screen).
      */
@@ -530,13 +532,22 @@ fun shouldShowNotificationExportHint(sdkInt: Int, notificationsGranted: Boolean)
 /**
  * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] with the given
  * [subject] (slice 06). Extracted as a pure function so the intent's shape (action / MIME type /
- * extras / read-grant flag) is unit-testable without launching the chooser; [subject] is passed in
- * (rather than read from resources here) to keep it Context-free. The caller wraps it in
+ * extras / ClipData / read-grant flag) is unit-testable without launching the chooser; [subject] is
+ * passed in (rather than read from resources here) to keep it Context-free. The caller wraps it in
  * [Intent.createChooser].
+ *
+ * [ClipData] is required for sharesheet previews: [Intent.createChooser] copies ClipData (and its
+ * URI grants) onto the system chooser Intent, but does **not** copy [Intent.EXTRA_STREAM]. Without
+ * ClipData, Samsung ChooserActivity (uid 1000) hits
+ * `SecurityException: … grantUriPermission()` when peeking the FileProvider URI (SM-G985F log
+ * 2026-08-07) even though the eventual receiver would still get the stream.
+ *
+ * @see <a href="https://developer.android.com/reference/androidx/core/content/FileProvider">FileProvider</a>
  */
 fun buildBoomerangShareIntent(uri: Uri, subject: String): Intent =
     Intent(Intent.ACTION_SEND).apply {
         type = "video/mp4"
+        clipData = ClipData.newRawUri(subject, uri)
         putExtra(Intent.EXTRA_STREAM, uri)
         putExtra(Intent.EXTRA_SUBJECT, subject)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

@@ -40,6 +40,7 @@ Each lesson follows the same shape:
 | 025 | [Pinch over a `PreviewView` needs a parent `onInterceptTouchEvent`, not a Compose overlay or touch listener](./025-previewview-pinch-needs-parent-intercept.md) | PR #100 |
 | 026 | [Don't close the Looks gate on reverse-preview failure — memory pressure only; ignore trim during reverse load](./026-looks-gate-not-reverse-failure.md) | Play 1★ / S20 FE |
 | 027 | [Samsung reverse encoder try-order must never empty into `createEncoderByType` (Exynos `0x80001006`)](./027-samsung-encoder-try-order-never-empty.md) | RTL SM-G985F |
+| 028 | [`ACTION_SEND` FileProvider shares must set `ClipData` so the system chooser can preview](./028-share-intent-clipdata-for-chooser.md) | RTL SM-G985F sharesheet |
 
 ## Adding a new lesson
 
