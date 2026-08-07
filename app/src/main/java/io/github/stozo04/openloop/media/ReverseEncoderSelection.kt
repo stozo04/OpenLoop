@@ -28,6 +28,12 @@ internal fun filterOmxcEncodersWhenCodec2Available(codecNames: List<String>): Li
 /** Tried first on Samsung even when strict [MediaFormat] checks omit it (RTL Jun 2026). */
 internal const val SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER = "c2.google.avc.encoder"
 
+/**
+ * Legacy Google software AVC encoder — still present on Galaxy S20 / S20+ (API 33) when
+ * [SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER] is absent from [MediaCodecList].
+ */
+internal const val SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER = "OMX.google.h264.encoder"
+
 /** Pair with [SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER] — avoids second Exynos decoder after ExoPlayer. */
 internal const val SAMSUNG_REVERSE_AVC_SOFTWARE_DECODER = "c2.google.h264.decoder"
 
@@ -36,6 +42,23 @@ internal fun isSamsungVendorAvcCodec(codecName: String): Boolean =
     codecName.contains("exynos", ignoreCase = true) ||
         codecName.contains("c2.sec", ignoreCase = true) ||
         codecName.contains("android.avc", ignoreCase = true)
+
+/**
+ * Soft encoders to try when the preferred Samsung order is empty (no `c2.google.avc.encoder`, and
+ * `c2.android.avc.encoder` was stripped as a known-bad first pick). Without this, [VideoReverser]
+ * falls through to [android.media.MediaCodec.createEncoderByType], which on Exynos S20+ picks
+ * `OMX.Exynos.AVC.Encoder` and dies with `ERROR(0x80001006)` in pass 1 (RTL SM-G985F, 2026-08-07).
+ */
+internal fun samsungLastResortSoftwareAvcEncoders(installedEncoderNames: Set<String>): List<String> {
+    val candidates = listOf(
+        SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER,
+        SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER,
+        "c2.android.avc.encoder",
+    )
+    return candidates.mapNotNull { wanted ->
+        installedEncoderNames.firstOrNull { it.equals(wanted, ignoreCase = true) }
+    }.distinct()
+}
 
 internal fun samsungSoftwareAvcDecoderTryOrder(installedDecoderNames: Set<String>): List<String> =
     buildList {
@@ -115,6 +138,12 @@ internal fun avcEncoderPreferenceRank(
 /**
  * Ordered codec names to try for surface AVC encode. On Samsung, [SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER]
  * is always first — RTL picked Exynos when Google was absent from strict `isFormatSupported` only.
+ *
+ * When `c2.google` is not installed (common on S20-class API 33), [filterOmxcEncodersWhenCodec2Available]
+ * drops `OMX.google.h264.encoder` because `c2.android` is present, and [isSamsungVendorAvcCodec] then
+ * strips `c2.android` — leaving an **empty** try-order. That empty list is fatal: the caller falls
+ * through to Exynos via `createEncoderByType`. Always append [samsungLastResortSoftwareAvcEncoders]
+ * when the preferred list is empty.
  */
 internal fun avcEncoderTryOrderForReverse(
     formatSupportedNames: List<String>,
@@ -126,14 +155,23 @@ internal fun avcEncoderTryOrderForReverse(
     val ranked = filterOmxcEncodersWhenCodec2Available(formatSupportedNames)
         .sortedBy { avcEncoderPreferenceRank(it, isHardwareAccelerated(it), isSamsung, sdkInt) }
     if (!isSamsung) return ranked
-    return buildList {
+    val preferred = buildList {
         if (SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER in installedEncoderNames) {
             add(SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER)
+        } else {
+            // No Codec2 Google encoder — keep legacy OMX Google ahead of anything ranked.
+            samsungLastResortSoftwareAvcEncoders(installedEncoderNames)
+                .firstOrNull { it.equals(SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER, ignoreCase = true) }
+                ?.let { add(it) }
         }
         addAll(
             ranked.filter {
-                it != SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER && !isSamsungVendorAvcCodec(it)
+                it != SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER &&
+                    !it.equals(SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER, ignoreCase = true) &&
+                    !isSamsungVendorAvcCodec(it)
             },
         )
     }.distinct()
+    if (preferred.isNotEmpty()) return preferred
+    return samsungLastResortSoftwareAvcEncoders(installedEncoderNames)
 }

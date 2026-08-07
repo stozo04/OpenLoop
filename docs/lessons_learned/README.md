@@ -39,6 +39,7 @@ Each lesson follows the same shape:
 | 024 | [Gate a foreground-service type on the API level that ADDED it, not one below](./024-fgs-type-constant-api-gating.md) | Crashlytics 9663c743 (Galaxy A55 / Android 14) |
 | 025 | [Pinch over a `PreviewView` needs a parent `onInterceptTouchEvent`, not a Compose overlay or touch listener](./025-previewview-pinch-needs-parent-intercept.md) | PR #100 |
 | 026 | [Don't close the Looks gate on reverse-preview failure — memory pressure only; ignore trim during reverse load](./026-looks-gate-not-reverse-failure.md) | Play 1★ / S20 FE |
+| 027 | [Samsung reverse encoder try-order must never empty into `createEncoderByType` (Exynos `0x80001006`)](./027-samsung-encoder-try-order-never-empty.md) | RTL SM-G985F |
 
 ## Adding a new lesson
 
