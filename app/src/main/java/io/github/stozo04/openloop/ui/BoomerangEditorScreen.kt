@@ -559,10 +559,13 @@ fun BoomerangEditorContent(
                         filter = filter,
                         thumbnailFrame = thumbnailFrame,
                         onFilterChange = onFilterChange,
-                        filtersEnabled = effectsPreviewEnabled,
+                        // Chips stay tappable so a look tap can re-probe memory and reopen the gate
+                        // (ViewModel.updateFilter is the source of truth; a disabled strip made
+                        // "Try again in a moment" unreachable).
+                        filtersEnabled = true,
                         disabledHint = if (!effectsPreviewEnabled) {
-                            // Cause-neutral: the gate closes on reverse failure OR memory pressure.
-                            "Preview unavailable (low memory or reverse error)"
+                            // Gate is memory-pressure only (reverse failure no longer closes Looks).
+                            "Looks preview paused — device is low on memory. Tap a look to retry."
                         } else {
                             null
                         },

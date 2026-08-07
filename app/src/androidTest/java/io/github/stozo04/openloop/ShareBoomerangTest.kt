@@ -74,5 +74,10 @@ class ShareBoomerangTest {
             "ACTION_SEND must grant temporary read access to the receiver",
             intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0,
         )
+        // createChooser copies ClipData (not EXTRA_STREAM) onto the system chooser — required for
+        // Samsung ChooserActivity preview peeks (uid 1000 SecurityException without it).
+        assertNotNull("ClipData must carry the content URI for sharesheet preview grants", intent.clipData)
+        assertEquals(1, intent.clipData!!.itemCount)
+        assertEquals(uri, intent.clipData!!.getItemAt(0).uri)
     }
 }

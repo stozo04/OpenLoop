@@ -788,7 +788,10 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.FORWARD, tab.mode)
             assertNull(tab.previewLoading)
             assertNotNull(tab.reverseSupportReport)
-            assertFalse(tab.effectsPreviewEnabled)
+            assertTrue(
+                "Looks stay available after reverse fallback (independent of reversed artifact)",
+                tab.effectsPreviewEnabled,
+            )
             assertTrue(
                 "scratch janitor runs after preview reverse failure",
                 fakeVideoProcessor.cleanupReverseIntermediatesCount >= 1,
@@ -860,14 +863,15 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `updateFilter ignores non-Original looks while the gate is closed`() =
+    fun `updateFilter ignores non-Original looks while memory pressure persists`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim()
             awaitEditorReverseReady()
             viewModel.onTrimMemory() // close the gate
+            lowMemoryNow = true // pressure still present when the user retries
 
-            viewModel.updateFilter(VideoFilter.NOIR) // UI chips are disabled; never trust the UI alone
+            viewModel.updateFilter(VideoFilter.NOIR)
 
             val tab = viewModel.editorTabState.value
             assertEquals(VideoFilter.ORIGINAL, tab.filter)
@@ -875,7 +879,7 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `reverse preview timeout resets an active look to ORIGINAL`() =
+    fun `reverse preview timeout keeps an active look and leaves effects gate open`() =
         runTest(mainDispatcherRule.testDispatcher) {
             OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
             OpenLoopViewModel.reversePreviewTimeoutOverride = 50.milliseconds
@@ -889,12 +893,69 @@ class OpenLoopViewModelTest {
             advanceUntilIdle()
 
             val tab = viewModel.editorTabState.value
-            assertFalse(tab.effectsPreviewEnabled)
+            assertTrue(
+                "reverse fallback must not disable Looks (Play review / Galaxy S20 FE)",
+                tab.effectsPreviewEnabled,
+            )
             assertEquals(
-                "gate close on timeout must reset the look (player recreation drops the effects)",
-                VideoFilter.ORIGINAL,
+                "look selection is independent of reverse success",
+                VideoFilter.POP,
                 tab.filter,
             )
+            assertEquals(BoomerangMode.FORWARD, tab.mode)
+        }
+
+    @Test
+    fun `onTrimMemory during reverse loading does not close the effects gate`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
+            OpenLoopViewModel.reversePreviewTimeoutOverride = 5_000.milliseconds
+            enterTrimState()
+            fakeVideoProcessor.hangReverse = true
+            viewModel.onNextFromTrim()
+            runCurrent()
+            assertTrue(viewModel.editorTabState.value.previewLoading.isReversePreviewLoading())
+
+            viewModel.onTrimMemory()
+
+            assertTrue(
+                "RUNNING_LOW during reverse encode is expected OEM noise, not a Looks brick",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
+            )
+            OpenLoopViewModel.reversePreviewTimeoutOverride = null
+        }
+
+    @Test
+    fun `updateFilter reopens the effects gate after memory pressure clears`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = false
+            viewModel.updateFilter(VideoFilter.POP)
+
+            val tab = viewModel.editorTabState.value
+            assertTrue(tab.effectsPreviewEnabled)
+            assertEquals(VideoFilter.POP, tab.filter)
+        }
+
+    @Test
+    fun `switchTab to Looks reopens the effects gate when memory pressure has cleared`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = false
+            viewModel.switchTab(EditorTab.LOOKS)
+
+            assertTrue(viewModel.editorTabState.value.effectsPreviewEnabled)
+            assertEquals(EditorTab.LOOKS, viewModel.editorTabState.value.activeTab)
         }
 
     @Test
@@ -916,6 +977,10 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.FORWARD, tab.mode)
             assertNull(tab.previewLoading)
             assertNull(tab.reversedFile)
+            assertTrue(
+                "Looks remain available after reverse generation failure",
+                tab.effectsPreviewEnabled,
+            )
         }
 
     @Test
