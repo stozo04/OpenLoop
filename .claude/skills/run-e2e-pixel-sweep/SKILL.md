@@ -161,10 +161,10 @@ device-specific Crashlytics issue is fixed from emulator evidence alone).
 2. **Compute gestures from uiautomator bounds, never hardcode coordinates.** The Fold's inner
    display is 2076×2152; everything that hardcoded 1080×2400 broke, everything bounds-derived
    ran unmodified. (drive-flow already does this.)
-3. **Label matching: prefer exact when a substring is ambiguous.** Substring "Allow" matches
-   the question text "Allow OpenLoop to send you notifications?" before the Allow button.
-4. **POST_NOTIFICATIONS dialog appears after the first save** on a fresh (pm-cleared) install
-   — the render worker's foreground notification triggers it. drive-flow dismisses it.
+3. **Label matching: prefer exact when a substring is ambiguous.** Substring matches can hit
+   question/helper text before the intended button; use `-Exact` when labels collide.
+4. **Save must not show a notifications permission dialog.** OpenLoop does not declare or request
+   `POST_NOTIFICATIONS`; if that system prompt appears after Save, treat it as a regression.
 5. **Folding the Fold AVD locks the screen.** After `emu unfold`:
    `input keyevent KEYCODE_WAKEUP` → `wm dismiss-keyguard` → `KEYCODE_WAKEUP` again. Plain
    swipes on the keyguard do nothing. The emulator clock can also jump after unlock — don't

@@ -5,10 +5,9 @@
     <string name="share_chooser_title">Share boomerang</string>
     <string name="share_subject">OpenLoop boomerang</string>
 
-    <!-- Loopifying / background export (Issue #40) -->
+    <!-- Loopifying (Issue #40) -->
     <string name="processing_title">Creating..</string>
-    <string name="processing_background_hint">You can leave — check your notification for progress.</string>
-    <string name="processing_background_hint_no_notifications">Keep OpenLoop open — enable notifications in Settings to track progress in the background.</string>
+    <string name="processing_hint">Hang tight — this usually takes a few seconds.</string>
     <string name="notification_loop_export_channel_name">Loop export</string>
     <string name="notification_loop_export_channel_desc">Progress while your loop is being created</string>
     <string name="notification_loop_export_title">Creating your loop…</string>

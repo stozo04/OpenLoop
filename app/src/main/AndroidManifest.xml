@@ -31,8 +31,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <!-- API 33+ runtime — progress notification while the user is in another app. -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- No POST_NOTIFICATIONS: export progress is in-app only. FGS still runs without the
+         runtime grant; Android may show a system Task Manager indicator, not a tray notification.
+         https://developer.android.com/develop/ui/compose/notifications/notification-permission -->
 
     <!-- Declare camera hardware usage -->
     <uses-feature android:name="android.hardware.camera" android:required="true" />

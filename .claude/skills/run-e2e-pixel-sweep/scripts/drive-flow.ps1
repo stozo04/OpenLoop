@@ -55,8 +55,8 @@ function Tap-Node($node) {
   $cx = [int](($node.X1 + $node.X2) / 2); $cy = [int](($node.Y1 + $node.Y2) / 2)
   adb -s $Serial shell input tap $cx $cy | Out-Null
 }
-# Tap by label with retries; -Exact prefers an exact text/desc match (CRITICAL for the
-# notifications dialog, where substring "Allow" first matches the question text, not the button).
+# Tap by label with retries; -Exact prefers an exact text/desc match when a substring would
+# hit helper/question text before the intended control.
 function Tap([string]$Label, [int]$Retries = 3, [switch]$Exact) {
   for ($i = 0; $i -lt $Retries; $i++) {
     $n = Find-Node (Get-Nodes) $Label -Exact:$Exact
@@ -229,7 +229,7 @@ Step "B&W look" {
 }
 
 # ── 7. Save: render worker must report SUCCESS; share sheet must show the boom_*.mp4.
-#       Fresh installs interpose the POST_NOTIFICATIONS dialog — tap the exact "Allow". ──────
+#       No POST_NOTIFICATIONS dialog — progress is in-app only. ──────────────────────────────
 Step "save + share sheet" {
   if (-not (Tap "Save boomerang")) { return $false }
   $line = Wait-LogPattern "Worker result (SUCCESS|FAILURE) for Work .*BoomerangRenderWorker" 150
@@ -238,9 +238,8 @@ Step "save + share sheet" {
   Start-Sleep -Seconds 2
   $nodes = Get-Nodes
   if (Find-Node $nodes "Allow OpenLoop to send you notifications") {
-    Tap "Allow" -Exact | Out-Null            # exact match — substring would hit the question text
-    Start-Sleep -Seconds 2
-    $nodes = Get-Nodes
+    Add-Content $Summary "FAIL: unexpected POST_NOTIFICATIONS dialog after Save"
+    return $false
   }
   $boom = $nodes | Where-Object { $_.Text -match '^boom_.*\.mp4$' } | Select-Object -First 1
   if (-not $boom) { return $false }
