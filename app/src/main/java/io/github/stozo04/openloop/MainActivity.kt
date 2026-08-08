@@ -70,6 +70,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.work.WorkManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -104,6 +105,8 @@ import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextPrimary
 import io.github.stozo04.openloop.update.AppUpdateController
+import io.github.stozo04.openloop.update.EXTRA_DEMO_UPDATE
+import io.github.stozo04.openloop.update.demoAppUpdateManager
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -224,7 +227,13 @@ class MainActivity : ComponentActivity() {
             savedInstanceState?.getBoolean(KEY_DEFERRED_SHARE_SHOW_SAVED, true) != false
         cameraManager = CameraManager(this)
         appUpdateController = AppUpdateController(
-            appUpdateManager = AppUpdateManagerFactory.create(applicationContext),
+            // Debug builds launched with --ez openloop.demoUpdate true drive a fake Play so the
+            // "Update ready" snackbar is viewable on an emulator; R8 strips this from release.
+            appUpdateManager = if (BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_DEMO_UPDATE, false)) {
+                demoAppUpdateManager(applicationContext, lifecycleScope)
+            } else {
+                AppUpdateManagerFactory.create(applicationContext)
+            },
             launcher = appUpdateLauncher,
         )
 
