@@ -13,50 +13,6 @@
     </issue>
 
     <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.application than 8.13.2 is available: 9.2.1"
-        errorLine1="agp = &quot;8.13.2&quot;"
-        errorLine2="      ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.18.0"
-        errorLine1="coreKtx = &quot;1.12.0&quot;"
-        errorLine2="          ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="4"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.10.0"
-        errorLine1="lifecycleKtx = &quot;2.7.0&quot;"
-        errorLine2="               ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="5"
-            column="16"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.10.0"
-        errorLine1="lifecycleKtx = &quot;2.7.0&quot;"
-        errorLine2="               ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="5"
-            column="16"/>
-    </issue>
-
-    <issue
         id="GradleDependency"
         message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0"
         errorLine1="activityCompose = &quot;1.8.2&quot;"
@@ -76,17 +32,6 @@
             file="../gradle/libs.versions.toml"
             line="13"
             column="13"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of io.mockk:mockk than 1.13.9 is available: 1.14.9"
-        errorLine1="mockk = &quot;1.13.9&quot;"
-        errorLine2="        ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="11"
-            column="9"/>
     </issue>
 
     <issue
@@ -141,20 +86,6 @@
             file="src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
             line="3"
             column="1"/>
-    </issue>
-
-    <issue
-        id="IconLocation"
-        message="Found bitmap drawable `res/drawable/onboarding_bubbles.jpg` in densityless folder">
-        <location
-            file="src/main/res/drawable/onboarding_bubbles.jpg"/>
-    </issue>
-
-    <issue
-        id="IconLocation"
-        message="Found bitmap drawable `res/drawable/onboarding_confetti.jpg` in densityless folder">
-        <location
-            file="src/main/res/drawable/onboarding_confetti.jpg"/>
     </issue>
 
     <issue

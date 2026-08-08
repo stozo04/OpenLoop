@@ -59,10 +59,10 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # macOS: see RE
 
 The repo carried **~294 pre-existing inspection items** when this gate was added. Without a
 baseline, every PR would re-report all of them and bury the real signal. `lint-baseline.xml`
-(committed, at `app/lint-baseline.xml`) snapshots the lint-detectable subset (19 issues:
+(committed, at `app/lint-baseline.xml`) snapshots the lint-detectable subset (11 entries across
 `GradleDependency`, `IconLocation`, `NewerVersionAvailable`, `MonochromeLauncherIcon`,
-`IconLauncherShape`, `ObsoleteSdkInt`, `IconDuplicates`, `AndroidGradlePluginVersion`,
-`UnusedAttribute`) so lint reports **only newly-introduced** issues.
+`IconLauncherShape`, `ObsoleteSdkInt`, `IconDuplicates`, `UnusedAttribute`) so lint reports
+**only newly-introduced** issues.
 
 > ⚠️ **Regenerate the baseline only deliberately.** Deleting `app/lint-baseline.xml` and
 > re-running lint regenerates it — which *silently swallows every issue currently in the tree*,
@@ -70,6 +70,26 @@ baseline, every PR would re-report all of them and bury the real signal. `lint-b
 > reason and a review. To regenerate intentionally: delete the file, run `:app:lintDebug` once
 > (it creates the baseline and aborts — this is normal AGP behavior), then run it again to get a
 > green build. Ideally do this only when burning down the pre-existing items, never to hide new ones.
+
+#### "N errors/warnings were listed in the baseline file but not found in the project"
+
+This line is **not** N findings in your code — it means N *baseline entries* no longer match
+anything. Read it as bookkeeping, never as a failure. Two different causes hide behind it:
+
+- **Genuinely fixed** — the issue is gone (the file was deleted, the dependency was upgraded past
+  the advisory). The entry is dead weight.
+- **Message drift** — the issue is still live, but the entry text embeds a *moving* value, so it
+  stops matching without anything being fixed. Every `GradleDependency` /
+  `NewerVersionAvailable` / `AndroidGradlePluginVersion` message ends in `…is available: <version>`,
+  which changes every time upstream publishes. These entries self-invalidate on a schedule nobody
+  controls, and the issue immediately resurfaces as a "new" warning under the updated message.
+
+**Prune, don't regenerate.** Drop only the entries that no longer match; keep the rest. This is the
+one safe edit — it cannot hide anything, because a non-matching entry was suppressing nothing.
+Regenerating to clear the message is the trap the warning above describes: an August 2026 pass found
+the baseline at 18 entries with 7 not matching, while a regenerate would have produced **37** —
+silently swallowing 26 live warnings, including three `InlinedApi` hits in `MainActivity.kt`.
+Verify a prune by confirming the `filtered by baseline` count is unchanged.
 
 ### Severity mapping (lint → review verdict)
 
