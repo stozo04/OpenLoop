@@ -6,6 +6,7 @@ import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.RecordedVideo
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.data.ScratchCapture
 import io.github.stozo04.openloop.data.UserPreferencesRepository
 import io.github.stozo04.openloop.data.VideoImporter
@@ -15,6 +16,7 @@ import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
 import io.mockk.*
 import kotlinx.coroutines.CoroutineScope
@@ -835,7 +837,10 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.FORWARD, tab.mode)
             assertNull(tab.previewLoading)
             assertNotNull(tab.reverseSupportReport)
-            assertFalse(tab.effectsPreviewEnabled)
+            assertTrue(
+                "Looks stay available after reverse fallback (independent of reversed artifact)",
+                tab.effectsPreviewEnabled,
+            )
             assertTrue(
                 "scratch janitor runs after preview reverse failure",
                 fakeVideoProcessor.cleanupReverseIntermediatesCount >= 1,
@@ -907,14 +912,15 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `updateFilter ignores non-Original looks while the gate is closed`() =
+    fun `updateFilter ignores non-Original looks while memory pressure persists`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()
             viewModel.onNextFromTrim()
             awaitEditorReverseReady()
             viewModel.onTrimMemory() // close the gate
+            lowMemoryNow = true // pressure still present when the user retries
 
-            viewModel.updateFilter(VideoFilter.NOIR) // UI chips are disabled; never trust the UI alone
+            viewModel.updateFilter(VideoFilter.NOIR)
 
             val tab = viewModel.editorTabState.value
             assertEquals(VideoFilter.ORIGINAL, tab.filter)
@@ -922,7 +928,7 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `reverse preview timeout resets an active look to ORIGINAL`() =
+    fun `reverse preview timeout keeps an active look and leaves effects gate open`() =
         runTest(mainDispatcherRule.testDispatcher) {
             OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
             OpenLoopViewModel.reversePreviewTimeoutOverride = 50.milliseconds
@@ -936,11 +942,121 @@ class OpenLoopViewModelTest {
             advanceUntilIdle()
 
             val tab = viewModel.editorTabState.value
-            assertFalse(tab.effectsPreviewEnabled)
+            assertTrue(
+                "reverse fallback must not disable Looks (Play review / Galaxy S20 FE)",
+                tab.effectsPreviewEnabled,
+            )
             assertEquals(
-                "gate close on timeout must reset the look (player recreation drops the effects)",
-                VideoFilter.ORIGINAL,
+                "look selection is independent of reverse success",
+                VideoFilter.POP,
                 tab.filter,
+            )
+            assertEquals(BoomerangMode.FORWARD, tab.mode)
+        }
+
+    @Test
+    fun `onTrimMemory during reverse loading does not close the effects gate`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            OpenLoopViewModel.reversePreviewTimeoutDisabledForTests = false
+            OpenLoopViewModel.reversePreviewTimeoutOverride = 5_000.milliseconds
+            enterTrimState()
+            fakeVideoProcessor.hangReverse = true
+            viewModel.onNextFromTrim()
+            runCurrent()
+            assertTrue(viewModel.editorTabState.value.previewLoading.isReversePreviewLoading())
+
+            viewModel.onTrimMemory()
+
+            assertTrue(
+                "RUNNING_LOW during reverse encode is expected OEM noise, not a Looks brick",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
+            )
+            OpenLoopViewModel.reversePreviewTimeoutOverride = null
+        }
+
+    @Test
+    fun `updateFilter reopens the effects gate after memory pressure clears`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = false
+            viewModel.updateFilter(VideoFilter.POP)
+
+            val tab = viewModel.editorTabState.value
+            assertTrue(tab.effectsPreviewEnabled)
+            assertEquals(VideoFilter.POP, tab.filter)
+        }
+
+    @Test
+    fun `switchTab to Looks reopens the effects gate when memory pressure has cleared`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = false
+            viewModel.switchTab(EditorTab.LOOKS)
+
+            assertTrue(viewModel.editorTabState.value.effectsPreviewEnabled)
+            assertEquals(EditorTab.LOOKS, viewModel.editorTabState.value.activeTab)
+        }
+
+    @Test
+    fun `switchTab to a non-Looks tab never reopens the effects gate`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = false // pressure cleared, but Speed is not the reopen trigger
+            viewModel.switchTab(EditorTab.SPEED)
+
+            assertFalse(
+                "only opening Looks re-probes memory; other tabs leave the gate as-is",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
+            )
+            assertEquals(EditorTab.SPEED, viewModel.editorTabState.value.activeTab)
+        }
+
+    @Test
+    fun `switchTab to Looks keeps the gate closed while memory pressure persists`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = true // still under pressure — opening Looks must NOT reopen
+            viewModel.switchTab(EditorTab.LOOKS)
+
+            assertFalse(
+                "reopen is gated on a fresh isLowMemoryNow() probe, not on opening the tab",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
+            )
+        }
+
+    @Test
+    fun `switchTab to Looks under memory pressure leaves an open gate open`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            lowMemoryNow = true // gate still open; switching tabs must not close it
+
+            viewModel.switchTab(EditorTab.LOOKS)
+
+            assertTrue(
+                "switchTab only reopens; closing stays with updateFilter / onTrimMemory",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
             )
         }
 
@@ -963,6 +1079,10 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.FORWARD, tab.mode)
             assertNull(tab.previewLoading)
             assertNull(tab.reversedFile)
+            assertTrue(
+                "Looks remain available after reverse generation failure",
+                tab.effectsPreviewEnabled,
+            )
         }
 
     @Test
@@ -1066,12 +1186,7 @@ class OpenLoopViewModelTest {
             )
 
             fakeVideoProcessor.releaseReverseGate()
-            var spins = 0
-            while (viewModel.editorTabState.value.reversedFile == null && spins++ < 200) {
-                Thread.sleep(25)
-                runCurrent()
-            }
-            advanceUntilIdle()
+            awaitReverseSettled { viewModel.editorTabState.value.reversedFile != null }
             assertNotNull(viewModel.editorTabState.value.reversedFile)
             assertNull(viewModel.editorTabState.value.previewLoading)
         }
@@ -1150,15 +1265,23 @@ class OpenLoopViewModelTest {
         }
 
     @Test
-    fun `onShareSheetClosed emits the deferred Saved snackbar event`() =
+    fun `onShareSheetClosed emits Saved and nudges gallery once after a captured loop`() =
         runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
             val events = mutableListOf<BoomerangEvent>()
             val job = backgroundScope.launch { viewModel.events.toList(events) }
 
+            viewModel.saveBoomerang()
+            advanceUntilIdle()
             viewModel.onShareSheetClosed()
             advanceUntilIdle()
 
             assertTrue("expected a Saved event, got $events", events.contains(BoomerangEvent.Saved))
+            assertTrue(viewModel.nudgeGalleryButton.value)
+            viewModel.onGalleryButtonNudgeFinished()
+            assertFalse(viewModel.nudgeGalleryButton.value)
             job.cancel()
         }
 
@@ -1190,6 +1313,100 @@ class OpenLoopViewModelTest {
             assertEquals(BoomerangMode.REVERSE_THEN_FORWARD, viewModel.editorTabState.value.mode)
 
             job.cancel()
+        }
+
+    @Test
+    fun `saveBoomerang render failure carries the worker reason into the report and skips the duplicate beacon`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            mockkObject(ReverseCrashlytics)
+            try {
+                val events = mutableListOf<BoomerangEvent>()
+                val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                // The reason the worker attached to its failure Data reaches the shareable report.
+                val saveFailed = events.filterIsInstance<BoomerangEvent.SaveFailed>().single()
+                assertTrue(
+                    "report should contain the worker's failure reason, was: ${saveFailed.supportReport}",
+                    saveFailed.supportReport.orEmpty().contains("render_failed_test"),
+                )
+                // The worker already recorded the genuine exception as its own non-fatal — the
+                // observer must not file the synthetic-cause beacon again (Crashlytics 47233ad7).
+                verify(exactly = 0) {
+                    ReverseCrashlytics.reportSaveFailure(any(), any(), any(), any(), any(), any(), any())
+                }
+                job.cancel()
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
+        }
+
+    @Test
+    fun `saveBoomerang bare render failure without a worker reason still reports the beacon non-fatal`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            // Legacy/edge shape: the work failed without attached Data (process death, or work
+            // persisted by an older app version) — the beacon is the only Crashlytics signal left.
+            fakeRenderScheduler.terminalResultOverride = BoomerangRenderWorkResult.Failure()
+            mockkObject(ReverseCrashlytics)
+            try {
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                verify(exactly = 1) {
+                    ReverseCrashlytics.reportSaveFailure(
+                        any(), any(), any(), any(), any(),
+                        match { it.contains("Render worker reported failure") },
+                        any(),
+                    )
+                }
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
+        }
+
+    @Test
+    fun `saveBoomerang render cancellation routes to the editor without a beacon or SaveFailed`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            advanceUntilIdle()
+            fakeVideoProcessor.failRender = true
+            // A cancel is user intent, not an error: the observer must route back to the editor and
+            // file neither a Crashlytics non-fatal (would re-open beacon 47233ad7) nor a SaveFailed.
+            fakeRenderScheduler.terminalResultOverride = BoomerangRenderWorkResult.Cancelled
+            mockkObject(ReverseCrashlytics)
+            try {
+                val events = mutableListOf<BoomerangEvent>()
+                val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+
+                verify(exactly = 0) {
+                    ReverseCrashlytics.reportSaveFailure(any(), any(), any(), any(), any(), any(), any())
+                }
+                assertTrue(
+                    "cancel must not surface a SaveFailed event, saw: $events",
+                    events.none { it is BoomerangEvent.SaveFailed },
+                )
+                assertTrue(
+                    "cancel must route back to the editor, was: ${viewModel.uiState.value}",
+                    viewModel.uiState.value is OpenLoopUiState.BoomerangEditor,
+                )
+                job.cancel()
+            } finally {
+                unmockkObject(ReverseCrashlytics)
+            }
         }
 
     @Test
@@ -1503,6 +1720,32 @@ class OpenLoopViewModelTest {
         advanceUntilIdle()
     }
 
+    /**
+     * Wait for a reverse job to fully settle. The job hops to a real [Dispatchers.IO] thread
+     * (`OpenLoopViewModel` line ~853), so its Main-side completion arrives on real, not virtual,
+     * time. Pump the test scheduler on a **generous wall-clock** budget until [condition] holds
+     * (exiting immediately once it does — no cost on the fast path), then drain twice so the
+     * now-finished coroutine can't leak into `runTest`'s teardown as an `UncompletedCoroutinesError`.
+     *
+     * Replaces a fixed 200×25ms (5s) spin that could expire while the IO thread was still starved
+     * under full-suite CPU load, leaving the reverse job in flight at teardown — a pre-existing
+     * ~1-in-3 flake surfaced during PR #101 review.
+     */
+    private fun TestScope.awaitReverseSettled(timeoutMs: Long = 20_000L, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        runCurrent()
+        while (!condition() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+            runCurrent()
+        }
+        // Condition holds → the IO continuation ran. Drain twice (with a real-time gap) so the
+        // launch's completion, or any bookkeeping the IO thread posted at the boundary, is caught.
+        advanceUntilIdle()
+        Thread.sleep(10)
+        advanceUntilIdle()
+        if (!condition()) error("reverse did not settle within ${timeoutMs}ms")
+    }
+
     /** Count carried by the single [BoomerangEvent.LoopsDeleted] in [events] (fails if absent). */
     private fun LoopsDeleted_count(events: List<BoomerangEvent>): Int =
         events.filterIsInstance<BoomerangEvent.LoopsDeleted>().single().count
@@ -1615,20 +1858,16 @@ class OpenLoopViewModelTest {
     fun `onVideoPicked under the minimum loop length warns and copies nothing`() =
         runTest(mainDispatcherRule.testDispatcher) {
             fakeVideoImporter.probeMs = 335L // the issue #95 clip — under MIN_TRIM_DURATION
-            val events = mutableListOf<BoomerangEvent>()
-            val job = backgroundScope.launch { viewModel.events.toList(events) }
 
             viewModel.onVideoPicked(fakeUri)
             advanceUntilIdle()
 
             assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
-            assertTrue(events.contains(BoomerangEvent.ImportTooShort))
             assertTrue(viewModel.showImportTooShortDialog.value)
             // Caught before any copy or scratch mint.
             assertEquals(0, fakeVideoImporter.importCallCount)
             assertEquals(0, fakeVideoStorage.createScratchCount)
             assertNull(viewModel.editorState.value)
-            job.cancel()
         }
 
     @Test
@@ -1637,19 +1876,15 @@ class OpenLoopViewModelTest {
             // Pre-copy probe over-reads; post-copy durationOf is authoritative.
             fakeVideoImporter.probeMs = 800L
             fakeVideoStorage.fixedDurationMs = 335L
-            val events = mutableListOf<BoomerangEvent>()
-            val job = backgroundScope.launch { viewModel.events.toList(events) }
 
             viewModel.onVideoPicked(fakeUri)
             advanceUntilIdle()
 
             assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
-            assertTrue(events.contains(BoomerangEvent.ImportTooShort))
             assertTrue(viewModel.showImportTooShortDialog.value)
             assertEquals(1, fakeVideoImporter.importCallCount)
             assertEquals(1, fakeVideoStorage.discardedScratches.size)
             assertNull(viewModel.editorState.value)
-            job.cancel()
         }
 
     @Test

@@ -115,7 +115,81 @@ class SamsungReversePreviewRegressionTest {
             isHardwareAccelerated = { true },
             sdkInt = RTL_SDK_INT,
         )
+        // No software encoder on the device at all — cannot invent one; caller may still fall through.
         assertTrue(order.isEmpty())
+    }
+
+    /**
+     * SM-G985F (S20+, API 33) log 2026-08-07: format-supported =
+     * `OMX.Exynos.AVC.Encoder, c2.android.avc.encoder, OMX.google.h264.encoder` — no
+     * `c2.google.avc.encoder`. Old policy emptied the try-order (OMX dropped by Codec2 filter,
+     * android.avc stripped as vendor) → `createEncoderByType` → Exynos → ERROR(0x80001006).
+     */
+    @Test
+    fun tryOrder_samsung_s20PlusWithoutC2Google_usesOmxGoogle() {
+        val installed = setOf(
+            "OMX.Exynos.AVC.Encoder",
+            "c2.android.avc.encoder",
+            SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER,
+        )
+        val order = avcEncoderTryOrderForReverse(
+            formatSupportedNames = installed.toList(),
+            installedEncoderNames = installed,
+            isSamsung = true,
+            isHardwareAccelerated = { it.contains("Exynos", ignoreCase = true) },
+            sdkInt = Build.VERSION_CODES.TIRAMISU,
+        )
+        assertEquals(listOf(SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER), order)
+    }
+
+    /**
+     * `c2.google.avc.encoder` installed but absent from strict `isFormatSupported` — the documented
+     * Samsung case [SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER] exists for. No `c2.*` reaches
+     * [filterOmxcEncodersWhenCodec2Available], so `OMX.google` survives into the ranked list and the
+     * explicit OMX-Google exclusion in [avcEncoderTryOrderForReverse] is what keeps it out. Dropping
+     * that exclusion would yield `[c2.google, OMX.google]` — a behavior change on the RTL path.
+     */
+    @Test
+    fun tryOrder_samsung_c2GoogleInstalledButNotFormatSupported_staysGoogleOnly() {
+        val order = avcEncoderTryOrderForReverse(
+            formatSupportedNames = listOf("OMX.Exynos.AVC.Encoder", SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER),
+            installedEncoderNames = setOf(
+                "OMX.Exynos.AVC.Encoder",
+                SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER,
+                SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER,
+            ),
+            isSamsung = true,
+            isHardwareAccelerated = { it.contains("Exynos", ignoreCase = true) },
+            sdkInt = Build.VERSION_CODES.TIRAMISU,
+        )
+        assertEquals(listOf(SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER), order)
+    }
+
+    /**
+     * `MediaCodec.createByCodecName` is case-sensitive, so the try-order must echo the **device's**
+     * spelling of an encoder, never the constant's. Locks the lookup semantics shared by
+     * [VideoReverser]'s software fallback.
+     */
+    @Test
+    fun lastResort_returnsInstalledCasingNotConstantCasing() {
+        assertEquals(
+            listOf("OMX.Google.H264.Encoder"),
+            samsungLastResortSoftwareAvcEncoders(setOf("OMX.Google.H264.Encoder")),
+        )
+    }
+
+    @Test
+    fun lastResort_prefersOmxGoogleThenAndroidAvc() {
+        assertEquals(
+            listOf(SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER, "c2.android.avc.encoder"),
+            samsungLastResortSoftwareAvcEncoders(
+                setOf(
+                    "OMX.Exynos.AVC.Encoder",
+                    SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER,
+                    "c2.android.avc.encoder",
+                ),
+            ),
+        )
     }
 
     @Test

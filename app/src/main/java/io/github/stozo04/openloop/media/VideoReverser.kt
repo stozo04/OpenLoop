@@ -218,6 +218,11 @@ class VideoReverser(
                     if (!shouldRetryMediaCodecContention(t, attempt, maxAttempts, isSamsungDevice())) {
                         throw t
                     }
+                    // Samsung contention retry used to re-run the same empty→createEncoderByType→Exynos
+                    // path (SM-G985F ERROR 0x80001006). Force software codecs on the second attempt.
+                    if (isSamsungDevice()) {
+                        softwareCodecFallback = true
+                    }
                 }
             }
             throw lastFailure ?: IllegalStateException("reverse failed without exception")
@@ -904,8 +909,11 @@ class VideoReverser(
             val installed = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
                 .filter { it.isEncoder && it.supportedTypes.any { t -> t.equals(MIME_AVC, ignoreCase = true) } }
                 .map { it.name }
-            val software = listOf("c2.android.avc.encoder", "c2.google.avc.encoder", "OMX.google.h264.encoder")
-                .filter { sw -> installed.any { it.equals(sw, ignoreCase = true) } }
+            val software = listOf(
+                SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER,
+                SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER,
+                "c2.android.avc.encoder",
+            ).filter { sw -> installed.any { it.equals(sw, ignoreCase = true) } }
             ReversePreviewLog.d("encoder.software_fallback_order", (software + order).distinct().joinToString())
             (software + order).distinct()
         }

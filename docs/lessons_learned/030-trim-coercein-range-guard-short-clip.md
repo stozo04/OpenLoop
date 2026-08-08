@@ -1,4 +1,4 @@
-# 025 — `coerceIn` with runtime-derived bounds throws on short clips; clamp the bound and JVM-test the math
+# Lesson 030 — `coerceIn` with runtime-derived bounds throws on short clips; clamp the bound and JVM-test the math
 
 ## What went wrong
 
@@ -57,6 +57,9 @@ handle), none of them reachable by a JVM test while inline in a composable lambd
 - Any screen that receives a media duration must be audited with a duration **below** every
   minimum constant it uses (and with 0).
 - Clamp/geometry math living inline in a composable lambda is untestable on the JVM — extract it.
+- A clamp that pins both handles is a crash guard, not UX. Gate at the **entry points** too:
+  `onVideoPicked` and the capture `Finalize` handler both reject a sub-`MIN_TRIM_DURATION` clip
+  with friendly copy, so a too-short clip never reaches Trim through a normal path.
 
 ## Reference
 

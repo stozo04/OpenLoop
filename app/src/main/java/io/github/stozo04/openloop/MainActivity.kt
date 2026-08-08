@@ -1,6 +1,7 @@
 package io.github.stozo04.openloop
 
 import android.Manifest
+import android.content.ClipData
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -157,10 +158,10 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission(),
     ) { /* granted or denied — export continues either way; notification is best-effort */ }
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        viewModel.onPermissionsChecked(granted)
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        viewModel.onPermissionsChecked(grants.values.all { it })
     }
 
     // Android Photo Picker (slice 07): single-select, VIDEO ONLY, no runtime storage permission.
@@ -305,9 +306,6 @@ class MainActivity : ComponentActivity() {
                             // [OpenLoopViewModel.showImportTooLongDialog] so it survives Activity
                             // recreation after the Photo Picker closes.
                             BoomerangEvent.ImportTooLong -> Unit
-                            // Picked clip was too short (issue #95 follow-up): same dialog-over-
-                            // event pattern, driven by [OpenLoopViewModel.showImportTooShortDialog].
-                            BoomerangEvent.ImportTooShort -> Unit
                             // Capture stopped before the minimum loopable length (issue #95
                             // follow-up): the ViewModel already discarded the scratch and returned
                             // to the viewfinder — nudge instead of failing silently.
@@ -390,17 +388,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkPermissions() {
+        val missing = requiredCapturePermissions(Build.VERSION.SDK_INT).filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
         when {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
-                PackageManager.PERMISSION_GRANTED -> viewModel.onPermissionsChecked(true)
+            missing.isEmpty() -> viewModel.onPermissionsChecked(true)
 
             // Denied at least once but not permanently — explain before re-asking.
-            shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) ->
+            missing.any(::shouldShowRequestPermissionRationale) ->
                 viewModel.showPermissionRationale()
 
             // First request, or permanently denied — the system handles both. A permanent
             // denial returns granted=false from the launcher, routing to PermissionDenied.
-            else -> requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            else -> requestPermissionsLauncher.launch(missing.toTypedArray())
         }
     }
 
@@ -409,7 +409,14 @@ class MainActivity : ComponentActivity() {
         // Launch the system dialog directly, bypassing checkPermissions(), so we don't
         // re-enter the rationale branch (shouldShowRequestPermissionRationale stays true
         // until the user actually responds to the dialog).
-        requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+        val missing = requiredCapturePermissions(Build.VERSION.SDK_INT).filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) {
+            viewModel.onPermissionsChecked(true)
+        } else {
+            requestPermissionsLauncher.launch(missing.toTypedArray())
+        }
     }
 
     private fun openAppSettings() {
@@ -422,8 +429,9 @@ class MainActivity : ComponentActivity() {
     /**
      * Pop the Android share sheet for a rendered loop `file` (slice 06). The file lives in
      * `filesDir/videos/`, exposed by the manifest's FileProvider; [FileProvider.getUriForFile]
-     * mints a `content://` URI and the [Intent.FLAG_GRANT_READ_URI_PERMISSION] set in
-     * [buildBoomerangShareIntent] grants the chosen receiver temporary read access. We flag
+     * mints a `content://` URI and [buildBoomerangShareIntent] grants temporary read access via
+     * [Intent.FLAG_GRANT_READ_URI_PERMISSION] **and** [ClipData] (so Samsung/system ChooserActivity
+     * can peek a preview — EXTRA_STREAM alone is not copied onto the chooser Intent). We flag
      * [awaitingShareReturn] so the "Saved" snackbar fires on the next [onResume] (when the user is
      * back on the camera), not now (while the chooser is about to cover the screen).
      */
@@ -506,6 +514,12 @@ private const val KEY_DEFERRED_SHARE_SHOW_SAVED = "openloop.deferredShareShowSav
 
 private const val TAG = "MainActivity"
 
+/** Storage permission is needed only on Android 9 and lower when publishing to MediaStore. */
+internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
+    add(Manifest.permission.CAMERA)
+    if (sdkInt <= Build.VERSION_CODES.P) add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+}
+
 @Composable
 private fun rememberNotificationExportHint(): Boolean {
     val context = LocalContext.current
@@ -532,13 +546,22 @@ fun shouldShowNotificationExportHint(sdkInt: Int, notificationsGranted: Boolean)
 /**
  * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] with the given
  * [subject] (slice 06). Extracted as a pure function so the intent's shape (action / MIME type /
- * extras / read-grant flag) is unit-testable without launching the chooser; [subject] is passed in
- * (rather than read from resources here) to keep it Context-free. The caller wraps it in
+ * extras / ClipData / read-grant flag) is unit-testable without launching the chooser; [subject] is
+ * passed in (rather than read from resources here) to keep it Context-free. The caller wraps it in
  * [Intent.createChooser].
+ *
+ * [ClipData] is required for sharesheet previews: [Intent.createChooser] copies ClipData (and its
+ * URI grants) onto the system chooser Intent, but does **not** copy [Intent.EXTRA_STREAM]. Without
+ * ClipData, Samsung ChooserActivity (uid 1000) hits
+ * `SecurityException: … grantUriPermission()` when peeking the FileProvider URI (SM-G985F log
+ * 2026-08-07) even though the eventual receiver would still get the stream.
+ *
+ * @see <a href="https://developer.android.com/reference/androidx/core/content/FileProvider">FileProvider</a>
  */
 fun buildBoomerangShareIntent(uri: Uri, subject: String): Intent =
     Intent(Intent.ACTION_SEND).apply {
         type = "video/mp4"
+        clipData = ClipData.newRawUri(subject, uri)
         putExtra(Intent.EXTRA_STREAM, uri)
         putExtra(Intent.EXTRA_SUBJECT, subject)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

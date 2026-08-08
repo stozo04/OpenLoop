@@ -54,12 +54,13 @@ From the repo root (Windows: `gradlew.bat` instead of `./gradlew`):
 | `work.BoomerangRenderForegroundInfoRobolectricTest` | Robolectric | `BoomerangRenderNotifications.createForegroundInfo()` | 34, 35, 36 | Real `ForegroundInfo` + resources | `BoomerangRenderWorkerTest` (real FGS on device) |
 | `work.BoomerangRenderNotificationsRobolectricTest` | Robolectric | Channel, progress notification, `PendingIntent` | 34 (class default) | `ShadowContentResolver` N/A; real `NotificationManager` | Same |
 | `work.BoomerangRenderWorkerRobolectricTest` | Robolectric | `BoomerangRenderWorker` guards only | 34 on `getForegroundInfo` | `TestListenableWorkerBuilder` + `setForegroundUpdater` | `BoomerangRenderWorkerTest` (encode) |
+| `work.RenderCancellationRobolectricTest` | Robolectric | `WorkManagerBoomerangRenderScheduler.observeResult()` + `renderWorkResultOf` on real `CANCELLED` | Any | `WorkManagerTestInitHelper` + no-op worker executor | `RenderWorkResultMappingTest` (pure mapping) |
 | `data.VideoImporterImportRobolectricTest` | Robolectric | `VideoImporterImpl.importToFile()` | Any | `ShadowContentResolver` | Gallery import E2E / manual |
 | `data.UserPreferencesRepositoryImplRobolectricTest` | Robolectric | `UserPreferencesRepositoryImpl` + real DataStore file | Any | Real `preferencesDataStore` delegate | `OpenLoopViewModelTest` (fake repo) |
 | `media.DeviceMediaHintsOemRobolectricTest` | Robolectric | `DeviceMediaHints.isSamsungDevice()`, preview cap, encoder order | Any | `ShadowBuild.setManufacturer` / `setBrand` | Samsung RTL sweep |
 | `PostNotificationsGateRobolectricTest` | Robolectric | `shouldRequestPostNotificationsPermission()`, `shouldShowNotificationExportHint()` | 32, 33 | `ShadowApplication.grantPermissions` / `denyPermissions` | Manual QA on API 33+ device |
 
-**Total:** 8 test classes · 37 test methods (including JVM companion).
+**Total:** 9 test classes · 34 test methods (including JVM companion).
 
 ---
 
@@ -90,6 +91,14 @@ From the repo root (Windows: `gradlew.bat` instead of `./gradlew`):
 | | `fgsPromotionDenied_failsGracefullyAndDeletesStalePartial` | Issue #67 F1 — denied FGS, partial deleted |
 
 **Never Robolectric:** `VideoProcessor.renderBoomerang` — covered by `androidTest` `BoomerangRenderWorkerTest`.
+
+**Render cancellation (PR #101)** — a cancelled render is user intent, not a failure. This locks the `CANCELLED` → `Cancelled` flow so the observer routes back to the editor **without** a Crashlytics beacon (47233ad7) or `SaveFailed`:
+
+| Class | Test method | Asserts |
+|-------|-------------|---------|
+| `RenderCancellationRobolectricTest` | `cancelledRenderWork_schedulerEmitsCancelled` | Real WorkManager `CANCELLED` → `observeResult` emits `BoomerangRenderWorkResult.Cancelled` (`WorkManagerTestInitHelper` + a no-op worker executor so `BoomerangRenderWorker` never runs) |
+
+**Pure-JVM complement:** `RenderWorkResultMappingTest` (`renderWorkResultOf` for every terminal state) and `OpenLoopViewModelTest` (cancel routes to the editor, no beacon / no `SaveFailed`).
 
 ### Library import
 

@@ -37,7 +37,12 @@ Each lesson follows the same shape:
 | 022 | [Release CameraX when the PreviewView leaves composition, not only when the Activity stops](./022-release-camera-when-preview-leaves-composition.md) | Issue #36 |
 | 023 | [A media pipeline stage must count its own output samples; a zero-frame stage can exit "cleanly"](./023-media-pipeline-stages-must-count-output-samples.md) | PR #62 (S23 zero-frame wedge) |
 | 024 | [Gate a foreground-service type on the API level that ADDED it, not one below](./024-fgs-type-constant-api-gating.md) | Crashlytics 9663c743 (Galaxy A55 / Android 14) |
-| 025 | [`coerceIn` with runtime-derived bounds throws on short clips; clamp the bound and JVM-test the math](./025-trim-coercein-range-guard-short-clip.md) | Crashlytics 7169b499 (Issue #95) |
+| 025 | [Pinch over a `PreviewView` needs a parent `onInterceptTouchEvent`, not a Compose overlay or touch listener](./025-previewview-pinch-needs-parent-intercept.md) | PR #100 |
+| 026 | [Don't close the Looks gate on reverse-preview failure — memory pressure only; ignore trim during reverse load](./026-looks-gate-not-reverse-failure.md) | Play 1★ / S20 FE |
+| 027 | [Samsung reverse encoder try-order must never empty into `createEncoderByType` (Exynos `0x80001006`)](./027-samsung-encoder-try-order-never-empty.md) | RTL SM-G985F |
+| 028 | [`ACTION_SEND` FileProvider shares must set `ClipData` so the system chooser can preview](./028-share-intent-clipdata-for-chooser.md) | RTL SM-G985F sharesheet |
+| 029 | [A test's premise must be enforced, not hoped for: park the worker, don't drop its runnable](./029-test-premise-must-not-rest-on-a-dropped-runnable.md) | Full-suite flake (PR #106) |
+| 030 | [`coerceIn` with runtime-derived bounds throws on short clips; clamp the bound and JVM-test the math](./030-trim-coercein-range-guard-short-clip.md) | Crashlytics 7169b499 (Issue #95) |
 
 ## Adding a new lesson
 

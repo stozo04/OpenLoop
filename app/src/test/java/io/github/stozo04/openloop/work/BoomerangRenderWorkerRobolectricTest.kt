@@ -47,7 +47,16 @@ class BoomerangRenderWorkerRobolectricTest {
 
         val result = worker.startWork().get(10, TimeUnit.SECONDS)
 
-        assertTrue("expected Result.failure(), was $result", result is ListenableWorker.Result.Failure)
+        val failure = assertIsFailure(result)
+        // Reason crosses WorkManager as failure Data; no Crashlytics report exists for this path
+        // (nothing was parsed to report against), so the observer must file the beacon itself.
+        assertEquals(
+            "input_parse_failed",
+            failure.outputData.getString(BoomerangRenderWorkerKeys.FAILURE_REASON),
+        )
+        assertFalse(
+            failure.outputData.getBoolean(BoomerangRenderWorkerKeys.FAILURE_REPORTED_CAUSE, true),
+        )
     }
 
     @Test
@@ -62,7 +71,11 @@ class BoomerangRenderWorkerRobolectricTest {
 
         val result = worker.startWork().get(10, TimeUnit.SECONDS)
 
-        assertTrue("expected Result.failure(), was $result", result is ListenableWorker.Result.Failure)
+        val failure = assertIsFailure(result)
+        assertEquals(
+            "input_parse_failed",
+            failure.outputData.getString(BoomerangRenderWorkerKeys.FAILURE_REASON),
+        )
     }
 
     @Test
@@ -113,11 +126,25 @@ class BoomerangRenderWorkerRobolectricTest {
 
             val result = worker.startWork().get(10, TimeUnit.SECONDS)
 
-            assertTrue("expected Result.failure(), was $result", result is ListenableWorker.Result.Failure)
+            val failure = assertIsFailure(result)
             assertFalse("stale partial output must be deleted", outputFile.exists())
+            // This path records its own Crashlytics non-fatal, so the observer must not double-report.
+            val reason = failure.outputData.getString(BoomerangRenderWorkerKeys.FAILURE_REASON)
+            assertTrue(
+                "expected an fgs_promotion_denied reason, was $reason",
+                reason?.startsWith("fgs_promotion_denied: IllegalStateException") == true,
+            )
+            assertTrue(
+                failure.outputData.getBoolean(BoomerangRenderWorkerKeys.FAILURE_REPORTED_CAUSE, false),
+            )
         } finally {
             workDir.deleteRecursively()
         }
+    }
+
+    private fun assertIsFailure(result: ListenableWorker.Result): ListenableWorker.Result.Failure {
+        assertTrue("expected Result.failure(), was $result", result is ListenableWorker.Result.Failure)
+        return result as ListenableWorker.Result.Failure
     }
 
     /** Dependency-free failed [ListenableFuture] (guava's Futures is not on this classpath). */

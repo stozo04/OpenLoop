@@ -1,8 +1,14 @@
 package io.github.stozo04.openloop.ui
 
 import androidx.activity.compose.BackHandler
+import android.util.Log
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,10 +33,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -41,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -49,7 +61,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import io.github.stozo04.openloop.camera.CameraManager
+import io.github.stozo04.openloop.camera.PinchZoomCallbacks
+import io.github.stozo04.openloop.camera.PinchZoomLayout
+import io.github.stozo04.openloop.camera.formatZoomRatioForChip
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.CoralRed
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -59,6 +76,7 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.ui.theme.shutterGradient
+import kotlinx.coroutines.delay
 
 /**
  * Single hosting call site for the two camera-bound states ([OpenLoopUiState.ReadyToCapture] and
@@ -97,6 +115,7 @@ fun CameraScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val nudgeGalleryButton by viewModel.nudgeGalleryButton.collectAsStateWithLifecycle()
     val isRecording = uiState is OpenLoopUiState.Recording
 
     // REC-1: keep the high-frequency elapsed flow as a raw State and DO NOT read `.value` here in
@@ -119,10 +138,41 @@ fun CameraScreen(
         OpenLoopViewModel.MAX_RECORDING.inWholeSeconds % 60
     )
 
-    // Set up standard aspect-ratio responsive PreviewView
+    // Zoom state for the ratio chip. Same REC-1 shape as the elapsed flow above: raw State, no
+    // `.value` read at the screen root — during a pinch the ratio updates every frame, and the read
+    // is deferred into the chip's text lambda so per-tick recomposition stays confined to the chip.
+    val zoomUiState = cameraManager.zoomUi.collectAsStateWithLifecycle()
+
+    // Pinch gesture activity. Begin/end flips happen at gesture granularity (rare), so these are
+    // ordinary low-frequency state; the ~60 Hz ratio stream itself never enters Compose — it flows
+    // gesture → CameraManager.applyPinchZoom() → zoomUi → chip text lambda.
+    var pinchInProgress by remember { mutableStateOf(false) }
+    var pinchEndCount by remember { mutableIntStateOf(0) }
+
+    // Chip-visibility flips wired into the PinchZoomCallbacks handed to [PinchZoomLayout] below.
+    val onPinchBegin = rememberUpdatedState { pinchInProgress = true }
+    val onPinchEnd = rememberUpdatedState {
+        pinchInProgress = false
+        pinchEndCount++
+    }
+
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FILL_CENTER
+            // TextureView path: avoids SurfaceView touch/hole issues when embedded in Compose.
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+        }
+    }
+    // Native pinch host — intercepts multi-touch before PreviewView/SurfaceView can consume it.
+    val pinchHost = remember {
+        PinchZoomLayout(context).also { host ->
+            host.addView(
+                previewView,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
         }
     }
 
@@ -143,13 +193,38 @@ fun CameraScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // 1. Camera Viewfinder
+        // 1. Camera viewfinder inside [PinchZoomLayout] — View-layer pinch intercept (Fold-safe).
         AndroidView(
-            factory = { previewView },
-            modifier = Modifier.fillMaxSize()
+            factory = { pinchHost },
+            modifier = Modifier.fillMaxSize(),
+            update = { host ->
+                host.callbacks = PinchZoomCallbacks(
+                    isBound = { cameraManager.isCameraBound() },
+                    onBegin = {
+                        Log.i(PINCH_LOG_TAG, "Pinch gesture started (view)")
+                        cameraManager.onPinchZoomBegin()
+                        onPinchBegin.value()
+                    },
+                    onScale = { cameraManager.applyPinchZoom(it) },
+                    onEnd = {
+                        Log.i(PINCH_LOG_TAG, "Pinch gesture ended (view)")
+                        cameraManager.onPinchZoomEnd()
+                        onPinchEnd.value()
+                    },
+                )
+            },
         )
 
-        // 2. Translucent Glassmorphic Gradient Top Bar
+        // Zoom ratio chip — centered in the viewfinder, visible while a pinch is active and for
+        // ~1 s after it ends. Informational only (not a touch target), so it can't steal the
+        // shutter/flip/home touches; `text` defers the ratio read (REC-1) into the chip's scope.
+        ZoomRatioChip(
+            visible = rememberZoomChipVisible(pinchInProgress, pinchEndCount),
+            text = { formatZoomRatioForChip(zoomUiState.value?.ratio ?: 1f) },
+            modifier = Modifier.align(Alignment.Center)
+        )
+
+        // 3. Translucent Glassmorphic Gradient Top Bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -167,6 +242,8 @@ fun CameraScreen(
             // Home / Gallery Button — top-left neon gradient circle.
             HomeButton(
                 onClick = { viewModel.navigateToGallery() },
+                bounce = nudgeGalleryButton,
+                onBounceFinished = viewModel::onGalleryButtonNudgeFinished,
                 modifier = Modifier.padding(start = 16.dp, top = 4.dp)
             )
 
@@ -182,7 +259,7 @@ fun CameraScreen(
             )
         }
 
-        // 3. Glassmorphic Control Overlay & Shutter Button at bottom
+        // 4. Glassmorphic Control Overlay & Shutter Button at bottom
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -259,10 +336,26 @@ fun CameraScreen(
 @Composable
 fun HomeButton(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    bounce: Boolean = false,
+    onBounceFinished: () -> Unit = {},
 ) {
+    val offset = remember { Animatable(0f) }
+    val bounceDistance = with(LocalDensity.current) { 8.dp.toPx() }
+    val currentOnBounceFinished = rememberUpdatedState(onBounceFinished)
+    LaunchedEffect(bounce) {
+        if (bounce) {
+            repeat(5) {
+                offset.animateTo(-bounceDistance, tween(durationMillis = 90))
+                offset.animateTo(0f, tween(durationMillis = 90))
+            }
+            currentOnBounceFinished.value()
+        }
+    }
+
     Box(
         modifier = modifier
+            .graphicsLayer { translationY = offset.value }
             .size(48.dp)
             .clip(CircleShape)
             .background(ElectricLime)
@@ -370,6 +463,75 @@ fun ShutterButton(
                         .background(shutterGradient())
                 )
             }
+        }
+    }
+}
+
+/** Log tag for pinch gesture delivery diagnostics (distinct from [CameraManager]'s tag). */
+private const val PINCH_LOG_TAG = "OpenLoopPinchZoom"
+
+/** How long the zoom ratio chip lingers after the pinch gesture ends before fading out. */
+internal const val ZOOM_CHIP_LINGER_MS = 1_000L
+
+/**
+ * Visibility rule for [ZoomRatioChip]: visible while a pinch is in progress, and for
+ * [ZOOM_CHIP_LINGER_MS] after the last gesture ends. [pinchEndCount] (a monotonic per-gesture
+ * counter) restarts the linger window when a new pinch ends before the previous window expired.
+ * Extracted from [CameraScreen] so the linger behavior is testable without binding the camera.
+ */
+@Composable
+fun rememberZoomChipVisible(pinchInProgress: Boolean, pinchEndCount: Int): Boolean {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(pinchInProgress, pinchEndCount) {
+        if (pinchInProgress) {
+            visible = true
+        } else if (visible) {
+            delay(ZOOM_CHIP_LINGER_MS)
+            visible = false
+        }
+    }
+    return visible
+}
+
+/**
+ * Center-viewfinder zoom ratio chip (`1.0x`, `2.3x`, `0.5x`) on the same glass surface as
+ * [RecordingCountdownChip]. Stateless and hoisted; fades in/out with [visible] (the linger rule
+ * lives in [rememberZoomChipVisible]). Informational only — never a touch target.
+ *
+ * [text] is a lambda, not a value: during a pinch the ratio updates every frame, so the read is
+ * deferred into this chip's composition (REC-1 / Lesson 016) and each tick recomposes only the
+ * chip, never the camera screen above it. The merged semantics include the live value
+ * ("Zoom level, 2.3x") so TalkBack announces what the zoom actually is, not just that a zoom
+ * control exists; that read is likewise confined to this node.
+ */
+@Composable
+fun ZoomRatioChip(
+    visible: Boolean,
+    text: () -> String,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(percent = 50))
+                .background(OverlayWhite)
+                .background(OverlayScrim)
+                .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+                .testTag("zoom_chip")
+                .semantics(mergeDescendants = true) { contentDescription = "Zoom level, ${text()}" }
+        ) {
+            Text(
+                text = text(),
+                style = TimerTextStyle,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

@@ -92,14 +92,6 @@ sealed interface BoomerangEvent {
     object ImportTooLong : BoomerangEvent
 
     /**
-     * A picked library video was shorter than the minimum loopable window
-     * ([OpenLoopViewModel.MIN_TRIM_DURATION]) — issue #95 follow-up. Drives the friendly
-     * "That clip's a bit short" dialog; nothing is left in flight (rejected pre-copy, or the
-     * scratch copy was discarded).
-     */
-    object ImportTooShort : BoomerangEvent
-
-    /**
      * A camera capture finalized shorter than the minimum loopable window, or with no encoded
      * frames at all (`ERROR_NO_VALID_DATA`, a tap-and-release) — issue #95 follow-up. The scratch
      * is discarded and the user is back on the viewfinder; drives a "record a little longer"
@@ -319,6 +311,12 @@ class OpenLoopViewModel(
     private val _renderProgress = MutableStateFlow(0f)
     val renderProgress: StateFlow<Float> = _renderProgress.asStateFlow()
 
+    /** One brief gallery-button nudge after a newly captured loop returns from the share sheet. */
+    private val _nudgeGalleryButton = MutableStateFlow(false)
+    val nudgeGalleryButton: StateFlow<Boolean> = _nudgeGalleryButton.asStateFlow()
+
+    private var nudgeGalleryAfterShare = false
+
     /** Guards against repeated Save taps while promotion/enqueue/render is already active. */
     private var saveInProgress = false
 
@@ -421,8 +419,8 @@ class OpenLoopViewModel(
                             viewModelScope.launch {
                                 val durationMs = videoStorage.durationOf(outputFile)
                                 // A clip below the minimum trim window would land on the Trim
-                                // screen with pinned handles and a dead SAVE (Lesson 025) — a
-                                // silent dead-end. Discard it and tell the user to hold longer
+                                // screen with pinned handles and a dead SAVE (Lesson 030) — a
+                                // silent dead-end. Discard it and tell the user to record longer
                                 // instead (issue #95 follow-up). Also swallows an unreadable
                                 // (<= 0) duration, which could never be trimmed either.
                                 if (durationMs < MIN_TRIM_DURATION.inWholeMilliseconds) {
@@ -581,7 +579,7 @@ class OpenLoopViewModel(
                 // Unreadable duration → we can't enforce the ≤30 s rule, so don't import it.
                 durationMs <= 0L -> failImport()
                 // Below the minimum trim window the editor would open with pinned handles and a
-                // dead SAVE (Lesson 025) — reject with friendly guidance instead, before any copy
+                // dead SAVE (Lesson 030) — reject with friendly guidance instead, before any copy
                 // (issue #95 follow-up).
                 durationMs < MIN_TRIM_DURATION.inWholeMilliseconds -> warnTooShort()
                 // Enforce the dialog's advertised "up to 30 s" cap LENIENTLY: the small grace
@@ -655,11 +653,11 @@ class OpenLoopViewModel(
 
     /**
      * Picked clip is shorter than [MIN_TRIM_DURATION]: friendly dialog + back to the gallery
-     * (nothing left in flight — issue #95 follow-up).
+     * (nothing left in flight — issue #95 follow-up). No `BoomerangEvent` sibling to
+     * [BoomerangEvent.ImportTooLong] — [showImportTooShortDialog] is the only thing the UI reads.
      */
-    private suspend fun warnTooShort() {
+    private fun warnTooShort() {
         _showImportTooShortDialog.value = true
-        _events.send(BoomerangEvent.ImportTooShort)
         _uiState.value = OpenLoopUiState.Gallery
     }
 
@@ -842,14 +840,14 @@ class OpenLoopViewModel(
         val current = _editorTabState.value
         if (current.filter == filter) return
         if (filter != VideoFilter.ORIGINAL) {
-            // Gate closed (reverse failure / memory pressure): the chips are disabled in the UI,
-            // but never trust the UI alone — a non-Original look must not reach the preview.
-            if (!current.effectsPreviewEnabled) return
             // Proactive probe at the exact moment DefaultVideoFrameProcessor would spin up.
             // Android 14+ delivers no foreground onTrimMemory pressure levels (MemoryPressure),
             // so this poll is the only mid-session pressure signal on modern devices: under
             // pressure, close the gate instead of applying the look (WS-3, PR #58 review).
+            // Also the reopen path: a prior trim/lowMemory close must not permanently brick Looks
+            // after pressure clears (Play review: S20 FE "lots of memory" + disabled Looks).
             if (isLowMemoryNow()) {
+                // No-op when already closed: StateFlow conflates a value equal to the current one.
                 _editorTabState.value = current.copy(effectsPreviewEnabled = false)
                 return
             }
@@ -859,7 +857,11 @@ class OpenLoopViewModel(
         } else {
             EditorLoadingKind.FILTERING
         }
-        _editorTabState.value = current.copy(filter = filter, previewLoading = overlay)
+        _editorTabState.value = current.copy(
+            filter = filter,
+            previewLoading = overlay,
+            effectsPreviewEnabled = true,
+        )
     }
 
     /** Called after the preview player has applied the new filter (or cleared effects for Original). */
@@ -867,11 +869,20 @@ class OpenLoopViewModel(
         clearPreviewLoading(EditorLoadingKind.FILTERING)
     }
 
-    /** Switch the editor's active tab (Direction / Speed / Looks); pure UI state, no side effects. */
+    /**
+     * Switch the editor's active tab (Direction / Speed / Looks). Opening Looks while the effects
+     * gate is closed re-probes memory so a cleared-pressure session drops the banner without an
+     * extra chip tap.
+     */
     fun switchTab(tab: EditorTab) {
         val current = _editorTabState.value
         if (current.activeTab == tab) return
-        _editorTabState.value = current.copy(activeTab = tab)
+        _editorTabState.value = current.copy(
+            activeTab = tab,
+            // `||` short-circuits, so an already-open gate never pays for the memory probe.
+            effectsPreviewEnabled = current.effectsPreviewEnabled ||
+                (tab == EditorTab.LOOKS && !isLowMemoryNow()),
+        )
     }
 
     /**
@@ -1048,17 +1059,14 @@ class OpenLoopViewModel(
         )
         // Let Samsung (and other slow-reverse) users preview and save a forward loop instead of blocking
         // on ping-pong. They can pick a reverse mode again from the Loop tab (Try again / direction).
+        // Looks stay available: filter preview is a Media3 effect on the forward player and does not
+        // depend on the reversed artifact. Closing the gate here blamed "low memory" for OEM reverse
+        // quirks and cost a 1★ Play review (Galaxy S20 FE / 1.0.30).
         _editorTabState.value = latest.copy(
             mode = BoomerangMode.FORWARD,
             previewLoading = clearReversePreviewLoadingValue(latest.previewLoading),
             reverseFailed = false,
             reverseSupportReport = supportReport,
-            effectsPreviewEnabled = false,
-            // Reset the look with the gate: the chips lock to disabled, the UI recreates the player
-            // to drop any already-applied effects, and the export must match what the preview now
-            // shows — a non-Original filter left behind would bake a look the user can't see
-            // ("the chip can't lie about the export", VideoFilter doc; PR #58 review).
-            filter = VideoFilter.ORIGINAL,
         )
         reverseJob = null
         cleanupReverseScratchAfterCancel()
@@ -1186,11 +1194,14 @@ class OpenLoopViewModel(
             renderScheduler.observeResult(workId).collect { result ->
                 when (result) {
                     is BoomerangRenderWorkResult.Success -> onRenderSucceeded(result)
-                    BoomerangRenderWorkResult.Failure -> failBackToEditor(
+                    is BoomerangRenderWorkResult.Failure -> failBackToEditor(
                         scratch,
-                        "Render worker reported failure (details in BoomerangRenderWorker log)",
+                        outcome = result.reason
+                            ?: "Render worker reported failure (details in BoomerangRenderWorker log)",
                         cause = null,
+                        workerReportedCause = result.workerReportedCause,
                     )
+                    BoomerangRenderWorkResult.Cancelled -> returnToEditorAfterCancel(scratch)
                 }
             }
         }
@@ -1208,6 +1219,7 @@ class OpenLoopViewModel(
         _editorState.value = null
         _editorTabState.value = EditorTabState()
         _renderProgress.value = 0f
+        nudgeGalleryAfterShare = !result.returnToGallery
         loadRecordedVideos()
         _events.send(BoomerangEvent.Share(result.outputFile))
         _uiState.value = if (result.returnToGallery) {
@@ -1225,34 +1237,49 @@ class OpenLoopViewModel(
      * because the activity is still RESUMED at the moment the chooser is launched (slice 06).
      */
     fun onShareSheetClosed() {
+        if (nudgeGalleryAfterShare) {
+            nudgeGalleryAfterShare = false
+            _nudgeGalleryButton.value = true
+        }
         viewModelScope.launch { _events.send(BoomerangEvent.Saved) }
+    }
+
+    fun onGalleryButtonNudgeFinished() {
+        _nudgeGalleryButton.value = false
     }
 
     /**
      * Report the save failure (Crashlytics non-fatal + shareable report), emit
      * [BoomerangEvent.SaveFailed], and route back to the editor preserving the direction selection.
-     * [cause] is null when the failure arrived as a bare [BoomerangRenderWorkResult.Failure] —
-     * WorkManager does not carry the worker's exception across; its details are in the
-     * `BoomerangRenderWorker` log and the worker process's own Crashlytics breadcrumbs.
+     * [cause] is null when the failure arrived as a [BoomerangRenderWorkResult.Failure] —
+     * WorkManager does not carry the worker's *exception* across, only the reason string the worker
+     * attached to its failure Data (already folded into [outcome] by the caller).
+     * [workerReportedCause] is true when the worker already recorded the genuine exception as its
+     * own non-fatal; reporting a second, synthetic-cause event here would just re-open the
+     * catch-all beacon issue (Crashlytics 47233ad7) without adding signal, so it is skipped —
+     * the user-facing SaveFailed event and editor routing always happen.
      */
-    private suspend fun failBackToEditor(scratch: ScratchCapture, outcome: String, cause: Throwable?) {
-        renderObserveJob?.cancel()
-        renderObserveJob = null
-        activeRenderScratchUuid = null
-        saveInProgress = false
-        _renderProgress.value = 0f
+    private suspend fun failBackToEditor(
+        scratch: ScratchCapture,
+        outcome: String,
+        cause: Throwable?,
+        workerReportedCause: Boolean = false,
+    ) {
+        resetActiveRenderState()
         val editor = _editorState.value
         val trimStartMs = editor?.trimStartMs ?: 0L
         val trimEndMs = editor?.trimEndMs ?: 0L
-        ReverseCrashlytics.reportSaveFailure(
-            versionName = BuildConfig.VERSION_NAME,
-            versionCode = BuildConfig.VERSION_CODE,
-            source = scratch.file,
-            trimStartMs = trimStartMs,
-            trimEndMs = trimEndMs,
-            outcome = outcome,
-            cause = cause ?: SaveRenderFailedException(outcome),
-        )
+        if (!workerReportedCause) {
+            ReverseCrashlytics.reportSaveFailure(
+                versionName = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                source = scratch.file,
+                trimStartMs = trimStartMs,
+                trimEndMs = trimEndMs,
+                outcome = outcome,
+                cause = cause ?: SaveRenderFailedException(outcome),
+            )
+        }
         val supportReport = ReverseCrashlytics.supportReportForShare(
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE,
@@ -1264,6 +1291,29 @@ class OpenLoopViewModel(
         )
         _events.send(BoomerangEvent.SaveFailed(supportReport))
         _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
+    }
+
+    /**
+     * Route back to the editor after a render was cancelled ([BoomerangRenderWorkResult.Cancelled]).
+     * A cancel is user intent, not an error: unlike [failBackToEditor] it files **no** Crashlytics
+     * non-fatal (that would re-open the catch-all beacon issue 47233ad7 with a signal-less event)
+     * and emits **no** [BoomerangEvent.SaveFailed]. The scratch survives so the editor resumes.
+     */
+    private fun returnToEditorAfterCancel(scratch: ScratchCapture) {
+        resetActiveRenderState()
+        _uiState.value = OpenLoopUiState.BoomerangEditor(EditorSource.ScratchClip(scratch.uuid))
+    }
+
+    /**
+     * Tear down the in-flight render observation and reset the progress ring. Shared by the failure
+     * and cancellation exits; leaves the editor/scratch state intact so either can resume the editor.
+     */
+    private fun resetActiveRenderState() {
+        renderObserveJob?.cancel()
+        renderObserveJob = null
+        activeRenderScratchUuid = null
+        saveInProgress = false
+        _renderProgress.value = 0f
     }
 
     /** Stand-in cause when a render failure arrives as a bare WorkManager [Result.failure]. */
@@ -1316,11 +1366,17 @@ class OpenLoopViewModel(
      * pipeline by recreating the player (`setVideoEffects(emptyList())` is forbidden — see the
      * HDR-seam comment in BoomerangEditorScreen), so chips, preview, and export must agree on
      * "no look" once the gate closes (PR #58 review).
+     *
+     * Skipped while reverse preview is generating: pass 1/2 is the heaviest transient allocator in
+     * the editor, and OEM `RUNNING_LOW` during that window is expected — treating it as a permanent
+     * Looks disable left users on API <= 33 (e.g. Galaxy S20 FE / Android 13) with a false
+     * "low memory" banner after reverse finished.
      */
     fun onTrimMemory() {
         if (_editorState.value == null) return
         val tab = _editorTabState.value
         if (!tab.effectsPreviewEnabled) return
+        if (tab.previewLoading.isReversePreviewLoading()) return
         _editorTabState.value = tab.copy(
             effectsPreviewEnabled = false,
             filter = VideoFilter.ORIGINAL,

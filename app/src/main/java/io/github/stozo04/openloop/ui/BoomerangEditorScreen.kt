@@ -559,10 +559,9 @@ fun BoomerangEditorContent(
                         filter = filter,
                         thumbnailFrame = thumbnailFrame,
                         onFilterChange = onFilterChange,
-                        filtersEnabled = effectsPreviewEnabled,
                         disabledHint = if (!effectsPreviewEnabled) {
-                            // Cause-neutral: the gate closes on reverse failure OR memory pressure.
-                            "Preview unavailable (low memory or reverse error)"
+                            // Gate is memory-pressure only (reverse failure no longer closes Looks).
+                            "Looks preview paused — device is low on memory. Tap a look to retry."
                         } else {
                             null
                         },

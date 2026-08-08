@@ -65,7 +65,6 @@ fun FilterTabPanel(
     thumbnailFrame: Bitmap?,
     onFilterChange: (VideoFilter) -> Unit,
     modifier: Modifier = Modifier,
-    filtersEnabled: Boolean = true,
     disabledHint: String? = null,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -119,14 +118,15 @@ fun FilterTabPanel(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 VideoFilter.entries.forEach { look ->
-                    val chipEnabled = filtersEnabled || look == VideoFilter.ORIGINAL
+                    // Chips stay tappable even while [disabledHint] shows: a tap re-probes memory in
+                    // OpenLoopViewModel.updateFilter, which is the real gate. A disabled strip made
+                    // "tap a look to retry" unreachable (lesson 026).
                     FilterLookChip(
                         look = look,
                         thumbnailFrame = thumbnailFrame,
                         selected = look == filter,
-                        enabled = chipEnabled,
                         onClick = {
-                            if (!chipEnabled || look == filter) return@FilterLookChip
+                            if (look == filter) return@FilterLookChip
                             haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
                             onFilterChange(look)
                         },
@@ -142,7 +142,6 @@ private fun FilterLookChip(
     look: VideoFilter,
     thumbnailFrame: Bitmap?,
     selected: Boolean,
-    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     val thumbShape = RoundedCornerShape(THUMB_CORNER)
@@ -165,7 +164,7 @@ private fun FilterLookChip(
                         Modifier
                     },
                 )
-                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .clickable(role = Role.Button, onClick = onClick)
                 .semantics {
                     contentDescription = look.label
                     this.selected = selected
@@ -187,11 +186,7 @@ private fun FilterLookChip(
         Spacer(Modifier.height(8.dp))
         Text(
             text = look.label,
-            color = when {
-                selected -> ElectricLime
-                !enabled -> TextSecondary.copy(alpha = 0.45f)
-                else -> TextSecondary
-            },
+            color = if (selected) ElectricLime else TextSecondary,
             style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),

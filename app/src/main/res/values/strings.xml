@@ -17,7 +17,7 @@
     <string name="notification_loop_export_complete_text">Tap to open OpenLoop</string>
 
     <!-- Post-save snackbars (slice 06) -->
-    <string name="snackbar_saved">Loop saved</string>
+    <string name="snackbar_saved">Loop saved to Photos</string>
     <string name="snackbar_view_action">View</string>
     <string name="snackbar_save_failed">Couldn\'t save your loop. Try again, or send a debug report so we can fix device issues.</string>
     <string name="snackbar_save_failed_report_action">Send debug report</string>
