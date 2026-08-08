@@ -19,13 +19,17 @@ Your knowledge cutoff could be a year old. **Do not assume** you know the curren
 
 ## Required Reading — Every Session
 
-Before doing any non-trivial work in this repo, read **every file in `docs/lessons_learned/`**. Each file captures a real mistake from a past PR review or bug and the pattern to apply going forward. Skipping these means re-making the same mistake — these were expensive to learn the first time.
+Before doing any non-trivial work in this repo, read the **core** lessons in `docs/lessons_learned/`. Each file captures a real mistake from a past PR review or bug and the pattern to apply going forward. Skipping these means re-making the same mistake — these were expensive to learn the first time.
 
 Order of operations at session start:
 
 1. Read this `CLAUDE.md` (already in context).
-2. Read `docs/lessons_learned/README.md` for the index, then read every numbered lesson file (`001-*.md`, `002-*.md`, ...).
-3. Proceed with the user's request.
+2. Read `docs/lessons_learned/README.md` — it explains the two tiers and carries the index.
+3. Read **every core lesson in full: 008 and 011–030.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating) and exist nowhere else.
+4. **Skim the index rows for the baseline lessons (001–007, 009, 010)** — generic Android/Compose hygiene now largely held by Lint, CI, and IDE inspections. Open one only when the work actually touches that area.
+5. Proceed with the user's request.
+
+When a lesson graduates from "hard-won" to "the tooling catches this now," move it to the baseline tier rather than deleting it — the history stays useful, the mandatory read stays short.
 
 When a PR review surfaces a new pattern worth preserving, add it to `docs/lessons_learned/` using the convention in that folder's README. Commit the lesson alongside the fix it documents.
 
