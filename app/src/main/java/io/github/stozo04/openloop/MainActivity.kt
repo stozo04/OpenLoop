@@ -17,6 +17,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.OptIn
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,8 +71,10 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.work.WorkManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
@@ -101,6 +105,10 @@ import io.github.stozo04.openloop.ui.theme.OutlineVariant
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextPrimary
+import io.github.stozo04.openloop.update.AppUpdateController
+import io.github.stozo04.openloop.update.EXTRA_DEMO_UPDATE
+import io.github.stozo04.openloop.update.demoAppUpdateManager
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -132,6 +140,9 @@ class MainActivity : ComponentActivity() {
     }
     private lateinit var cameraManager: CameraManager
 
+    /** Play in-app updates (FLEXIBLE). Built in [onCreate]; released in [onDestroy]. */
+    private lateinit var appUpdateController: AppUpdateController
+
     /**
      * Set when a boomerang share sheet is launched (slice 06); consumed on the next [onResume]. The
      * "Saved — view in gallery" snackbar is deferred until then so it shows when the user is actually
@@ -161,6 +172,19 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
         viewModel.onPermissionsChecked(grants.values.all { it })
+    }
+
+    /**
+     * Play FLEXIBLE in-app update flow. Registered as a property so it's wired before `STARTED`,
+     * per the Activity Result API contract. A non-OK result just means the user declined or Play
+     * failed — nothing else in the app depends on it.
+     */
+    private val appUpdateLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode != RESULT_OK) {
+            Log.w(TAG, "In-app update flow declined or failed: resultCode=${result.resultCode}")
+        }
     }
 
     // Android Photo Picker (slice 07): single-select, VIDEO ONLY, no runtime storage permission.
@@ -203,6 +227,16 @@ class MainActivity : ComponentActivity() {
         deferredShareShowSavedSnackbar =
             savedInstanceState?.getBoolean(KEY_DEFERRED_SHARE_SHOW_SAVED, true) != false
         cameraManager = CameraManager(this)
+        appUpdateController = AppUpdateController(
+            // Debug builds launched with --ez openloop.demoUpdate true drive a fake Play so the
+            // "Update ready" snackbar is viewable on an emulator; R8 strips this from release.
+            appUpdateManager = if (BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_DEMO_UPDATE, false)) {
+                demoAppUpdateManager(applicationContext, lifecycleScope)
+            } else {
+                AppUpdateManagerFactory.create(applicationContext)
+            },
+            launcher = appUpdateLauncher,
+        )
 
         setContent {
             OpenLoopTheme {
@@ -212,6 +246,8 @@ class MainActivity : ComponentActivity() {
                 // Friendly "That clip's a bit long" dialog (slice 07); held in the ViewModel so it
                 // survives Activity recreation after the Photo Picker returns.
                 val showTooLongDialog by viewModel.showImportTooLongDialog.collectAsStateWithLifecycle()
+                // Its "a bit short" sibling (issue #95 follow-up) — same recreation rationale.
+                val showTooShortDialog by viewModel.showImportTooShortDialog.collectAsStateWithLifecycle()
 
                 // Hoisted out of the (non-composable) collect lambda below — stringResource can only
                 // be read in a composable scope.
@@ -222,7 +258,10 @@ class MainActivity : ComponentActivity() {
                 val reversePreviewForwardMessage = stringResource(R.string.snackbar_reverse_preview_forward)
                 val reversePreviewReportAction = stringResource(R.string.snackbar_reverse_preview_report_action)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
+                val captureTooShortMessage = stringResource(R.string.snackbar_capture_too_short)
                 val undoAction = stringResource(R.string.undo)
+                val updateReadyMessage = stringResource(R.string.update_ready_message)
+                val updateReadyAction = stringResource(R.string.update_ready_action)
                 // The "N loops deleted" plural is count-dependent, so we capture resources here (in a
                 // composable scope) and resolve the quantity string inside the collect lambda below.
                 // LocalResources (not LocalContext.current.resources) so the read is invalidated on a
@@ -235,6 +274,27 @@ class MainActivity : ComponentActivity() {
                     viewModel.requestPostNotifications.collect {
                         maybeRequestPostNotificationsPermission()
                     }
+                }
+
+                // Play fires the "downloaded" callback off a listener, not a coroutine, so the
+                // closure needs a scope to drive the suspending showSnackbar. Also re-checks here
+                // because onResume runs before the first composition (callback still null then).
+                val updateScope = rememberCoroutineScope()
+                LaunchedEffect(Unit) {
+                    appUpdateController.onUpdateDownloaded = {
+                        updateScope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = updateReadyMessage,
+                                actionLabel = updateReadyAction,
+                                // Restart-required: never auto-dismiss.
+                                duration = SnackbarDuration.Indefinite,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                appUpdateController.completeUpdate()
+                            }
+                        }
+                    }
+                    appUpdateController.check()
                 }
 
                 // Collect one-shot boomerang events → share sheet + snackbars (the app's only
@@ -302,6 +362,12 @@ class MainActivity : ComponentActivity() {
                             // [OpenLoopViewModel.showImportTooLongDialog] so it survives Activity
                             // recreation after the Photo Picker closes.
                             BoomerangEvent.ImportTooLong -> Unit
+                            // Capture stopped before the minimum loopable length (issue #95
+                            // follow-up): the ViewModel already discarded the scratch and returned
+                            // to the viewfinder — nudge instead of failing silently.
+                            BoomerangEvent.CaptureTooShort -> snackbarHostState.showSnackbar(
+                                message = captureTooShortMessage,
+                            )
                             // Loops marked for deletion (Issue #35): show an Undo snackbar. The real
                             // file delete is deferred — Undo restores the tiles, any other dismissal
                             // (timeout, swipe, or a superseding delete) commits the delete to disk.
@@ -367,6 +433,10 @@ class MainActivity : ComponentActivity() {
                     // Friendly "too long" guidance over the gallery (slice 07).
                     if (showTooLongDialog) {
                         ImportTooLongDialog(onDismiss = { viewModel.dismissImportTooLongDialog() })
+                    }
+                    // Friendly "too short" guidance over the gallery (issue #95 follow-up).
+                    if (showTooShortDialog) {
+                        ImportTooShortDialog(onDismiss = { viewModel.dismissImportTooShortDialog() })
                     }
                 }
             }
@@ -461,6 +531,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Re-surface the "Update ready" prompt if a Play download finished while we were
+        // backgrounded (Google's recommended stalled-update handling).
+        appUpdateController.check()
         deferredShareFile?.let { file ->
             val showSaved = deferredShareShowSavedSnackbar
             deferredShareFile = null
@@ -486,6 +559,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraManager.shutdown()
+        appUpdateController.detach()
     }
 }
 
@@ -814,13 +888,43 @@ fun PermissionExplanationScreen(
 
 /**
  * Friendly "That clip's a bit long" dialog shown when an imported library video exceeds the 30 s
- * limit (slice 07). Hand-rolled in the app's neon aesthetic (matching [PermissionExplanationScreen]
- * and the gallery overlay) rather than a stock Material3 `AlertDialog`, so it reads as warm guidance,
- * not a system error. Acknowledgment-only — the user is already back on the gallery and nothing was
+ * limit (slice 07). Acknowledgment-only — the user is already back on the gallery and nothing was
  * copied; the single "Got it" button just dismisses.
  */
 @Composable
 fun ImportTooLongDialog(onDismiss: () -> Unit) {
+    ImportClipLengthDialog(
+        titleRes = R.string.import_too_long_title,
+        bodyRes = R.string.import_too_long_body,
+        onDismiss = onDismiss,
+    )
+}
+
+/**
+ * The "a bit short" sibling: shown when a picked clip is under the minimum loopable window
+ * ([io.github.stozo04.openloop.ui.OpenLoopViewModel.MIN_TRIM_DURATION] — issue #95 follow-up).
+ * Same acknowledgment-only contract as [ImportTooLongDialog].
+ */
+@Composable
+fun ImportTooShortDialog(onDismiss: () -> Unit) {
+    ImportClipLengthDialog(
+        titleRes = R.string.import_too_short_title,
+        bodyRes = R.string.import_too_short_body,
+        onDismiss = onDismiss,
+    )
+}
+
+/**
+ * Shared friendly clip-length guidance dialog (too long / too short). Hand-rolled in the app's neon
+ * aesthetic (matching [PermissionExplanationScreen] and the gallery overlay) rather than a stock
+ * Material3 `AlertDialog`, so it reads as warm guidance, not a system error.
+ */
+@Composable
+private fun ImportClipLengthDialog(
+    @StringRes titleRes: Int,
+    @StringRes bodyRes: Int,
+    onDismiss: () -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -850,7 +954,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = stringResource(R.string.import_too_long_title),
+                text = stringResource(titleRes),
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
                 textAlign = TextAlign.Center
@@ -859,7 +963,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = stringResource(R.string.import_too_long_body),
+                text = stringResource(bodyRes),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
@@ -876,7 +980,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
                     .height(48.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.import_too_long_button),
+                    text = stringResource(R.string.import_length_dialog_button),
                     style = MaterialTheme.typography.labelLarge,
                     color = LimeInk
                 )

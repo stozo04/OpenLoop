@@ -28,8 +28,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 32
-        versionName = "1.0.32"
+        versionCode = 33
+        versionName = "1.0.33"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -279,6 +279,9 @@ dependencies {
     implementation(libs.androidx.media3.transformer)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.effect)
+
+    // Play In-App Updates (FLEXIBLE flow) — see update/AppUpdateController.kt.
+    implementation(libs.play.app.update)
 
     // Testing
     testImplementation(libs.junit)

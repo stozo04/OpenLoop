@@ -90,8 +90,11 @@ jobs:
                Extract the `Crashlytics-Issue-ID:` value from the body.
             2. Use the Firebase MCP Crashlytics tools (crashlytics_get_issue, crashlytics_list_events,
                crashlytics_batch_get_events) with that app ID to fetch the stacktrace and a few sample
-               events for the issue ID. If an MCP call fails (the tools are Experimental), proceed with
-               whatever metadata is in the issue body and say so.
+               events for the issue ID. If an MCP call fails (the tools are Experimental, and they
+               currently 404 under this workflow's service-account auth — see issue #107), proceed with
+               whatever metadata is in the issue body, say so at the top of your comment, AND run
+               `gh issue edit ${{ github.event.issue.number || github.event.inputs.issue_number }} --add-label mcp-degraded`
+               so a source-only triage is visible from the issue list instead of only inside the comment.
             3. Read the relevant source and docs/lessons_learned/ (several past lessons are
                Crashlytics-sourced) to locate the likely cause.
             4. ALWAYS post a root-cause comment on the issue with: the failing stack frame, the most
