@@ -59,8 +59,9 @@ From the repo root (Windows: `gradlew.bat` instead of `./gradlew`):
 | `data.UserPreferencesRepositoryImplRobolectricTest` | Robolectric | `UserPreferencesRepositoryImpl` + real DataStore file | Any | Real `preferencesDataStore` delegate | `OpenLoopViewModelTest` (fake repo) |
 | `media.DeviceMediaHintsOemRobolectricTest` | Robolectric | `DeviceMediaHints.isSamsungDevice()`, preview cap, encoder order | Any | `ShadowBuild.setManufacturer` / `setBrand` | Samsung RTL sweep |
 | `PostNotificationsGateRobolectricTest` | Robolectric | `shouldRequestPostNotificationsPermission()`, `shouldShowNotificationExportHint()` | 32, 33 | `ShadowApplication.grantPermissions` / `denyPermissions` | Manual QA on API 33+ device |
+| `update.AppUpdateFlowRobolectricTest` | Robolectric | `AppUpdateController.check()` / `completeUpdate()` end to end | Any | Play's `FakeAppUpdateManager` (ships in `app-update`) + `shadowOf(mainLooper).idle()` | Internal App Sharing (T3) — see the in-app-updates PR |
 
-**Total:** 9 test classes · 34 test methods (including JVM companion).
+**Total:** 10 test classes · 39 test methods (including JVM companions).
 
 ---
 
@@ -150,6 +151,29 @@ Camera permission **state** remains in `OpenLoopViewModelTest` — not duplicate
 | | `lgeIdentity_encoderTryOrderDoesNotForceC2GoogleFirst` | Non-Samsung order |
 
 **Never Robolectric:** vendor MediaCodec behavior — Samsung RTL + `VideoReverserTest` on device.
+
+---
+
+### Play in-app updates (FLEXIBLE)
+
+Play's `FakeAppUpdateManager` runs the real update state machine with no Play Store, so "the user is
+behind a version" is reachable off-device. It needs a `Context`, which is exactly what Robolectric
+supplies. It posts its callbacks to the main looper, so every step is followed by
+`shadowOf(Looper.getMainLooper()).idle()`.
+
+| Class | Test method | Asserts |
+|-------|-------------|---------|
+| `AppUpdateFlowRobolectricTest` | `a stale build shows Play's update dialog` | Gate opens → `isConfirmationDialogVisible()` |
+| | `accepting the update downloads it, prompts to restart, and restarting installs` | Accept → download → restart prompt → `completeUpdate()` installs |
+| | `declining the update leaves the app usable and does not re-nag on the next resume` | Reject → no prompt; later `check()` calls do not re-open the dialog |
+| | `a build that is not stale enough is never prompted` | Staleness gate holds end to end, not just in the pure function |
+| | `no update available is a silent no-op` | Up-to-date install shows nothing |
+| `AppUpdateControllerTest` | `only DOWNLOADED reaches the host callback` | Every other `InstallStatus` is ignored |
+| | `detach unregisters the same listener instance it registered` | No listener leak on Activity recreation |
+
+**Never Robolectric:** whether Play actually offers the update. `clientVersionStalenessDays()` is
+always null over Internal App Sharing, so the real threshold is only observable on the internal
+testing track — kept as a manual step in the originating PR.
 
 ---
 
