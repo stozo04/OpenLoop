@@ -67,4 +67,4 @@ Tell the user it's done. Only relaunch / screenshot if the user explicitly asks.
 | Reset onboarding (the only mode) | force-stop, then `adb -s <serial> shell run-as io.github.stozo04.openloop rm -f files/datastore/openloop_preferences.preferences_pb` |
 | Relaunch (only if asked) | `adb -s <serial> shell am start -n io.github.stozo04.openloop/.MainActivity` |
 
-Full background on the DataStore: `docs/guides/jetpack-datastore-explained.md`.
+DataStore reference: [Google's DataStore guide](https://developer.android.com/topic/libraries/architecture/datastore). The repo's usage is one boolean (`has_completed_onboarding`) in `data/UserPreferencesRepository.kt`.

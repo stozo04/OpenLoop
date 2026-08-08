@@ -67,7 +67,7 @@ back into per-state branches.** More generally: any composable that binds the ca
 
 - There must be exactly **one** `CameraScreen(` call site reachable during capture:
   ```
-  grep -n "CameraScreen(" app/src/main/java/com/OpenLoop/app/MainActivity.kt
+  grep -n "CameraScreen(" app/src/main/java/io/github/stozo04/openloop/MainActivity.kt
   ```
   Capture states (`ReadyToCapture`, `Recording`, and any future capture-time state) must funnel
   through the single `CameraScreenHost` branch — never their own branches.
