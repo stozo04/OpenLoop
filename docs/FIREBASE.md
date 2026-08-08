@@ -125,7 +125,11 @@ Expected log line: `Created GitHub issue #NN for Crashlytics <id>`. Type `.exit`
 1. **No new GitHub issues from crashes?** → **Token expired** (most likely). Renew it (top of this doc). Then check the function logs for `401`.
 2. **Function not firing at all?** → Confirm it's deployed (`firebase functions:list`) and the project is still on the **Blaze** plan.
 3. **Issue created but no Claude comment / draft PR?** → Check the **Actions** tab. Likely a missing/expired `ANTHROPIC_API_KEY`, the Claude GitHub App was removed, or `GCP_SA_KEY` lost its Crashlytics access.
-4. **Claude can't read the crash details?** → The Crashlytics MCP tools are **Experimental** and can change; also verify the service account still has `Firebase Crashlytics Viewer`.
+4. **Claude commented, but says the Crashlytics calls returned 404?** → **Known upstream bug, not your config.** The Crashlytics MCP tools 404 (`Method not found`) when the CLI authenticates via a **service-account key / ADC** — which is exactly how this workflow authenticates (`google-github-actions/auth` + `GCP_SA_KEY`). See [firebase-tools#10310](https://github.com/firebase/firebase-tools/issues/10310), [#10004](https://github.com/firebase/firebase-tools/issues/10004), [#9876](https://github.com/firebase/firebase-tools/issues/9876). The run still goes **green** and Claude falls back to a source-only diagnosis — which is often still correct (issue #95 produced lesson 030 this way), so it is a degrade, not an outage.
+   - Such runs are tagged with the **`mcp-degraded`** label so you can spot them from the issue list. Tracking: [#107](https://github.com/stozo04/OpenLoop/issues/107).
+   - **Do NOT "fix" this by switching to a `firebase login:ci` token.** That is the workaround named upstream, but `FIREBASE_TOKEN` / `--token` is deprecated and slated for removal, and Google's CI guidance is the service-account key this repo already uses. Trading the recommended path for a long-lived credential to dodge an upstream bug is a downgrade.
+   - Worth ruling out once (cheap): confirm `gh-crashlytics-reader` holds `roles/serviceusage.serviceUsageConsumer` alongside `Firebase Crashlytics Viewer` — #10310 names it, though #10004 reports `roles/owner` did not help.
+   - The workflow installs `firebase-tools@latest` every run, so **the next triage is the retest**: if `mcp-degraded` stops appearing, upstream shipped the fix.
 5. **Duplicate issues for one crash?** → The function dedupes on the `Crashlytics-Issue-ID:` marker; if the issue body format changed, the dedupe search can miss.
 
 ## Notes
