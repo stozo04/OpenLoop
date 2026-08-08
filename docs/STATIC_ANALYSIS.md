@@ -118,6 +118,18 @@ locally before opening/merging a PR, and the merge policy requires it to be clea
   `gradlew` task is running. Same build-lock deadlock documented in [Lesson 012](lessons_learned/012-camera-bound-screen-single-call-site.md).
 - **Environment-gated** — if `inspect.bat` isn't present (a cloud/CI runner without Studio), the
   reviewer must state Engine 2 was **not run** rather than implying a pass. See Tier 3.
+- **⚠️ An empty output dir is NOT a pass — verify with a probe.** On Studio **Quail 2026.1.1**
+  (`AI-261.23567.138.2611.15503007`) the headless run completes in ~10 s, writes only
+  `.descriptions.xml`, and reports zero problems — because it never loads the Gradle/Android
+  module model (`inspect.bat` does not run a Gradle sync, and this project keeps its modules in
+  external storage: `ExternalStorageConfigurationManager enabled="true"`, no `modules.xml`/`.iml`
+  under `.idea/`). The log tell is `PerProjectIndexingQueue - Finished for [OpenLoop]. No files to
+  index with loading content.` Confirmed 2026-08-08 by dropping in a throwaway `.kt` with an unused
+  import, a redundant explicit type, a stray semicolon and three typos: **still zero result files.**
+  Same shape as [Lesson 011](lessons_learned/011-16kb-uncompressed-native-libs.md)'s vacuous
+  `zipalign` pass. **Before trusting a clean headless run, plant such a probe and confirm it is
+  reported; if it isn't, run Engine 2 from the IDE instead (Analyze → Inspect Code), which uses the
+  synced model.**
 
 ---
 

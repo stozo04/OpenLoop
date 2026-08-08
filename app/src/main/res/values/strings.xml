@@ -46,7 +46,12 @@
     <string name="snackbar_import_failed">Couldn\'t import that video.</string>
     <string name="import_too_long_title">That clip\'s a bit long</string>
     <string name="import_too_long_body">OpenLoop makes loops from videos up to 30 seconds. Pick a shorter clip and we\'ll loop it.</string>
-    <string name="import_too_long_button">Got it</string>
+    <string name="import_length_dialog_button">Got it</string>
+
+    <!-- Clip shorter than the minimum loopable window (issue #95 follow-up) -->
+    <string name="import_too_short_title">That clip\'s a bit short</string>
+    <string name="import_too_short_body">OpenLoop needs at least half a second of video to make a loop. Pick a longer clip and we\'ll loop it.</string>
+    <string name="snackbar_capture_too_short">That was quick! Record a little longer to make a loop.</string>
 
     <!-- Play in-app updates (FLEXIBLE flow) -->
     <string name="update_ready_message">Update ready — restart to install.</string>

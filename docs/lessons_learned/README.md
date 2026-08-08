@@ -42,6 +42,7 @@ Each lesson follows the same shape:
 | 027 | [Samsung reverse encoder try-order must never empty into `createEncoderByType` (Exynos `0x80001006`)](./027-samsung-encoder-try-order-never-empty.md) | RTL SM-G985F |
 | 028 | [`ACTION_SEND` FileProvider shares must set `ClipData` so the system chooser can preview](./028-share-intent-clipdata-for-chooser.md) | RTL SM-G985F sharesheet |
 | 029 | [A test's premise must be enforced, not hoped for: park the worker, don't drop its runnable](./029-test-premise-must-not-rest-on-a-dropped-runnable.md) | Full-suite flake (PR #106) |
+| 030 | [`coerceIn` with runtime-derived bounds throws on short clips; clamp the bound and JVM-test the math](./030-trim-coercein-range-guard-short-clip.md) | Crashlytics 7169b499 (Issue #95) |
 
 ## Adding a new lesson
 
