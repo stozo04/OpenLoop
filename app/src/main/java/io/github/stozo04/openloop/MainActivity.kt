@@ -49,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,8 +71,10 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.work.WorkManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
@@ -102,6 +105,10 @@ import io.github.stozo04.openloop.ui.theme.OutlineVariant
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextPrimary
+import io.github.stozo04.openloop.update.AppUpdateController
+import io.github.stozo04.openloop.update.EXTRA_DEMO_UPDATE
+import io.github.stozo04.openloop.update.demoAppUpdateManager
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -133,6 +140,9 @@ class MainActivity : ComponentActivity() {
     }
     private lateinit var cameraManager: CameraManager
 
+    /** Play in-app updates (FLEXIBLE). Built in [onCreate]; released in [onDestroy]. */
+    private lateinit var appUpdateController: AppUpdateController
+
     /**
      * Set when a boomerang share sheet is launched (slice 06); consumed on the next [onResume]. The
      * "Saved — view in gallery" snackbar is deferred until then so it shows when the user is actually
@@ -162,6 +172,19 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
         viewModel.onPermissionsChecked(grants.values.all { it })
+    }
+
+    /**
+     * Play FLEXIBLE in-app update flow. Registered as a property so it's wired before `STARTED`,
+     * per the Activity Result API contract. A non-OK result just means the user declined or Play
+     * failed — nothing else in the app depends on it.
+     */
+    private val appUpdateLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode != RESULT_OK) {
+            Log.w(TAG, "In-app update flow declined or failed: resultCode=${result.resultCode}")
+        }
     }
 
     // Android Photo Picker (slice 07): single-select, VIDEO ONLY, no runtime storage permission.
@@ -204,6 +227,16 @@ class MainActivity : ComponentActivity() {
         deferredShareShowSavedSnackbar =
             savedInstanceState?.getBoolean(KEY_DEFERRED_SHARE_SHOW_SAVED, true) != false
         cameraManager = CameraManager(this)
+        appUpdateController = AppUpdateController(
+            // Debug builds launched with --ez openloop.demoUpdate true drive a fake Play so the
+            // "Update ready" snackbar is viewable on an emulator; R8 strips this from release.
+            appUpdateManager = if (BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_DEMO_UPDATE, false)) {
+                demoAppUpdateManager(applicationContext, lifecycleScope)
+            } else {
+                AppUpdateManagerFactory.create(applicationContext)
+            },
+            launcher = appUpdateLauncher,
+        )
 
         setContent {
             OpenLoopTheme {
@@ -227,6 +260,8 @@ class MainActivity : ComponentActivity() {
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
                 val captureTooShortMessage = stringResource(R.string.snackbar_capture_too_short)
                 val undoAction = stringResource(R.string.undo)
+                val updateReadyMessage = stringResource(R.string.update_ready_message)
+                val updateReadyAction = stringResource(R.string.update_ready_action)
                 // The "N loops deleted" plural is count-dependent, so we capture resources here (in a
                 // composable scope) and resolve the quantity string inside the collect lambda below.
                 // LocalResources (not LocalContext.current.resources) so the read is invalidated on a
@@ -239,6 +274,27 @@ class MainActivity : ComponentActivity() {
                     viewModel.requestPostNotifications.collect {
                         maybeRequestPostNotificationsPermission()
                     }
+                }
+
+                // Play fires the "downloaded" callback off a listener, not a coroutine, so the
+                // closure needs a scope to drive the suspending showSnackbar. Also re-checks here
+                // because onResume runs before the first composition (callback still null then).
+                val updateScope = rememberCoroutineScope()
+                LaunchedEffect(Unit) {
+                    appUpdateController.onUpdateDownloaded = {
+                        updateScope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = updateReadyMessage,
+                                actionLabel = updateReadyAction,
+                                // Restart-required: never auto-dismiss.
+                                duration = SnackbarDuration.Indefinite,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) {
+                                appUpdateController.completeUpdate()
+                            }
+                        }
+                    }
+                    appUpdateController.check()
                 }
 
                 // Collect one-shot boomerang events → share sheet + snackbars (the app's only
@@ -475,6 +531,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Re-surface the "Update ready" prompt if a Play download finished while we were
+        // backgrounded (Google's recommended stalled-update handling).
+        appUpdateController.check()
         deferredShareFile?.let { file ->
             val showSaved = deferredShareShowSavedSnackbar
             deferredShareFile = null
@@ -500,6 +559,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraManager.shutdown()
+        appUpdateController.detach()
     }
 }
 

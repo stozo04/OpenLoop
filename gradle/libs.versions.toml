@@ -24,6 +24,7 @@ googleServices = "4.4.4"
 firebaseCrashlyticsGradle = "3.0.7"
 baselineprofile = "1.5.0-alpha06"
 benchmark = "1.5.0-alpha06"
+playAppUpdate = "2.1.0"
 
 
 [libraries]
@@ -85,6 +86,9 @@ firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashly
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmark" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version = "2.3.0" }
+
+# Play In-App Updates — the "update ready, restart to install" nudge (FLEXIBLE flow).
+play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
 
 
 [plugins]
