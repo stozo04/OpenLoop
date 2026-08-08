@@ -280,6 +280,9 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.effect)
 
+    // Play In-App Updates (FLEXIBLE flow) — see update/AppUpdateController.kt.
+    implementation(libs.play.app.update)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
