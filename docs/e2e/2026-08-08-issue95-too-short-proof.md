@@ -15,7 +15,7 @@ which verified code that no longer exists.
 | `:app:connectedDebugAndroidTest` (Pixel_8 AVD) | **88 tests, 0 failures, 0 errors, 1 skipped** — the skip is `VideoReverserTest.reverse_pass1SurvivesOnSamsung_…`, which self-skips off Samsung hardware |
 | `:app:lintDebug` (Engine 1) | exit 0, **0 errors**, 26 warnings — all pre-existing on `main` (dependency-version + `InlinedApi` on `POST_NOTIFICATIONS`); none in the changed code |
 | Tier 3 markdown checks (CI) | pass |
-| IDE "Inspect Code" (Engine 2) | **not run** — `inspect.bat` refuses to start while Android Studio has the project open ("Only one instance of Studio can be run at a time"), and the owner's IDE was open during this session. Owner step; see below. |
+| IDE "Inspect Code" (Engine 2) | **attempted, result rejected as vacuous** — see below. Must be run from the IDE by the owner. |
 
 New tests confirmed present in the run's XML results:
 
@@ -59,19 +59,27 @@ right and the END handle left → `00:01.4 — 00:04.0`. Normal clamp behavior i
 
 ## Not verified
 
-- **Engine 2 (IDE "Inspect Code")** — must be run by the owner before merge, either from the open
-  IDE (Analyze → Inspect Code) or headlessly after closing Studio:
+- **Engine 2 (IDE "Inspect Code") — the headless run is currently vacuous; must be run from the IDE.**
 
-  ```powershell
-  & "C:\Program Files\Android\Android Studio\bin\inspect.bat" `
-    "C:\Users\gates\Personal\OpenLoop" `
-    "C:\Users\gates\Personal\OpenLoop\.idea\inspectionProfiles\Project_Default.xml" `
-    "C:\Users\gates\Personal\OpenLoop\build\inspection-results" `
-    -v2 -d "C:\Users\gates\Personal\OpenLoop"
-  ```
+  After Studio was closed, `inspect.bat` (STATIC_ANALYSIS.md §Tier 2 command) ran to completion in
+  ~10 s and reported **zero problems**, writing only `.descriptions.xml` and no per-inspection
+  result files. That is not a pass. Proof: a throwaway `app/src/main/java/.../ZzInspectProbe.kt`
+  containing an unused import, a redundant explicit type, a stray semicolon and three misspellings
+  was added and the run repeated — **still zero result files.** The probe was deleted afterwards
+  (`git status` clean).
 
-  Engine 1 (Android Lint) is clean and the Tier 3 headless markdown approximation passed in CI, so
-  the remaining exposure is the Kotlin-redundancy / Grazie-proofreading class only.
+  Cause: `inspect.bat` does not run a Gradle sync, and this project stores its module model in
+  Studio's external storage (`ExternalStorageConfigurationManager enabled="true"`; no
+  `modules.xml`/`.iml` under `.idea/`), so headless Studio loads **0 modules** and no source file
+  belongs to a scope. Log tell:
+  `PerProjectIndexingQueue - Finished for [OpenLoop]. No files to index with loading content.`
+  Observed on Studio Quail 2026.1.1 (`AI-261.23567.138.2611.15503007`). Gotcha added to
+  [`docs/STATIC_ANALYSIS.md`](../STATIC_ANALYSIS.md) §Tier 2.
+
+  **Owner action:** run Engine 2 from the IDE — *Analyze → Inspect Code…* with the whole project as
+  scope — which uses the synced model. Engine 1 (Android Lint) is clean and the Tier 3 headless
+  markdown approximation passed in CI, so the remaining exposure is the Kotlin-redundancy /
+  Grazie-proofreading class only.
 - **TalkBack** readout of the new copy, and the accessibility `setProgress` call sites, were not
   driven on-device. Both a11y sites route through the same `TrimHandleMath` functions covered by
   the JVM sweep.
