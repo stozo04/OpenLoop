@@ -106,6 +106,29 @@ class AppUpdateFlowRobolectricTest {
     }
 
     @Test
+    fun `a download that finished while backgrounded is re-surfaced on the next resume`() {
+        playHasANewerBuild()
+        val controller = controller()
+
+        controller.check()
+        settle()
+        play.userAcceptsUpdate()
+        settle()
+        play.downloadStarts()
+        settle()
+        play.downloadCompletes()
+        settle()
+        assertEquals(1, updateReadyPrompts) // via the install-state listener
+
+        // The user backgrounds and returns: onResume calls check(), which must find the staged APK
+        // and prompt again rather than rely on a listener callback that already fired.
+        controller.check()
+        settle()
+
+        assertEquals("onResume must re-surface a staged update", 2, updateReadyPrompts)
+    }
+
+    @Test
     fun `declining the update leaves the app usable and does not re-nag on the next resume`() {
         playHasANewerBuild()
         val controller = controller()

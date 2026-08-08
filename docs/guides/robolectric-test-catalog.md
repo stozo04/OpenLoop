@@ -61,7 +61,7 @@ From the repo root (Windows: `gradlew.bat` instead of `./gradlew`):
 | `PostNotificationsGateRobolectricTest` | Robolectric | `shouldRequestPostNotificationsPermission()`, `shouldShowNotificationExportHint()` | 32, 33 | `ShadowApplication.grantPermissions` / `denyPermissions` | Manual QA on API 33+ device |
 | `update.AppUpdateFlowRobolectricTest` | Robolectric | `AppUpdateController.check()` / `completeUpdate()` end to end | Any | Play's `FakeAppUpdateManager` (ships in `app-update`) + `shadowOf(mainLooper).idle()` | Internal App Sharing (T3) — see the in-app-updates PR |
 
-**Total:** 10 test classes · 39 test methods (including JVM companions).
+**Total:** 10 test classes · 40 test methods (including JVM companions).
 
 ---
 
@@ -165,6 +165,7 @@ supplies. It posts its callbacks to the main looper, so every step is followed b
 |-------|-------------|---------|
 | `AppUpdateFlowRobolectricTest` | `a stale build shows Play's update dialog` | Gate opens → `isConfirmationDialogVisible()` |
 | | `accepting the update downloads it, prompts to restart, and restarting installs` | Accept → download → restart prompt → `completeUpdate()` installs |
+| | `a download that finished while backgrounded is re-surfaced on the next resume` | `check()` finds a staged APK and prompts again — the reason `onResume` calls it |
 | | `declining the update leaves the app usable and does not re-nag on the next resume` | Reject → no prompt; later `check()` calls do not re-open the dialog |
 | | `a build that is not stale enough is never prompted` | Staleness gate holds end to end, not just in the pure function |
 | | `no update available is a silent no-op` | Up-to-date install shows nothing |
