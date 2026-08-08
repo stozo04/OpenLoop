@@ -959,6 +959,59 @@ class OpenLoopViewModelTest {
         }
 
     @Test
+    fun `switchTab to a non-Looks tab never reopens the effects gate`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = false // pressure cleared, but Speed is not the reopen trigger
+            viewModel.switchTab(EditorTab.SPEED)
+
+            assertFalse(
+                "only opening Looks re-probes memory; other tabs leave the gate as-is",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
+            )
+            assertEquals(EditorTab.SPEED, viewModel.editorTabState.value.activeTab)
+        }
+
+    @Test
+    fun `switchTab to Looks keeps the gate closed while memory pressure persists`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            viewModel.onTrimMemory()
+            assertFalse(viewModel.editorTabState.value.effectsPreviewEnabled)
+
+            lowMemoryNow = true // still under pressure — opening Looks must NOT reopen
+            viewModel.switchTab(EditorTab.LOOKS)
+
+            assertFalse(
+                "reopen is gated on a fresh isLowMemoryNow() probe, not on opening the tab",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
+            )
+        }
+
+    @Test
+    fun `switchTab to Looks under memory pressure leaves an open gate open`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            enterTrimState()
+            viewModel.onNextFromTrim()
+            awaitEditorReverseReady()
+            lowMemoryNow = true // gate still open; switching tabs must not close it
+
+            viewModel.switchTab(EditorTab.LOOKS)
+
+            assertTrue(
+                "switchTab only reopens; closing stays with updateFilter / onTrimMemory",
+                viewModel.editorTabState.value.effectsPreviewEnabled,
+            )
+        }
+
+    @Test
     fun `reverse generation failure flags reverseFailed and clears the loading shimmer`() =
         runTest(mainDispatcherRule.testDispatcher) {
             enterTrimState()

@@ -142,6 +142,42 @@ class SamsungReversePreviewRegressionTest {
         assertEquals(listOf(SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER), order)
     }
 
+    /**
+     * `c2.google.avc.encoder` installed but absent from strict `isFormatSupported` — the documented
+     * Samsung case [SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER] exists for. No `c2.*` reaches
+     * [filterOmxcEncodersWhenCodec2Available], so `OMX.google` survives into the ranked list and the
+     * explicit OMX-Google exclusion in [avcEncoderTryOrderForReverse] is what keeps it out. Dropping
+     * that exclusion would yield `[c2.google, OMX.google]` — a behavior change on the RTL path.
+     */
+    @Test
+    fun tryOrder_samsung_c2GoogleInstalledButNotFormatSupported_staysGoogleOnly() {
+        val order = avcEncoderTryOrderForReverse(
+            formatSupportedNames = listOf("OMX.Exynos.AVC.Encoder", SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER),
+            installedEncoderNames = setOf(
+                "OMX.Exynos.AVC.Encoder",
+                SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER,
+                SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER,
+            ),
+            isSamsung = true,
+            isHardwareAccelerated = { it.contains("Exynos", ignoreCase = true) },
+            sdkInt = Build.VERSION_CODES.TIRAMISU,
+        )
+        assertEquals(listOf(SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER), order)
+    }
+
+    /**
+     * `MediaCodec.createByCodecName` is case-sensitive, so the try-order must echo the **device's**
+     * spelling of an encoder, never the constant's. Locks the lookup semantics shared by
+     * [VideoReverser]'s software fallback.
+     */
+    @Test
+    fun lastResort_returnsInstalledCasingNotConstantCasing() {
+        assertEquals(
+            listOf("OMX.Google.H264.Encoder"),
+            samsungLastResortSoftwareAvcEncoders(setOf("OMX.Google.H264.Encoder")),
+        )
+    }
+
     @Test
     fun lastResort_prefersOmxGoogleThenAndroidAvc() {
         assertEquals(

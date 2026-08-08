@@ -781,9 +781,8 @@ class OpenLoopViewModel(
             // Also the reopen path: a prior trim/lowMemory close must not permanently brick Looks
             // after pressure clears (Play review: S20 FE "lots of memory" + disabled Looks).
             if (isLowMemoryNow()) {
-                if (current.effectsPreviewEnabled) {
-                    _editorTabState.value = current.copy(effectsPreviewEnabled = false)
-                }
+                // No-op when already closed: StateFlow conflates a value equal to the current one.
+                _editorTabState.value = current.copy(effectsPreviewEnabled = false)
                 return
             }
         }
@@ -812,13 +811,11 @@ class OpenLoopViewModel(
     fun switchTab(tab: EditorTab) {
         val current = _editorTabState.value
         if (current.activeTab == tab) return
-        val reopenLooks =
-            tab == EditorTab.LOOKS &&
-                !current.effectsPreviewEnabled &&
-                !isLowMemoryNow()
         _editorTabState.value = current.copy(
             activeTab = tab,
-            effectsPreviewEnabled = if (reopenLooks) true else current.effectsPreviewEnabled,
+            // `||` short-circuits, so an already-open gate never pays for the memory probe.
+            effectsPreviewEnabled = current.effectsPreviewEnabled ||
+                (tab == EditorTab.LOOKS && !isLowMemoryNow()),
         )
     }
 

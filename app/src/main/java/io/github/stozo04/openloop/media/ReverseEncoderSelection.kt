@@ -55,9 +55,10 @@ internal fun samsungLastResortSoftwareAvcEncoders(installedEncoderNames: Set<Str
         SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER,
         "c2.android.avc.encoder",
     )
+    // Echo the device's spelling — `MediaCodec.createByCodecName` is case-sensitive.
     return candidates.mapNotNull { wanted ->
         installedEncoderNames.firstOrNull { it.equals(wanted, ignoreCase = true) }
-    }.distinct()
+    }
 }
 
 internal fun samsungSoftwareAvcDecoderTryOrder(installedDecoderNames: Set<String>): List<String> =
@@ -160,7 +161,7 @@ internal fun avcEncoderTryOrderForReverse(
             add(SAMSUNG_REVERSE_AVC_SOFTWARE_ENCODER)
         } else {
             // No Codec2 Google encoder — keep legacy OMX Google ahead of anything ranked.
-            samsungLastResortSoftwareAvcEncoders(installedEncoderNames)
+            installedEncoderNames
                 .firstOrNull { it.equals(SAMSUNG_REVERSE_AVC_OMX_GOOGLE_ENCODER, ignoreCase = true) }
                 ?.let { add(it) }
         }
@@ -172,6 +173,5 @@ internal fun avcEncoderTryOrderForReverse(
             },
         )
     }.distinct()
-    if (preferred.isNotEmpty()) return preferred
-    return samsungLastResortSoftwareAvcEncoders(installedEncoderNames)
+    return preferred.ifEmpty { samsungLastResortSoftwareAvcEncoders(installedEncoderNames) }
 }
