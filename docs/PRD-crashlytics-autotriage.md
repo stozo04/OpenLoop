@@ -112,6 +112,7 @@ This design resolves the tension by making the bot's output a **draft triage PR*
 | Risk | Mitigation |
 |------|-----------|
 | Crashlytics MCP is Experimental and may break | Degrade gracefully; function-created issue still lands even if MCP calls fail |
+| **Live:** Crashlytics MCP tools 404 under service-account/ADC auth ([firebase-tools#10310](https://github.com/firebase/firebase-tools/issues/10310)) — the exact auth this workflow uses | Degrade stands (a source-only triage still found lesson 030); the run is tagged `mcp-degraded` so it is visible from the issue list. Auth is **not** swapped to `FIREBASE_TOKEN` — that credential is deprecated and worse than the bug. Tracking: [#107](https://github.com/stozo04/OpenLoop/issues/107) |
 | Issue spam / token burn on crash storms | Gate on `newFatalIssue` only; dedupe; `--max-turns` cap; label-scoped trigger |
 | Unfixable crashes (OEM, OOM, third-party SDK) | Confidence gate → comment + `needs-human` instead of a bad patch |
 | Bot opens a low-quality patch that looks authoritative | Always **draft**; never auto-merge; human owns the DoD gate |
