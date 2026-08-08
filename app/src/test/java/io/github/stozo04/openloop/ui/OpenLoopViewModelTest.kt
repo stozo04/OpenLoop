@@ -341,6 +341,7 @@ class OpenLoopViewModelTest {
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
 
         // Default: onboarding NOT completed (first-time user)
         fakePreferencesRepository = FakeUserPreferencesRepository(initialOnboardingCompleted = false)
@@ -652,6 +653,54 @@ class OpenLoopViewModelTest {
         // The scratch is NOT promoted yet — saving happens on NEXT.
         assertTrue(fakeVideoStorage.saved.isEmpty())
     }
+
+    @Test
+    fun `finalize below the minimum loop length discards the scratch and reports CaptureTooShort`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true) // ReadyToCapture
+            fakeVideoStorage.fixedDurationMs = 335L // the issue #95 clip — under MIN_TRIM_DURATION
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            val slot = slot<(VideoRecordEvent) -> Unit>()
+            every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
+            viewModel.startBurstCapture(cameraManager)
+            val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
+            every { finalizeEvent.hasError() } returns false
+            slot.captured.invoke(finalizeEvent)
+            advanceUntilIdle()
+
+            // Never lands on Trim: back to the camera with the scratch discarded and a nudge sent.
+            assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
+            assertTrue(events.contains(BoomerangEvent.CaptureTooShort))
+            assertEquals(1, fakeVideoStorage.discardedScratches.size)
+            assertNull(viewModel.editorState.value)
+            job.cancel()
+        }
+
+    @Test
+    fun `finalize with ERROR_NO_VALID_DATA reports CaptureTooShort instead of a silent return`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true) // ReadyToCapture
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            val slot = slot<(VideoRecordEvent) -> Unit>()
+            every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
+            viewModel.startBurstCapture(cameraManager)
+            // A tap-and-release: CameraX finalizes with no encoded frames at all.
+            val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
+            every { finalizeEvent.hasError() } returns true
+            every { finalizeEvent.error } returns VideoRecordEvent.Finalize.ERROR_NO_VALID_DATA
+            slot.captured.invoke(finalizeEvent)
+            advanceUntilIdle()
+
+            assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
+            assertTrue(events.contains(BoomerangEvent.CaptureTooShort))
+            assertEquals(1, fakeVideoStorage.discardedScratches.size)
+            assertNull(viewModel.editorState.value)
+            job.cancel()
+        }
 
     @Test
     fun `finalize error discards the scratch and returns to ReadyToCapture`() {
@@ -1803,6 +1852,53 @@ class OpenLoopViewModelTest {
             assertEquals(1, fakeVideoStorage.discardedScratches.size)
             assertNull(viewModel.editorState.value)
             job.cancel()
+        }
+
+    @Test
+    fun `onVideoPicked under the minimum loop length warns and copies nothing`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            fakeVideoImporter.probeMs = 335L // the issue #95 clip — under MIN_TRIM_DURATION
+
+            viewModel.onVideoPicked(fakeUri)
+            advanceUntilIdle()
+
+            assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
+            assertTrue(viewModel.showImportTooShortDialog.value)
+            // Caught before any copy or scratch mint.
+            assertEquals(0, fakeVideoImporter.importCallCount)
+            assertEquals(0, fakeVideoStorage.createScratchCount)
+            assertNull(viewModel.editorState.value)
+        }
+
+    @Test
+    fun `onVideoPicked when post-copy duration is under the minimum warns and discards the scratch`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            // Pre-copy probe over-reads; post-copy durationOf is authoritative.
+            fakeVideoImporter.probeMs = 800L
+            fakeVideoStorage.fixedDurationMs = 335L
+
+            viewModel.onVideoPicked(fakeUri)
+            advanceUntilIdle()
+
+            assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
+            assertTrue(viewModel.showImportTooShortDialog.value)
+            assertEquals(1, fakeVideoImporter.importCallCount)
+            assertEquals(1, fakeVideoStorage.discardedScratches.size)
+            assertNull(viewModel.editorState.value)
+        }
+
+    @Test
+    fun `onVideoPicked exactly at the minimum loop length is accepted`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            // The gate is strictly-below: a clip of exactly MIN_TRIM_DURATION is loopable.
+            fakeVideoImporter.probeMs = 400L
+            fakeVideoStorage.fixedDurationMs = 400L
+
+            viewModel.onVideoPicked(fakeUri)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.uiState.value is OpenLoopUiState.Trim)
+            assertEquals(1, fakeVideoImporter.importCallCount)
         }
 
     @Test

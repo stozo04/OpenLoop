@@ -17,6 +17,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.OptIn
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -245,6 +246,8 @@ class MainActivity : ComponentActivity() {
                 // Friendly "That clip's a bit long" dialog (slice 07); held in the ViewModel so it
                 // survives Activity recreation after the Photo Picker returns.
                 val showTooLongDialog by viewModel.showImportTooLongDialog.collectAsStateWithLifecycle()
+                // Its "a bit short" sibling (issue #95 follow-up) — same recreation rationale.
+                val showTooShortDialog by viewModel.showImportTooShortDialog.collectAsStateWithLifecycle()
 
                 // Hoisted out of the (non-composable) collect lambda below — stringResource can only
                 // be read in a composable scope.
@@ -255,6 +258,7 @@ class MainActivity : ComponentActivity() {
                 val reversePreviewForwardMessage = stringResource(R.string.snackbar_reverse_preview_forward)
                 val reversePreviewReportAction = stringResource(R.string.snackbar_reverse_preview_report_action)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
+                val captureTooShortMessage = stringResource(R.string.snackbar_capture_too_short)
                 val undoAction = stringResource(R.string.undo)
                 val updateReadyMessage = stringResource(R.string.update_ready_message)
                 val updateReadyAction = stringResource(R.string.update_ready_action)
@@ -358,6 +362,12 @@ class MainActivity : ComponentActivity() {
                             // [OpenLoopViewModel.showImportTooLongDialog] so it survives Activity
                             // recreation after the Photo Picker closes.
                             BoomerangEvent.ImportTooLong -> Unit
+                            // Capture stopped before the minimum loopable length (issue #95
+                            // follow-up): the ViewModel already discarded the scratch and returned
+                            // to the viewfinder — nudge instead of failing silently.
+                            BoomerangEvent.CaptureTooShort -> snackbarHostState.showSnackbar(
+                                message = captureTooShortMessage,
+                            )
                             // Loops marked for deletion (Issue #35): show an Undo snackbar. The real
                             // file delete is deferred — Undo restores the tiles, any other dismissal
                             // (timeout, swipe, or a superseding delete) commits the delete to disk.
@@ -423,6 +433,10 @@ class MainActivity : ComponentActivity() {
                     // Friendly "too long" guidance over the gallery (slice 07).
                     if (showTooLongDialog) {
                         ImportTooLongDialog(onDismiss = { viewModel.dismissImportTooLongDialog() })
+                    }
+                    // Friendly "too short" guidance over the gallery (issue #95 follow-up).
+                    if (showTooShortDialog) {
+                        ImportTooShortDialog(onDismiss = { viewModel.dismissImportTooShortDialog() })
                     }
                 }
             }
@@ -874,13 +888,43 @@ fun PermissionExplanationScreen(
 
 /**
  * Friendly "That clip's a bit long" dialog shown when an imported library video exceeds the 30 s
- * limit (slice 07). Hand-rolled in the app's neon aesthetic (matching [PermissionExplanationScreen]
- * and the gallery overlay) rather than a stock Material3 `AlertDialog`, so it reads as warm guidance,
- * not a system error. Acknowledgment-only — the user is already back on the gallery and nothing was
+ * limit (slice 07). Acknowledgment-only — the user is already back on the gallery and nothing was
  * copied; the single "Got it" button just dismisses.
  */
 @Composable
 fun ImportTooLongDialog(onDismiss: () -> Unit) {
+    ImportClipLengthDialog(
+        titleRes = R.string.import_too_long_title,
+        bodyRes = R.string.import_too_long_body,
+        onDismiss = onDismiss,
+    )
+}
+
+/**
+ * The "a bit short" sibling: shown when a picked clip is under the minimum loopable window
+ * ([io.github.stozo04.openloop.ui.OpenLoopViewModel.MIN_TRIM_DURATION] — issue #95 follow-up).
+ * Same acknowledgment-only contract as [ImportTooLongDialog].
+ */
+@Composable
+fun ImportTooShortDialog(onDismiss: () -> Unit) {
+    ImportClipLengthDialog(
+        titleRes = R.string.import_too_short_title,
+        bodyRes = R.string.import_too_short_body,
+        onDismiss = onDismiss,
+    )
+}
+
+/**
+ * Shared friendly clip-length guidance dialog (too long / too short). Hand-rolled in the app's neon
+ * aesthetic (matching [PermissionExplanationScreen] and the gallery overlay) rather than a stock
+ * Material3 `AlertDialog`, so it reads as warm guidance, not a system error.
+ */
+@Composable
+private fun ImportClipLengthDialog(
+    @StringRes titleRes: Int,
+    @StringRes bodyRes: Int,
+    onDismiss: () -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -910,7 +954,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = stringResource(R.string.import_too_long_title),
+                text = stringResource(titleRes),
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
                 textAlign = TextAlign.Center
@@ -919,7 +963,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = stringResource(R.string.import_too_long_body),
+                text = stringResource(bodyRes),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
@@ -936,7 +980,7 @@ fun ImportTooLongDialog(onDismiss: () -> Unit) {
                     .height(48.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.import_too_long_button),
+                    text = stringResource(R.string.import_length_dialog_button),
                     style = MaterialTheme.typography.labelLarge,
                     color = LimeInk
                 )

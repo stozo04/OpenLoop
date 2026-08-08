@@ -92,6 +92,15 @@ sealed interface BoomerangEvent {
     object ImportTooLong : BoomerangEvent
 
     /**
+     * A camera capture finalized shorter than the minimum loopable window, or with no encoded
+     * frames at all (`ERROR_NO_VALID_DATA`, a tap-and-release) — issue #95 follow-up. The scratch
+     * is discarded and the user is back on the viewfinder; drives a "record a little longer"
+     * snackbar instead of a silent return. (The shutter is tap-to-start / tap-to-stop, so the
+     * copy says "record longer", not "hold".)
+     */
+    object CaptureTooShort : BoomerangEvent
+
+    /**
      * Importing a picked library video failed for a non-length reason — unreadable/revoked URI, an
      * unreadable duration, or a copy I/O error (slice 07). Drives a "Couldn't import that video."
      * snackbar; the user is returned to the gallery, never wedged.
@@ -329,6 +338,19 @@ class OpenLoopViewModel(
     }
 
     /**
+     * Friendly "That clip's a bit short" dialog (issue #95 follow-up). Same [StateFlow]-not-event
+     * rationale as [showImportTooLongDialog]: it must survive Activity recreation after the Photo
+     * Picker returns.
+     */
+    private val _showImportTooShortDialog = MutableStateFlow(false)
+    val showImportTooShortDialog: StateFlow<Boolean> = _showImportTooShortDialog.asStateFlow()
+
+    /** Dismisses the import-too-short guidance dialog after the user taps "Got it". */
+    fun dismissImportTooShortDialog() {
+        _showImportTooShortDialog.value = false
+    }
+
+    /**
      * One-shot signal for MainActivity to request [android.Manifest.permission.POST_NOTIFICATIONS]
      * on first Save (API 33+). Activity checks grant state before showing the system dialog.
      */
@@ -381,6 +403,13 @@ class OpenLoopViewModel(
                             videoStorage.discardScratch(scratch)
                             activeScratch = null
                             _uiState.value = OpenLoopUiState.ReadyToCapture
+                            // ERROR_NO_VALID_DATA = the stop landed before a single frame was
+                            // encoded (a tap-and-release). To the user that's "too short", not a
+                            // device failure — say so instead of returning silently (issue #95
+                            // follow-up). Other error codes keep the log-only behavior.
+                            if (event.error == VideoRecordEvent.Finalize.ERROR_NO_VALID_DATA) {
+                                viewModelScope.launch { _events.send(BoomerangEvent.CaptureTooShort) }
+                            }
                         } else {
                             // Auto-route straight to the Trim screen (no preview landing pad).
                             // The scratch stays in cache until the user saves (promote→raw) or discards.
@@ -389,6 +418,22 @@ class OpenLoopViewModel(
                             // repo) before routing — never block the main thread (ANDROID_STANDARDS §9).
                             viewModelScope.launch {
                                 val durationMs = videoStorage.durationOf(outputFile)
+                                // A clip below the minimum trim window would land on the Trim
+                                // screen with pinned handles and a dead SAVE (Lesson 030) — a
+                                // silent dead-end. Discard it and tell the user to record longer
+                                // instead (issue #95 follow-up). Also swallows an unreadable
+                                // (<= 0) duration, which could never be trimmed either.
+                                if (durationMs < MIN_TRIM_DURATION.inWholeMilliseconds) {
+                                    Log.w(
+                                        "OpenLoopViewModel",
+                                        "Capture finalized below the ${MIN_TRIM_DURATION.inWholeMilliseconds}ms minimum (${durationMs}ms); discarding",
+                                    )
+                                    videoStorage.discardScratch(scratch)
+                                    activeScratch = null
+                                    _events.send(BoomerangEvent.CaptureTooShort)
+                                    _uiState.value = OpenLoopUiState.ReadyToCapture
+                                    return@launch
+                                }
                                 Log.d("OpenLoopViewModel", "Capture finalized (${durationMs}ms): ${outputFile.absolutePath}")
                                 resetEditorTabForNewClip()
                                 _editorState.value = TrimState(
@@ -519,10 +564,11 @@ class OpenLoopViewModel(
     /**
      * Result of the Android Photo Picker (launched `VideoOnly` from the gallery). [uri] is the picked
      * video, or `null` if the user backed out. On a valid pick we probe the duration *before* copying
-     * (so a >30 s clip is rejected with a friendly dialog without ever being copied), then copy the
-     * bytes into a fresh scratch file and enter the existing [OpenLoopUiState.Trim] flow exactly as a
-     * fresh capture would — the imported clip is just "a scratch that came from the picker." Any I/O
-     * or unreadable-duration failure routes back to the gallery with a snackbar; never a crash.
+     * (so a >30 s clip — or one under [MIN_TRIM_DURATION], issue #95 follow-up — is rejected with a
+     * friendly dialog without ever being copied), then copy the bytes into a fresh scratch file and
+     * enter the existing [OpenLoopUiState.Trim] flow exactly as a fresh capture would — the imported
+     * clip is just "a scratch that came from the picker." Any I/O or unreadable-duration failure
+     * routes back to the gallery with a snackbar; never a crash.
      */
     fun onVideoPicked(uri: Uri?) {
         if (uri == null) return // user backed out of the picker
@@ -532,6 +578,10 @@ class OpenLoopViewModel(
             when {
                 // Unreadable duration → we can't enforce the ≤30 s rule, so don't import it.
                 durationMs <= 0L -> failImport()
+                // Below the minimum trim window the editor would open with pinned handles and a
+                // dead SAVE (Lesson 030) — reject with friendly guidance instead, before any copy
+                // (issue #95 follow-up).
+                durationMs < MIN_TRIM_DURATION.inWholeMilliseconds -> warnTooShort()
                 // Enforce the dialog's advertised "up to 30 s" cap LENIENTLY: the small grace
                 // (IMPORT_DURATION_GRACE_MS) accepts a clip the user thinks is "30 s" but whose
                 // container duration reads 30.2–30.5 s. The grace only ever makes us *more* permissive
@@ -550,6 +600,12 @@ class OpenLoopViewModel(
                         dur <= 0L -> {
                             videoStorage.discardScratch(scratch)
                             failImport()
+                            return@launch
+                        }
+                        dur < MIN_TRIM_DURATION.inWholeMilliseconds -> {
+                            // Pre-copy probe can over-read; the local copy is authoritative.
+                            videoStorage.discardScratch(scratch)
+                            warnTooShort()
                             return@launch
                         }
                         exceedsImportDurationLimit(dur) -> {
@@ -592,6 +648,16 @@ class OpenLoopViewModel(
     private suspend fun warnTooLong() {
         _showImportTooLongDialog.value = true
         _events.send(BoomerangEvent.ImportTooLong)
+        _uiState.value = OpenLoopUiState.Gallery
+    }
+
+    /**
+     * Picked clip is shorter than [MIN_TRIM_DURATION]: friendly dialog + back to the gallery
+     * (nothing left in flight — issue #95 follow-up). No `BoomerangEvent` sibling to
+     * [BoomerangEvent.ImportTooLong] — [showImportTooShortDialog] is the only thing the UI reads.
+     */
+    private fun warnTooShort() {
+        _showImportTooShortDialog.value = true
         _uiState.value = OpenLoopUiState.Gallery
     }
 
