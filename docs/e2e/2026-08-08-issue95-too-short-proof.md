@@ -12,7 +12,10 @@ which verified code that no longer exists.
 |---|---|
 | `:app:assembleDebug` + `:app:assembleRelease` | `BUILD SUCCESSFUL`, exit 0, zero `e:` lines |
 | `:app:testDebugUnitTest` | **284 tests, 0 failures, 0 errors, 0 skipped** |
-| `:app:lintDebug` | exit 0, **0 errors**, 26 warnings — all pre-existing on `main` (dependency-version + `InlinedApi` on `POST_NOTIFICATIONS`); none in the changed code |
+| `:app:connectedDebugAndroidTest` (Pixel_8 AVD) | **88 tests, 0 failures, 0 errors, 1 skipped** — the skip is `VideoReverserTest.reverse_pass1SurvivesOnSamsung_…`, which self-skips off Samsung hardware |
+| `:app:lintDebug` (Engine 1) | exit 0, **0 errors**, 26 warnings — all pre-existing on `main` (dependency-version + `InlinedApi` on `POST_NOTIFICATIONS`); none in the changed code |
+| Tier 3 markdown checks (CI) | pass |
+| IDE "Inspect Code" (Engine 2) | **not run** — `inspect.bat` refuses to start while Android Studio has the project open ("Only one instance of Studio can be run at a time"), and the owner's IDE was open during this session. Owner step; see below. |
 
 New tests confirmed present in the run's XML results:
 
@@ -56,6 +59,19 @@ right and the END handle left → `00:01.4 — 00:04.0`. Normal clamp behavior i
 
 ## Not verified
 
+- **Engine 2 (IDE "Inspect Code")** — must be run by the owner before merge, either from the open
+  IDE (Analyze → Inspect Code) or headlessly after closing Studio:
+
+  ```powershell
+  & "C:\Program Files\Android\Android Studio\bin\inspect.bat" `
+    "C:\Users\gates\Personal\OpenLoop" `
+    "C:\Users\gates\Personal\OpenLoop\.idea\inspectionProfiles\Project_Default.xml" `
+    "C:\Users\gates\Personal\OpenLoop\build\inspection-results" `
+    -v2 -d "C:\Users\gates\Personal\OpenLoop"
+  ```
+
+  Engine 1 (Android Lint) is clean and the Tier 3 headless markdown approximation passed in CI, so
+  the remaining exposure is the Kotlin-redundancy / Grazie-proofreading class only.
 - **TalkBack** readout of the new copy, and the accessibility `setProgress` call sites, were not
   driven on-device. Both a11y sites route through the same `TrimHandleMath` functions covered by
   the JVM sweep.
