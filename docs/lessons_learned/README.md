@@ -1,6 +1,18 @@
 # Lessons Learned
 
-Distilled rules from past code reviews and bugs. **Every Claude Code session must read this folder at startup** — see `CLAUDE.md` for the mandate.
+Distilled rules from past code reviews and bugs — see `CLAUDE.md` for the session mandate.
+
+## Read order
+
+Not every lesson costs the same to relearn, so they are tiered:
+
+| Tier | Which | How to read |
+|---|---|---|
+| **Core — always read in full** | **008, 011–030** | Hard-won, device- and repo-specific. Samsung/Exynos encoder ordering, green corruption from a mismatched encoder Surface, zero-sample muxes that exit "cleanly", FGS constants added in 35 not 34, the `mockk<File>` NPE. **None of this is in any model's training data and each one cost a real bug.** |
+| **Baseline — skim the index rows** | 001–007, 009, 010 | Generic Android/Compose hygiene now largely held by Android Lint, the Tier 3 CI checks, and IDE inspections. Open the file only when touching that exact area. Note 005 is historical — it argues for API 35; the app already targets 36. |
+
+Skimming the baseline rows instead of reading all ten files saves ~700 lines per session with no
+loss of the expensive knowledge.
 
 Each lesson follows the same shape:
 
@@ -13,6 +25,7 @@ Each lesson follows the same shape:
 
 | # | Lesson | Origin |
 |---|--------|--------|
+| | **— Baseline (skim) —** | |
 | 001 | [Compose `Color()` expects exactly 8 hex digits](./001-compose-color-literal-format.md) | PR #5 |
 | 002 | [Use `collectAsStateWithLifecycle()` for Flow collection in Compose](./002-lifecycle-aware-flow-collection.md) | PR #5 |
 | 003 | [Wrap DataStore writes in try-catch(IOException)](./003-datastore-write-ioexception.md) | PR #5 |
@@ -20,9 +33,10 @@ Each lesson follows the same shape:
 | 005 | [Track current Play Store target API level requirements](./005-play-store-target-api-level.md) | PR #5 |
 | 006 | [Always show permission rationale before re-requesting](./006-permission-rationale-flow.md) | PR #5 |
 | 007 | [A standards doc and the code in the same PR must agree](./007-standards-doc-must-match-code.md) | PR #5 |
-| 008 | [JVM unit tests: real temp dirs for File, one shared TestDispatcher](./008-jvm-test-file-and-dispatcher-pitfalls.md) | Issue #11 |
+| **008** | **[JVM unit tests: real temp dirs for File, one shared TestDispatcher](./008-jvm-test-file-and-dispatcher-pitfalls.md)** — *core* | Issue #11 |
 | 009 | [TOML inline tables must be on a single line](./009-toml-inline-tables-single-line.md) | IDE inspection |
 | 010 | [Markdown code fences are parsed by the IDE; keep snippets valid](./010-markdown-code-fences-are-inspected.md) | IDE inspection |
+| | **— Core (read in full) —** | |
 | 011 | [Verify 16 KB alignment on uncompressed native libs, not a "compressed" pass](./011-16kb-uncompressed-native-libs.md) | Issue #7 |
 | 012 | [A camera-bound screen must stay on ONE composable call site across state transitions](./012-camera-bound-screen-single-call-site.md) | Slice 01 |
 | 013 | [Media start calls: handle the failure return, catch only documented sync throwables, async errors come via callback](./013-media-start-failure-return-and-narrow-catch.md) | PR #19 |

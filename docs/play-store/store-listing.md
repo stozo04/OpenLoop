@@ -64,7 +64,7 @@ Made for people who just want to point, tap, and loop.
 | Asset | Required? | Spec | In repo |
 |---|---|---|---|
 | **App icon** | Yes | **512 × 512 px**, **24-bit PNG (no alpha)**, ≤ **1024 KB**. **No baked corners** — as of **2026-03-31**, Play auto-applies a 30% corner radius at display time. Ship a square. | [`play_store_icon_512.png`](play_store_icon_512.png) |
-| **Feature graphic** | **Yes (required to publish)** | **1024 × 500 px**, JPEG or **24-bit PNG (no alpha)**. Keep critical content off dead-center — Play overlays a promo-video play button there when a video is attached. | [`feature_graphic_1024x500.png`](feature_graphic_1024x500.png) |
+| **Feature graphic** | **Yes (required to publish)** | **1024 × 500 px**, JPEG or **24-bit PNG (no alpha)**. Keep critical content off dead-center — Play overlays a promo-video play button there when a video is attached. | [`main-image.png`](main-image.png) |
 | **Phone screenshots** | Yes — **min 2**, max 8 | JPEG or 24-bit PNG (no alpha). Each side **320–3840 px**, and a side may not exceed **2×** the other. **Recommended: 4–8 portrait shots at 1080 × 1920 px** (OpenLoop is a portrait app). | — (capture during device QA) |
 | 7" / 10" tablet screenshots | Optional | Only if you market tablet support; otherwise skip. | — |
 

@@ -11,7 +11,6 @@ LG phone when it isn't.
 |-----|------|
 | [`docs/TEST_COVERAGE.md`](../TEST_COVERAGE.md) | Overall testing pyramid and inventory |
 | [`docs/guides/robolectric-testing-explained.md`](robolectric-testing-explained.md) | Robolectric setup and when to use it |
-| [`docs/guides/robolectric-test-catalog.md`](robolectric-test-catalog.md) | Inventory of all Robolectric tests, run commands, device complements |
 | [`docs/guides/samsung-rtl-steps.md`](samsung-rtl-steps.md) | One-time Samsung Remote Test Lab (RTL) setup |
 | [`docs/lessons_learned/024-fgs-type-constant-api-gating.md`](../lessons_learned/024-fgs-type-constant-api-gating.md) | FGS type must gate on the API that *added* the constant |
 

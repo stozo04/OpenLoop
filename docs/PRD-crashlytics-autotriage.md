@@ -1,6 +1,9 @@
 # PRD — Crashlytics auto-triage → GitHub issue → Claude draft PR
 
-**Status:** Draft, awaiting owner sign-off. No code in this PRD is deployed or wired up yet.
+**Status:** ✅ **Shipped and running in production.** The Cloud Function (`functions/index.js`,
+`crashlyticsToGithub`) and the GitHub Action (`.github/workflows/crashlytics-autotriage.yml`) are
+deployed. This file is the design rationale; for day-to-day operation — and the **GitHub token
+expiry that silently stops issue filing** — use [`FIREBASE.md`](FIREBASE.md).
 **Owner:** Steven Gates · **Firebase project:** `openloop-8c266` · **Repo:** `stozo04/OpenLoop`
 **Related:** [`DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md), [`lessons_learned/024-fgs-type-constant-api-gating.md`](lessons_learned/024-fgs-type-constant-api-gating.md) (a Crashlytics-sourced fix — the workflow this PRD describes would have filed it automatically).
 

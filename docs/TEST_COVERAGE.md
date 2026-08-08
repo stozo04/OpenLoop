@@ -82,7 +82,7 @@ LG hardware codec). Stock emulators cannot spoof Samsung/LG identity or vendor c
 
 **Authoritative guide:** [`docs/guides/oem-regression-testing.md`](guides/oem-regression-testing.md)
 
-**Robolectric inventory (all JVM framework tests, run commands):** [`docs/guides/robolectric-test-catalog.md`](guides/robolectric-test-catalog.md)
+**Robolectric — when to use it, run commands, and what must never move to it:** [`docs/guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)
 
 | Lane | What | Where |
 |------|------|-------|
@@ -105,7 +105,7 @@ media-pipeline or FGS changes.
 | **MockK** | Kotlin-first mocking library | `test/` (for Android framework classes like `Context`, `Log`) |
 | **Fakes** | Hand-written test doubles using real interfaces | `test/` (preferred over mocks for Flow-based interfaces) |
 | **kotlinx-coroutines-test** | `TestDispatcher`, `runTest`, virtual time control | `test/` |
-| **Robolectric 4.16.1** | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (tutorial: [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md) · catalog: [`robolectric-test-catalog.md`](guides/robolectric-test-catalog.md)) |
+| **Robolectric 4.16.1** | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (see [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)) |
 | **JaCoCo 0.8.13** | JVM/Robolectric unit-test coverage reports and the ViewModel coverage gate | Gradle tasks: `jacocoDebugUnitTestReport`, `jacocoDebugViewModelCoverageVerification` |
 | **androidx.work.testing** | `TestListenableWorkerBuilder` for worker guard tests without a device | `test/` (+ `androidTest/` for full encode) |
 | **Compose UI Test** | `createComposeRule`, semantic matchers, UI assertions | `androidTest/` |
@@ -203,7 +203,7 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 ### Local Unit Tests (`app/src/test/`) — see `./gradlew :app:testDebugUnitTest` for current count
 
-**Robolectric suite (Phases 1–2):** full method list and `./gradlew :app:testDebugUnitTest --tests "*RobolectricTest"` in [`guides/robolectric-test-catalog.md`](guides/robolectric-test-catalog.md).
+**Robolectric suite:** `./gradlew :app:testDebugUnitTest --tests "*RobolectricTest"` is the live inventory; see [`guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md).
 
 **OEM / API regression (Robolectric + JVM):**
 
@@ -295,7 +295,7 @@ These are areas that need tests but don't have them yet:
 When adding a new feature, follow this checklist:
 
 1. **Write unit tests first** (`test/`) — cover every state transition, error path, and edge case in the ViewModel
-2. **Use Robolectric when the code touches Android framework objects but not real codecs** — see [`guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md) and add to [`guides/robolectric-test-catalog.md`](guides/robolectric-test-catalog.md)
+2. **Use Robolectric when the code touches Android framework objects but not real codecs** — see [`guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)
 3. **Use fakes for repositories** — implement the interface with `MutableStateFlow` under the hood
 4. **Use MockK for framework classes** — `Context`, `Log`, Android SDK types
 5. **Add UI tests if layout matters** (`androidTest/`) — if a button position, visibility, or centering is critical, guard it with a Compose UI test
