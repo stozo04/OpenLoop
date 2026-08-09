@@ -83,7 +83,7 @@ OpenLoopLens:        Lens output targets=3 size=1280x960 inputDet=-1.0 outputDet
   rectangle, so `LensAnchor.reframe` hits its `targetAspect == sourceAspect` early return and does
   nothing. It is retained as the residual-case guard, **not** dead code: the CameraX strategy is a
   *fallback* one, so a device that cannot serve 4:3 analysis will hand back another shape and
-  `reframe` is what absorbs it. See PRD §7 and lesson 032.
+  `reframe` is what absorbs it. See PRD §10b ("As built") and lesson 032.
 * `inputDet == outputDet` on the back camera → no extra flip on this output. The front camera on the
   Fold measured `inputDet=1.0 outputDet=-1.0`, i.e. the output transform does flip handedness — which
   costs nothing, because the face frame is built from the mouth→eyes axis and follows a mirrored
