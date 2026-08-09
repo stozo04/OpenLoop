@@ -204,7 +204,12 @@ private fun TimelineRuler(
                 safeDurationMs -> rightPaint
                 else -> centerPaint
             }
-            drawContext.canvas.nativeCanvas.drawText(formatTrimRulerLabel(timeMs), x, labelY, paint)
+            val label = if (timeMs == safeDurationMs) {
+                formatTrimRulerEndLabel(timeMs)
+            } else {
+                formatTrimRulerLabel(timeMs)
+            }
+            drawContext.canvas.nativeCanvas.drawText(label, x, labelY, paint)
         }
 
         val minorCount = (safeDurationMs / minorIntervalMs).toInt()

@@ -17,7 +17,8 @@ class TrimRulerMathTest {
         val labels = trimRulerLabelTimesMs(2_600L)
         assertEquals(0L, labels.first())
         assertEquals(2_600L, labels.last())
-        assertEquals("00:03", formatTrimRulerLabel(labels.last()))
+        // End uses one decimal (matches the range pill); do not round up to "00:03".
+        assertEquals("00:02.6", formatTrimRulerEndLabel(labels.last()))
         assertTrue("ruler must not invent a 5s end tick", labels.none { it == 5_000L })
     }
 
@@ -25,7 +26,7 @@ class TrimRulerMathTest {
     fun `sub-second and zero clips still produce a valid scale`() {
         assertEquals(listOf(0L), trimRulerLabelTimesMs(0L))
         assertEquals(listOf(0L, 335L), trimRulerLabelTimesMs(335L))
-        assertEquals("00:00", formatTrimRulerLabel(335L))
+        assertEquals("00:00.3", formatTrimRulerEndLabel(335L))
     }
 
     @Test
@@ -48,9 +49,17 @@ class TrimRulerMathTest {
 
     @Test
     fun `penultimate major tick is dropped when its mm ss would match the end label`() {
-        // 2.2 s rounds to "00:02", same as the 2 s major tick — keep only the true end.
+        // 2.2 s rounds to the same whole second as the 2 s major tick — keep only the true end.
         assertEquals(listOf(0L, 1_000L, 2_200L), trimRulerLabelTimesMs(2_200L))
-        assertEquals("00:02", formatTrimRulerLabel(2_200L))
+        assertEquals("00:02.2", formatTrimRulerEndLabel(2_200L))
+    }
+
+    @Test
+    fun `end label keeps one decimal like the range pill`() {
+        assertEquals("00:02.6", formatTrimRulerEndLabel(2_600L))
+        assertEquals("00:05.0", formatTrimRulerEndLabel(5_000L))
+        // Intermediate ticks sit on whole-second marks and stay mm:ss (no tenths).
+        assertEquals("00:02", formatTrimRulerLabel(2_000L))
     }
 
     @Test
