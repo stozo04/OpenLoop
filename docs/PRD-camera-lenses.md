@@ -386,13 +386,15 @@ of the camera and the emulator shows a static poster. See `docs/e2e/2026-08-08-c
 
 `app/src/main/res/drawable-nodpi/lens_broccoli.webp` and `lens_broccoli_art.webp` are derived from an
 owner-supplied photograph. OpenLoop is public under Apache 2.0, so a stock photo without
-redistribution rights cannot ship — this was raised as a merge blocker on PR #118 and **resolved by
-the owner on 2026-08-09, who confirmed the source licence permits this use**. The prepared
-public-domain fallback below stays on record in case that ever needs revisiting.
+redistribution rights cannot ship — this was raised as a merge blocker on PR #118 and is **closed**:
 
-> If the source licence carries an attribution requirement, add the credit line here and to the
-> repo's attribution notes — the confirmation covered permission to use, not a specific credit
-> string.
+> **Owner confirmation, 2026-08-09: OpenLoop holds full use permission for the broccoli source
+> photograph.** Full use, so there is **no attribution requirement** and no credit line to carry.
+> Asked and answered explicitly rather than assumed, because "we're allowed to use it" and "we're
+> allowed to redistribute it under Apache 2.0 with no credit" are different claims and only the
+> second one lets this ship. Nothing on this asset is outstanding.
+
+The prepared public-domain fallback below stays on record in case that ever needs revisiting.
 
 Everything else in the feature is licence-clean by construction: Shades and the Big Mouth icon are
 vector drawables authored in-repo, ML Kit is Apache 2.0, and the instrumented-test face fixture is
