@@ -74,7 +74,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -85,8 +84,34 @@ private val RULER_HEIGHT = 30.dp
 private val SELECTION_RADIUS = 10.dp
 private val FILMSTRIP_FRAME_MIN = 6
 private val FILMSTRIP_FRAME_MAX = 14
-private val RULER_LABEL_INTERVAL_MS = 5_000L
 private val DIM_OUTSIDE_SELECTION = Color.Black.copy(alpha = 0.62f)
+
+/**
+ * Major tick/label step for the trim ruler. Shorter clips need denser marks so a 2.6s video
+ * isn't labeled `00:00`…`00:05` (the old fixed 5s pad).
+ */
+internal fun trimRulerLabelIntervalMs(durationMs: Long): Long = when {
+    durationMs <= 4_000L -> 1_000L
+    durationMs <= 12_000L -> 2_000L
+    else -> 5_000L
+}
+
+/**
+ * Label times for the trim ruler: `0`, then every [trimRulerLabelIntervalMs], and always the
+ * real clip end — never past [durationMs]. Scale end is the clip itself (matches the filmstrip).
+ */
+internal fun trimRulerLabelTimesMs(durationMs: Long): List<Long> {
+    val endMs = durationMs.coerceAtLeast(1L)
+    val interval = trimRulerLabelIntervalMs(endMs)
+    val times = ArrayList<Long>()
+    var t = 0L
+    while (t < endMs) {
+        times.add(t)
+        t += interval
+    }
+    if (times.lastOrNull() != endMs) times.add(endMs)
+    return times
+}
 
 private enum class TrimDragTarget { NONE, START, END }
 
@@ -168,9 +193,11 @@ private fun TimelineRuler(
     val majorTickColor = TextSecondary.copy(alpha = 0.85f)
     val labelTextSizePx = with(density) { 11.sp.toPx() }
 
-    val lastLabelMs = ((ceil(durationMs / RULER_LABEL_INTERVAL_MS.toDouble()) * RULER_LABEL_INTERVAL_MS)
-        .toLong())
-        .coerceAtLeast(RULER_LABEL_INTERVAL_MS)
+    // Scale to the real clip length so the filmstrip and ruler share one timeline (a 2.6s clip
+    // must end at 00:02, not a padded 00:05).
+    val endMs = durationMs.coerceAtLeast(1L)
+    val labelTimes = remember(endMs) { trimRulerLabelTimesMs(endMs) }
+    val majorIntervalMs = remember(endMs) { trimRulerLabelIntervalMs(endMs) }
 
     Canvas(modifier = modifier) {
         val width = size.width
@@ -185,10 +212,8 @@ private fun TimelineRuler(
             textAlign = Paint.Align.CENTER
         }
 
-        val labelCount = (lastLabelMs / RULER_LABEL_INTERVAL_MS).toInt() + 1
-        for (i in 0 until labelCount) {
-            val timeMs = i * RULER_LABEL_INTERVAL_MS
-            val fraction = (timeMs.toFloat() / lastLabelMs).coerceIn(0f, 1f)
+        for (timeMs in labelTimes) {
+            val fraction = (timeMs.toFloat() / endMs).coerceIn(0f, 1f)
             val x = fraction * width
 
             drawLine(
@@ -198,15 +223,21 @@ private fun TimelineRuler(
                 strokeWidth = 2f,
             )
             val label = formatTrimClock(timeMs).substringBefore('.')
+            // Keep end/start labels inside the canvas (CENTER align would clip at the edges).
+            textPaint.textAlign = when {
+                timeMs <= 0L -> Paint.Align.LEFT
+                timeMs >= endMs -> Paint.Align.RIGHT
+                else -> Paint.Align.CENTER
+            }
             drawContext.canvas.nativeCanvas.drawText(label, x, labelY, textPaint)
         }
 
-        val minorStepMs = 500L
-        val minorCount = (lastLabelMs / minorStepMs).toInt()
+        val minorStepMs = (majorIntervalMs / 2L).coerceAtLeast(250L)
+        val minorCount = (endMs / minorStepMs).toInt()
         for (i in 0..minorCount) {
             val timeMs = i * minorStepMs
-            if (timeMs % RULER_LABEL_INTERVAL_MS == 0L) continue
-            val fraction = (timeMs.toFloat() / lastLabelMs).coerceIn(0f, 1f)
+            if (timeMs in labelTimes || timeMs > endMs) continue
+            val fraction = (timeMs.toFloat() / endMs).coerceIn(0f, 1f)
             val x = fraction * width
             drawLine(
                 color = minorTickColor,
