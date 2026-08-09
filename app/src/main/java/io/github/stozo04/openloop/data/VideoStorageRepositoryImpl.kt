@@ -20,8 +20,10 @@ import java.util.UUID
  * On-disk layout:
  * - scratch capture:  `filesDir/scratch/raw_<uuid>.mp4` (per capture; private app data)
  * - persisted clips:  `filesDir/videos/` — raws as `clip_<timestamp>.mp4`, rendered loops as
- *   `boom_<timestamp>_from_<rawTimestamp>.mp4` (same directory; distinguished by filename prefix)
- * - thumbnails:       `filesDir/thumbnails/<same-stem>.jpg` (JPEG, 90% quality)
+ *   `boom_<timestamp>_from_<rawTimestamp>.mp4`, photo-mode stills as `photo_<timestamp>.jpg`
+ *   (same directory; distinguished by filename prefix — see [VideoKind])
+ * - thumbnails:       `filesDir/thumbnails/<same-stem>.jpg` (JPEG, 90% quality). Photos have no
+ *   entry here: a still is its own thumbnail.
  */
 class VideoStorageRepositoryImpl(
     private val cacheDir: File,
@@ -202,11 +204,56 @@ class VideoStorageRepositoryImpl(
         }
     }
 
+    override suspend fun savePhoto(bitmap: Bitmap): RecordedVideo? = withContext(Dispatchers.IO) {
+        val timestamp = nextTimestamp()
+        val dest = File(videosDir.apply { mkdirs() }, "photo_$timestamp.jpg")
+        try {
+            dest.outputStream().use { out ->
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, out)) {
+                    throw IOException("JPEG compression returned false for ${dest.name}")
+                }
+            }
+            RecordedVideo(
+                id = timestamp,
+                videoPath = dest.absolutePath,
+                // A photo is its own thumbnail — ThumbnailDecoder subsamples it for the grid.
+                thumbnailPath = dest.absolutePath,
+                kind = VideoKind.PHOTO,
+            )
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to save photo ${dest.name}", e)
+            // Never leave a truncated JPEG behind: loadRecordedVideos() would list it and the
+            // gallery would render a broken tile (same "don't ship a corpse" rule as Lesson 023).
+            dest.delete()
+            null
+        }
+    }
+
     override suspend fun loadRecordedVideos(): List<RecordedVideo> = withContext(Dispatchers.IO) {
         migrateLegacyBoomerangsDir()
         val raws = loadFrom(videosDir, prefix = "clip_", kind = VideoKind.RAW)
         val boomerangs = loadFrom(videosDir, prefix = "boom_", kind = VideoKind.BOOMERANG)
-        (raws + boomerangs).sortedByDescending { it.id } // Newest first
+        (raws + boomerangs + loadPhotos()).sortedByDescending { it.id } // Newest first
+    }
+
+    /**
+     * Scan `filesDir/videos/` for `photo_*.jpg` stills. Separate from [loadFrom] because a photo
+     * needs neither a `.mp4` filter nor a [MediaMetadataRetriever] thumbnail pass — it *is* its own
+     * thumbnail, so this is a plain listing with no decode.
+     */
+    private fun loadPhotos(): List<RecordedVideo> {
+        val files = videosDir.listFiles { _, name ->
+            name.startsWith("photo_") && name.endsWith(".jpg")
+        } ?: return emptyList()
+
+        return files.map { file ->
+            RecordedVideo(
+                id = parseTimestamp(file.name, prefix = "photo_") ?: 0L,
+                videoPath = file.absolutePath,
+                thumbnailPath = file.absolutePath,
+                kind = VideoKind.PHOTO,
+            )
+        }
     }
 
     /**
@@ -326,5 +373,8 @@ class VideoStorageRepositoryImpl(
 
         /** Subdirectory of scratch/ holding VideoReverser's cached reversed clips (see MainActivity). */
         const val REVERSED_SUBDIR = "reversed"
+
+        /** JPEG quality for photo-mode stills — matches [extractThumbnail]'s 90%. */
+        const val PHOTO_JPEG_QUALITY = 90
     }
 }

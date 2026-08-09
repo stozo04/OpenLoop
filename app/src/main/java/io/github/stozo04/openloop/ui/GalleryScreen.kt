@@ -80,6 +80,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.data.RecordedVideo
+import io.github.stozo04.openloop.data.VideoKind
 import io.github.stozo04.openloop.media.ThumbnailDecoder
 import io.github.stozo04.openloop.ui.components.BackButton
 import io.github.stozo04.openloop.ui.components.CircleIconButton
@@ -133,13 +134,24 @@ fun GalleryScreen(
         backEnabledWhenIdle = selectedVideo == null,
     )
 
-    // ── Looping Video Playback Overlay ──
+    // ── Playback / preview overlay ──
+    // A photo-mode still has no timeline to play: branch on kind so ExoPlayer is never handed a
+    // JPEG (it would fail to prepare and show a black screen). Both branches keep the same Close +
+    // SEND controls — see docs/PRD-photo-capture.md §5.7.
     selectedVideo?.let { video ->
-        LoopingVideoOverlay(
-            videoPath = video.videoPath,
-            onDismiss = { selectedVideo = null },
-            onSend = { viewModel.shareLoop(video) },
-        )
+        if (video.kind == VideoKind.PHOTO) {
+            PhotoPreviewOverlay(
+                photoPath = video.videoPath,
+                onDismiss = { selectedVideo = null },
+                onSend = { viewModel.shareLoop(video) },
+            )
+        } else {
+            LoopingVideoOverlay(
+                videoPath = video.videoPath,
+                onDismiss = { selectedVideo = null },
+                onSend = { viewModel.shareLoop(video) },
+            )
+        }
     }
 }
 
@@ -510,6 +522,84 @@ private fun VideoThumbnailCard(
         }
     }
 }
+
+// ── Full-Screen Photo Preview Overlay ──
+
+/**
+ * Full-screen still preview for a [VideoKind.PHOTO] tile — the photo-mode sibling of
+ * [LoopingVideoOverlay], with the same Close and SEND affordances but no player.
+ *
+ * The bitmap is decoded off the main thread via [ThumbnailDecoder.decodeSampled] with a generous
+ * long-edge cap: a full-screen photo does not need to be held at full resolution just to be looked
+ * at, and an unbounded `decodeFile` of a large JPEG is exactly the OOM the decoder exists to avoid.
+ */
+@Composable
+private fun PhotoPreviewOverlay(
+    photoPath: String,
+    onDismiss: () -> Unit,
+    onSend: () -> Unit,
+) {
+    val closeLabel = stringResource(R.string.gallery_close_photo)
+    val sendLabel = stringResource(R.string.gallery_send)
+    val photoLabel = stringResource(R.string.gallery_photo_preview)
+
+    val bitmap by produceState<ImageBitmap?>(null, photoPath) {
+        value = ThumbnailDecoder
+            .decodeSampled(photoPath, maxLongEdge = PHOTO_PREVIEW_MAX_LONG_EDGE_PX)
+            ?.asImageBitmap()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            bitmap?.let { image ->
+                Image(
+                    bitmap = image,
+                    contentDescription = photoLabel,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("gallery_photo_preview"),
+                )
+            }
+
+            CircleIconButton(
+                icon = Icons.Filled.Close,
+                contentDescription = closeLabel,
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, end = 16.dp)
+                    .testTag("gallery_preview_close"),
+            )
+
+            PrimaryButton(
+                text = sendLabel,
+                onClick = onSend,
+                trailingIcon = Icons.AutoMirrored.Filled.Send,
+                testTag = "gallery_preview_send",
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 48.dp),
+            )
+        }
+    }
+}
+
+/** Long-edge cap for the full-screen photo preview — ample for any phone display, bounded for heap. */
+private const val PHOTO_PREVIEW_MAX_LONG_EDGE_PX = 2048
 
 // ── Full-Screen Looping Video Overlay ──
 

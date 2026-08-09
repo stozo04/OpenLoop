@@ -1,5 +1,6 @@
 package io.github.stozo04.openloop.ui
 
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import androidx.camera.video.Recording
@@ -186,6 +187,36 @@ class FakeVideoStorageRepository : VideoStorageRepository {
     }
 
     override suspend fun durationOf(file: File): Long = fixedDurationMs
+
+    /** When true, [savePhoto] reports a failed write (JPEG compression / disk error). */
+    var failSavePhoto: Boolean = false
+
+    /** Count of [savePhoto] calls, so the double-tap guard can be asserted. */
+    var savePhotoCallCount: Int = 0
+        private set
+
+    /**
+     * When set, [savePhoto] parks until it completes — so a test can hold a capture genuinely
+     * in flight while further shutter taps land, instead of hoping the scheduler interleaves
+     * that way (Lesson 029). Mirrors [promoteGate].
+     */
+    var savePhotoGate: CompletableDeferred<Unit>? = null
+
+    override suspend fun savePhoto(bitmap: Bitmap): RecordedVideo? {
+        savePhotoCallCount++
+        savePhotoGate?.await()
+        if (failSavePhoto) return null
+        val id = nextId++
+        // A real file under videos/ so MainActivity's share guard and the .jpg extension both hold.
+        val videosDir = File(tempRoot, "videos").apply { mkdirs() }
+        val photo = File(videosDir, "photo_$id.jpg").apply { writeBytes(ByteArray(4)) }
+        return RecordedVideo(
+            id = id,
+            videoPath = photo.absolutePath,
+            thumbnailPath = photo.absolutePath, // a photo is its own thumbnail
+            kind = VideoKind.PHOTO,
+        ).also { saved.add(it) }
+    }
 
     override suspend fun loadRecordedVideos(): List<RecordedVideo> = saved.sortedByDescending { it.id }
 
@@ -2085,5 +2116,196 @@ class OpenLoopViewModelTest {
                 "lens changes must not interrupt an in-flight recording, was ${viewModel.uiState.value}",
                 viewModel.uiState.value is OpenLoopUiState.Recording,
             )
+        }
+
+    // ── Photo capture mode (docs/PRD-photo-capture.md) ──
+
+    /** A stand-in viewfinder snapshot; mockk avoids needing the android framework in a JVM test. */
+    private val fakeBitmap: Bitmap = mockk(relaxed = true)
+
+    @Test
+    fun `capture mode defaults to VIDEO`() {
+        assertEquals(CaptureMode.VIDEO, viewModel.captureMode.value)
+    }
+
+    @Test
+    fun `setCaptureMode switches between video and photo`() {
+        viewModel.onPermissionsChecked(true)
+
+        viewModel.setCaptureMode(CaptureMode.PHOTO)
+        assertEquals(CaptureMode.PHOTO, viewModel.captureMode.value)
+
+        viewModel.setCaptureMode(CaptureMode.VIDEO)
+        assertEquals(CaptureMode.VIDEO, viewModel.captureMode.value)
+    }
+
+    @Test
+    fun `setCaptureMode is refused while recording`() = runTest(mainDispatcherRule.testDispatcher) {
+        viewModel.onPermissionsChecked(true)
+        every { cameraManager.startRecording(any(), any()) } returns fakeRecording
+        viewModel.startBurstCapture(cameraManager)
+        assertTrue(viewModel.uiState.value is OpenLoopUiState.Recording)
+
+        viewModel.setCaptureMode(CaptureMode.PHOTO)
+
+        // Mid-capture the shutter means "stop"; swapping it to a photo button would strand the clip.
+        assertEquals(CaptureMode.VIDEO, viewModel.captureMode.value)
+        assertTrue(viewModel.uiState.value is OpenLoopUiState.Recording)
+    }
+
+    @Test
+    fun `capturePhoto saves a photo, publishes it, and emits Share`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val published = mutableListOf<File>()
+            val vm = OpenLoopViewModel(
+                fakePreferencesRepository,
+                fakeVideoStorage,
+                fakeVideoProcessor,
+                fakeVideoImporter,
+                fakeRenderScheduler,
+                isLowMemoryNow = { lowMemoryNow },
+                ioDispatcher = mainDispatcherRule.testDispatcher,
+                publishPhotoToLibrary = { file -> published.add(file) },
+            )
+            vm.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { vm.events.toList(events) }
+
+            vm.setCaptureMode(CaptureMode.PHOTO)
+            vm.capturePhoto(fakeBitmap)
+            advanceUntilIdle()
+
+            val photo = fakeVideoStorage.saved.single { it.kind == VideoKind.PHOTO }
+            assertTrue("photo must be a .jpg", photo.videoPath.endsWith(".jpg"))
+            // Photos live under videos/ so FileProvider + MainActivity's share guard both hold.
+            assertTrue(
+                "photo must live under videos/, was ${photo.videoPath}",
+                photo.videoPath.contains("${File.separator}videos${File.separator}"),
+            )
+            // A still is its own thumbnail — no second file on disk.
+            assertEquals(photo.videoPath, photo.thumbnailPath)
+
+            assertEquals(listOf(File(photo.videoPath)), published)
+
+            val share = events.filterIsInstance<BoomerangEvent.Share>().single()
+            assertEquals(photo.videoPath, share.file.absolutePath)
+
+            // The boomerang pipeline must never be entered: no trim state, no editor, no render.
+            assertNull(vm.editorState.value)
+            assertEquals(0, fakeVideoProcessor.renderCount)
+            assertEquals(OpenLoopUiState.ReadyToCapture, vm.uiState.value)
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `capturePhoto with a null bitmap saves nothing and reports failure`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { viewModel.events.toList(events) }
+
+            viewModel.setCaptureMode(CaptureMode.PHOTO)
+            // getBitmap() is null until the preview reaches STREAMING — a tap in that window.
+            viewModel.capturePhoto(null)
+            advanceUntilIdle()
+
+            assertTrue(fakeVideoStorage.saved.none { it.kind == VideoKind.PHOTO })
+            assertTrue(events.contains(BoomerangEvent.PhotoCaptureFailed))
+            assertTrue(events.filterIsInstance<BoomerangEvent.Share>().isEmpty())
+            assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `capturePhoto reports failure when the write fails`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            fakeVideoStorage.failSavePhoto = true
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { viewModel.events.toList(events) }
+
+            viewModel.setCaptureMode(CaptureMode.PHOTO)
+            viewModel.capturePhoto(fakeBitmap)
+            advanceUntilIdle()
+
+            assertTrue(events.contains(BoomerangEvent.PhotoCaptureFailed))
+            assertTrue(events.filterIsInstance<BoomerangEvent.Share>().isEmpty())
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `a failed library publish still saves and shares the photo`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val vm = OpenLoopViewModel(
+                fakePreferencesRepository,
+                fakeVideoStorage,
+                fakeVideoProcessor,
+                fakeVideoImporter,
+                fakeRenderScheduler,
+                isLowMemoryNow = { lowMemoryNow },
+                ioDispatcher = mainDispatcherRule.testDispatcher,
+                publishPhotoToLibrary = { throw IOException("MediaStore insert refused") },
+            )
+            vm.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { vm.events.toList(events) }
+
+            vm.capturePhoto(fakeBitmap)
+            advanceUntilIdle()
+
+            // PRD §5.5: the public copy is best-effort — losing it must not cost the user the photo.
+            assertEquals(1, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
+            assertEquals(1, events.filterIsInstance<BoomerangEvent.Share>().size)
+            assertTrue(events.none { it is BoomerangEvent.PhotoCaptureFailed })
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `rapid shutter taps save only one photo`() = runTest(mainDispatcherRule.testDispatcher) {
+        viewModel.onPermissionsChecked(true)
+        viewModel.setCaptureMode(CaptureMode.PHOTO)
+
+        // Park the save so the first capture is genuinely still in flight when the next taps land.
+        // Without the gate the Unconfined dispatcher runs each capture to completion before the
+        // following call, so nothing ever overlaps and the guard is never exercised (Lesson 029 —
+        // enforce the premise, don't hope the scheduler interleaves).
+        val gate = CompletableDeferred<Unit>()
+        fakeVideoStorage.savePhotoGate = gate
+
+        viewModel.capturePhoto(fakeBitmap)
+        viewModel.capturePhoto(fakeBitmap)
+        viewModel.capturePhoto(fakeBitmap)
+
+        // Two later taps hit the in-progress guard and never reach storage.
+        assertEquals(1, fakeVideoStorage.savePhotoCallCount)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, fakeVideoStorage.savePhotoCallCount)
+        assertEquals(1, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
+
+        // The guard releases afterwards — a later tap must still work.
+        fakeVideoStorage.savePhotoGate = null
+        viewModel.capturePhoto(fakeBitmap)
+        advanceUntilIdle()
+        assertEquals(2, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
+    }
+
+    @Test
+    fun `capturePhoto is ignored when not on the viewfinder`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            viewModel.navigateToGallery()
+            advanceUntilIdle()
+
+            viewModel.capturePhoto(fakeBitmap)
+            advanceUntilIdle()
+
+            assertEquals(0, fakeVideoStorage.savePhotoCallCount)
         }
 }

@@ -1,5 +1,6 @@
 package io.github.stozo04.openloop
 
+import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -140,6 +141,7 @@ class OpenLoopNavHostTest {
         override suspend fun registerBoomerang(file: File, sourceRawId: Long): RecordedVideo? = null
         override suspend fun durationOf(file: File): Long = 0L
         override suspend fun loadRecordedVideos(): List<RecordedVideo> = emptyList()
+        override suspend fun savePhoto(bitmap: Bitmap): RecordedVideo? = null
         override suspend fun deleteVideo(video: RecordedVideo) {}
         override suspend fun deleteRawVideo(id: Long) {}
         override suspend fun pruneStaleScratch(olderThanMs: Long): Int = 0
