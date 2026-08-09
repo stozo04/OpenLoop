@@ -47,6 +47,9 @@ import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextSecondary
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 private val FILTER_PANEL_CORNER = 16.dp
 private val FILTER_PANEL_MAX_WIDTH = 520.dp
@@ -195,21 +198,105 @@ private fun FilterLookChip(
 }
 
 /**
- * Compose [ColorFilter] for chip thumbnails — same parameters as [VideoFilter.toMediaEffects].
+ * Compose [ColorFilter] for chip thumbnails — same look parameters as [VideoFilter.toMediaEffects].
+ * Approximations only (Compose ColorMatrix vs Media3 GL shaders); keep the numbers aligned.
  */
 private fun VideoFilter.thumbnailColorFilter(): ColorFilter? {
-    val matrix = when {
-        grayscale -> ColorMatrix().apply { setToSaturation(0f) }
-        saturation != 0f -> ColorMatrix().apply { setToSaturation(1f + saturation / 100f) }
-        redScale != 1f || blueScale != 1f -> ColorMatrix(
+    val matrix = when (this) {
+        VideoFilter.ORIGINAL -> return null
+        VideoFilter.NOIR -> ColorMatrix().apply { setToSaturation(0f) }
+        VideoFilter.WARM -> rgbScaleMatrix(red = 1.15f, green = 1f, blue = 0.85f)
+        VideoFilter.COOL -> rgbScaleMatrix(red = 0.85f, green = 1f, blue = 1.15f)
+        VideoFilter.POP -> ColorMatrix().apply { setToSaturation(1.4f) }
+        VideoFilter.INVERT -> ColorMatrix(
             floatArrayOf(
-                redScale, 0f, 0f, 0f, 0f,
-                0f, 1f, 0f, 0f, 0f,
-                0f, 0f, blueScale, 0f, 0f,
+                -1f, 0f, 0f, 0f, 255f,
+                0f, -1f, 0f, 0f, 255f,
+                0f, 0f, -1f, 0f, 255f,
                 0f, 0f, 0f, 1f, 0f,
             ),
         )
-        else -> return null
+        VideoFilter.SEPIA -> ColorMatrix(
+            floatArrayOf(
+                0.393f, 0.769f, 0.189f, 0f, 0f,
+                0.349f, 0.686f, 0.168f, 0f, 0f,
+                0.272f, 0.534f, 0.131f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        VideoFilter.PARTY -> hueRotateMatrix(140f)
+        VideoFilter.PUNCH -> contrastMatrix(0.45f)
+        // Matches HslAdjustment.adjustLightness(18) as a simple RGB lift for the chip.
+        VideoFilter.GLOW -> ColorMatrix(
+            floatArrayOf(
+                1f, 0f, 0f, 0f, 45f,
+                0f, 1f, 0f, 0f, 45f,
+                0f, 0f, 1f, 0f, 45f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        VideoFilter.FADE -> ColorMatrix().apply {
+            setToSaturation(0.75f)
+            // Soft lift so the chip reads "washed" vs Punch (Contrast -0.35 + lightness 8).
+            values[4] += 20f
+            values[9] += 20f
+            values[14] += 20f
+        }
+        VideoFilter.MINT -> rgbScaleMatrix(red = 0.88f, green = 1.18f, blue = 1.05f)
+        VideoFilter.CANDY -> rgbScaleMatrix(red = 1.22f, green = 0.88f, blue = 1.15f)
     }
     return ColorFilter.colorMatrix(matrix)
+}
+
+private fun rgbScaleMatrix(red: Float, green: Float, blue: Float): ColorMatrix = ColorMatrix(
+    floatArrayOf(
+        red, 0f, 0f, 0f, 0f,
+        0f, green, 0f, 0f, 0f,
+        0f, 0f, blue, 0f, 0f,
+        0f, 0f, 0f, 1f, 0f,
+    ),
+)
+
+/** Same contrastFactor formula as Media3 [androidx.media3.effect.Contrast], translated to 0–255. */
+private fun contrastMatrix(contrast: Float): ColorMatrix {
+    val factor = (1f + contrast) / (1.0001f - contrast)
+    val translate = (1f - factor) * 0.5f * 255f
+    return ColorMatrix(
+        floatArrayOf(
+            factor, 0f, 0f, 0f, translate,
+            0f, factor, 0f, 0f, translate,
+            0f, 0f, factor, 0f, translate,
+            0f, 0f, 0f, 1f, 0f,
+        ),
+    )
+}
+
+/**
+ * Approximate HSL hue rotation for chip thumbs (luma-preserving rotation matrix).
+ * Preview/export use Media3 [HslAdjustment]; this is the closest cheap Compose stand-in.
+ */
+private fun hueRotateMatrix(degrees: Float): ColorMatrix {
+    val rad = degrees * PI.toFloat() / 180f
+    val cosA = cos(rad)
+    val sinA = sin(rad)
+    val lumR = 0.213f
+    val lumG = 0.715f
+    val lumB = 0.072f
+    return ColorMatrix(
+        floatArrayOf(
+            lumR + cosA * (1 - lumR) + sinA * (-lumR),
+            lumG + cosA * (-lumG) + sinA * (-lumG),
+            lumB + cosA * (-lumB) + sinA * (1 - lumB),
+            0f, 0f,
+            lumR + cosA * (-lumR) + sinA * 0.143f,
+            lumG + cosA * (1 - lumG) + sinA * 0.140f,
+            lumB + cosA * (-lumB) + sinA * (-0.283f),
+            0f, 0f,
+            lumR + cosA * (-lumR) + sinA * (-(1 - lumR)),
+            lumG + cosA * (-lumG) + sinA * lumG,
+            lumB + cosA * (1 - lumB) + sinA * lumB,
+            0f, 0f,
+            0f, 0f, 0f, 1f, 0f,
+        ),
+    )
 }
