@@ -29,20 +29,33 @@ work**: a store-listing accuracy contradiction, and a live trademark exposure. B
 All Play data below came from **unauthenticated server-side fetches**, so these are clean
 signed-out samples, not personalised results.
 
+**Provenance matters here, so it is labelled per row.** Play listing pages are JavaScript-rendered
+and do not survive text extraction, so some fields could only be read from a third-party mirror
+(apkcombo). That mirror **demonstrably mangled one field during this research** — it concatenated the
+developer name into the title and returned `OpenLoop Boomerang Video Maker`, which the Play search
+results disproved. Treat every ⚠️ row below as *indicative, not verbatim*.
+
+- ✅ = read directly from `play.google.com` (listing page or search results)
+- ⚠️ = read from the apkcombo mirror — **verify verbatim in Play Console before acting**
+
 ### 2.1 Live listing vs. repo source-of-truth — they have drifted
 
-| Field | `docs/play-store/store-listing.md` (repo) | **Live on Play** |
-|---|---|---|
-| Title | `OpenLoop: Video Loop Maker` | **`Boomerang Video Maker`** (21 chars) |
-| Developer name | — | **`OpenLoop`** |
-| Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.` | **`Ad Free and Open Source Boomerang Loop Video Maker`** |
-| Full description | Discloses Firebase Analytics/Crashlytics | **Claims "no tracking"** |
-| Version | 1.0.36 | **1.0.25 (Jun 23, 2026)** |
-| Installs | — | **10+** |
-| Ratings | — | **None** |
+| Field | `docs/play-store/store-listing.md` (repo) | **Live on Play** | Source |
+|---|---|---|---|
+| Title | `OpenLoop: Video Loop Maker` | **`Boomerang Video Maker`** (21 chars) | ✅ |
+| Developer name | — | **`OpenLoop`** | ✅ |
+| Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.` | **`Ad Free and Open Source Boomerang Loop Video Maker`** | ⚠️ |
+| Full description | Discloses Firebase Analytics/Crashlytics | **Claims "no tracking"** | ⚠️ |
+| Version | 1.0.36 | **1.0.25 (Jun 23, 2026)** | ⚠️ |
+| Installs | — | **10+** | ⚠️ |
+| Ratings | — | **None** | ⚠️ |
 
 > The repo doc is **not** what is live. Neither document is obviously "right" — the owner must decide
 > which is the source of truth and reconcile. See §3.1.
+>
+> **First Console action should be to read the four ⚠️ fields verbatim** and correct this table. The
+> title and developer name — the two fields the entire ASO diagnosis rests on — are ✅ and confirmed
+> by two independent `play.google.com` fetches, so §4 and §5 do not depend on the mirror.
 
 ### 2.2 Search rank baseline
 
@@ -66,8 +79,13 @@ Two conclusions follow directly:
 
 ### 3.1 The live listing contradicts the app's own data-safety declaration
 
-The live full description says *"No cloud uploads, no accounts, **no tracking**."*
-`README.md` says *"**Zero network calls. Zero tracking.**"*
+The live full description says *"No cloud uploads, no accounts, **no tracking**"* — ⚠️ **mirror-sourced,
+verify verbatim in Console.** `README.md` says *"**Zero network calls. Zero tracking.**"* — ✅ **verified
+in this repo**, and false on both counts.
+
+> The repo half of this contradiction is confirmed regardless of what the live listing says, so this
+> finding stands on its own. Confirming the Console wording only determines whether **one** surface
+> needs fixing or **two**.
 
 But [`docs/play-store/data-safety.md`](play-store/data-safety.md) declares, as collected: **App
 interactions, Approximate location, Device or other IDs, Crash logs, Diagnostics** — via Firebase
@@ -127,7 +145,8 @@ materially better posture at zero cost.
 
 ### 3.3 Minor: "Ad Free" in the short description is grey-area
 
-The live short description opens `Ad Free and Open Source…`. Google's
+The live short description opens `Ad Free and Open Source…` (⚠️ mirror-sourced — confirm in Console
+before acting on this item). Google's
 [store-listing best practices](https://support.google.com/googleplay/android-developer/answer/13393723)
 say "Words like 'Free' and 'No Ads' promote deals and don't belong in **app titles**," and the
 Metadata policy bans "text that indicate price and promotional information" — but every example given
