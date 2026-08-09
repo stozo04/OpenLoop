@@ -77,4 +77,42 @@ class EditorEffectsPreviewTest {
             ),
         )
     }
+
+    // ── shouldRecreatePlayerForFirstEffectsApply (Media3: setVideoEffects before first prepare) ─
+
+    @Test
+    fun `first non-original look after pipeline-less prepare needs player recreate`() {
+        assertTrue(
+            shouldRecreatePlayerForFirstEffectsApply(
+                playerHasAppliedEffects = false,
+                effectsPreviewEnabled = true,
+                filter = VideoFilter.NOIR,
+            ),
+        )
+    }
+
+    @Test
+    fun `no recreate once effects sink already exists or look is original`() {
+        assertFalse(
+            shouldRecreatePlayerForFirstEffectsApply(
+                playerHasAppliedEffects = true,
+                effectsPreviewEnabled = true,
+                filter = VideoFilter.POP,
+            ),
+        )
+        assertFalse(
+            shouldRecreatePlayerForFirstEffectsApply(
+                playerHasAppliedEffects = false,
+                effectsPreviewEnabled = true,
+                filter = VideoFilter.ORIGINAL,
+            ),
+        )
+        assertFalse(
+            shouldRecreatePlayerForFirstEffectsApply(
+                playerHasAppliedEffects = false,
+                effectsPreviewEnabled = false,
+                filter = VideoFilter.WARM,
+            ),
+        )
+    }
 }

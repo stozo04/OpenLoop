@@ -308,10 +308,9 @@ fun BoomerangEditorContent(
 
     // Rebind the playlist whenever the direction, the reversed file, or the trim changes. setMediaItems
     // replaces the whole playlist (no in-place re-clip of a same-URI item, which ExoPlayer dedupes —
-    // slice-02 HANDOFF), then prepare() restarts playback of the new cycle. Both the speed
-    // (PlaybackParameters) and the look (setVideoEffects) are player-wide settings, not per-MediaItem,
-    // so they survive this rebind — we don't re-apply either here. The LaunchedEffect(filter) below
-    // owns applying the look.
+    // slice-02 HANDOFF), then prepare() restarts playback of the new cycle. Speed (PlaybackParameters)
+    // survives this rebind. Looks must be primed via setVideoEffects *before* prepare when active —
+    // Media3 only builds the effects VideoSink on first renderer enable if effects were set first.
     // exoPlayer is a key so a recreated (epoch-bumped) instance gets the playlist rebound — without
     // it the fresh player would sit empty and the preview would go black.
     LaunchedEffect(exoPlayer, mode, reversedFile, trimStartMs, trimEndMs, seamMs, reversePreviewLoading) {
@@ -325,6 +324,10 @@ fun BoomerangEditorContent(
         if (EditorPlaylistBind.shouldClearPlaylist(items.isEmpty())) {
             return@LaunchedEffect
         }
+        if (shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)) {
+            exoPlayer.setVideoEffects(filter.toMediaEffects())
+            playerHasAppliedEffects = true
+        }
         exoPlayer.setMediaItems(items)
         // playWhenReady = true (set on the builder), so prepare() starts playback — no explicit play().
         exoPlayer.prepare()
@@ -333,7 +336,8 @@ fun BoomerangEditorContent(
 
     // Apply the color look live (the Looks tab's whole point). setVideoEffects is ExoPlayer's preview
     // path for effects (same Effect objects as the render), so tapping a look re-tints the running
-    // preview without a re-render. Independent of speed (a player setting) — they compose.
+    // preview without a re-render — but only after the effects VideoSink exists (see playlist bind /
+    // first-apply recreate below). Independent of speed (a player setting) — they compose.
     //
     // Do NOT call setVideoEffects(emptyList()) for [VideoFilter.ORIGINAL]: even an empty list routes
     // through DefaultVideoFrameProcessor, which cannot hand off from an imported HDR forward clip to
@@ -350,6 +354,19 @@ fun BoomerangEditorContent(
                 playerEpoch++
             }
             onFilterPreviewSettled()
+            return@LaunchedEffect
+        }
+        // First look after a pipeline-less prepare: recreate so playlist bind can setVideoEffects
+        // before prepare (Media3 contract). Flag true first so this effect doesn't loop on the
+        // fresh instance; settle runs on the re-entry below once the new player is bound.
+        if (shouldRecreatePlayerForFirstEffectsApply(
+                playerHasAppliedEffects,
+                effectsPreviewEnabled,
+                filter,
+            )
+        ) {
+            playerHasAppliedEffects = true
+            playerEpoch++
             return@LaunchedEffect
         }
         exoPlayer.setVideoEffects(filter.toMediaEffects())

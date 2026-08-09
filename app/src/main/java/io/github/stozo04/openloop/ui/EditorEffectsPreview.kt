@@ -35,3 +35,17 @@ fun shouldTearDownEffectsPlayer(
     effectsPreviewEnabled: Boolean,
     filter: VideoFilter,
 ): Boolean = playerHasAppliedEffects && !shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)
+
+/**
+ * Media3 builds the effects [androidx.media3.exoplayer.video.VideoSink] only on first renderer
+ * enable, and only if [androidx.media3.exoplayer.ExoPlayer.setVideoEffects] ran before the first
+ * [androidx.media3.common.Player.prepare]. The editor prepares at Original (no effects) so the
+ * first non-Original look must recreate the player; mid-playback [setVideoEffects] alone is a no-op
+ * when that sink was never created.
+ */
+@OptIn(UnstableApi::class)
+fun shouldRecreatePlayerForFirstEffectsApply(
+    playerHasAppliedEffects: Boolean,
+    effectsPreviewEnabled: Boolean,
+    filter: VideoFilter,
+): Boolean = !playerHasAppliedEffects && shouldApplyVideoEffectsPreview(effectsPreviewEnabled, filter)
