@@ -72,7 +72,9 @@ here by Lint + a zero-new-compile-warning build.
 
 The over-engineering review on PR #120 removed ~88 lines. The only user-visible change is the
 capture-mode toggle, which now uses the shared `CircleIconButton` chrome: **56 dp** (was 48 dp),
-22 dp icon, matching the lens and flip controls. Re-driven on the same AVD after the change:
+22 dp icon, matching the lens and flip controls. Re-driven on the same Pixel_8 AVD after the change
+— note the AVD has since been updated to an **API 37** system image (`ro.build.version.sdk = 37`),
+so this round is one API level above the original pass in the table at the top:
 
 - Toggle a11y node measured on-device at `[891,175][1038,322]` = 147 px @ 420 dpi = **56 dp** —
   above the 48 dp minimum interactive target, and larger than what it replaced.
