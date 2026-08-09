@@ -94,29 +94,38 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 ```
 io.github.stozo04.openloop/
 ├── camera/
-│   ├── CameraManager.kt         # CameraX lifecycle, recording, lens toggle, pinch-zoom control
+│   ├── CameraManager.kt         # CameraX bind/unbind, recording, lens toggle, pinch-zoom control
 │   ├── PinchZoomLayout.kt       # FrameLayout that intercepts multi-touch for pinch (Fold-safe)
-│   └── ZoomUi.kt                # Pure zoom snapshot + clamp/chip-format math (JVM-tested)
-├── data/
-│   ├── UserPreferencesRepository.kt(+Impl)   # DataStore: onboarding flag (Flow reads + suspend writes)
-│   └── VideoStorageRepository.kt(+Impl)       # scratch / raw / boomerang files + thumbnails
-├── media/
-│   ├── VideoReverser.kt         # Two-pass MediaCodec reverse (Media3 has no reverse effect)
+│   ├── ZoomUi.kt                # Pure zoom snapshot + clamp/chip-format math (JVM-tested)
+│   └── lens/                    # Live camera lenses — docs/PRD-camera-lenses.md
+│       ├── Lens.kt              # The catalogue. Nothing outside this file names an individual lens
+│       ├── LensAnchor.kt        # Pure face-frame placement math (JVM-tested: LensAnchorTest)
+│       ├── LensSurfaceProcessor.kt  # The ONE CameraEffect: EGL + 3 GL programs, sticker/warp/feature draw
+│       └── FaceTracker.kt       # ML Kit (stable API) ImageAnalysis.Analyzer → FaceSnapshot
+├── data/                        # UserPreferencesRepository (DataStore), VideoStorageRepository, VideoImporter
+├── diagnostics/                 # AnalyticsReporter + Crashlytics wrappers, debug-report share
+├── media/                       # The pipeline
 │   ├── VideoProcessor.kt        # Media3 Transformer: Composition + SpeedChangeEffect; ensureReversed() (shared reverse cache)
-│   ├── BoomerangSequence.kt     # Pure: clip order + position-based seam + output-duration math (JVM-tested)
-│   ├── VideoFilter.kt           # Color "looks" enum → Media3 effects (RgbFilter/RgbAdjustment/HslAdjustment)
-│   └── MediaFormatUtils.kt      # Type-tolerant frame-rate / rotation reads
+│   ├── VideoReverser.kt         # Two-pass MediaCodec reverse (Media3 has no reverse effect)
+│   ├── Reverse*.kt              # Encoder selection, output validation, scratch janitor, logging
+│   └── …Sequence/Filter/Format  # BoomerangSequence, VideoFilter, MediaFormatUtils — pure, JVM-tested
 ├── ui/
 │   ├── OpenLoopUiState.kt       # Sealed state machine + TrimState / EditorTabState
 │   ├── OpenLoopViewModel.kt     # MVVM hub: state, storage, editor, preferences
-│   ├── CameraScreen.kt          # Live viewfinder, shutter (+ shared design tokens)
-│   ├── OnboardingScreen.kt      # 3-page carousel
-│   ├── TrimScreen.kt            # Post-capture trim (two-handle bar, NEXT)
-│   ├── BoomerangEditorScreen.kt # Tabbed editor — Direction / Speed / Looks(filters) tabs (slice 03–05)
-│   ├── ProcessingScreen.kt      # Render spinner
-│   └── GalleryScreen.kt         # Adaptive grid, thumbnails, delete, tap-to-play overlay, import
+│   ├── *Screen.kt               # One per state: Camera / Onboarding / Trim / BoomerangEditor / Processing / Gallery
+│   ├── components/              # Reusable Compose pieces (LensCarousel, tab panels, filmstrip) **and**
+│   │                            # the pure math extracted out of composables so it is JVM-testable
+│   │                            # (TrimHandleMath — Lesson 030, TrimRulerMath)
+│   └── theme/                   # Color / Type / Shape / Background tokens
+├── update/                      # In-app update controller
+├── work/                        # WorkManager render pipeline: scheduler, worker, FGS notifications, MediaStore publish
 └── MainActivity.kt              # Permissions, OpenLoopNavHost routing, theme, ViewModel Factory
 ```
+
+> This is a **map, not an inventory** — packages plus the load-bearing files. Don't grow it back into
+> a file-by-file listing: that is precisely what let it drift (it was missing `camera/lens/`,
+> `ui/components/`, `diagnostics/`, `update/` and `work/` entirely). Add a line when a *package*
+> appears or a file becomes load-bearing, not for every new file.
 
 ### State Machine
 
