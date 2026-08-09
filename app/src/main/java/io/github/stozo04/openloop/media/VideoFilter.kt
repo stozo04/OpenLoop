@@ -2,52 +2,78 @@ package io.github.stozo04.openloop.media
 
 import androidx.media3.common.Effect
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.effect.Contrast
 import androidx.media3.effect.HslAdjustment
 import androidx.media3.effect.RgbAdjustment
 import androidx.media3.effect.RgbFilter
+import androidx.media3.effect.RgbMatrix
 
 /**
- * A one-tap color "look" applied to the boomerang (slice 05). Each value owns the parameters its
- * look is built from, so the Media3 render/preview effect ([toMediaEffects]) and the editor's chip
- * thumbnail (a Compose `ColorMatrix` derived from the *same* numbers in `BoomerangEditorScreen`)
- * stay visually in sync — the chip can't lie about the export.
+ * A one-tap color "look" applied to the boomerang (slice 05). [toMediaEffects] drives live preview
+ * and export; the Looks-tab chip thumbnails approximate the same numbers in
+ * `FilterTabPanel` so the chip can't lie about the export.
  *
- * Parameters (all default to "no change", i.e. [ORIGINAL]):
- *  - [redScale] / [blueScale]: per-channel multipliers for warm / cool tints
- *    (`RgbAdjustment`, verified `RgbMatrix` API in Media3 1.10.1).
- *  - [saturation]: HSL saturation adjustment in `[-100, 100]` for the vibrant "pop" look
- *    (`HslAdjustment.adjustSaturation`).
- *  - [grayscale]: `true` → full desaturate via `RgbFilter.createGrayscaleFilter()`.
- *
- * Speed (a player-side effect / `SpeedChangeEffect`) and a look compose cleanly: at render both go
- * in the `videoEffects` list; in the preview the look rides `ExoPlayer.setVideoEffects` while speed
- * stays `setPlaybackSpeed`. A look does **not** touch the cached reversed clip or the duration.
+ * Speed (player-side / `SpeedChangeEffect`) and a look compose cleanly. A look does **not** touch
+ * the cached reversed clip or the output duration.
  */
-enum class VideoFilter(
-    val label: String,
-    val redScale: Float = 1f,
-    val blueScale: Float = 1f,
-    val saturation: Float = 0f,
-    val grayscale: Boolean = false,
-) {
+enum class VideoFilter(val label: String) {
     ORIGINAL("Original"),
-    NOIR("B&W", grayscale = true),
-    WARM("Warm", redScale = 1.15f, blueScale = 0.85f),
-    COOL("Cool", redScale = 0.85f, blueScale = 1.15f),
-    POP("Pop", saturation = 40f),
+    NOIR("B&W"),
+    WARM("Warm"),
+    COOL("Cool"),
+    POP("Pop"),
+    INVERT("Invert"),
+    SEPIA("Sepia"),
+    PARTY("Party"),
+    PUNCH("Punch"),
+    GLOW("Glow"),
+    FADE("Fade"),
+    MINT("Mint"),
+    CANDY("Candy"),
     ;
 
     /**
-     * Media3 video effects for this look — the same objects used for the live preview
-     * (`ExoPlayer.setVideoEffects`) and the render (`Composition` `videoEffects`). [ORIGINAL] is the
-     * identity look, so it contributes no effects.
+     * Media3 video effects for this look — live preview (`ExoPlayer.setVideoEffects`) and render
+     * (`Composition` `videoEffects`). [ORIGINAL] contributes none.
+     *
+     * Prefer [HslAdjustment]/[Contrast]/[RgbAdjustment]/[RgbFilter] over
+     * [androidx.media3.effect.Brightness] — Brightness asserts non-HDR and would break imported
+     * HDR clips.
      */
     @UnstableApi
-    fun toMediaEffects(): List<Effect> = when {
-        grayscale -> listOf(RgbFilter.createGrayscaleFilter())
-        saturation != 0f -> listOf(HslAdjustment.Builder().adjustSaturation(saturation).build())
-        redScale != 1f || blueScale != 1f ->
-            listOf(RgbAdjustment.Builder().setRedScale(redScale).setBlueScale(blueScale).build())
-        else -> emptyList()
+    fun toMediaEffects(): List<Effect> = when (this) {
+        ORIGINAL -> emptyList()
+        NOIR -> listOf(RgbFilter.createGrayscaleFilter())
+        WARM -> listOf(RgbAdjustment.Builder().setRedScale(1.15f).setBlueScale(0.85f).build())
+        COOL -> listOf(RgbAdjustment.Builder().setRedScale(0.85f).setBlueScale(1.15f).build())
+        POP -> listOf(HslAdjustment.Builder().adjustSaturation(40f).build())
+        INVERT -> listOf(RgbFilter.createInvertedFilter())
+        SEPIA -> listOf(SepiaRgbMatrix)
+        PARTY -> listOf(HslAdjustment.Builder().adjustHue(140f).build())
+        PUNCH -> listOf(Contrast(0.45f))
+        GLOW -> listOf(HslAdjustment.Builder().adjustLightness(18f).build())
+        FADE -> listOf(
+            Contrast(-0.35f),
+            HslAdjustment.Builder().adjustSaturation(-25f).adjustLightness(8f).build(),
+        )
+        MINT -> listOf(
+            RgbAdjustment.Builder().setRedScale(0.88f).setGreenScale(1.18f).setBlueScale(1.05f).build(),
+        )
+        CANDY -> listOf(
+            RgbAdjustment.Builder().setRedScale(1.22f).setGreenScale(0.88f).setBlueScale(1.15f).build(),
+        )
     }
+}
+
+/** Classic sepia as a column-major 4×4 RGB matrix (Media3 / OpenGL layout). */
+@UnstableApi
+private object SepiaRgbMatrix : RgbMatrix {
+    private val matrix = floatArrayOf(
+        0.393f, 0.349f, 0.272f, 0f,
+        0.769f, 0.686f, 0.534f, 0f,
+        0.189f, 0.168f, 0.131f, 0f,
+        0f, 0f, 0f, 1f,
+    )
+
+    override fun getMatrix(presentationTimeUs: Long, useHdr: Boolean): FloatArray = matrix
 }

@@ -242,12 +242,12 @@ class BoomerangEditorScreenTest {
     }
 
     @Test
-    fun looksTabActive_showsAllFilterChips_notSlider() {
+    fun looksTabActive_showsLookStrip_notSlider() {
         setContent(activeTab = EditorTab.LOOKS)
-        // All five looks present; the speed slider is gone.
-        VideoFilter.entries.forEach { look ->
-            composeTestRule.onNodeWithTag("look_chip_${look.name}").assertIsDisplayed()
-        }
+        composeTestRule.onNodeWithTag("filter_look_strip").assertIsDisplayed()
+        // First chips are on-screen; later ones live in the horizontal strip (may be clipped).
+        composeTestRule.onNodeWithTag("look_chip_ORIGINAL").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("look_chip_CANDY").assertExists()
         composeTestRule.onNodeWithTag("speed_slider").assertDoesNotExist()
     }
 
