@@ -45,9 +45,9 @@ import kotlin.math.sin
  *
  * ## Threading
  *
- * All GL work happens on [glThread]. [setLens], [setFace] and [setMirrored] are called from the
- * main thread and the ML Kit analyzer thread respectively and are `@Volatile` reads on the GL side
- * — a lens or face that lands one frame late is invisible, and a lock here would stall the camera.
+ * All GL work happens on [glThread]. [setLens] is called from the main thread and [setFace] from
+ * the ML Kit analyzer thread; both are `@Volatile` reads on the GL side — a lens or face that lands
+ * one frame late is invisible, and a lock here would stall the camera.
  */
 class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
@@ -81,9 +81,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     /** Outputs whose geometry has already been logged — one line per surface, not per frame. */
     private val loggedOutputs = HashSet<SurfaceOutput>()
 
-    /** Frame counter that throttles the placement log to roughly once a second. */
-    private var placementLogCounter = 0L
-
     private var cameraProgram = 0
     private var stickerProgram = 0
     private var featureProgram = 0
@@ -95,11 +92,10 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     private val fullscreenPositions = floatBufferOf(
         -1f, -1f, 1f, -1f, -1f, 1f, 1f, 1f,
     )
-    private val fullscreenTexCoords = floatBufferOf(
-        0f, 0f, 1f, 0f, 0f, 1f, 1f, 1f,
-    )
+
     /**
-     * Sticker texture coordinates, matching [CORNER_SIGNS] (top-left, top-right, bottom-left,
+     * The unit square, in strip order — used by the fullscreen camera pass and by the sticker,
+     * whose corners follow the same order ([CORNER_SIGNS]: top-left, top-right, bottom-left,
      * bottom-right in screen terms).
      *
      * `GLUtils.texImage2D` uploads a bitmap's FIRST row at `v = 0`, so `v = 0` is the top of the
@@ -108,14 +104,13 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
      * near-symmetric art like the shades and obvious the moment a broccoli's stalk appears above
      * the head.
      */
-    private val stickerTexCoords = floatBufferOf(
+    private val quadTexCoords = floatBufferOf(
         0f, 0f, 1f, 0f, 0f, 1f, 1f, 1f,
     )
-    private val stickerPositions = FloatArray(QUAD_COMPONENTS)
-    private val stickerPositionBuffer = floatBufferOf(*stickerPositions)
 
-    private val featurePositions = FloatArray(QUAD_COMPONENTS)
-    private val featurePositionBuffer = floatBufferOf(*featurePositions)
+    /** Corners are written straight into these each frame — see [writeStickerCorners]. */
+    private val stickerPositionBuffer = floatBufferOf(*FloatArray(QUAD_COMPONENTS))
+    private val featurePositionBuffer = floatBufferOf(*FloatArray(QUAD_COMPONENTS))
 
     /** Local coordinates over a feature quad, `-1..1`, used for the elliptical fade and sampling. */
     private val featureLocalBuffer = floatBufferOf(
@@ -262,7 +257,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     ) {
         val spec = lens?.warp
         val warp = if (spec != null && snapshot != null && faceFrame != null) {
-            LensAnchor.warp(snapshot, faceFrame, spec, frameAspect)
+            LensAnchor.warp(snapshot, faceFrame, spec)
         } else {
             WarpCircle.NONE
         }
@@ -271,7 +266,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         GLES20.glDisable(GLES20.GL_BLEND)
 
         bindAttribute(cameraProgram, "aPosition", fullscreenPositions)
-        bindAttribute(cameraProgram, "aTexCoord", fullscreenTexCoords)
+        bindAttribute(cameraProgram, "aTexCoord", quadTexCoords)
 
         GLES20.glUniformMatrix4fv(
             GLES20.glGetUniformLocation(cameraProgram, "uTexMatrix"),
@@ -306,7 +301,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         if (texture == 0) return
 
         val quad = LensAnchor.sticker(faceFrame, art.placement, frameAspect)
-        logPlacementPeriodically(faceFrame, quad)
         writeStickerCorners(quad, frameAspect)
 
         GLES20.glUseProgram(stickerProgram)
@@ -315,7 +309,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA)
 
         bindAttribute(stickerProgram, "aPosition", stickerPositionBuffer)
-        bindAttribute(stickerProgram, "aTexCoord", stickerTexCoords)
+        bindAttribute(stickerProgram, "aTexCoord", quadTexCoords)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture)
@@ -379,15 +373,14 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             val rotatedY = squareX * sin + squareY * cos
             val normalizedX = feature.destCenterX + rotatedX
             val normalizedY = feature.destCenterY + LensAnchor.fromSquareY(rotatedY, frameAspect)
-            featurePositions[index++] = normalizedX * 2f - 1f
-            featurePositions[index++] = 1f - normalizedY * 2f
+            featurePositionBuffer.put(index++, normalizedX * 2f - 1f)
+            featurePositionBuffer.put(index++, 1f - normalizedY * 2f)
         }
-        featurePositionBuffer.put(featurePositions).position(0)
     }
 
     /**
      * Turns a [StickerQuad] into four clip-space corners, rotating in square space so the sticker
-     * stays square on a 16:9 frame. Order matches [stickerTexCoords]: TL, TR, BL, BR as a strip.
+     * stays square on a 16:9 frame. Order matches [quadTexCoords]: TL, TR, BL, BR as a strip.
      */
     private fun writeStickerCorners(quad: StickerQuad, frameAspect: Float) {
         val cos = cos(quad.rotationRadians)
@@ -406,10 +399,9 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             val normalizedY = quad.centerY + LensAnchor.fromSquareY(rotatedY, frameAspect)
 
             // Normalized (y down) → clip space (y up).
-            stickerPositions[index++] = normalizedX * 2f - 1f
-            stickerPositions[index++] = 1f - normalizedY * 2f
+            stickerPositionBuffer.put(index++, normalizedX * 2f - 1f)
+            stickerPositionBuffer.put(index++, 1f - normalizedY * 2f)
         }
-        stickerPositionBuffer.put(stickerPositions).position(0)
     }
 
     /**
@@ -427,26 +419,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             "Lens output targets=${output.targets} size=${size.width}x${size.height} " +
                 "inputDet=${determinant2x2(surfaceTextureMatrix)} " +
                 "outputDet=${determinant2x2(outputTextureMatrix)}",
-        )
-    }
-
-    /**
-     * Logs the resolved face and sticker geometry roughly once a second.
-     *
-     * A misplaced lens is arithmetic, not mystery: with the face's normalized centre and the quad
-     * that came out of it, the correction is a subtraction. Throttled because this runs per frame
-     * per output.
-     */
-    private fun logPlacementPeriodically(frame: FaceFrame, quad: StickerQuad) {
-        if (placementLogCounter++ % PLACEMENT_LOG_EVERY != 0L) return
-        Log.i(
-            TAG,
-            "faceFrame origin=(%.3f, %.3f) up=(%.2f, %.2f) unit=%.3f | quad c=(%.3f, %.3f) hw=%.3f rot=%.1f"
-                .format(
-                    frame.originX, frame.originY, frame.upX, frame.upY, frame.unit,
-                    quad.centerX, quad.centerY, quad.halfWidth,
-                    Math.toDegrees(quad.rotationRadians.toDouble()),
-                ),
         )
     }
 
@@ -515,7 +487,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         makeCurrentPbuffer()
 
         cameraProgram = buildProgram(VERTEX_SHADER, CAMERA_FRAGMENT_SHADER)
-        stickerProgram = buildProgram(STICKER_VERTEX_SHADER, STICKER_FRAGMENT_SHADER)
+        stickerProgram = buildProgram(VERTEX_SHADER, STICKER_FRAGMENT_SHADER)
         featureProgram = buildProgram(FEATURE_VERTEX_SHADER, FEATURE_FRAGMENT_SHADER)
     }
 
@@ -634,8 +606,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         const val EGL_RECORDABLE_ANDROID = 0x3142
         const val MATRIX_SIZE = 16
 
-        /** ~30 fps preview, so every 30th frame is about one placement log per second. */
-        const val PLACEMENT_LOG_EVERY = 30L
         const val VERTEX_COUNT = 4
         const val QUAD_COMPONENTS = 8
         const val MAX_ART_PX = 1024
@@ -648,6 +618,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             1f to 1f,
         )
 
+        /** Pass-through vertex stage, shared by the camera and sticker programs. */
         const val VERTEX_SHADER = """
             attribute vec4 aPosition;
             attribute vec2 aTexCoord;
@@ -693,16 +664,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
                 }
                 vec2 sampleCoord = vec2(uv.x, 1.0 - uv.y);
                 gl_FragColor = texture2D(uCamera, (uTexMatrix * vec4(sampleCoord, 0.0, 1.0)).xy);
-            }
-        """
-
-        const val STICKER_VERTEX_SHADER = """
-            attribute vec4 aPosition;
-            attribute vec2 aTexCoord;
-            varying vec2 vTexCoord;
-            void main() {
-                gl_Position = aPosition;
-                vTexCoord = aTexCoord;
             }
         """
 

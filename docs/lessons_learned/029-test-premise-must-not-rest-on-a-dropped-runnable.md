@@ -51,10 +51,53 @@ path, so the test also got more faithful — the fix strengthened coverage rathe
 More generally: if a test's setup comment explains why some framework internal *won't* happen, that
 sentence is the bug. Enforce it with a latch, a constraint, or a substituted collaborator.
 
+## The second shape: `advanceUntilIdle()` across a real-dispatcher hop
+
+> Added 2026-08-09 (PR #118). Same rule, different disguise — and this one is far more common in
+> this repo than the dropped-runnable original.
+
+`OpenLoopViewModel.ensureReversedSegment` deliberately runs the reverse inside
+`withContext(Dispatchers.IO)` on the JVM-test path (it avoids a Main/Unconfined deadlock). That is a
+**real thread pool**, not the `TestDispatcher`. So this test was asserting on a counter that another
+thread had been asked to increment microseconds earlier:
+
+```kotlin
+viewModel.onNextFromTrim()
+advanceUntilIdle()                                        // drains VIRTUAL time only
+assertEquals(1, fakeVideoProcessor.ensureReversedCount)   // expected:<1> but was:<0>
+```
+
+`advanceUntilIdle()` drains the test scheduler. It knows nothing about `Dispatchers.IO` and cannot
+wait for it. The assertion passed only because the pool is normally idle and picks the task up
+instantly — under full-suite CPU contention it does not, and the test fails in a file the change
+never touched. It passed 100% in isolation, so the reflexive `--tests` re-run cleared it every time.
+
+Two things made it invisible for months: the counter was also a **plain `Int` written on a pool
+thread and read from the test thread** (no happens-before edge, so even a *late* increment might not
+have been visible), and every sibling assertion on the same counter happened to sit behind
+`awaitEditorReverseReady()` / `awaitReverseSettled { }` — helpers this repo already built for exactly
+this hazard. Only the one test that deliberately *gates* the reverse open couldn't use the
+"wait until ready" helper, and it reached for a bare `advanceUntilIdle()` instead.
+
+**Pattern:** when the code under test hops to a real dispatcher, wait for the *arrival*, and make the
+observed field `@Volatile` so the wait can see it:
+
+```kotlin
+viewModel.onNextFromTrim()
+awaitReverseSettled { fakeVideoProcessor.ensureReversedCount == 1 }   // enforce the premise
+assertEquals(1, fakeVideoProcessor.ensureReversedCount)
+```
+
 ## Detection checklist
 
 - Grep test configs for no-op executors / swallowed runnables:
   `grep -rn "setExecutor {" app/src/test` — each hit is a premise resting on internals.
+- **Grep for the dispatcher-hop shape:** any `advanceUntilIdle()` / `runCurrent()` immediately
+  followed by an assertion on state that production code mutates behind `withContext(Dispatchers.IO)`
+  (or `Dispatchers.Default`, or a bare `Executor`). `rg -n "Dispatchers.IO" app/src/main` lists the
+  hops; every test asserting past one must wait on a condition, not on virtual time.
+- Any fake field written from a pool thread and read by a test must be `@Volatile` (or atomic) —
+  a spin-wait on a plain `Int` is not guaranteed to terminate.
 - A test that **passes in isolation but fails in the full suite** is order/timing-dependent; re-running
   it alone proves nothing. Reproduce with the whole suite (`--rerun-tasks`, several times) and count.
 - Never "fix" this class of flake by widening the assertion (accepting FAILED) or adding a retry —

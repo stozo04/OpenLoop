@@ -212,7 +212,14 @@ class FakeVideoProcessor : VideoProcessor {
     /** The filter passed to the most recent [renderBoomerang] call, for asserting save wiring (slice 05). */
     var lastRenderFilter: VideoFilter? = null
 
-    /** Counts [ensureReversed] calls so tests can assert the reversed clip is generated once + reused. */
+    /**
+     * Counts [ensureReversed] calls so tests can assert the reversed clip is generated once + reused.
+     *
+     * `@Volatile` because the ViewModel runs the reverse on [Dispatchers.IO] in JVM tests, so this
+     * is written on a pool thread and read from the test thread — a plain `Int` is not guaranteed
+     * to be visible across that boundary, and a test spinning on it could loop forever.
+     */
+    @Volatile
     var ensureReversedCount: Int = 0
 
     /** Stub reversed file returned by [ensureReversed]; a real temp file so File handles behave. */
@@ -1174,7 +1181,9 @@ class OpenLoopViewModelTest {
             enterTrimState()
             fakeVideoProcessor.reverseGate = CompletableDeferred()
             viewModel.onNextFromTrim()
-            advanceUntilIdle()
+            // The reverse runs on Dispatchers.IO, so advanceUntilIdle() cannot see the call land —
+            // wait for it to actually arrive instead of hoping the hop already happened (Lesson 029).
+            awaitReverseSettled { fakeVideoProcessor.ensureReversedCount == 1 }
             assertEquals(1, fakeVideoProcessor.ensureReversedCount)
             assertEquals(EditorLoadingKind.TRIMMING, viewModel.editorTabState.value.previewLoading)
 

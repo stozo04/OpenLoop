@@ -273,7 +273,7 @@ If Sunglasses adds risk late, shipping two lenses is acceptable (owner's second 
 | 2 | Which lens ships first? | **All three, one PR.** Owner, 2026-08-08. This is what forced §5.2's single-effect design. |
 | 3 | Lens switching while recording? | **Yes.** Free under §5.3, guarded by `OpenLoopViewModelTest."changing lenses mid-recording never touches the capture state"`. |
 | 4 | Auto-flip to the front camera? | **No.** The flip button is 54.dp away and back-camera tracking works. One less branch. |
-| 5 | Where does lens art come from? | **Mixed, and one item needs clearing.** Shades and the Big Mouth icon are vector drawables authored in-repo — Apache 2.0 covers every pixel. **Broccoli is a photograph**, because hand-drawn vector florets could not reach the quality bar. ⚠️ **Open:** the shipped `lens_broccoli*.png` came from an owner-supplied file of unknown provenance. A public-domain USDA alternative was prepared and is a drop-in replacement if the licence cannot be confirmed — see §12. |
+| 5 | Where does lens art come from? | **Mixed, and one item needs clearing.** Shades and the Big Mouth icon are vector drawables authored in-repo — Apache 2.0 covers every pixel. **Broccoli is a photograph**, because hand-drawn vector florets could not reach the quality bar. The shipped `lens_broccoli*.webp` came from an owner-supplied file; **the owner confirmed the licence on 2026-08-09** (PR #118). A public-domain USDA alternative stays prepared as a drop-in replacement — see §11.2. |
 | 6 | Does the lens persist across launches? | **No.** `activeLens` is plain ViewModel state — reset on every launch. |
 
 ## 10b. As built — what changed from the plan
@@ -287,12 +287,21 @@ If Sunglasses adds risk late, shipping two lenses is acceptable (owner's second 
 * **The square-space conversion shipped inverted first** and was caught by `LensAnchorTest` before
   it ever reached a device — see Lesson 032.
 * **The tracker's frame is not the renderer's frame.** One line of per-bind logging exposed three
-  independent mismatches that no amount of reading the APIs would have: the analysis stream is
-  upright `720x1280` while the lens output is `1280x960` (a quarter turn *and* a different field of
-  view), and mirroring is not inferable from lens facing. All three are now handled by derivation
-  rather than assumption — `LensAnchor.uprightToBuffer`, `LensAnchor.reframe`, and a determinant
-  comparison on the output transform. Lesson 032 carries the detail; this was the single most
-  valuable thing the emulator produced.
+  independent mismatches that no amount of reading the APIs would have: a quarter turn between the
+  upright analysis image and the lens output, a **field-of-view difference when the two streams are
+  different shapes**, and mirroring that is not inferable from lens facing. All three are handled by
+  derivation rather than assumption — `LensAnchor.uprightToBuffer`, `LensAnchor.reframe`, and a
+  determinant comparison on the output transform. Lesson 032 carries the detail; this was the single
+  most valuable thing the emulator produced.
+
+  **On the field-of-view leg, the fix was to remove the question rather than model it.** Pinning
+  `ImageAnalysis` to `RATIO_4_3_FALLBACK_AUTO_STRATEGY` makes both streams 4:3, so a landmark's
+  normalized position means the same thing in both. Re-measured 2026-08-09 on a Pixel 10 Pro Fold and
+  a Pixel_8 AVD, the pin **held on both** (analysis `640x480`, output `1600x1200` / `1280x960` — all
+  4:3), and `reframe` early-returns. It stays in the tree as the residual-case guard, because CameraX's
+  strategy is a *fallback* one and a device that cannot serve 4:3 analysis will hand back another
+  shape. Earlier notes here quoted a `720x1280` analysis stream; that measurement predates the pin —
+  see the proof doc's correction section.
 * **Phase 0 could not be completed as written.** What *was* verified on the emulator: the
   three-stream bind, the effect rendering to preview, and a full record → clean `Finalize` with a
   lens active. Face-relative placement is covered by `LensAnchorTest` (math) and
@@ -301,7 +310,8 @@ If Sunglasses adds risk late, shipping two lenses is acceptable (owner's second 
 
 ### Getting a face in front of the emulator camera
 
-Researched against Google's docs. The mechanism exists but is **not fully scriptable**:
+Researched against Google's docs. **Fully scriptable — no manual step** (an earlier version of this
+section said otherwise; corrected 2026-08-09):
 
 * `adb emu virtualscene-image <wall|table> <png|jpg>` sets a custom image at runtime (the
   command-line equivalent of Extended Controls → Camera → *Virtual scene images* → Add image).
@@ -309,10 +319,13 @@ Researched against Google's docs. The mechanism exists but is **not fully script
   camera pose** ([ARCore emulator guide](https://developers.google.com/ar/develop/java/emulator)).
   The default view is the bookshelf-and-TV wall; the checkerboard TV is scene geometry, not a
   poster.
-* Moving the camera is **host-window input, not adb**: hold `Shift` + `W/A/S/D/Q/E`, `Shift`+mouse
-  to look.
-* `adb emu automation record` / `play` replays device-state macros — so navigating to the poster
-  **once** by hand and recording it makes every later run automatic.
+* Moving the camera by hand is host-window input, not adb (`Shift` + `W/A/S/D/Q/E`) — **but you do
+  not have to.** The emulator ships a stock macro that walks exactly this route:
+  `adb emu automation play "<sdk>/emulator/resources/macros/Walk_to_image_room"`. It needs the
+  **full path**; a bare name returns `KO: Could not open file`. Recording your own macro (what the
+  first run here did) is unnecessary.
+* Use the repo's own `app/src/androidTest/assets/face_fixture.jpg` (public domain) as the poster, so
+  the run reproduces from a clean checkout with no personal image.
 * Fallback: `-camera-back webcam0` (a host webcam is present on this machine). Captures the owner's
   real camera, so it needs consent.
 
@@ -345,7 +358,11 @@ Follows `docs/TEST_COVERAGE.md`.
 
 ### 11.1 Manual QA — must be done on hardware
 
-Everything below is unverifiable on an emulator (§10b) and is the honest residual risk:
+Everything below needs a **real face on real hardware** and is the honest residual risk. The
+2026-08-09 re-verification run closed the emulator-reachable parts of items 5–7 (bulge on the mouth,
+record-with-lens → Trim with the effect baked in, and a mid-recording lens switch covered by
+`OpenLoopViewModelTest`); it could not touch 0–4 or 8, because the hardware run had nobody in front
+of the camera and the emulator shows a static poster. See `docs/e2e/2026-08-08-camera-lenses-proof.md`.
 
 0. **Steadiness first.** Does the lens sit still on a still face, and does it flicker off when the
    detector blips or the subject moves fast? Nothing about this is observable without a real face,
@@ -365,24 +382,39 @@ Everything below is unverifiable on an emulator (§10b) and is the honest residu
 
 ---
 
-## 11.2 ⚠️ Asset licensing — must be settled before the PR
+## 11.2 Asset licensing — settled
 
-`app/src/main/res/drawable-nodpi/lens_broccoli.png` and `lens_broccoli_art.png` are derived from an
-owner-supplied photograph whose licence is **not established**. OpenLoop is public under Apache 2.0,
-so a stock photo without redistribution rights cannot ship.
+`app/src/main/res/drawable-nodpi/lens_broccoli.webp` and `lens_broccoli_art.webp` are derived from an
+owner-supplied photograph. OpenLoop is public under Apache 2.0, so a stock photo without
+redistribution rights cannot ship — this was raised as a merge blocker on PR #118 and **resolved by
+the owner on 2026-08-09, who confirmed the source licence permits this use**. The prepared
+public-domain fallback below stays on record in case that ever needs revisiting.
 
-Two clean resolutions:
+> If the source licence carries an attribution requirement, add the credit line here and to the
+> repo's attribution notes — the confirmation covered permission to use, not a specific credit
+> string.
 
-1. **Confirm the source licence** is CC0 / public domain / otherwise redistributable, and record it
-   here plus in the repo's attribution notes.
-2. **Swap in the public-domain fallback.** [`File:USDA 2026 Broccoli.png`](https://commons.wikimedia.org/wiki/File:USDA_2026_Broccoli.png)
-   (Wikimedia Commons, public domain) was already processed through the same pipeline and works —
-   slightly more illustrative, unambiguously free. The pipeline is: key the white background to
-   alpha, autocrop, downscale; the art is the solid cut-out, since the character render composites
-   the eyes and mouth over it.
+Everything else in the feature is licence-clean by construction: Shades and the Big Mouth icon are
+vector drawables authored in-repo, ML Kit is Apache 2.0, and the instrumented-test face fixture is
+public domain.
+
+**Prepared fallback, unused.** [`File:USDA 2026 Broccoli.png`](https://commons.wikimedia.org/wiki/File:USDA_2026_Broccoli.png)
+(Wikimedia Commons, public domain) was already processed through the same pipeline and works —
+slightly more illustrative, unambiguously free. The pipeline is: key the white background to alpha,
+autocrop, downscale; the art is the solid cut-out, since the character render composites the eyes
+and mouth over it.
 
 An earlier candidate was rejected outright: an Unsplash+ image, which is both watermarked and on a
 paid tier that does not permit this use.
+
+### Encoding
+
+Both files are **WebP**, not PNG. They are photographic, and a lossless format on photographic
+content cost ~1.1 MB — the largest asset in the app. Re-encoded at quality 90 they are **170 KB**
+combined, and libwebp stores the alpha channel losslessly even in lossy mode, so the cut-out edges
+that make the character read are bit-identical to the PNG (verified: max alpha delta 0 on both
+files). Android has decoded WebP since API 14 and lossy-with-alpha since 18, well under `minSdk 26`.
+Resource names are extension-independent, so `R.drawable.lens_broccoli*` is unchanged.
 
 ## 12. References
 

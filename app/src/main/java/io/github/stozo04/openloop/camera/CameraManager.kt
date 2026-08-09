@@ -54,7 +54,6 @@ class CameraManager(private val context: Context) {
      */
     private val lensProcessor = LensSurfaceProcessor(context)
     private val faceTracker = FaceTracker(lensProcessor::setFace)
-    private var imageAnalysis: ImageAnalysis? = null
     private var zoomStateObserver: Observer<ZoomState>? = null
     private var observedZoomState: LiveData<ZoomState>? = null
     /** Per-pinch anchor ratio — avoids stale [ZoomState] reads during a fast scale stream. */
@@ -116,7 +115,6 @@ class CameraManager(private val context: Context) {
                     )
                     .build()
                     .also { it.setAnalyzer(cameraExecutor, faceTracker) }
-                imageAnalysis = analysis
 
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
@@ -196,7 +194,6 @@ class CameraManager(private val context: Context) {
         } catch (exc: IllegalArgumentException) {
             Log.w(TAG, "Face analysis not supported alongside preview + video; lenses disabled", exc)
             analysis.clearAnalyzer()
-            imageAnalysis = null
             lensProcessor.setFace(null)
             provider.bindToLifecycle(
                 lifecycleOwner,
@@ -415,9 +412,9 @@ class CameraManager(private val context: Context) {
         }
         try {
             detachZoomObserver()
+            // unbindAll() stops the analysis stream; the ImageAnalysis instance is rebuilt on the
+            // next startCamera(), and faceTracker outlives both, so there is nothing to clear.
             cameraProvider?.unbindAll()
-            imageAnalysis?.clearAnalyzer()
-            imageAnalysis = null
             videoCapture = null
             camera = null
         } catch (exc: Exception) {

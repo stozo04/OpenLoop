@@ -355,7 +355,7 @@ class LensAnchorTest {
         val frame = frameOf(snapshot)
         val spec = WarpSpec(radiusInUnits = 1.2f, strength = 0.7f)
 
-        val circle = LensAnchor.warp(snapshot, frame, spec, frameAspect)
+        val circle = LensAnchor.warp(snapshot, frame, spec)
 
         assertEquals(0.5f, circle.centerX, tolerance)
         assertEquals(0.60f, circle.centerY, tolerance)

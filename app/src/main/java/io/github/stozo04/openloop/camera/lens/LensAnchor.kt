@@ -82,16 +82,17 @@ data class FaceFrame(
  * Where a lens sits on the face and how big it is — expressed entirely in face units, which is why
  * one set of numbers works for every human face at every distance and angle.
  *
+ * Every lens so far sits on the face's centre line, so there is no sideways term — add one when a
+ * lens actually needs to be off-centre.
+ *
  * @param widthInUnits sticker width as a multiple of the eye-to-mouth distance.
  * @param artAspect the art's own height / width, so it never renders squashed.
  * @param upInUnits how far above the eye line the sticker's centre sits (negative = below).
- * @param rightInUnits sideways shift; 0 for anything centred on the face.
  */
 data class LensPlacement(
     val widthInUnits: Float,
     val artAspect: Float,
     val upInUnits: Float = 0f,
-    val rightInUnits: Float = 0f,
 )
 
 /**
@@ -226,12 +227,10 @@ object LensAnchor {
         placement: LensPlacement,
         frameAspect: Float,
     ): StickerQuad {
-        val alongRight = placement.rightInUnits * frame.unit
         val alongUp = placement.upInUnits * frame.unit
 
-        val centerSquareX = frame.originX + frame.rightX * alongRight + frame.upX * alongUp
-        val centerSquareY = frame.originY.toSquare(frameAspect) +
-            frame.rightY * alongRight + frame.upY * alongUp
+        val centerSquareX = frame.originX + frame.upX * alongUp
+        val centerSquareY = toSquareY(frame.originY, frameAspect) + frame.upY * alongUp
 
         val halfWidth = placement.widthInUnits * frame.unit / 2f
 
@@ -358,12 +357,17 @@ object LensAnchor {
     /** Height / width for every feature cut-out — eyes and mouths are both wider than they are tall. */
     private const val FEATURE_ASPECT = 0.62f
 
-    /** Resolves [spec] onto the mouth, scaled by the same face unit every lens uses. */
+    /**
+     * Resolves [spec] onto the mouth, scaled by the same face unit every lens uses.
+     *
+     * No aspect argument: the centre is normalized and the radius is already in square space
+     * (it comes from [FaceFrame.unit]), so the shader does the one conversion — see
+     * `LensSurfaceProcessor.CAMERA_FRAGMENT_SHADER`.
+     */
     fun warp(
         face: FaceSnapshot,
         frame: FaceFrame,
         spec: WarpSpec,
-        frameAspect: Float,
     ): WarpCircle = WarpCircle(
         centerX = (face.mouthLeftX + face.mouthRightX) / 2f,
         centerY = (face.mouthLeftY + face.mouthRightY) / 2f,
@@ -433,6 +437,4 @@ object LensAnchor {
             sourceAspect = targetAspect,
         )
     }
-
-    private fun Float.toSquare(frameAspect: Float): Float = toSquareY(this, frameAspect)
 }
