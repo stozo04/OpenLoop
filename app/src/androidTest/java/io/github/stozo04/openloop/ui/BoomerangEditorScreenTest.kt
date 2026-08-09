@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stozo04.openloop.media.BoomerangMode
@@ -244,9 +245,16 @@ class BoomerangEditorScreenTest {
     @Test
     fun looksTabActive_showsAllFilterChips_notSlider() {
         setContent(activeTab = EditorTab.LOOKS)
-        // All five looks present; the speed slider is gone.
+        // Every look is present and reachable; the speed slider is gone.
+        //
+        // performScrollTo() is required, not decoration: the strip is a `horizontalScroll` Row and
+        // only ~5 of the 13 chips fit on a phone, so a bare assertIsDisplayed() passes or fails
+        // purely on screen width. Scrolling asserts what the test actually means — every look can
+        // be reached — instead of silently encoding one device's viewport.
         VideoFilter.entries.forEach { look ->
-            composeTestRule.onNodeWithTag("look_chip_${look.name}").assertIsDisplayed()
+            composeTestRule.onNodeWithTag("look_chip_${look.name}")
+                .performScrollTo()
+                .assertIsDisplayed()
         }
         composeTestRule.onNodeWithTag("speed_slider").assertDoesNotExist()
     }

@@ -3,9 +3,16 @@ package io.github.stozo04.openloop.camera
 import android.content.Context
 import android.util.Log
 import androidx.camera.core.Camera
+import androidx.camera.core.CameraEffect
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.SurfaceProcessor
+import androidx.camera.core.UseCase
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ZoomState
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
@@ -19,8 +26,12 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
+import io.github.stozo04.openloop.camera.lens.FaceTracker
+import io.github.stozo04.openloop.camera.lens.Lens
+import io.github.stozo04.openloop.camera.lens.LensSurfaceProcessor
 import java.io.File
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +44,17 @@ class CameraManager(private val context: Context) {
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
     private var camera: Camera? = null
+
+    /**
+     * The lens renderer. Created once and attached on EVERY bind, whether or not a lens is
+     * selected — see [LensSurfaceProcessor]'s header. Attaching or removing a [CameraEffect]
+     * requires a rebind, and a rebind during capture finalizes the recording with
+     * `ERROR_SOURCE_INACTIVE` (Lesson 012), so "no lens" is an identity pass-through rather than
+     * an absent effect.
+     */
+    private val lensProcessor = LensSurfaceProcessor(context)
+    private val faceTracker = FaceTracker(lensProcessor::setFace)
+    private var imageAnalysis: ImageAnalysis? = null
     private var zoomStateObserver: Observer<ZoomState>? = null
     private var observedZoomState: LiveData<ZoomState>? = null
     /** Per-pinch anchor ratio — avoids stale [ZoomState] reads during a fast scale stream. */
@@ -74,13 +96,35 @@ class CameraManager(private val context: Context) {
                     .build()
                 videoCapture = VideoCapture.withOutput(recorder)
 
+                // Face tracking for lenses. Pinned to 4:3 — the sensor's native shape, and the
+                // shape CameraX picks for the shared effect stream (measured: 1280x960). Two
+                // streams of the SAME aspect cover the same sensor rectangle, so a landmark's
+                // normalized position means the same thing in both and no correction is needed.
+                //
+                // A 16:9 analysis stream was tried first and put every lens visibly off sideways:
+                // 16:9 and 4:3 see different parts of the sensor, and modelling that difference is
+                // guesswork about how the device derives one from the other. Matching the shapes
+                // removes the question instead of answering it.
+                val analysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setResolutionSelector(
+                        ResolutionSelector.Builder()
+                            .setAspectRatioStrategy(
+                                AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+                            )
+                            .build()
+                    )
+                    .build()
+                    .also { it.setAnalyzer(cameraExecutor, faceTracker) }
+                imageAnalysis = analysis
+
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
-                camera = cameraProvider?.bindToLifecycle(
-                    lifecycleOwner,
-                    cameraSelector,
-                    preview,
-                    videoCapture
+                camera = bindWithLensEffect(
+                    lifecycleOwner = lifecycleOwner,
+                    cameraSelector = cameraSelector,
+                    preview = preview,
+                    analysis = analysis,
                 )
                 attachZoomObserver()
                 Log.i(
@@ -126,6 +170,56 @@ class CameraManager(private val context: Context) {
     fun stopRecording() {
         activeRecording?.stop()
         activeRecording = null
+    }
+
+    /**
+     * Binds preview + video + face analysis with the lens effect attached.
+     *
+     * `Preview + VideoCapture + ImageAnalysis` is only *guaranteed* on `LEVEL_3` hardware. CameraX
+     * 1.5+ normally absorbs that with a shared stream, but on devices where the combination still
+     * fails we drop face tracking rather than the camera: lenses go inert, everything else works.
+     * A black viewfinder is not an acceptable trade for a novelty feature.
+     */
+    private fun bindWithLensEffect(
+        lifecycleOwner: LifecycleOwner,
+        cameraSelector: CameraSelector,
+        preview: Preview,
+        analysis: ImageAnalysis,
+    ): Camera? {
+        val provider = cameraProvider ?: return null
+        return try {
+            provider.bindToLifecycle(
+                lifecycleOwner,
+                cameraSelector,
+                lensUseCaseGroup(preview, analysis),
+            )
+        } catch (exc: IllegalArgumentException) {
+            Log.w(TAG, "Face analysis not supported alongside preview + video; lenses disabled", exc)
+            analysis.clearAnalyzer()
+            imageAnalysis = null
+            lensProcessor.setFace(null)
+            provider.bindToLifecycle(
+                lifecycleOwner,
+                cameraSelector,
+                lensUseCaseGroup(preview, analysis = null),
+            )
+        }
+    }
+
+    private fun lensUseCaseGroup(preview: Preview, analysis: ImageAnalysis?): UseCaseGroup =
+        UseCaseGroup.Builder().apply {
+            addUseCase(preview)
+            videoCapture?.let { addUseCase(it as UseCase) }
+            analysis?.let { addUseCase(it) }
+            addEffect(LensCameraEffect(lensProcessor.glExecutor, lensProcessor))
+        }.build()
+
+    /**
+     * Selects the active lens (or `null` to clear it). Deliberately a field write on the always
+     * attached effect, not a rebind — so this is safe to call mid-recording.
+     */
+    fun setLens(lens: Lens?) {
+        lensProcessor.setLens(lens)
     }
 
     /** Whether a [Camera] handle is currently bound — safe to gate pinch gestures on this alone. */
@@ -322,6 +416,8 @@ class CameraManager(private val context: Context) {
         try {
             detachZoomObserver()
             cameraProvider?.unbindAll()
+            imageAnalysis?.clearAnalyzer()
+            imageAnalysis = null
             videoCapture = null
             camera = null
         } catch (exc: Exception) {
@@ -331,6 +427,10 @@ class CameraManager(private val context: Context) {
 
     fun shutdown() {
         releaseCamera()
+        // The lens renderer outlives individual binds (it must — see bindWithLensEffect), so it is
+        // torn down here rather than in releaseCamera().
+        faceTracker.close()
+        lensProcessor.release()
         cameraExecutor.shutdown()
     }
 
@@ -338,3 +438,18 @@ class CameraManager(private val context: Context) {
         private const val TAG = "OpenLoopCameraManager"
     }
 }
+
+/**
+ * The one effect OpenLoop attaches. Targets preview *and* video capture so what the user sees is
+ * exactly what lands in the `.mp4` — the lens is baked into the recording and flows untouched
+ * through trim / reverse / speed / Looks downstream (PRD-camera-lenses §5.4).
+ */
+private class LensCameraEffect(
+    executor: Executor,
+    processor: SurfaceProcessor,
+) : CameraEffect(
+    PREVIEW or VIDEO_CAPTURE,
+    executor,
+    processor,
+    { throwable -> Log.e("OpenLoopLens", "Lens effect failed", throwable) },
+)

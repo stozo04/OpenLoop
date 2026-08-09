@@ -266,6 +266,9 @@ dependencies {
     implementation(libs.androidx.camerax.video)
     implementation(libs.androidx.camerax.view)
 
+    // ML Kit face detection — camera lenses (docs/PRD-camera-lenses.md)
+    implementation(libs.mlkit.face.detection)
+
     // WorkManager — long-running Loopifying export survives backgrounding (Issue #40)
     implementation(libs.androidx.work.runtime.ktx)
 

@@ -1,0 +1,10 @@
+<!-- Clear-and-close glyph for the lens tray (docs/PRD-camera-lenses.md §6.2). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M19.1,6.3 L17.7,4.9 L12,10.6 L6.3,4.9 L4.9,6.3 L10.6,12 L4.9,17.7 L6.3,19.1 L12,13.4 L17.7,19.1 L19.1,17.7 L13.4,12 Z" />
+</vector>

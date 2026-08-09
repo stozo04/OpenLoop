@@ -8,7 +8,7 @@ Not every lesson costs the same to relearn, so they are tiered:
 
 | Tier | Which | How to read |
 |---|---|---|
-| **Core — always read in full** | **008, 011–030** | Hard-won, device- and repo-specific. Samsung/Exynos encoder ordering, green corruption from a mismatched encoder Surface, zero-sample muxes that exit "cleanly", FGS constants added in 35 not 34, the `mockk<File>` NPE. **None of this is in any model's training data and each one cost a real bug.** |
+| **Core — always read in full** | **008, 011–032** | Hard-won, device- and repo-specific. Samsung/Exynos encoder ordering, green corruption from a mismatched encoder Surface, zero-sample muxes that exit "cleanly", FGS constants added in 35 not 34, the `mockk<File>` NPE. **None of this is in any model's training data and each one cost a real bug.** |
 | **Baseline — skim the index rows** | 001–007, 009, 010 | Generic Android/Compose hygiene now largely held by Android Lint, the Tier 3 CI checks, and IDE inspections. Open the file only when touching that exact area. Note 005 is historical — it argues for API 35; the app already targets 36. |
 
 Skimming the baseline rows instead of reading all ten files saves ~700 lines per session with no
@@ -57,6 +57,8 @@ Each lesson follows the same shape:
 | 028 | [`ACTION_SEND` FileProvider shares must set `ClipData` so the system chooser can preview](./028-share-intent-clipdata-for-chooser.md) | RTL SM-G985F sharesheet |
 | 029 | [A test's premise must be enforced, not hoped for: park the worker, don't drop its runnable](./029-test-premise-must-not-rest-on-a-dropped-runnable.md) | Full-suite flake (PR #106) |
 | 030 | [`coerceIn` with runtime-derived bounds throws on short clips; clamp the bound and JVM-test the math](./030-trim-coercein-range-guard-short-clip.md) | Crashlytics 7169b499 (Issue #95) |
+| 031 | [A `CameraEffect` is attached once per bind and switched by uniform, never re-attached (a rebind kills the recording)](./031-camera-effect-attach-once-switch-by-uniform.md) | Camera lenses |
+| 032 | [Overlay geometry: the tracker's frame is not the renderer's frame (orientation, FOV, mirroring, square space)](./032-normalized-overlay-math-needs-square-space.md) | Camera lenses |
 
 ## Adding a new lesson
 

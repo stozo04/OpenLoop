@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.camera.video.Recording
 import androidx.camera.video.VideoRecordEvent
 import io.github.stozo04.openloop.camera.CameraManager
+import io.github.stozo04.openloop.camera.lens.Lens
 import io.github.stozo04.openloop.data.RecordedVideo
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.data.ScratchCapture
@@ -2001,5 +2002,88 @@ class OpenLoopViewModelTest {
             advanceUntilIdle()
 
             assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
+        }
+
+    // ── Camera lenses (docs/PRD-camera-lenses.md) ──
+
+    @Test
+    fun `no lens is active on a fresh launch`() {
+        // Deliberately not persisted: nobody should open the app to an unexplained broccoli.
+        assertNull(viewModel.activeLens.value)
+        assertFalse(viewModel.lensTrayOpen.value)
+    }
+
+    @Test
+    fun `the lens tray opens and closes without disturbing the selection`() {
+        viewModel.selectLens(Lens.Broccoli)
+
+        viewModel.setLensTrayOpen(true)
+        assertTrue(viewModel.lensTrayOpen.value)
+        assertEquals(Lens.Broccoli, viewModel.activeLens.value)
+
+        viewModel.setLensTrayOpen(false)
+        assertFalse(viewModel.lensTrayOpen.value)
+        assertEquals(
+            "closing the tray must not clear the worn lens",
+            Lens.Broccoli,
+            viewModel.activeLens.value,
+        )
+    }
+
+    @Test
+    fun `selecting a different lens swaps it`() {
+        viewModel.selectLens(Lens.Broccoli)
+        viewModel.selectLens(Lens.BigMouth)
+
+        assertEquals(Lens.BigMouth, viewModel.activeLens.value)
+    }
+
+    @Test
+    fun `re-selecting the active lens takes it off`() {
+        viewModel.selectLens(Lens.Sunglasses)
+        viewModel.selectLens(Lens.Sunglasses)
+
+        assertNull("tapping the worn lens again must clear it", viewModel.activeLens.value)
+    }
+
+    @Test
+    fun `selecting null clears the lens`() {
+        viewModel.selectLens(Lens.Broccoli)
+        viewModel.selectLens(null)
+
+        assertNull(viewModel.activeLens.value)
+    }
+
+    @Test
+    fun `clearing an already-clear lens stays clear`() {
+        // The toggle must not resurrect a lens from null (`null == null` would flip it back on if
+        // the guard were written as a bare equality check).
+        viewModel.selectLens(null)
+
+        assertNull(viewModel.activeLens.value)
+    }
+
+    @Test
+    fun `changing lenses mid-recording never touches the capture state`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            val slot = slot<(VideoRecordEvent) -> Unit>()
+            every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
+
+            viewModel.startBurstCapture(cameraManager)
+            assertTrue(viewModel.uiState.value is OpenLoopUiState.Recording)
+
+            viewModel.setLensTrayOpen(true)
+            viewModel.selectLens(Lens.BigMouth)
+            viewModel.selectLens(Lens.Broccoli)
+            viewModel.selectLens(null)
+            runCurrent()
+
+            // Lens changes are uniform swaps on an always-attached effect, never a rebind — the
+            // recording must survive all of them (PRD-camera-lenses §5.3 / Lesson 012).
+            assertTrue(
+                "lens changes must not interrupt an in-flight recording, was ${viewModel.uiState.value}",
+                viewModel.uiState.value is OpenLoopUiState.Recording,
+            )
         }
 }

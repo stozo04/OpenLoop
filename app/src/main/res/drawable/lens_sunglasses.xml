@@ -1,0 +1,41 @@
+<!--
+  Shades lens art (docs/PRD-camera-lenses.md §5.2).
+
+  The 400x144 viewport is a 0.36 aspect and MUST stay in sync with Lens.Sunglasses's artAspect.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="72dp"
+    android:viewportWidth="400"
+    android:viewportHeight="144">
+
+  <!-- Arms, drawn first so the frames sit over them. -->
+  <path
+      android:fillColor="#FF14161C"
+      android:pathData="M0,58 L20,58 L20,80 L0,80 Z
+                        M380,58 L400,58 L400,80 L380,80 Z" />
+
+  <!-- Bridge. -->
+  <path
+      android:fillColor="#FF14161C"
+      android:pathData="M184,50 L216,50 L216,72 L184,72 Z" />
+
+  <!-- Frames. -->
+  <path
+      android:fillColor="#FF14161C"
+      android:pathData="M44,18 L158,18 A34,34 0 0 1 192,52 L192,90 A34,34 0 0 1 158,124 L44,124 A34,34 0 0 1 10,90 L10,52 A34,34 0 0 1 44,18 Z
+                        M242,18 L356,18 A34,34 0 0 1 390,52 L390,90 A34,34 0 0 1 356,124 L242,124 A34,34 0 0 1 208,90 L208,52 A34,34 0 0 1 242,18 Z" />
+
+  <!-- Glass. -->
+  <path
+      android:fillColor="#FF23283A"
+      android:pathData="M50,30 L152,30 A26,26 0 0 1 178,56 L178,86 A26,26 0 0 1 152,112 L50,112 A26,26 0 0 1 24,86 L24,56 A26,26 0 0 1 50,30 Z
+                        M248,30 L350,30 A26,26 0 0 1 376,56 L376,86 A26,26 0 0 1 350,112 L248,112 A26,26 0 0 1 222,86 L222,56 A26,26 0 0 1 248,30 Z" />
+
+  <!-- Gloss streaks, kept fully inside the glass so they never poke past the frame. -->
+  <path
+      android:fillAlpha="0.28"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M52,104 L96,42 L118,42 L74,104 Z
+                        M250,104 L294,42 L316,42 L272,104 Z" />
+</vector>

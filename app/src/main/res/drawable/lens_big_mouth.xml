@@ -1,0 +1,31 @@
+<!--
+  Big Mouth carousel icon (docs/PRD-camera-lenses.md §5.2).
+
+  Icon ONLY — Big Mouth is a shader warp with no composited art, so nothing here is ever drawn
+  onto a camera frame. Square, because the carousel clips thumbnails to a circle.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="400"
+    android:viewportHeight="400">
+
+  <path
+      android:fillColor="#FFF6C9A6"
+      android:pathData="M0,200 a200,200 0 1,1 400,0 a200,200 0 1,1 -400,0 Z" />
+
+  <!-- Mouth cavity. -->
+  <path
+      android:fillColor="#FF8E1B2E"
+      android:pathData="M68,210 a132,108 0 1,1 264,0 a132,108 0 1,1 -264,0 Z" />
+
+  <!-- Upper teeth: a crescent hugging the inside of the cavity's top edge. -->
+  <path
+      android:fillColor="#FFFDF6EF"
+      android:pathData="M68,210 C68,140 128,102 200,102 C272,102 332,140 332,210 C300,168 250,152 200,152 C150,152 100,168 68,210 Z" />
+
+  <!-- Tongue. -->
+  <path
+      android:fillColor="#FFE2596B"
+      android:pathData="M122,268 a78,46 0 1,1 156,0 a78,46 0 1,1 -156,0 Z" />
+</vector>

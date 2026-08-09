@@ -50,3 +50,9 @@ val TextSecondary = Color(0xFFADADB8)     // onSurfaceVariant — captions, seco
 val OverlayWhite = Color(0x33FFFFFF)         // glassy control fill (was GlassWhite)
 val OverlayWhiteBorder = Color(0x4DFFFFFF)   // glassy control border (was GlassWhiteBorder)
 val OverlayScrim = Color(0xCC121216)         // chip/scrim behind labels over video (was DeepCharcoal)
+
+// Backdrop for artwork thumbnails drawn over video (the lens carousel). Deliberately LIGHT, not the
+// near-black [OverlayScrim] the other overlays use: lens art is arbitrary, and dark art — the
+// Shades lens is nearly black — vanishes against a dark chip. A light neutral is the only backdrop
+// that keeps both dark and bright artwork legible, so this is about the content, not the chrome.
+val OverlayArtBackdrop = Color(0xF0ECECF2)
