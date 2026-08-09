@@ -74,7 +74,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -85,7 +84,6 @@ private val RULER_HEIGHT = 30.dp
 private val SELECTION_RADIUS = 10.dp
 private val FILMSTRIP_FRAME_MIN = 6
 private val FILMSTRIP_FRAME_MAX = 14
-private val RULER_LABEL_INTERVAL_MS = 5_000L
 private val DIM_OUTSIDE_SELECTION = Color.Black.copy(alpha = 0.62f)
 
 private enum class TrimDragTarget { NONE, START, END }
@@ -168,9 +166,11 @@ private fun TimelineRuler(
     val majorTickColor = TextSecondary.copy(alpha = 0.85f)
     val labelTextSizePx = with(density) { 11.sp.toPx() }
 
-    val lastLabelMs = ((ceil(durationMs / RULER_LABEL_INTERVAL_MS.toDouble()) * RULER_LABEL_INTERVAL_MS)
-        .toLong())
-        .coerceAtLeast(RULER_LABEL_INTERVAL_MS)
+    // Scale must match the filmstrip domain exactly — never pad up to a fixed 5 s bucket.
+    val safeDurationMs = durationMs.coerceAtLeast(1L)
+    val majorIntervalMs = trimRulerMajorIntervalMs(safeDurationMs)
+    val minorIntervalMs = trimRulerMinorIntervalMs(majorIntervalMs)
+    val labelTimesMs = trimRulerLabelTimesMs(safeDurationMs)
 
     Canvas(modifier = modifier) {
         val width = size.width
@@ -179,35 +179,44 @@ private fun TimelineRuler(
         val tickTop = height * 0.55f
         val tickBottom = height * 0.95f
 
-        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        // Left/right edge labels pin to the rail so "00:00" / end don't clip off-canvas.
+        val centerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = labelColor.toArgb()
             textSize = labelTextSizePx
             textAlign = Paint.Align.CENTER
         }
+        val leftPaint = Paint(centerPaint).apply { textAlign = Paint.Align.LEFT }
+        val rightPaint = Paint(centerPaint).apply { textAlign = Paint.Align.RIGHT }
 
-        val labelCount = (lastLabelMs / RULER_LABEL_INTERVAL_MS).toInt() + 1
-        for (i in 0 until labelCount) {
-            val timeMs = i * RULER_LABEL_INTERVAL_MS
-            val fraction = (timeMs.toFloat() / lastLabelMs).coerceIn(0f, 1f)
-            val x = fraction * width
+        fun xFor(timeMs: Long): Float =
+            (timeMs.toFloat() / safeDurationMs).coerceIn(0f, 1f) * width
 
+        for (timeMs in labelTimesMs) {
+            val x = xFor(timeMs)
             drawLine(
                 color = majorTickColor,
                 start = Offset(x, tickTop),
                 end = Offset(x, tickBottom),
                 strokeWidth = 2f,
             )
-            val label = formatTrimClock(timeMs).substringBefore('.')
-            drawContext.canvas.nativeCanvas.drawText(label, x, labelY, textPaint)
+            val paint = when (timeMs) {
+                0L -> leftPaint
+                safeDurationMs -> rightPaint
+                else -> centerPaint
+            }
+            val label = if (timeMs == safeDurationMs) {
+                formatTrimRulerEndLabel(timeMs)
+            } else {
+                formatTrimRulerLabel(timeMs)
+            }
+            drawContext.canvas.nativeCanvas.drawText(label, x, labelY, paint)
         }
 
-        val minorStepMs = 500L
-        val minorCount = (lastLabelMs / minorStepMs).toInt()
+        val minorCount = (safeDurationMs / minorIntervalMs).toInt()
         for (i in 0..minorCount) {
-            val timeMs = i * minorStepMs
-            if (timeMs % RULER_LABEL_INTERVAL_MS == 0L) continue
-            val fraction = (timeMs.toFloat() / lastLabelMs).coerceIn(0f, 1f)
-            val x = fraction * width
+            val timeMs = i * minorIntervalMs
+            if (labelTimesMs.any { abs(it - timeMs) < minorIntervalMs / 2 }) continue
+            val x = xFor(timeMs)
             drawLine(
                 color = minorTickColor,
                 start = Offset(x, tickTop + (tickBottom - tickTop) * 0.4f),
