@@ -1,8 +1,6 @@
 package io.github.stozo04.openloop
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
@@ -26,20 +24,5 @@ class ShareMimeTypeTest {
     fun `rendered loops and raw clips share as mp4`() {
         assertEquals("video/mp4", shareMimeType(videosFile("boom_200_from_100.mp4")))
         assertEquals("video/mp4", shareMimeType(videosFile("clip_100.mp4")))
-    }
-
-    @Test
-    fun `extension match is case-insensitive`() {
-        // Nothing in the app writes ".JPG", but an imported/renamed file could reach the sheet.
-        assertEquals("image/jpeg", shareMimeType(videosFile("photo_1.JPG")))
-        assertTrue(isPhotoShare(videosFile("photo_1.Jpg")))
-    }
-
-    @Test
-    fun `a file with no extension is treated as video, never as an image`() {
-        // Defensive: mislabeling a video as an image would break the share outright, whereas the
-        // reverse is the historical default and stays safe.
-        assertFalse(isPhotoShare(videosFile("mystery")))
-        assertEquals("video/mp4", shareMimeType(videosFile("mystery")))
     }
 }

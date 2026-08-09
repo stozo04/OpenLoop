@@ -1,13 +1,11 @@
 <resources>
     <string name="app_name">OpenLoop</string>
 
-    <!-- Share sheet (slice 06) -->
-    <string name="share_chooser_title">Share boomerang</string>
-    <string name="share_subject">OpenLoop boomerang</string>
+    <!-- Share sheet (slice 06). Kind-neutral: the same sheet shares a loop and a photo. -->
+    <string name="share_chooser_title">Share</string>
+    <string name="share_subject">OpenLoop</string>
 
     <!-- Photo capture mode (docs/PRD-photo-capture.md) -->
-    <string name="share_chooser_title_photo">Share photo</string>
-    <string name="share_subject_photo">OpenLoop photo</string>
     <string name="camera_switch_to_photo">Switch to photo mode</string>
     <string name="camera_switch_to_video">Switch to video mode</string>
     <string name="camera_take_photo">Take photo</string>

@@ -90,7 +90,7 @@ Not persisted — the app always opens in Video mode.
 | Element | Video mode | Photo mode |
 |---|---|---|
 | Top-right button | `Icons.Outlined.PhotoCamera`, "Switch to photo mode" | `Icons.Outlined.Videocam`, "Switch to video mode" |
-| Shutter interior | neon `shutterGradient()` | solid white |
+| Shutter interior | neon `shutterGradient()` | neon `shutterGradient()` — owner's call after hardware testing: the lime look is the app's signature and stays in both modes; mode is signalled by the toggle icon and the a11y label |
 | Shutter a11y label | "Start recording" / "Stop recording" | "Take photo" |
 | Progress ring | on while recording | never |
 | Flip camera (D3) | present | **present — unchanged** |
@@ -147,7 +147,7 @@ Context-free seam `isLowMemoryNow: () -> Boolean` already uses.
 **Deliberate deviation from the video path:** a MediaStore failure is logged and swallowed rather
 than failing the capture. The in-app save is the one that matters; losing the public copy should not
 cost the user their photo. (The render worker treats it as fatal because a loop that never reaches
-Photos is a broken promise of the "Loop saved to Photos" snackbar.)
+Photos is a broken promise of the "Saved to Photos" snackbar.)
 
 `WRITE_EXTERNAL_STORAGE` on API ≤ 28 is already covered by `requiredCapturePermissions(sdkInt)`.
 

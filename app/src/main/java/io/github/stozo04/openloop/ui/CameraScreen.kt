@@ -32,7 +32,6 @@ import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import io.github.stozo04.openloop.R
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -74,6 +73,7 @@ import io.github.stozo04.openloop.camera.PinchZoomCallbacks
 import io.github.stozo04.openloop.camera.PinchZoomLayout
 import io.github.stozo04.openloop.camera.formatZoomRatioForChip
 import io.github.stozo04.openloop.camera.lens.Lens
+import io.github.stozo04.openloop.ui.components.CircleIconButton
 import io.github.stozo04.openloop.ui.components.LensCarousel
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.CoralRed
@@ -288,18 +288,19 @@ fun CameraScreen(
             // Capture-mode toggle — top-right. Hidden while recording: mid-capture the shutter
             // means "stop", so offering to turn it into a photo button would strand the clip
             // (the ViewModel refuses the switch too — belt and braces).
-            CaptureModeToggle(
-                visible = !isRecording,
-                photoMode = isPhotoMode,
-                onClick = {
-                    viewModel.setCaptureMode(
-                        if (isPhotoMode) CaptureMode.VIDEO else CaptureMode.PHOTO
-                    )
-                },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(end = 16.dp, top = 4.dp)
-            )
+            if (!isRecording) {
+                CaptureModeToggle(
+                    photoMode = isPhotoMode,
+                    onClick = {
+                        viewModel.setCaptureMode(
+                            if (isPhotoMode) CaptureMode.VIDEO else CaptureMode.PHOTO
+                        )
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 16.dp, top = 4.dp)
+                )
+            }
         }
 
         // 4. Glassmorphic Control Overlay & Shutter Button at bottom
@@ -469,40 +470,24 @@ fun HomeButton(
  * The icon shows the mode you'd switch **to**, not the one you're in — a camera glyph while in video
  * mode, a video glyph while in photo mode — which is the convention users already know from the
  * stock camera app. Stateless and hoisted (mirrors [HomeButton]) so it can be exercised in a Compose
- * test without binding the camera. Renders nothing when [visible] is false, so the "hidden while
- * recording" rule is itself testable.
+ * test without binding the camera; the caller decides when it is shown.
  *
- * Sized 48.dp — the Material/accessibility minimum interactive target, matching [HomeButton].
+ * Chrome comes from [CircleIconButton] — the same glass circle the gallery and trim controls use.
  */
 @Composable
 fun CaptureModeToggle(
-    visible: Boolean,
     photoMode: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (!visible) return
-    val label = stringResource(
-        if (photoMode) R.string.camera_switch_to_video else R.string.camera_switch_to_photo
+    CircleIconButton(
+        icon = if (photoMode) Icons.Outlined.Videocam else Icons.Outlined.PhotoCamera,
+        contentDescription = stringResource(
+            if (photoMode) R.string.camera_switch_to_video else R.string.camera_switch_to_photo
+        ),
+        onClick = onClick,
+        modifier = modifier,
     )
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .background(OverlayWhite)
-            .border(1.dp, OverlayWhiteBorder, CircleShape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .testTag("capture_mode_toggle")
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = if (photoMode) Icons.Outlined.Videocam else Icons.Outlined.PhotoCamera,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = Color.White
-        )
-    }
 }
 
 /**

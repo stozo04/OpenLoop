@@ -243,7 +243,6 @@ class CameraScreenTest {
         composeTestRule.setContent {
             var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
             CaptureModeToggle(
-                visible = true,
                 photoMode = mode == CaptureMode.PHOTO,
                 onClick = {
                     mode = if (mode == CaptureMode.PHOTO) CaptureMode.VIDEO else CaptureMode.PHOTO
@@ -259,27 +258,6 @@ class CameraScreenTest {
 
         composeTestRule.onNodeWithContentDescription("Switch to video mode").performClick()
         composeTestRule.onNodeWithContentDescription("Switch to photo mode").assertIsDisplayed()
-    }
-
-    @Test
-    fun captureModeToggle_isHiddenWhileRecording() {
-        // The shutter means "stop" mid-capture, so offering a mode switch would strand the clip.
-        composeTestRule.setContent {
-            CaptureModeToggle(visible = false, photoMode = false, onClick = {})
-        }
-
-        composeTestRule.onNodeWithTag("capture_mode_toggle").assertDoesNotExist()
-    }
-
-    @Test
-    fun captureModeToggle_meetsMinimumTouchTarget() {
-        composeTestRule.setContent {
-            CaptureModeToggle(visible = true, photoMode = false, onClick = {})
-        }
-
-        composeTestRule.onNodeWithTag("capture_mode_toggle")
-            .assertWidthIsAtLeast(48.dp)
-            .assertHeightIsAtLeast(48.dp)
     }
 
     @Test

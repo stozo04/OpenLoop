@@ -233,27 +233,8 @@ class VideoStorageRepositoryImpl(
         migrateLegacyBoomerangsDir()
         val raws = loadFrom(videosDir, prefix = "clip_", kind = VideoKind.RAW)
         val boomerangs = loadFrom(videosDir, prefix = "boom_", kind = VideoKind.BOOMERANG)
-        (raws + boomerangs + loadPhotos()).sortedByDescending { it.id } // Newest first
-    }
-
-    /**
-     * Scan `filesDir/videos/` for `photo_*.jpg` stills. Separate from [loadFrom] because a photo
-     * needs neither a `.mp4` filter nor a [MediaMetadataRetriever] thumbnail pass — it *is* its own
-     * thumbnail, so this is a plain listing with no decode.
-     */
-    private fun loadPhotos(): List<RecordedVideo> {
-        val files = videosDir.listFiles { _, name ->
-            name.startsWith("photo_") && name.endsWith(".jpg")
-        } ?: return emptyList()
-
-        return files.map { file ->
-            RecordedVideo(
-                id = parseTimestamp(file.name, prefix = "photo_") ?: 0L,
-                videoPath = file.absolutePath,
-                thumbnailPath = file.absolutePath,
-                kind = VideoKind.PHOTO,
-            )
-        }
+        val photos = loadFrom(videosDir, prefix = "photo_", kind = VideoKind.PHOTO, suffix = ".jpg")
+        (raws + boomerangs + photos).sortedByDescending { it.id } // Newest first
     }
 
     /**
@@ -281,19 +262,27 @@ class VideoStorageRepositoryImpl(
     }
 
     /**
-     * Scan [dir] for `<prefix>*.mp4` clips and map each to a [RecordedVideo] of [kind], lazily
+     * Scan [dir] for `<prefix>*<suffix>` files and map each to a [RecordedVideo] of [kind], lazily
      * extracting a missing thumbnail. A clip whose thumbnail can't be produced still appears in the
-     * list (resilience — never a silently-dropped clip).
+     * list (resilience — never a silently-dropped clip). A [VideoKind.PHOTO] still *is* its own
+     * thumbnail, so it always exists and the extraction below is skipped.
      */
-    private fun loadFrom(dir: File, prefix: String, kind: VideoKind): List<RecordedVideo> {
+    private fun loadFrom(
+        dir: File,
+        prefix: String,
+        kind: VideoKind,
+        suffix: String = ".mp4",
+    ): List<RecordedVideo> {
         if (!dir.exists()) return emptyList()
-        val files = dir.listFiles { _, name -> name.startsWith(prefix) && name.endsWith(".mp4") }
+        val files = dir.listFiles { _, name -> name.startsWith(prefix) && name.endsWith(suffix) }
             ?: return emptyList()
 
         return files.mapNotNull { file ->
             val id = parseTimestamp(file.name, prefix) ?: 0L
             val sourceRawId = if (kind == VideoKind.BOOMERANG) parseSourceRawId(file.name) else null
-            val thumbFile = File(thumbnailsDir, "${file.nameWithoutExtension}.jpg")
+            val thumbFile =
+                if (kind == VideoKind.PHOTO) file
+                else File(thumbnailsDir, "${file.nameWithoutExtension}.jpg")
 
             if (!thumbFile.exists()) {
                 try {

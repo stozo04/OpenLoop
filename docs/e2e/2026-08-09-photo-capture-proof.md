@@ -25,7 +25,7 @@ share sheet → back → gallery → tap photo tile → full-screen preview.
 
 | Step | Proof |
 |---|---|
-| Photo mode active — toggle flipped to the video glyph, lime shutter retained, lens + flip controls still present | ![photo mode](./2026-08-09-photo-capture-photo-mode-pixel8.png) |
+| Photo mode active — toggle flipped to the video glyph (shared `CircleIconButton` chrome, 56 dp), lime shutter retained, lens + flip controls still present | ![photo mode](./2026-08-09-photo-capture-photo-mode-pixel8.png) |
 | Share sheet after capture — reads **"Sharing image"** with a real thumbnail and image-only targets (Print / Drive), confirming `image/jpeg` replaced the hard-coded `video/mp4` | ![share sheet](./2026-08-09-photo-capture-share-sheet-pixel8.png) |
 | Gallery photo preview — full-screen `Image` branch with Close + SEND, never the ExoPlayer overlay | ![gallery preview](./2026-08-09-photo-capture-gallery-preview-pixel8.png) |
 
@@ -52,19 +52,42 @@ No `FATAL EXCEPTION`, no ANR, no `E/`/`W/OpenLoop` lines across the whole run.
 
 ## Verification gate
 
+Re-run in full after the review round below (counts are from the post-review tree):
+
 | Check | Result |
 |---|---|
 | `:app:compileDebugKotlin` | BUILD SUCCESSFUL |
 | `:app:assembleRelease` | BUILD SUCCESSFUL |
-| `:app:bundleRelease` | BUILD SUCCESSFUL — signed `app-release.aab`, 36.64 MB |
-| `:app:testDebugUnitTest` | 373 tests, **0 failures** |
-| `:app:connectedDebugAndroidTest` | 103 tests, **0 failures**, 1 skipped (pre-existing Samsung-only reverse test) |
-| `:app:lintDebug` | **0 errors**; 24 warnings, all pre-existing Gradle/dependency-version + `UseKtx` items in untouched files |
+| `:app:bundleRelease` | BUILD SUCCESSFUL — signed `app-release.aab` |
+| `:app:testDebugUnitTest` | 370 tests, **0 failures** (372 before the review round; 2 deleted) |
+| `:app:connectedDebugAndroidTest` | 101 tests, **0 failures**, 1 skipped (pre-existing Samsung-only reverse test) — 103 before; 2 deleted |
+| `:app:lintDebug` | **0 errors**; 24 warnings, all pre-existing Gradle/dependency-version + `UseKtx` items in untouched files (same count as before the review round — no new findings) |
 | `lintVitalRelease` | "Lint found no errors or warnings" |
 | 16 KB alignment (`zipalign -c -P 16 -v 4`) | Verification successful — every `.so` `(OK)`, **not** `(OK - compressed)` (Lesson 011) |
 
 **Not run:** Engine 2 "Inspect Code" (IDE inspections) — unsatisfiable from a git worktree; covered
 here by Lint + a zero-new-compile-warning build.
+
+## Review round — ponytail pass (post-review re-verification)
+
+The over-engineering review on PR #120 removed ~88 lines. The only user-visible change is the
+capture-mode toggle, which now uses the shared `CircleIconButton` chrome: **56 dp** (was 48 dp),
+22 dp icon, matching the lens and flip controls. Re-driven on the same AVD after the change:
+
+- Toggle a11y node measured on-device at `[891,175][1038,322]` = 147 px @ 420 dpi = **56 dp** —
+  above the 48 dp minimum interactive target, and larger than what it replaced.
+- Tap flips `Switch to photo mode` → `Switch to video mode`, and the shutter label flips to
+  `Take photo` — so `CircleIconButton`'s merged semantics still expose description **and** click on
+  one node (this was the one real regression risk in the refactor).
+- A real capture in photo mode still lands in both destinations after the `publishToPhotos`
+  consolidation:
+  ```
+  MediaStore: OpenLoop_Photo_1786315200589.jpg, Pictures/OpenLoop/, image/jpeg, is_pending=0
+  App library: files/videos/photo_1786315200589.jpg  (201265 bytes)
+  ```
+- Share sheet still reads **"Sharing image"** with a live thumbnail and image-only targets after
+  `isPhotoShare` was folded into `shareMimeType`.
+- Logcat across the re-run: no `FATAL`, no ANR, no `E/`/`W/OpenLoop`, no `SecurityException`.
 
 ## Manual QA left to the owner
 

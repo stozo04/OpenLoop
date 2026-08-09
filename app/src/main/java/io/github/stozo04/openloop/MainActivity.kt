@@ -519,17 +519,14 @@ class MainActivity : ComponentActivity() {
         if (showSavedSnackbarAfterDismiss) {
             awaitingShareReturn = true
         }
-        // Photo-mode stills share as JPEGs and deserve their own chooser copy; everything else is a
-        // rendered loop (docs/PRD-photo-capture.md §5.6).
-        val isPhoto = isPhotoShare(file)
+        // Chooser copy is kind-neutral (like snackbar_saved) — only the MIME type has to know
+        // whether this is a still or a loop (docs/PRD-photo-capture.md §5.6).
         val shareIntent = buildBoomerangShareIntent(
             uri = uri,
-            subject = getString(if (isPhoto) R.string.share_subject_photo else R.string.share_subject),
+            subject = getString(R.string.share_subject),
             mimeType = shareMimeType(file),
         )
-        val chooserTitle =
-            getString(if (isPhoto) R.string.share_chooser_title_photo else R.string.share_chooser_title)
-        startActivity(Intent.createChooser(shareIntent, chooserTitle))
+        startActivity(Intent.createChooser(shareIntent, getString(R.string.share_chooser_title)))
     }
 
     override fun onResume() {
@@ -584,6 +581,15 @@ internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
 }
 
 /**
+ * MIME type to advertise when sharing [file] — `image/jpeg` for a photo-mode still (written as
+ * `photo_<ts>.jpg` by `VideoStorageRepositoryImpl`), `video/mp4` for everything else. Pure and
+ * JVM-testable: the previous hard-coded `video/mp4` would have offered a JPEG to video-only targets
+ * and broken photo sharing outright (docs/PRD-photo-capture.md §5.6).
+ */
+internal fun shareMimeType(file: File): String =
+    if (file.extension.equals("jpg", ignoreCase = true)) "image/jpeg" else "video/mp4"
+
+/**
  * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] with the given
  * [subject] (slice 06). Extracted as a pure function so the intent's shape (action / MIME type /
  * extras / ClipData / read-grant flag) is unit-testable without launching the chooser; [subject] is
@@ -598,21 +604,6 @@ internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
  *
  * @see <a href="https://developer.android.com/reference/androidx/core/content/FileProvider">FileProvider</a>
  */
-/**
- * Whether [file] is a photo-mode still rather than a video. Extension-based (`.jpg`), matching the
- * `photo_<ts>.jpg` naming in `VideoStorageRepositoryImpl` — the gallery and the share sheet both
- * branch on this, so it lives in one place.
- */
-internal fun isPhotoShare(file: File): Boolean = file.extension.equals("jpg", ignoreCase = true)
-
-/**
- * MIME type to advertise when sharing [file]. Pure and JVM-testable: the previous hard-coded
- * `video/mp4` would have offered a JPEG to video-only targets and broken photo sharing outright
- * (docs/PRD-photo-capture.md §5.6).
- */
-internal fun shareMimeType(file: File): String =
-    if (isPhotoShare(file)) "image/jpeg" else "video/mp4"
-
 fun buildBoomerangShareIntent(uri: Uri, subject: String, mimeType: String = "video/mp4"): Intent =
     Intent(Intent.ACTION_SEND).apply {
         type = mimeType
