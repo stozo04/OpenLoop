@@ -350,13 +350,6 @@ class OpenLoopViewModel(
         _showImportTooShortDialog.value = false
     }
 
-    /**
-     * One-shot signal for MainActivity to request [android.Manifest.permission.POST_NOTIFICATIONS]
-     * on first Save (API 33+). Activity checks grant state before showing the system dialog.
-     */
-    private val _requestPostNotifications = Channel<Unit>(Channel.CONFLATED)
-    val requestPostNotifications: Flow<Unit> = _requestPostNotifications.receiveAsFlow()
-
     /** The in-flight capture's scratch file; non-null between capture start and Trim discard/save. */
     private var activeScratch: ScratchCapture? = null
 
@@ -1144,8 +1137,6 @@ class OpenLoopViewModel(
 
                 val output = videoStorage.allocateBoomerangFile(raw.id)
                 val returnToGallery = importedSession // capture before clearEditorSession() resets it
-
-                _requestPostNotifications.trySend(Unit)
 
                 val request = BoomerangRenderRequest(
                     scratch = scratch,

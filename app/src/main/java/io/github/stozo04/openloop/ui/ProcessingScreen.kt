@@ -33,14 +33,11 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
  *
  * The system back button is intentionally CONSUMED here: mid-render cancel ("oops") is out of scope
  * for slice 02, so back must not silently abort the in-flight Transformer or finish the Activity.
- * Loopifying runs in a WorkManager worker (Issue #40) so leaving the app is safe when notifications
- * are granted.
  */
 @Composable
 fun ProcessingScreen(
     progress: () -> Float,
     modifier: Modifier = Modifier,
-    showBackgroundExportHint: Boolean = false,
 ) {
     BackHandler(enabled = true) { /* consume: no mid-render cancel in slice 02 */ }
 
@@ -70,13 +67,7 @@ fun ProcessingScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = stringResource(
-                    if (showBackgroundExportHint) {
-                        R.string.processing_background_hint_no_notifications
-                    } else {
-                        R.string.processing_background_hint
-                    },
-                ),
+                text = stringResource(R.string.processing_hint),
                 modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
                 color = Color.White.copy(alpha = 0.6f),
                 style = MaterialTheme.typography.bodySmall,

@@ -56,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -164,10 +163,6 @@ class MainActivity : ComponentActivity() {
     /** Whether [deferredShareFile] should trigger the post-save "Saved" snackbar on return (slice 06). */
     private var deferredShareShowSavedSnackbar = true
 
-    private val requestPostNotificationsLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { /* granted or denied — export continues either way; notification is best-effort */ }
-
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
@@ -269,12 +264,6 @@ class MainActivity : ComponentActivity() {
                 val resources = LocalResources.current
 
                 val lifecycleOwner = LocalLifecycleOwner.current
-
-                LaunchedEffect(Unit) {
-                    viewModel.requestPostNotifications.collect {
-                        maybeRequestPostNotificationsPermission()
-                    }
-                }
 
                 // Play fires the "downloaded" callback off a listener, not a coroutine, so the
                 // closure needs a scope to drive the suspending showSnackbar. Also re-checks here
@@ -508,13 +497,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun maybeRequestPostNotificationsPermission() {
-        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (!shouldRequestPostNotificationsPermission(Build.VERSION.SDK_INT, granted)) return
-        requestPostNotificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-    }
-
     private fun launchShareSheet(file: File, showSavedSnackbarAfterDismiss: Boolean = true) {
         // FileProvider exposes filesDir/videos/ (slice 06) — scratch/cache paths must never reach here.
         if (!file.path.contains("${File.separator}videos${File.separator}")) {
@@ -579,29 +561,6 @@ internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
     add(Manifest.permission.CAMERA)
     if (sdkInt <= Build.VERSION_CODES.P) add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
 }
-
-@Composable
-private fun rememberNotificationExportHint(): Boolean {
-    val context = LocalContext.current
-    val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-        PackageManager.PERMISSION_GRANTED
-    return shouldShowNotificationExportHint(Build.VERSION.SDK_INT, granted)
-}
-
-/**
- * Pure API-33+ gate for [maybeRequestPostNotificationsPermission]: request only when
- * [Manifest.permission.POST_NOTIFICATIONS] is not yet granted. Below API 33 the permission does
- * not exist — always no-op.
- */
-fun shouldRequestPostNotificationsPermission(sdkInt: Int, notificationsGranted: Boolean): Boolean =
-    sdkInt >= Build.VERSION_CODES.TIRAMISU && !notificationsGranted
-
-/**
- * Pure API-33+ gate for [rememberNotificationExportHint] on [ProcessingScreen]: show the
- * background-export hint when notification permission is missing. Below API 33 always false.
- */
-fun shouldShowNotificationExportHint(sdkInt: Int, notificationsGranted: Boolean): Boolean =
-    sdkInt >= Build.VERSION_CODES.TIRAMISU && !notificationsGranted
 
 /**
  * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] with the given
@@ -725,11 +684,7 @@ fun OpenLoopNavHost(
             // Render progress drives the spinner caption; read via a lambda so only the percentage
             // text recomposes as progress ticks (Lesson 016).
             val progress = viewModel.renderProgress.collectAsStateWithLifecycle()
-            val notificationsDenied = rememberNotificationExportHint()
-            ProcessingScreen(
-                progress = { progress.value },
-                showBackgroundExportHint = notificationsDenied,
-            )
+            ProcessingScreen(progress = { progress.value })
         }
         // Probing + copying a picked library video (slice 07): a neutral loader, never the
         // camera-bound screen (Lessons 012/014).

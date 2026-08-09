@@ -160,7 +160,7 @@ with fix-attempt counts (max 3), fixed bugs with commits, "next iteration starts
 
 ### What I wish I'd known at iteration-1 start (now encoded in the sweep skill)
 
-- The POST_NOTIFICATIONS dialog ambushes the first save on a fresh install.
+- Save must not show a notifications permission dialog (app does not request `POST_NOTIFICATIONS`).
 - Folding the Fold AVD locks the screen; the unfold needs the wakeup → `wm dismiss-keyguard` →
   wakeup dance, and the emulator clock can jump after unlock.
 - The reverse cache is trim-keyed and survives reinstalls — re-verifying a reverser fix

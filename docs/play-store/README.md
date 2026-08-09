@@ -22,7 +22,7 @@ in**. Keep these in sync if the app's behavior changes.
 - [x] **App Bundle build** wired (`./gradlew :app:bundleRelease` → signed `.aab` once `keystore.properties` is set).
 - [x] **`targetSdk 36`** — exceeds Play's API-35 floor for new apps.
 - [x] **16 KB-aligned native libs** (uncompressed packaging).
-- [x] **Minimal permissions** — `CAMERA` only; no `INTERNET`; photo import needs no storage permission.
+- [x] **Minimal permissions** — `CAMERA` (+ legacy storage ≤ API 28 for MediaStore); `INTERNET` only for Firebase Analytics/Crashlytics; no `POST_NOTIFICATIONS`; photo import uses Photo Picker (no storage permission).
 - [x] **applicationId `io.github.stozo04.openloop`** — permanent, verified unused on Play.
 - [x] **Store-listing graphics** — [`play_store_icon_512.png`](play_store_icon_512.png) (512×512, no alpha, no baked corners) and [`main-image.png`](main-image.png) (1024×500, no alpha) ready to upload. Brand-asset overview in the root [`README.md` → Brand Assets](../../README.md#brand-assets).
 
@@ -35,7 +35,7 @@ in**. Keep these in sync if the app's behavior changes.
 - [ ] Create the app: name **OpenLoop**, default language, **App**, **Free**.
 - [ ] Enable **Play App Signing**.
 - [ ] **Privacy policy** URL -> `https://stozo04.github.io/OpenLoop/privacy-policy.html` (auto-hosted via GitHub Pages from docs/privacy-policy.html).
-- [ ] **Data safety** → "No data collected or shared" (`data-safety.md`).
+- [ ] **Data safety** → declare Firebase Analytics/Crashlytics collection per `data-safety.md` (not "no data collected").
 - [ ] **Content rating** questionnaire (`content-rating.md`).
 - [ ] **Store listing**: title, short + full description (`store-listing.md`), **app icon 512×512**, **feature graphic 1024×500**, **≥2 phone screenshots** (capture during device QA — checklist in `store-listing.md`).
 - [ ] **App category** = Video Players & Editors; **Contains ads** = No; **In-app purchases** = No; **Target audience** = 13+.
@@ -49,6 +49,5 @@ in**. Keep these in sync if the app's behavior changes.
 ## Notes
 - **GitHub URLs** point at `github.com/stozo04/OpenLoop` (the repo's current name). It was formerly
   `OpenLoop`; GitHub auto-redirects the old URLs, so any older links still resolve.
-- These docs declare **no data collection**. That stays true only while the app has no `INTERNET`
-  permission and no analytics/ads/crash SDKs. If that ever changes, update `data-safety.md` and
-  `privacy-policy.md` **before** that version ships.
+- Keep `data-safety.md` and the live privacy policy (`docs/privacy-policy.html` +
+  `privacy-policy.md`) in sync with the merged manifest and Firebase SDKs before each release.

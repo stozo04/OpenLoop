@@ -215,7 +215,7 @@ Pass: `tests=1 failures=0 errors=0`.
 
 | You're changing… | Run at minimum |
 |------------------|----------------|
-| FGS / WorkManager / notifications | API 34 unit + Robolectric FGS tests; API 34 AVD save smoke |
+| FGS / WorkManager | API 34 unit + Robolectric FGS tests; API 34 AVD save smoke |
 | `DeviceMediaHints` / Samsung encoder order | `DeviceMediaHintsOemRobolectricTest` + `SamsungReversePreviewRegressionTest` |
 | `VideoReverser` / reverse pipeline | 4-emulator pixel sweep + Samsung RTL if Samsung-specific |
 | Anything touching save/render | Pixel sweep includes API 34; grep logcat for FGS CRASH row |

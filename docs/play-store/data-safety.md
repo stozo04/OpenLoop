@@ -148,3 +148,8 @@ This declaration is accurate **only while** the app ships Analytics + Crashlytic
 collection disabled and no other off-device data paths. If a future version adds an ad SDK, accounts,
 cloud backup, remote config that sends user data, re-enables the advertising ID, or adds any new
 custom event that captures a new data type, **re-review this file before that version ships.**
+
+**Notifications are not a Data safety data type.** OpenLoop does not declare or request
+`POST_NOTIFICATIONS`; export progress is in-app only. No Console Data safety change is required for
+that. Keep the live privacy policy (`docs/privacy-policy.html`) aligned with
+`docs/play-store/privacy-policy.md` whenever permissions change.

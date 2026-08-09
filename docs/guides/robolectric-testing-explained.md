@@ -25,8 +25,8 @@ Testing strategy and pyramid: [`../TEST_COVERAGE.md`](../TEST_COVERAGE.md).
 
 1. **Touches zero Android APIs** (math, parsing, state transitions) → **plain JUnit**.
 2. **Touches the framework, but you only care about the objects and branching it produces** — did it
-   pick the right `ServiceInfo` type? build the right notification channel? behave differently on API
-   33 vs 32? → **Robolectric**.
+   pick the right `ServiceInfo` type? build the right FGS `ForegroundInfo`? behave differently on API
+   34 vs 35? → **Robolectric**.
 3. **Needs something real to happen** — a Composable actually drawing, a real `MediaCodec` actually
    encoding → **instrumented, on a device**.
 
@@ -56,9 +56,8 @@ and all `OpenLoopViewModel` state-transition tests.
 ## Pitfalls
 
 - **Pick the `@Config(sdk=[…])` that matters — don't default.** If behavior is version-gated, name the
-  versions on **both sides** of the boundary (`[34]`/`[35]` for FGS type; `[32]`/`[33]` for
-  POST_NOTIFICATIONS). No `@Config` runs at `targetSdk` (36) only — which would have missed the
-  Android-14 crash entirely.
+  versions on **both sides** of the boundary (`[34]`/`[35]` for FGS type). No `@Config` runs at
+  `targetSdk` (36) only — which would have missed the Android-14 crash entirely.
 - **SDK 36 needs JDK 21.** Robolectric loads Google's `android-all` jar for SDK 36, compiled with
   Java 21; a JDK-17 launcher cannot load it. `app/build.gradle.kts` pins the test launcher to 21 for
   the CLI — set Android Studio's **Gradle JDK to 21+** as well. A class-version / "unsupported

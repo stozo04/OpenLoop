@@ -20689,7 +20689,6 @@ SPLio/github/stozo04/openloop/ui/OpenLoopViewModel;->access$getUserPreferencesRe
 SPLio/github/stozo04/openloop/ui/OpenLoopViewModel;->access$getVideoStorage$p(Lio/github/stozo04/openloop/ui/OpenLoopViewModel;)Lio/github/stozo04/openloop/data/VideoStorageRepository;
 SPLio/github/stozo04/openloop/ui/OpenLoopViewModel;->access$get_uiState$p(Lio/github/stozo04/openloop/ui/OpenLoopViewModel;)Lkotlinx/coroutines/flow/MutableStateFlow;
 SPLio/github/stozo04/openloop/ui/OpenLoopViewModel;->getEvents()Lkotlinx/coroutines/flow/Flow;
-SPLio/github/stozo04/openloop/ui/OpenLoopViewModel;->getRequestPostNotifications()Lkotlinx/coroutines/flow/Flow;
 SPLio/github/stozo04/openloop/ui/OpenLoopViewModel;->getShowImportTooLongDialog()Lkotlinx/coroutines/flow/StateFlow;
 SPLio/github/stozo04/openloop/ui/OpenLoopViewModel;->getUiState()Lkotlinx/coroutines/flow/StateFlow;
 Lio/github/stozo04/openloop/ui/OpenLoopViewModel$2;

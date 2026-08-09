@@ -1,6 +1,6 @@
 # OpenLoop — Privacy Policy
 
-**Effective date:** 2026-06-17
+**Effective date:** 2026-08-08
 **App:** OpenLoop (package `io.github.stozo04.openloop`)
 **Developer:** Steven Gates · gates.steven@gmail.com
 **Source code:** https://github.com/stozo04/OpenLoop (open source, Apache License 2.0)
@@ -54,8 +54,11 @@ is used only for the usage and crash reporting described here — never to uploa
   private storage on your device. Exported boomerang loops are silent (video only).
 - **Internet (`INTERNET`)** — used only to send the usage and crash diagnostics described above. It is
   not used to transmit your videos.
-- **Notifications (`POST_NOTIFICATIONS`)** — to show progress while a loop is being saved in the
-  background.
+
+OpenLoop does **not** request notification permission and does **not** send push or tray notifications.
+While a loop is being created, progress is shown inside the app. Android may briefly show a system
+foreground-service indicator (for example in the Task Manager) so background work stays visible to
+the OS — that is not an OpenLoop marketing or progress notification.
 
 ## Videos you import
 

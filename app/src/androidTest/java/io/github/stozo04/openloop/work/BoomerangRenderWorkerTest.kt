@@ -1,13 +1,11 @@
 package io.github.stozo04.openloop.work
 
-import android.Manifest
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.rule.GrantPermissionRule
 import androidx.work.ListenableWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
@@ -25,7 +23,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -46,11 +43,6 @@ import java.util.concurrent.TimeUnit
  */
 @RunWith(AndroidJUnit4::class)
 class BoomerangRenderWorkerTest {
-
-    @get:Rule
-    val grantNotificationsRule: GrantPermissionRule = GrantPermissionRule.grant(
-        Manifest.permission.POST_NOTIFICATIONS,
-    )
 
     private lateinit var context: Context
     private lateinit var workDir: File
