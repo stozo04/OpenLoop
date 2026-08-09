@@ -83,6 +83,7 @@ import io.github.stozo04.openloop.diagnostics.FirebaseAnalyticsReporterImpl
 import io.github.stozo04.openloop.diagnostics.shareDebugReport
 import io.github.stozo04.openloop.media.MediaComponents
 import io.github.stozo04.openloop.work.WorkManagerBoomerangRenderScheduler
+import io.github.stozo04.openloop.work.publishImageToPhotos
 import io.github.stozo04.openloop.ui.BoomerangEditorScreen
 import io.github.stozo04.openloop.ui.BoomerangEvent
 import io.github.stozo04.openloop.ui.CameraScreen
@@ -135,6 +136,10 @@ class MainActivity : ComponentActivity() {
             // foreground onTrimMemory pressure levels, so the ViewModel polls this at editor entry
             // and before applying a non-Original look (editor-memory-oom WS-3, PR #58 review).
             isLowMemoryNow = MemoryPressure.lowMemoryProbe(applicationContext),
+            // Photo-mode stills → the device's public image library. Bridged here (the same
+            // Context-free seam as isLowMemoryNow) so the ViewModel never sees a Context —
+            // Lesson 004 / docs/PRD-photo-capture.md §5.5.
+            publishPhotoToLibrary = { file -> publishImageToPhotos(applicationContext, file) },
         )
     }
     private lateinit var cameraManager: CameraManager
@@ -254,6 +259,7 @@ class MainActivity : ComponentActivity() {
                 val reversePreviewReportAction = stringResource(R.string.snackbar_reverse_preview_report_action)
                 val importFailedMessage = stringResource(R.string.snackbar_import_failed)
                 val captureTooShortMessage = stringResource(R.string.snackbar_capture_too_short)
+                val photoCaptureFailedMessage = stringResource(R.string.snackbar_photo_capture_failed)
                 val undoAction = stringResource(R.string.undo)
                 val updateReadyMessage = stringResource(R.string.update_ready_message)
                 val updateReadyAction = stringResource(R.string.update_ready_action)
@@ -356,6 +362,12 @@ class MainActivity : ComponentActivity() {
                             // to the viewfinder — nudge instead of failing silently.
                             BoomerangEvent.CaptureTooShort -> snackbarHostState.showSnackbar(
                                 message = captureTooShortMessage,
+                            )
+                            // Photo-mode shutter tapped before the preview had a frame, or the JPEG
+                            // write failed. Nothing was saved and the user is still on the
+                            // viewfinder — nudge them to tap again.
+                            BoomerangEvent.PhotoCaptureFailed -> snackbarHostState.showSnackbar(
+                                message = photoCaptureFailedMessage,
                             )
                             // Loops marked for deletion (Issue #35): show an Undo snackbar. The real
                             // file delete is deferred — Undo restores the tiles, any other dismissal
@@ -507,7 +519,13 @@ class MainActivity : ComponentActivity() {
         if (showSavedSnackbarAfterDismiss) {
             awaitingShareReturn = true
         }
-        val shareIntent = buildBoomerangShareIntent(uri, getString(R.string.share_subject))
+        // Chooser copy is kind-neutral (like snackbar_saved) — only the MIME type has to know
+        // whether this is a still or a loop (docs/PRD-photo-capture.md §5.6).
+        val shareIntent = buildBoomerangShareIntent(
+            uri = uri,
+            subject = getString(R.string.share_subject),
+            mimeType = shareMimeType(file),
+        )
         startActivity(Intent.createChooser(shareIntent, getString(R.string.share_chooser_title)))
     }
 
@@ -563,6 +581,15 @@ internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
 }
 
 /**
+ * MIME type to advertise when sharing [file] — `image/jpeg` for a photo-mode still (written as
+ * `photo_<ts>.jpg` by `VideoStorageRepositoryImpl`), `video/mp4` for everything else. Pure and
+ * JVM-testable: the previous hard-coded `video/mp4` would have offered a JPEG to video-only targets
+ * and broken photo sharing outright (docs/PRD-photo-capture.md §5.6).
+ */
+internal fun shareMimeType(file: File): String =
+    if (file.extension.equals("jpg", ignoreCase = true)) "image/jpeg" else "video/mp4"
+
+/**
  * Build the `ACTION_SEND` intent that shares a rendered boomerang at content [uri] with the given
  * [subject] (slice 06). Extracted as a pure function so the intent's shape (action / MIME type /
  * extras / ClipData / read-grant flag) is unit-testable without launching the chooser; [subject] is
@@ -577,9 +604,9 @@ internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
  *
  * @see <a href="https://developer.android.com/reference/androidx/core/content/FileProvider">FileProvider</a>
  */
-fun buildBoomerangShareIntent(uri: Uri, subject: String): Intent =
+fun buildBoomerangShareIntent(uri: Uri, subject: String, mimeType: String = "video/mp4"): Intent =
     Intent(Intent.ACTION_SEND).apply {
-        type = "video/mp4"
+        type = mimeType
         clipData = ClipData.newRawUri(subject, uri)
         putExtra(Intent.EXTRA_STREAM, uri)
         putExtra(Intent.EXTRA_SUBJECT, subject)

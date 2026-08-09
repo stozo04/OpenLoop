@@ -1,15 +1,21 @@
 package io.github.stozo04.openloop.data
 
+import android.graphics.Bitmap
 import java.io.File
 
 /**
- * Whether a [RecordedVideo] is an original capture (a "raw") or a rendered boomerang.
+ * Whether a [RecordedVideo] is an original capture (a "raw"), a rendered boomerang, or a still
+ * [PHOTO] taken in the camera's photo mode.
  *
- * Inferred from the filename prefix at load time (`clip_` → [RAW], `boom_` → [BOOMERANG]) — both
- * kinds live under `filesDir/videos/`. Slice 02 displayed both in the gallery without distinction;
- * badges + a filter chip arrive in slice 07.
+ * Inferred from the filename prefix at load time (`clip_` → [RAW], `boom_` → [BOOMERANG],
+ * `photo_` → [PHOTO]) — all three live under `filesDir/videos/`. Slice 02 displayed both video
+ * kinds in the gallery without distinction; badges + a filter chip arrive in slice 07.
+ *
+ * [PHOTO] deliberately shares the `videos/` directory rather than getting its own: `file_paths.xml`
+ * exposes exactly that one path to the FileProvider, and `MainActivity.launchShareSheet` refuses
+ * any file whose path lacks `/videos/`. A separate directory would silently break sharing.
  */
-enum class VideoKind { RAW, BOOMERANG }
+enum class VideoKind { RAW, BOOMERANG, PHOTO }
 
 /**
  * A single recorded clip, modeled as the on-disk video plus its thumbnail.
@@ -115,6 +121,19 @@ interface VideoStorageRepository {
      * which grows with the gallery and would jank/ANR on the UI thread (ANDROID_STANDARDS §9).
      */
     suspend fun loadRecordedVideos(): List<RecordedVideo>
+
+    /**
+     * Compress [bitmap] to `filesDir/videos/photo_<ts>.jpg` and return its [RecordedVideo]
+     * (kind = [VideoKind.PHOTO]), or `null` if the write failed.
+     *
+     * The photo is its own thumbnail — [RecordedVideo.thumbnailPath] points at the same file.
+     * `ThumbnailDecoder.decodeSampled` already subsamples any JPEG to a bounded long edge before
+     * decode, so a second on-disk copy would buy nothing.
+     *
+     * `suspend` + off the main thread: JPEG compression of a full-screen bitmap is far too slow for
+     * the UI thread (ANDROID_STANDARDS §9).
+     */
+    suspend fun savePhoto(bitmap: Bitmap): RecordedVideo?
 
     /** Removes the video file and its thumbnail. `suspend` + off the main thread (file I/O). */
     suspend fun deleteVideo(video: RecordedVideo)

@@ -26,8 +26,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import io.github.stozo04.openloop.R
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,6 +73,7 @@ import io.github.stozo04.openloop.camera.PinchZoomCallbacks
 import io.github.stozo04.openloop.camera.PinchZoomLayout
 import io.github.stozo04.openloop.camera.formatZoomRatioForChip
 import io.github.stozo04.openloop.camera.lens.Lens
+import io.github.stozo04.openloop.ui.components.CircleIconButton
 import io.github.stozo04.openloop.ui.components.LensCarousel
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.CoralRed
@@ -121,7 +126,9 @@ fun CameraScreen(
     val nudgeGalleryButton by viewModel.nudgeGalleryButton.collectAsStateWithLifecycle()
     val activeLens by viewModel.activeLens.collectAsStateWithLifecycle()
     val lensTrayOpen by viewModel.lensTrayOpen.collectAsStateWithLifecycle()
+    val captureMode by viewModel.captureMode.collectAsStateWithLifecycle()
     val isRecording = uiState is OpenLoopUiState.Recording
+    val isPhotoMode = captureMode == CaptureMode.PHOTO
 
     // Push the selection into the always-attached lens effect. This is a uniform swap inside the
     // running GL renderer, NOT a rebind — which is why it is safe to change lenses mid-recording
@@ -277,6 +284,23 @@ fun CameraScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Capture-mode toggle — top-right. Hidden while recording: mid-capture the shutter
+            // means "stop", so offering to turn it into a photo button would strand the clip
+            // (the ViewModel refuses the switch too — belt and braces).
+            if (!isRecording) {
+                CaptureModeToggle(
+                    photoMode = isPhotoMode,
+                    onClick = {
+                        viewModel.setCaptureMode(
+                            if (isPhotoMode) CaptureMode.VIDEO else CaptureMode.PHOTO
+                        )
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 16.dp, top = 4.dp)
+                )
+            }
         }
 
         // 4. Glassmorphic Control Overlay & Shutter Button at bottom
@@ -350,15 +374,20 @@ fun CameraScreen(
                     // ring's draw phase, not here.
                     ShutterButton(
                         isRecording = isRecording,
+                        photoMode = isPhotoMode,
                         progressFraction = {
                             (recordingElapsedState.value.toFloat() / OpenLoopViewModel.MAX_RECORDING.inWholeMilliseconds)
                                 .coerceIn(0f, 1f)
                         },
                         onClick = {
-                            if (isRecording) {
-                                viewModel.stopBurstCapture(cameraManager)
-                            } else {
-                                viewModel.startBurstCapture(cameraManager)
+                            when {
+                                // Photo mode: grab the composited viewfinder (lens included) and
+                                // hand it straight to the ViewModel — no recording, no editor.
+                                // `bitmap` is null until the preview streams; the ViewModel
+                                // null-guards and surfaces a snackbar.
+                                isPhotoMode -> viewModel.capturePhoto(previewView.bitmap)
+                                isRecording -> viewModel.stopBurstCapture(cameraManager)
+                                else -> viewModel.startBurstCapture(cameraManager)
                             }
                         }
                     )
@@ -435,6 +464,33 @@ fun HomeButton(
 }
 
 /**
+ * Top-right capture-mode toggle: flips the shutter between recording clips and taking stills
+ * (docs/PRD-photo-capture.md §5.2).
+ *
+ * The icon shows the mode you'd switch **to**, not the one you're in — a camera glyph while in video
+ * mode, a video glyph while in photo mode — which is the convention users already know from the
+ * stock camera app. Stateless and hoisted (mirrors [HomeButton]) so it can be exercised in a Compose
+ * test without binding the camera; the caller decides when it is shown.
+ *
+ * Chrome comes from [CircleIconButton] — the same glass circle the gallery and trim controls use.
+ */
+@Composable
+fun CaptureModeToggle(
+    photoMode: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    CircleIconButton(
+        icon = if (photoMode) Icons.Outlined.Videocam else Icons.Outlined.PhotoCamera,
+        contentDescription = stringResource(
+            if (photoMode) R.string.camera_switch_to_video else R.string.camera_switch_to_photo
+        ),
+        onClick = onClick,
+        modifier = modifier,
+    )
+}
+
+/**
  * Tap-to-start / tap-to-stop shutter with a progress ring.
  *
  * Stateless and hoisted (mirrors [OpenLoopUiState.Onboarding]) so it can be exercised in Compose UI
@@ -451,7 +507,8 @@ fun ShutterButton(
     isRecording: Boolean,
     progressFraction: () -> Float,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    photoMode: Boolean = false,
 ) {
     val haptics = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -460,6 +517,8 @@ fun ShutterButton(
         targetValue = if (isPressed) PrimaryButtonPressedScale else 1f,
         label = "shutter_scale",
     )
+    // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
+    val photoLabel = stringResource(R.string.camera_take_photo)
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // Progress ring — drawn just outside the 86.dp button, recording only.
@@ -506,7 +565,11 @@ fun ShutterButton(
                     },
                 )
                 .semantics {
-                    contentDescription = if (isRecording) "Stop recording" else "Start recording"
+                    contentDescription = when {
+                        isRecording -> "Stop recording"
+                        photoMode -> photoLabel
+                        else -> "Start recording"
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -519,6 +582,9 @@ fun ShutterButton(
                         .background(CoralRed)
                 )
             } else {
+                // The neon gradient dot is shared by both idle modes — owner's call: the lime look
+                // is the app's signature and stays even when the shutter takes a still. Photo mode
+                // is signalled by the top-right toggle and the spoken label, not by the fill.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()

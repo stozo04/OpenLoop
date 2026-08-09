@@ -50,6 +50,26 @@ sealed interface OpenLoopUiState {
 }
 
 /**
+ * What the shutter does on the camera screen (docs/PRD-photo-capture.md §5.1).
+ *
+ * Deliberately a sibling [kotlinx.coroutines.flow.StateFlow] on [OpenLoopViewModel] rather than a new
+ * [OpenLoopUiState] entry — the mode is an overlay on the two camera-bound states, so the exhaustive
+ * router `when` in `MainActivity` stays untouched (Lesson 014). Same shape as `lensTrayOpen`.
+ *
+ * Not persisted: the app always opens in [VIDEO].
+ */
+enum class CaptureMode {
+    /** Tap-to-start / tap-to-stop burst recording → Trim → editor → Loopify (the original flow). */
+    VIDEO,
+
+    /**
+     * One tap grabs a still from the composited viewfinder and skips the boomerang pipeline
+     * entirely — save, publish to Photos, share sheet.
+     */
+    PHOTO,
+}
+
+/**
  * Identifies the clip an editor session ([OpenLoopUiState.Trim]) is operating on.
  *
  * Slice 02 only mints [ScratchClip] (a freshly-captured clip). `GalleryClip` — re-editing an

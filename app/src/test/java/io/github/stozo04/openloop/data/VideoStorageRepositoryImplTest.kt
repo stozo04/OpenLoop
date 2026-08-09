@@ -1,5 +1,6 @@
 package io.github.stozo04.openloop.data
 
+import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.util.Log
 import io.mockk.every
@@ -183,6 +184,90 @@ class VideoStorageRepositoryImplTest {
         assertNull(raw.sourceRawId)
         assertEquals(200L, boomerang.id)
         assertEquals(100L, boomerang.sourceRawId)
+    }
+
+    // ── Photo capture mode (docs/PRD-photo-capture.md) ──
+
+    /**
+     * A [Bitmap] whose `compress` writes [bytes] to the stream and reports [success]. Mocking is
+     * unavoidable here — `Bitmap` is Android-only — but everything downstream (naming, directory,
+     * the actual file write, cleanup) is real filesystem behavior against [TemporaryFolder].
+     */
+    private fun fakeBitmap(bytes: ByteArray = ByteArray(8), success: Boolean = true): Bitmap {
+        val bitmap = io.mockk.mockk<Bitmap>()
+        every { bitmap.compress(any(), any(), any()) } answers {
+            if (success) thirdArg<java.io.OutputStream>().write(bytes)
+            success
+        }
+        return bitmap
+    }
+
+    @Test
+    fun `savePhoto writes a jpg under videos and is its own thumbnail`() = runBlocking {
+        val photo = repository.savePhoto(fakeBitmap(byteArrayOf(9, 8, 7)))
+
+        assertNotNull(photo)
+        assertEquals(VideoKind.PHOTO, photo!!.kind)
+        assertNull(photo.sourceRawId)
+        val file = File(photo.videoPath)
+        assertTrue(file.exists())
+        // Photos share videos/ so FileProvider and MainActivity's share guard both hold (PRD §5.4).
+        assertEquals(videosDir().absolutePath, file.parentFile?.absolutePath)
+        assertTrue(file.name.startsWith("photo_") && file.name.endsWith(".jpg"))
+        assertArrayEquals(byteArrayOf(9, 8, 7), file.readBytes())
+        // A still is its own thumbnail — no second file, and nothing in thumbnails/.
+        assertEquals(photo.videoPath, photo.thumbnailPath)
+        assertFalse(File(thumbnailsDir(), "${file.nameWithoutExtension}.jpg").exists())
+    }
+
+    @Test
+    fun `savePhoto mints unique filenames even within the same millisecond`() = runBlocking {
+        val names = (0 until 200).map { File(repository.savePhoto(fakeBitmap())!!.videoPath).name }
+
+        assertEquals(names.size, names.toSet().size)
+    }
+
+    @Test
+    fun `savePhoto leaves no partial file when compression fails`() = runBlocking {
+        val photo = repository.savePhoto(fakeBitmap(success = false))
+
+        assertNull(photo)
+        // A truncated JPEG would be listed by loadRecordedVideos and render a broken tile.
+        val strays = videosDir().listFiles()?.filter { it.name.startsWith("photo_") } ?: emptyList()
+        assertTrue("a failed save must leave no photo_ file, found $strays", strays.isEmpty())
+        assertTrue(repository.loadRecordedVideos().none { it.kind == VideoKind.PHOTO })
+    }
+
+    @Test
+    fun `loadRecordedVideos lists photos alongside clips and boomerangs, newest first`() = runBlocking {
+        val videos = videosDir().apply { mkdirs() }
+        val thumbs = thumbnailsDir().apply { mkdirs() }
+        File(videos, "clip_100.mp4").writeBytes(ByteArray(4))
+        File(thumbs, "clip_100.jpg").writeBytes(ByteArray(4))
+        File(videos, "boom_200_from_100.mp4").writeBytes(ByteArray(4))
+        File(thumbs, "boom_200_from_100.jpg").writeBytes(ByteArray(4))
+        File(videos, "photo_300.jpg").writeBytes(ByteArray(4))
+
+        val result = repository.loadRecordedVideos()
+
+        assertEquals(listOf(300L, 200L, 100L), result.map { it.id })
+        val photo = result.single { it.kind == VideoKind.PHOTO }
+        assertEquals(300L, photo.id)
+        assertNull(photo.sourceRawId)
+        assertEquals(File(videos, "photo_300.jpg").absolutePath, photo.videoPath)
+        assertEquals(photo.videoPath, photo.thumbnailPath)
+    }
+
+    @Test
+    fun `deleteVideo removes a photo whose thumbnail is the photo itself`() = runBlocking {
+        val photo = repository.savePhoto(fakeBitmap())!!
+        assertTrue(File(photo.videoPath).exists())
+
+        // videoPath == thumbnailPath, so the second delete hits a missing file — must not throw.
+        repository.deleteVideo(photo)
+
+        assertFalse(File(photo.videoPath).exists())
+        assertTrue(repository.loadRecordedVideos().none { it.kind == VideoKind.PHOTO })
     }
 
     @Test

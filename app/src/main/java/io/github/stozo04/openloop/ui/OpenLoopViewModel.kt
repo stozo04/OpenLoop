@@ -1,5 +1,6 @@
 package io.github.stozo04.openloop.ui
 
+import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -122,6 +123,14 @@ sealed interface BoomerangEvent {
      * [count] is how many loops the user removed in this batch, so the snackbar can pluralize.
      */
     data class LoopsDeleted(val count: Int) : BoomerangEvent
+
+    /**
+     * A photo-mode capture could not be saved — either the viewfinder had no frame to grab yet
+     * (`PreviewView.getBitmap()` returns null until the preview is streaming) or the JPEG write
+     * failed. Drives a short "Couldn't take that photo." snackbar; the user stays on the viewfinder
+     * and can simply tap again (docs/PRD-photo-capture.md §5.3).
+     */
+    object PhotoCaptureFailed : BoomerangEvent
 }
 
 class OpenLoopViewModel(
@@ -151,6 +160,15 @@ class OpenLoopViewModel(
      * deterministic under virtual time (coroutines best practice: inject dispatchers).
      */
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    /**
+     * Copies a saved photo into the device's public image library (production:
+     * `publishImageToPhotos(applicationContext, file)`). Injected as a suspending lambda — the same
+     * Context-free seam [isLowMemoryNow] uses — so the ViewModel never sees a
+     * [android.content.Context] (Lesson 004) and JVM tests can record or fail it deterministically.
+     *
+     * Defaults to a no-op so existing test call sites keep compiling.
+     */
+    private val publishPhotoToLibrary: suspend (File) -> Unit = {},
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -329,6 +347,19 @@ class OpenLoopViewModel(
 
     private val _lensTrayOpen = MutableStateFlow(false)
     val lensTrayOpen: StateFlow<Boolean> = _lensTrayOpen.asStateFlow()
+
+    /**
+     * Whether the shutter records a clip or takes a still (docs/PRD-photo-capture.md §5.1).
+     *
+     * Sibling flow, not an [OpenLoopUiState] entry — same rationale as [activeLens] above, so the
+     * exhaustive router `when` stays untouched (Lesson 014). Not persisted: always [CaptureMode.VIDEO]
+     * on launch.
+     */
+    private val _captureMode = MutableStateFlow(CaptureMode.VIDEO)
+    val captureMode: StateFlow<CaptureMode> = _captureMode.asStateFlow()
+
+    /** Guards against repeated shutter taps while a photo save/publish is already running. */
+    private var photoSaveInProgress = false
 
     private var nudgeGalleryAfterShare = false
 
@@ -1271,6 +1302,62 @@ class OpenLoopViewModel(
     }
 
     /**
+     * Switch the shutter between recording clips and taking stills.
+     *
+     * Refused while [OpenLoopUiState.Recording]: mid-capture the shutter means "stop recording", and
+     * swapping it to a capture button would strand the in-flight clip. The UI already hides the
+     * toggle while recording — this guard makes that a rule of the state machine rather than a
+     * property of one composable.
+     */
+    fun setCaptureMode(mode: CaptureMode) {
+        if (_uiState.value is OpenLoopUiState.Recording) return
+        _captureMode.value = mode
+    }
+
+    /**
+     * Photo-mode shutter: persist [bitmap] (a snapshot of the composited viewfinder, lens included),
+     * copy it into the device's public library, and hand it to the share sheet — skipping the whole
+     * boomerang pipeline (docs/PRD-photo-capture.md §5.3).
+     *
+     * [bitmap] is nullable because `PreviewView.getBitmap()` returns null until the preview reaches
+     * `StreamState.STREAMING`; a tap in that window is a miss, not a crash.
+     */
+    fun capturePhoto(bitmap: Bitmap?) {
+        if (_uiState.value != OpenLoopUiState.ReadyToCapture) return
+        if (photoSaveInProgress) return
+        photoSaveInProgress = true
+        viewModelScope.launch {
+            try {
+                val photo = bitmap?.let { videoStorage.savePhoto(it) }
+                if (photo == null) {
+                    Log.w(
+                        "OpenLoopViewModel",
+                        "Photo capture produced no file (hadBitmap=${bitmap != null})",
+                    )
+                    _events.send(BoomerangEvent.PhotoCaptureFailed)
+                    return@launch
+                }
+                val file = File(photo.videoPath)
+                // Best-effort public copy: the in-app save already succeeded, and a MediaStore
+                // failure must not cost the user their photo (PRD §5.5 — a deliberate deviation
+                // from the render worker, where the same failure fails the whole loop).
+                try {
+                    publishPhotoToLibrary(file)
+                } catch (e: CancellationException) {
+                    throw e // never swallow cancellation (Lesson 013)
+                } catch (e: Exception) {
+                    Log.e("OpenLoopViewModel", "Publishing photo to the device library failed", e)
+                }
+                loadRecordedVideos()
+                nudgeGalleryAfterShare = true
+                _events.send(BoomerangEvent.Share(file))
+            } finally {
+                photoSaveInProgress = false
+            }
+        }
+    }
+
+    /**
      * Report the save failure (Crashlytics non-fatal + shareable report), emit
      * [BoomerangEvent.SaveFailed], and route back to the editor preserving the direction selection.
      * [cause] is null when the failure arrived as a [BoomerangRenderWorkResult.Failure] —
@@ -1504,6 +1591,8 @@ class OpenLoopViewModel(
         private val analytics: AnalyticsReporter,
         /** See the constructor doc — MainActivity passes [MemoryPressure.lowMemoryProbe]. */
         private val isLowMemoryNow: () -> Boolean = { false },
+        /** See the constructor doc — MainActivity passes `publishImageToPhotos(appContext, file)`. */
+        private val publishPhotoToLibrary: suspend (File) -> Unit = {},
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -1516,6 +1605,8 @@ class OpenLoopViewModel(
                     renderScheduler,
                     analytics,
                     isLowMemoryNow,
+                    // ioDispatcher keeps its default; the photo publisher is the 9th parameter.
+                    publishPhotoToLibrary = publishPhotoToLibrary,
                 ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
