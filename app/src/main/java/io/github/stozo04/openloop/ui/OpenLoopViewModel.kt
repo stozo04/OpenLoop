@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.github.stozo04.openloop.camera.CameraManager
+import io.github.stozo04.openloop.camera.lens.Lens
 import io.github.stozo04.openloop.data.RecordedVideo
 import io.github.stozo04.openloop.data.ScratchCapture
 import io.github.stozo04.openloop.data.UserPreferencesRepository
@@ -314,6 +315,20 @@ class OpenLoopViewModel(
     /** One brief gallery-button nudge after a newly captured loop returns from the share sheet. */
     private val _nudgeGalleryButton = MutableStateFlow(false)
     val nudgeGalleryButton: StateFlow<Boolean> = _nudgeGalleryButton.asStateFlow()
+
+    /**
+     * Live-camera lens selection (docs/PRD-camera-lenses.md §6.3).
+     *
+     * Sibling flows, not new [OpenLoopUiState] entries: the lens tray is an overlay on the two
+     * camera-bound states, so the exhaustive router `when` in `MainActivity` stays untouched
+     * (Lesson 014). Deliberately NOT persisted — the lens resets on every launch so nobody opens
+     * the app to an unexplained broccoli.
+     */
+    private val _activeLens = MutableStateFlow<Lens?>(null)
+    val activeLens: StateFlow<Lens?> = _activeLens.asStateFlow()
+
+    private val _lensTrayOpen = MutableStateFlow(false)
+    val lensTrayOpen: StateFlow<Boolean> = _lensTrayOpen.asStateFlow()
 
     private var nudgeGalleryAfterShare = false
 
@@ -1237,6 +1252,22 @@ class OpenLoopViewModel(
 
     fun onGalleryButtonNudgeFinished() {
         _nudgeGalleryButton.value = false
+    }
+
+    /** Opens/closes the lens carousel. Selecting a lens leaves the tray open (Snapchat behaviour). */
+    fun setLensTrayOpen(open: Boolean) {
+        _lensTrayOpen.value = open
+    }
+
+    /**
+     * Selects a lens, or clears it when [lens] is already active (tap-to-toggle) or `null`.
+     *
+     * Applying it to the camera is the caller's job — see `CameraScreen`. Safe at any time,
+     * including mid-recording: the effect is permanently attached and only its uniforms change
+     * (PRD-camera-lenses §5.3).
+     */
+    fun selectLens(lens: Lens?) {
+        _activeLens.value = if (lens != null && lens == _activeLens.value) null else lens
     }
 
     /**

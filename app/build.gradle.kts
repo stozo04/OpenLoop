@@ -28,8 +28,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 35
-        versionName = "1.0.35"
+        versionCode = 36
+        versionName = "1.0.36"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -265,6 +265,9 @@ dependencies {
     implementation(libs.androidx.camerax.lifecycle)
     implementation(libs.androidx.camerax.video)
     implementation(libs.androidx.camerax.view)
+
+    // ML Kit face detection — camera lenses (docs/PRD-camera-lenses.md)
+    implementation(libs.mlkit.face.detection)
 
     // WorkManager — long-running Loopifying export survives backgrounding (Issue #40)
     implementation(libs.androidx.work.runtime.ktx)

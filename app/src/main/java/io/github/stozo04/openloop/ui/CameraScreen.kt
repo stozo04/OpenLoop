@@ -16,6 +16,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -67,6 +68,8 @@ import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.camera.PinchZoomCallbacks
 import io.github.stozo04.openloop.camera.PinchZoomLayout
 import io.github.stozo04.openloop.camera.formatZoomRatioForChip
+import io.github.stozo04.openloop.camera.lens.Lens
+import io.github.stozo04.openloop.ui.components.LensCarousel
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.CoralRed
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -116,7 +119,16 @@ fun CameraScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val nudgeGalleryButton by viewModel.nudgeGalleryButton.collectAsStateWithLifecycle()
+    val activeLens by viewModel.activeLens.collectAsStateWithLifecycle()
+    val lensTrayOpen by viewModel.lensTrayOpen.collectAsStateWithLifecycle()
     val isRecording = uiState is OpenLoopUiState.Recording
+
+    // Push the selection into the always-attached lens effect. This is a uniform swap inside the
+    // running GL renderer, NOT a rebind — which is why it is safe to change lenses mid-recording
+    // (PRD-camera-lenses §5.3; a rebind here would be the Lesson 012 failure).
+    LaunchedEffect(activeLens) {
+        cameraManager.setLens(activeLens)
+    }
 
     // REC-1: keep the high-frequency elapsed flow as a raw State and DO NOT read `.value` here in
     // the screen root. Reading it at the top would re-subscribe this whole composable (AndroidView
@@ -127,9 +139,17 @@ fun CameraScreen(
     // Predictive back is default-on at targetSdk 36, so a mid-record back gesture would otherwise
     // finish the Activity → onDestroy → shutdown(), silently discarding the in-flight clip. Route it
     // through the state machine instead: while recording, backstops & finalizes (same as the stop
-    // shutter). Disabled when not recording so back exits the home screen normally (WARNING-2).
-    BackHandler(enabled = isRecording) {
-        viewModel.stopBurstCapture(cameraManager)
+    // shutter). Disabled when neither recording nor showing the lens tray, so back exits the home
+    // screen normally (WARNING-2).
+    //
+    // The tray takes priority when both are true: back dismisses transient UI first, and a second
+    // back then stops the recording. One handler rather than two so that ordering is explicit
+    // instead of depending on Compose's registration order.
+    BackHandler(enabled = isRecording || lensTrayOpen) {
+        when {
+            lensTrayOpen -> viewModel.setLensTrayOpen(false)
+            else -> viewModel.stopBurstCapture(cameraManager)
+        }
     }
 
     // Static cap label ("00:30") for the countdown chip — independent of elapsed time.
@@ -276,50 +296,93 @@ fun CameraScreen(
                 .padding(bottom = 24.dp, start = 24.dp, end = 24.dp, top = 32.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Shutter stays centered; the lens toggle pins to the right edge. Width-capped so the
-            // controls stay grouped/centered on large screens (≥600dp) rather than stretching out.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 520.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Shutter Button: tap-to-start / tap-to-stop, with a progress ring. progressFraction
-                // is a lambda so the elapsed read (REC-1) happens in the ring's draw phase, not here.
-                ShutterButton(
-                    isRecording = isRecording,
-                    progressFraction = {
-                        (recordingElapsedState.value.toFloat() / OpenLoopViewModel.MAX_RECORDING.inWholeMilliseconds)
-                            .coerceIn(0f, 1f)
-                    },
-                    onClick = {
-                        if (isRecording) {
-                            viewModel.stopBurstCapture(cameraManager)
-                        } else {
-                            viewModel.startBurstCapture(cameraManager)
-                        }
-                    }
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Lens rail sits above the control row and pushes nothing — the shutter stays
+                // reachable while browsing lenses, matching Snapchat and the reference UI.
+                AnimatedVisibility(
+                    visible = lensTrayOpen,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                ) {
+                    LensCarousel(
+                        lenses = Lens.entries,
+                        activeLens = activeLens,
+                        onSelect = viewModel::selectLens,
+                        onClose = {
+                            viewModel.selectLens(null)
+                            viewModel.setLensTrayOpen(false)
+                        },
+                        modifier = Modifier.padding(bottom = 20.dp),
+                    )
+                }
 
-                // Switch Camera / Lens Toggle Button (subtle glass), pinned to the right edge.
+                // Shutter stays centered; the flip toggle pins to the right edge and the lens
+                // button mirrors it on the left. Width-capped so the controls stay
+                // grouped/centered on large screens (≥600dp) rather than stretching out.
                 Box(
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(54.dp)
-                        .clip(CircleShape)
-                        .background(OverlayWhite)
-                        .border(1.dp, OverlayWhiteBorder, CircleShape)
-                        .clickable {
-                            cameraManager.toggleCamera(lifecycleOwner, previewView)
-                        },
+                        .fillMaxWidth()
+                        .widthIn(max = 520.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_flip_camera),
-                        contentDescription = "Flip Camera",
-                        modifier = Modifier.size(28.dp),
-                        tint = Color.White
+                    // Lenses button — present in BOTH camera-bound states, recording included.
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(if (activeLens != null) ElectricLime else OverlayWhite)
+                            .border(1.dp, OverlayWhiteBorder, CircleShape)
+                            .clickable { viewModel.setLensTrayOpen(!lensTrayOpen) }
+                            .testTag("lens_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lenses),
+                            contentDescription = if (lensTrayOpen) "Hide lenses" else "Lenses",
+                            modifier = Modifier.size(28.dp),
+                            tint = if (activeLens != null) LimeInk else Color.White
+                        )
+                    }
+
+                    // Shutter Button: tap-to-start / tap-to-stop, with a progress ring.
+                    // progressFraction is a lambda so the elapsed read (REC-1) happens in the
+                    // ring's draw phase, not here.
+                    ShutterButton(
+                        isRecording = isRecording,
+                        progressFraction = {
+                            (recordingElapsedState.value.toFloat() / OpenLoopViewModel.MAX_RECORDING.inWholeMilliseconds)
+                                .coerceIn(0f, 1f)
+                        },
+                        onClick = {
+                            if (isRecording) {
+                                viewModel.stopBurstCapture(cameraManager)
+                            } else {
+                                viewModel.startBurstCapture(cameraManager)
+                            }
+                        }
                     )
+
+                    // Switch Camera button (subtle glass), pinned to the right edge.
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(OverlayWhite)
+                            .border(1.dp, OverlayWhiteBorder, CircleShape)
+                            .clickable {
+                                cameraManager.toggleCamera(lifecycleOwner, previewView)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_flip_camera),
+                            contentDescription = "Flip Camera",
+                            modifier = Modifier.size(28.dp),
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }

@@ -25,6 +25,7 @@ firebaseCrashlyticsGradle = "3.0.7"
 baselineprofile = "1.5.0-alpha06"
 benchmark = "1.5.0-alpha06"
 playAppUpdate = "2.1.0"
+mlkitFaceDetection = "16.1.7"
 
 
 [libraries]
@@ -89,6 +90,11 @@ androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiaut
 
 # Play In-App Updates — the "update ready, restart to install" nudge (FLEXIBLE flow).
 play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
+
+# ML Kit face detection — powers camera lenses (docs/PRD-camera-lenses.md). Deliberately the
+# STABLE face-detection API, not the beta face-mesh one; landmark mode already gives the mouth
+# corners the Big Mouth warp needs. Bundled model: no Play-services round trip on first use.
+mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFaceDetection" }
 
 
 [plugins]
