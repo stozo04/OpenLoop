@@ -3,6 +3,7 @@ package io.github.stozo04.openloop.review
 import android.app.Activity
 import android.os.Looper
 import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.android.play.core.review.ReviewInfo
 import com.google.android.play.core.review.ReviewManager
 import com.google.android.play.core.review.testing.FakeReviewManager
@@ -21,11 +22,11 @@ import org.robolectric.Shadows.shadowOf
  * Locks the two-call Play sequence in [launchInAppReview] against Google's own test double.
  *
  * [FakeReviewManager] simulates no UI, so "did a card appear" isn't observable — [CountingReviewManager]
- * wraps it to record whether `launchReviewFlow` was reached at all, which is the thing the `isIdle`
- * guard decides. Resuming at all is also worth asserting: a wrong ktx overload or a Task listener that
- * never fires would hang the coroutine here, and in production would hang the event collector that
- * drives every snackbar. Robolectric supplies the `Context` and `Activity` the API requires and a
- * plain JVM test can't (same reason `AppUpdateControllerTest` had to reach for mockk instead).
+ * wraps it to record whether `launchReviewFlow` was reached at all, which is what the `isIdle` guard
+ * decides. Resuming at all is also worth asserting: a wrong ktx overload or a Task listener that never
+ * fires would hang the coroutine here, and in production would hang the event collector that drives
+ * every snackbar. Robolectric supplies the `Context` and `Activity` the API requires and a plain JVM
+ * test can't (same reason `AppUpdateControllerTest` had to reach for mockk instead).
  *
  * Whether a card is really shown depends on Play, the account, and the quota — verifiable only on
  * the internal test track. See the PR's manual QA checklist.
@@ -46,12 +47,20 @@ class InAppReviewRobolectricTest {
         }
     }
 
-    /** Runs [launchInAppReview] to completion, returning the manager so launches can be counted. */
-    private fun runReview(isIdle: () -> Boolean): CountingReviewManager {
-        val activity = Robolectric.buildActivity(Activity::class.java).setup().get()
-        val manager = CountingReviewManager(FakeReviewManager(activity))
-        var completed = false
+    /** A device with no usable Play Store: the request Task fails with something that isn't a ReviewException. */
+    private class FailingReviewManager : ReviewManager {
+        override fun requestReviewFlow(): Task<ReviewInfo> =
+            Tasks.forException(IllegalStateException("no Play Store on this device"))
 
+        override fun launchReviewFlow(activity: Activity, reviewInfo: ReviewInfo): Task<Void> =
+            throw AssertionError("launchReviewFlow must not be reached when the request failed")
+    }
+
+    private fun activity(): Activity = Robolectric.buildActivity(Activity::class.java).setup().get()
+
+    /** Runs [launchInAppReview] to completion, asserting it resumed rather than hanging or throwing. */
+    private fun runReview(manager: ReviewManager, activity: Activity, isIdle: () -> Boolean) {
+        var completed = false
         runTest {
             // Unconfined so the coroutine resumes inline on whichever thread delivers the Play Task
             // callback; Robolectric's paused main looper only drains when we idle it below.
@@ -62,14 +71,17 @@ class InAppReviewRobolectricTest {
             shadowOf(Looper.getMainLooper()).idle()
             job.join()
         }
-
         assertTrue("launchInAppReview never resumed — the review Task didn't complete", completed)
-        return manager
     }
 
     @Test
     fun `launchInAppReview shows the card when the user is still idle`() {
-        assertEquals(1, runReview(isIdle = { true }).launches)
+        val activity = activity()
+        val manager = CountingReviewManager(FakeReviewManager(activity))
+
+        runReview(manager, activity, isIdle = { true })
+
+        assertEquals(1, manager.launches)
     }
 
     /**
@@ -79,10 +91,25 @@ class InAppReviewRobolectricTest {
      */
     @Test
     fun `launchInAppReview drops the card when the user is no longer idle`() {
+        val activity = activity()
+        val manager = CountingReviewManager(FakeReviewManager(activity))
+
+        runReview(manager, activity, isIdle = { false })
+
         assertEquals(
             "the card must never launch once the user has left the resting screens",
             0,
-            runReview(isIdle = { false }).launches,
+            manager.launches,
         )
+    }
+
+    /**
+     * A non-`ReviewException` failure must not escape. This runs on the host's single event collector
+     * *ahead of* the "Saved" snackbar, so anything thrown here kills the collector and every snackbar
+     * after it — the user would lose their save confirmation to a rating ask that couldn't be shown.
+     */
+    @Test
+    fun `launchInAppReview swallows a non-ReviewException failure instead of killing the collector`() {
+        runReview(FailingReviewManager(), activity(), isIdle = { true })
     }
 }

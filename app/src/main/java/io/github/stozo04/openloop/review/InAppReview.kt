@@ -6,6 +6,7 @@ import com.google.android.play.core.ktx.launchReview
 import com.google.android.play.core.ktx.requestReview
 import com.google.android.play.core.review.ReviewException
 import com.google.android.play.core.review.ReviewManager
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Saved loops after which OpenLoop asks for a rating — enough repeat use to have an opinion worth
@@ -42,6 +43,15 @@ suspend fun launchInAppReview(manager: ReviewManager, activity: Activity, isIdle
     } catch (e: ReviewException) {
         // Routine off-Play / no-network outcome, exactly like AppUpdateController's check().
         Log.w(TAG, "In-app review unavailable (errorCode=${e.errorCode})", e)
+    } catch (e: CancellationException) {
+        throw e // never swallow structured-concurrency cancellation
+    } catch (e: Exception) {
+        // Deliberately broad. This runs on the host's single event collector, ahead of the "Saved"
+        // snackbar — anything that escapes here kills that collector and every snackbar after it,
+        // costing the user their save confirmation to salvage an ask we don't even need. Play's own
+        // Task can surface non-ReviewException failures (no Play Store on the device, a dead
+        // service binding), so an unshowable ask has to degrade silently.
+        Log.w(TAG, "In-app review failed unexpectedly", e)
     }
 }
 
