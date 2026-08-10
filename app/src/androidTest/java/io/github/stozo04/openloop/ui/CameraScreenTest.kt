@@ -235,4 +235,46 @@ class CameraScreenTest {
             )
         }
     }
+
+    // ── Capture-mode toggle (docs/PRD-photo-capture.md §5.2) ──
+
+    @Test
+    fun captureModeToggle_tap_flipsBetweenPhotoAndVideoAffordances() {
+        composeTestRule.setContent {
+            var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
+            CaptureModeToggle(
+                photoMode = mode == CaptureMode.PHOTO,
+                onClick = {
+                    mode = if (mode == CaptureMode.PHOTO) CaptureMode.VIDEO else CaptureMode.PHOTO
+                },
+            )
+        }
+
+        // In video mode the icon advertises the mode you'd switch TO.
+        composeTestRule.onNodeWithContentDescription("Switch to photo mode").assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription("Switch to photo mode").performClick()
+        composeTestRule.onNodeWithContentDescription("Switch to video mode").assertIsDisplayed()
+
+        composeTestRule.onNodeWithContentDescription("Switch to video mode").performClick()
+        composeTestRule.onNodeWithContentDescription("Switch to photo mode").assertIsDisplayed()
+    }
+
+    @Test
+    fun shutterButton_inPhotoMode_announcesTakePhoto() {
+        // The lime gradient is shared with video mode (owner's call), so the spoken label is what
+        // tells a TalkBack user which mode the shutter is in.
+        composeTestRule.setContent {
+            ShutterButton(
+                isRecording = false,
+                photoMode = true,
+                progressFraction = { 0f },
+                onClick = {},
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Take photo").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Start recording").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("progress_ring").assertDoesNotExist()
+    }
 }

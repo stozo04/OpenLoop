@@ -20,8 +20,10 @@ import java.util.UUID
  * On-disk layout:
  * - scratch capture:  `filesDir/scratch/raw_<uuid>.mp4` (per capture; private app data)
  * - persisted clips:  `filesDir/videos/` — raws as `clip_<timestamp>.mp4`, rendered loops as
- *   `boom_<timestamp>_from_<rawTimestamp>.mp4` (same directory; distinguished by filename prefix)
- * - thumbnails:       `filesDir/thumbnails/<same-stem>.jpg` (JPEG, 90% quality)
+ *   `boom_<timestamp>_from_<rawTimestamp>.mp4`, photo-mode stills as `photo_<timestamp>.jpg`
+ *   (same directory; distinguished by filename prefix — see [VideoKind])
+ * - thumbnails:       `filesDir/thumbnails/<same-stem>.jpg` (JPEG, 90% quality). Photos have no
+ *   entry here: a still is its own thumbnail.
  */
 class VideoStorageRepositoryImpl(
     private val cacheDir: File,
@@ -202,11 +204,37 @@ class VideoStorageRepositoryImpl(
         }
     }
 
+    override suspend fun savePhoto(bitmap: Bitmap): RecordedVideo? = withContext(Dispatchers.IO) {
+        val timestamp = nextTimestamp()
+        val dest = File(videosDir.apply { mkdirs() }, "photo_$timestamp.jpg")
+        try {
+            dest.outputStream().use { out ->
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, out)) {
+                    throw IOException("JPEG compression returned false for ${dest.name}")
+                }
+            }
+            RecordedVideo(
+                id = timestamp,
+                videoPath = dest.absolutePath,
+                // A photo is its own thumbnail — ThumbnailDecoder subsamples it for the grid.
+                thumbnailPath = dest.absolutePath,
+                kind = VideoKind.PHOTO,
+            )
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to save photo ${dest.name}", e)
+            // Never leave a truncated JPEG behind: loadRecordedVideos() would list it and the
+            // gallery would render a broken tile (same "don't ship a corpse" rule as Lesson 023).
+            dest.delete()
+            null
+        }
+    }
+
     override suspend fun loadRecordedVideos(): List<RecordedVideo> = withContext(Dispatchers.IO) {
         migrateLegacyBoomerangsDir()
         val raws = loadFrom(videosDir, prefix = "clip_", kind = VideoKind.RAW)
         val boomerangs = loadFrom(videosDir, prefix = "boom_", kind = VideoKind.BOOMERANG)
-        (raws + boomerangs).sortedByDescending { it.id } // Newest first
+        val photos = loadFrom(videosDir, prefix = "photo_", kind = VideoKind.PHOTO, suffix = ".jpg")
+        (raws + boomerangs + photos).sortedByDescending { it.id } // Newest first
     }
 
     /**
@@ -234,19 +262,27 @@ class VideoStorageRepositoryImpl(
     }
 
     /**
-     * Scan [dir] for `<prefix>*.mp4` clips and map each to a [RecordedVideo] of [kind], lazily
+     * Scan [dir] for `<prefix>*<suffix>` files and map each to a [RecordedVideo] of [kind], lazily
      * extracting a missing thumbnail. A clip whose thumbnail can't be produced still appears in the
-     * list (resilience — never a silently-dropped clip).
+     * list (resilience — never a silently-dropped clip). A [VideoKind.PHOTO] still *is* its own
+     * thumbnail, so it always exists and the extraction below is skipped.
      */
-    private fun loadFrom(dir: File, prefix: String, kind: VideoKind): List<RecordedVideo> {
+    private fun loadFrom(
+        dir: File,
+        prefix: String,
+        kind: VideoKind,
+        suffix: String = ".mp4",
+    ): List<RecordedVideo> {
         if (!dir.exists()) return emptyList()
-        val files = dir.listFiles { _, name -> name.startsWith(prefix) && name.endsWith(".mp4") }
+        val files = dir.listFiles { _, name -> name.startsWith(prefix) && name.endsWith(suffix) }
             ?: return emptyList()
 
         return files.mapNotNull { file ->
             val id = parseTimestamp(file.name, prefix) ?: 0L
             val sourceRawId = if (kind == VideoKind.BOOMERANG) parseSourceRawId(file.name) else null
-            val thumbFile = File(thumbnailsDir, "${file.nameWithoutExtension}.jpg")
+            val thumbFile =
+                if (kind == VideoKind.PHOTO) file
+                else File(thumbnailsDir, "${file.nameWithoutExtension}.jpg")
 
             if (!thumbFile.exists()) {
                 try {
@@ -326,5 +362,8 @@ class VideoStorageRepositoryImpl(
 
         /** Subdirectory of scratch/ holding VideoReverser's cached reversed clips (see MainActivity). */
         const val REVERSED_SUBDIR = "reversed"
+
+        /** JPEG quality for photo-mode stills — matches [extractThumbnail]'s 90%. */
+        const val PHOTO_JPEG_QUALITY = 90
     }
 }
