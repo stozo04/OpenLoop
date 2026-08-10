@@ -1,9 +1,17 @@
 <resources>
     <string name="app_name">OpenLoop</string>
 
-    <!-- Share sheet (slice 06) -->
-    <string name="share_chooser_title">Share boomerang</string>
-    <string name="share_subject">OpenLoop boomerang</string>
+    <!-- Share sheet (slice 06). Kind-neutral: the same sheet shares a loop and a photo. -->
+    <string name="share_chooser_title">Share</string>
+    <string name="share_subject">OpenLoop</string>
+
+    <!-- Photo capture mode (docs/PRD-photo-capture.md) -->
+    <string name="camera_switch_to_photo">Switch to photo mode</string>
+    <string name="camera_switch_to_video">Switch to video mode</string>
+    <string name="camera_take_photo">Take photo</string>
+    <string name="snackbar_photo_capture_failed">Couldn\'t take that photo. Try again.</string>
+    <string name="gallery_close_photo">Close photo</string>
+    <string name="gallery_photo_preview">Captured photo</string>
 
     <!-- Loopifying (Issue #40) -->
     <string name="processing_title">Creating..</string>
@@ -16,7 +24,8 @@
     <string name="notification_loop_export_complete_text">Tap to open OpenLoop</string>
 
     <!-- Post-save snackbars (slice 06) -->
-    <string name="snackbar_saved">Loop saved to Photos</string>
+    <!-- Kind-neutral: the same snackbar follows a saved loop and a captured photo. -->
+    <string name="snackbar_saved">Saved to Photos</string>
     <string name="snackbar_view_action">View</string>
     <string name="snackbar_save_failed">Couldn\'t save your loop. Try again, or send a debug report so we can fix device issues.</string>
     <string name="snackbar_save_failed_report_action">Send debug report</string>
