@@ -46,7 +46,7 @@ results disproved. Treat every ⚠️ row below as *indicative, not verbatim*.
 | Developer name | — | **`OpenLoop`** | ✅ |
 | Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.` | **`Ad Free and Open Source Boomerang Loop Video Maker`** | ⚠️ |
 | Full description | Discloses Firebase Analytics/Crashlytics | **Claims "no tracking"** | ⚠️ |
-| Version | `main` **1.0.36** · `feature/camera-lenses` **1.0.37** | **1.0.25 (Jun 23, 2026)** | ⚠️ |
+| Version | `main` **1.0.37** (post-[#123](https://github.com/stozo04/OpenLoop/pull/123)) | **1.0.25 (Jun 23, 2026)** | ⚠️ |
 | Installs | — | **10+** | ⚠️ |
 | Ratings | — | **None** | ⚠️ |
 
@@ -488,19 +488,25 @@ Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-que
 > This supersedes the earlier recommendation in this section's history: `OpenLoop: Boomerang Maker`
 > described only a third of the product.
 
-⚠️ **Three-way version gap — verified 2026-08-09, and wider than a single number suggests:**
+⚠️ **The gap is now one step, not two — updated 2026-08-09 after [#123](https://github.com/stozo04/OpenLoop/pull/123):**
 
-| Where | Version | Photo capture? |
+| Where | Version | Lenses + photo mode? |
 |---|---|---|
-| **Google Play (what users get)** | **1.0.25** (Jun 23, 2026) | No |
-| **`main`** | **1.0.36** | **No** — `ImageCapture` does not exist anywhere in `main` |
-| **`feature/camera-lenses`** | **1.0.37** | Yes — but **not yet merged to `main`** |
+| **Google Play (what users get)** | **1.0.25** (Jun 23, 2026) | ❌ Neither |
+| **`main`** | **1.0.37** | ✅ Both — #123 merged `feature/camera-lenses` |
 
-PR #120 targeted `feature/camera-lenses`, not `main`, and that branch is not fully merged. So there
-are **two** steps between today and a user seeing photo mode: merge `feature/camera-lenses` → `main`,
-then cut a release. Every feature in this section's naming case — three lenses, photo mode — is
-**invisible to Play users until both happen.** Shipping is a prerequisite for the listing rewrite, not
-a follow-up to it.
+`feature/camera-lenses` carried five commits with no PR targeting `main` for several days; #123 landed
+them. **Only one step now stands between the code and users: cut a release.** Until that ships, every
+feature in this section's naming case — three lenses, photo mode — is **invisible to Play users**, and
+renaming to `LoopLens` would market capabilities nobody can install. Shipping is a prerequisite for
+the listing rewrite, not a follow-up to it.
+
+> **Implementation note for listing copy.** Photo capture is taken from `previewView.bitmap`
+> (`CameraScreen.kt`), **not** CameraX's `ImageCapture` use case. That is deliberate — it captures the
+> composited preview *including the GL lens effects*, which an `ImageCapture` path would not. The
+> tradeoff is that stills are **preview-resolution, not sensor-resolution**. Keep listing copy and
+> screenshots honest about that: "capture your lens as a photo" is accurate; language implying a
+> full-resolution camera replacement is not.
 
 #### Recommended: rename to **LoopLens**
 
@@ -646,11 +652,11 @@ Performance (impressions on brand queries); rating count and average.
 
 1. **Which is the source of truth** — the live Console listing or `docs/play-store/store-listing.md`?
    They have drifted on every field (§2.1).
-2. **Why is Play on 1.0.25 when `main` is on 1.0.36 and `feature/camera-lenses` on 1.0.37?** Eleven
-   versionCodes of merged-but-unshipped work, plus photo mode still unmerged. **This is the single
-   biggest gap in the whole document** — the listing markets a product two feature-generations older
-   than the code. Merge `feature/camera-lenses`, cut a release, *then* rewrite the listing around what
-   users can actually install.
+2. **Why is Play on 1.0.25 when `main` is on 1.0.37?** Twelve versionCodes of merged-but-unshipped
+   work, including all three lenses and photo mode. **This is the single biggest gap in the whole
+   document** — the listing markets a product two feature-generations older than the code. The merge
+   half is done ([#123](https://github.com/stozo04/OpenLoop/pull/123)); **cut a release**, then
+   rewrite the listing around what users can actually install.
 3. **Title choice** — brand-first (recommended) or keyword-first? (§5.2)
 4. **Is the trademark risk worth an attorney hour?** (§3.2)
 5. **Move Pages publishing off `docs/`,** or accept engineering markdown being publicly indexed?
