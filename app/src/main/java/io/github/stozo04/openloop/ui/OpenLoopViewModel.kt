@@ -1276,20 +1276,23 @@ class OpenLoopViewModel(
         _renderProgress.value = 0f
         nudgeGalleryAfterShare = !result.returnToGallery
         loadRecordedVideos()
-        _events.send(BoomerangEvent.Share(result.outputFile))
-        _uiState.value = if (result.returnToGallery) {
-            OpenLoopUiState.Gallery
-        } else {
-            OpenLoopUiState.ReadyToCapture
-        }
-        // Only this branch counts. A failed or cancelled render never reaches here, so the review
-        // ask can't ride a bad experience. Armed now, fired once the share sheet closes.
+        // Count the save BEFORE handing the file to the share sheet. Only this branch counts — a
+        // failed or cancelled render never reaches here, so the ask can't ride a bad experience.
+        // Ordering matters: Share opens the chooser, and onShareSheetClosed reads the flag the
+        // moment it dismisses. Arming after the emit would race that dismissal and silently drop
+        // the ask; a few ms before a share sheet that already waited on a full render is free.
         pendingReviewRequest = try {
             userPreferencesRepository.incrementSavedLoopCount() == REVIEW_AFTER_SAVED_LOOPS
         } catch (e: IOException) {
             // Losing the tally just means no review ask — never fail a save the user already got.
             Log.e("OpenLoopViewModel", "Failed to record the saved-loop count", e)
             false
+        }
+        _events.send(BoomerangEvent.Share(result.outputFile))
+        _uiState.value = if (result.returnToGallery) {
+            OpenLoopUiState.Gallery
+        } else {
+            OpenLoopUiState.ReadyToCapture
         }
     }
 
