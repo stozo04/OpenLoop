@@ -1,11 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=privacy-policy.html">
-  <title>OpenLoop</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>OpenLoop — Open-source boomerang loops, face lenses & photos for Android</title>
+<meta name="description" content="OpenLoop is a free, open-source Android camera app for speed-controlled video loops, live face lenses and photos. Video is processed entirely on your device and never uploaded. Apache 2.0.">
+<link rel="canonical" href="https://stozo04.github.io/OpenLoop/">
+<link rel="icon" href="play-store/icon.png">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OpenLoop">
+<meta property="og:title" content="OpenLoop — open-source boomerang loops, face lenses & photos">
+<meta property="og:description" content="Free, open-source Android camera app for speed-controlled video loops, live face lenses and photos. Processed on-device, never uploaded.">
+<meta property="og:url" content="https://stozo04.github.io/OpenLoop/">
+<meta property="og:image" content="https://stozo04.github.io/OpenLoop/play-store/main-image.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<!--
+  SoftwareApplication markup. Deliberately NO aggregateRating: the app has no ratings yet, and
+  marking up content that isn't visible on the page risks a structured-data manual action
+  (https://developers.google.com/search/docs/appearance/structured-data/sd-policies).
+  Add it only once real ratings exist AND are rendered on this page.
+-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "OpenLoop",
+  "description": "Open-source Android camera app for speed-controlled video loops (boomerangs), live face lenses and photos. All video processing happens on-device.",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "Android 8.0+",
+  "url": "https://stozo04.github.io/OpenLoop/",
+  "downloadUrl": "https://play.google.com/store/apps/details?id=io.github.stozo04.openloop",
+  "image": "https://stozo04.github.io/OpenLoop/play-store/play_store_icon_512.png",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "isAccessibleForFree": true,
+  "author": { "@type": "Person", "name": "Steven Gates" },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<style>
+  :root {
+    --lime: #CDFF4F; --lime-ink: #15200A; --aqua: #34E1D5;
+    --canvas: #0A0A0C; --surface: #17171D; --outline: #3A3A45;
+    --text: #ECECF1; --muted: #A7A7B4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--canvas); color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  a { color: var(--aqua); }
+
+  header { text-align: center; padding: 56px 0 40px; }
+  header img.icon { width: 96px; height: 96px; border-radius: 22%; }
+  h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.15; margin: 20px 0 8px; letter-spacing: -0.02em; }
+  h1 .brand { color: var(--lime); }
+  .tagline { color: var(--muted); font-size: 1.15rem; max-width: 34em; margin: 0 auto; }
+
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 28px 0 8px; }
+  .btn {
+    display: inline-block; padding: 13px 26px; border-radius: 999px;
+    font-weight: 600; text-decoration: none; border: 1px solid var(--outline);
+  }
+  .btn-primary { background: var(--lime); color: var(--lime-ink); border-color: var(--lime); }
+  .btn-secondary { background: var(--surface); color: var(--text); }
+  .btn:hover { filter: brightness(1.1); }
+  .meta { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
+
+  h2 { font-size: 1.4rem; margin: 48px 0 16px; }
+  ul.features { list-style: none; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+  ul.features li { background: var(--surface); border: 1px solid var(--outline); border-radius: 14px; padding: 16px 18px; }
+  ul.features strong { display: block; color: var(--lime); margin-bottom: 4px; }
+
+  .shots { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+  .shots img { width: 200px; flex: 0 0 auto; border-radius: 14px; border: 1px solid var(--outline); scroll-snap-align: start; }
+
+  .note { background: var(--surface); border: 1px solid var(--outline); border-left: 3px solid var(--aqua); border-radius: 12px; padding: 16px 18px; color: var(--muted); }
+  .note strong { color: var(--text); }
+
+  footer { border-top: 1px solid var(--outline); margin-top: 56px; padding: 24px 0 48px; color: var(--muted); font-size: 0.9rem; text-align: center; }
+  footer a { margin: 0 8px; }
+</style>
 </head>
 <body>
-  <p><a href="privacy-policy.html">OpenLoop Privacy Policy</a></p>
+<div class="wrap">
+
+  <header>
+    <img class="icon" src="play-store/icon.png" alt="OpenLoop app icon" width="96" height="96">
+    <h1><span class="brand">OpenLoop</span><br>Loops, lenses &amp; photos — on your device</h1>
+    <p class="tagline">
+      A free, open-source Android camera app. Turn a quick clip into a speed-controlled
+      video loop, add a live face lens, or just take a photo.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://play.google.com/store/apps/details?id=io.github.stozo04.openloop">Get it on Google Play</a>
+      <a class="btn btn-secondary" href="https://github.com/stozo04/OpenLoop">View source on GitHub</a>
+    </div>
+    <p class="meta">Free · No ads · No accounts · Apache 2.0 · Android 8.0+</p>
+  </header>
+
+  <h2>What it does</h2>
+  <ul class="features">
+    <li><strong>Speed-controlled loops</strong>Pick forward, reverse, or either bounce, then set playback speed with a live preview — not three fixed presets.</li>
+    <li><strong>Live face lenses</strong>Broccoli, Shades and Big Mouth render on the camera preview in real time and record into your clip.</li>
+    <li><strong>Photo mode</strong>Tap the shutter for a still instead of a clip — lenses included.</li>
+    <li><strong>Trim, look, share</strong>A two-handle trim bar, colour looks, and your phone's normal share sheet.</li>
+    <li><strong>On-device processing</strong>Every frame is decoded, reversed and re-encoded on your phone. Your video is never uploaded.</li>
+    <li><strong>Genuinely open source</strong>Apache 2.0, every line readable, issues and pull requests welcome.</li>
+  </ul>
+
+  <h2>Screenshots</h2>
+  <div class="shots">
+    <img src="play-store/store-trim.png" alt="Trim screen with the two-handle trim bar" loading="lazy">
+    <img src="play-store/store-loop.png" alt="Editor Loop tab showing the four direction options" loading="lazy">
+    <img src="play-store/store-speed.png" alt="Editor Speed tab with the playback-speed slider" loading="lazy">
+    <img src="play-store/store-filter.png" alt="Editor Looks tab showing colour filters" loading="lazy">
+    <img src="play-store/store-share.png" alt="Sharing a finished loop from the share sheet" loading="lazy">
+  </div>
+
+  <h2>Privacy</h2>
+  <p class="note">
+    <strong>Your video stays on your phone.</strong> Clips, loops and photos are processed entirely
+    on-device and are never uploaded. There are no accounts, no ads and no advertising ID.
+    OpenLoop does send limited, pseudonymous crash and usage diagnostics through Firebase
+    Crashlytics and Google Analytics for Firebase so bugs on real devices can be found and fixed —
+    the full detail is in the <a href="privacy-policy.html">privacy policy</a>.
+  </p>
+
+  <footer>
+    <a href="https://play.google.com/store/apps/details?id=io.github.stozo04.openloop">Google Play</a>·
+    <a href="https://github.com/stozo04/OpenLoop">GitHub</a>·
+    <a href="privacy-policy.html">Privacy policy</a>·
+    <a href="https://github.com/stozo04/OpenLoop/issues">Report an issue</a>
+    <p>© Steven Gates · Released under the Apache License 2.0</p>
+  </footer>
+
+</div>
 </body>
 </html>

@@ -28,6 +28,12 @@ or `docs/diagnostics/`.
 | [`e2e/`](e2e/) | Agent/human E2E run reports + proof screenshots (timestamped `.md` + PNG) — **see retention rule below** | Yes |
 | [`local/`](local/) | **Private** owner notes (signing playbook, personal paths) — **never commit** | **No** (gitignored) |
 | [`privacy-policy.html`](privacy-policy.html) | GitHub Pages host for Play privacy URL | Yes |
+| [`index.html`](index.html) | **The public landing page** at `https://stozo04.github.io/OpenLoop/` — brand token, meta description, `SoftwareApplication` JSON-LD, Play + GitHub links. **Not a doc**: edit it as a shipped web page, and keep its links in step with the live listing | Yes |
+
+> ⚠️ **Everything in `docs/` is publicly served.** Pages publishes from `main` → `/docs`, so every
+> `.md` here is world-readable and indexable, not just the two `.html` files. Moving publishing to a
+> separate folder would break the `privacy-policy.html` URL that Play Console points at, so the rule
+> is simply: don't put anything in `docs/` you wouldn't publish (`docs/local/` is gitignored for that).
 
 **Do not create:** `docs/active/`, `docs/completed/`, `docs/diagnostics/`, `docs/android-16/`,
 `docs/prompts/`, or loose `.md` files outside the folders above (except the five root-level

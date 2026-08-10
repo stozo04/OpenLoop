@@ -18,6 +18,8 @@ import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.review.REVIEW_FIRST_ASK_AFTER_SAVES
+import io.github.stozo04.openloop.review.REVIEW_REASK_EVERY_SAVES
 import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
 import io.mockk.*
@@ -78,6 +80,12 @@ class FakeUserPreferencesRepository(
         onboardingCompletedValue = completed
         _hasCompletedOnboarding.value = completed
     }
+
+    /** Lifetime saved-loop tally, as the real DataStore counter would keep it. */
+    var savedLoopCount: Int = 0
+        private set
+
+    override suspend fun incrementSavedLoopCount(): Int = ++savedLoopCount
 }
 
 /**
@@ -90,6 +98,8 @@ class FailingWritePreferencesRepository : UserPreferencesRepository {
     override suspend fun setOnboardingCompleted(completed: Boolean) {
         throw IOException("Simulated disk full")
     }
+
+    override suspend fun incrementSavedLoopCount(): Int = throw IOException("Simulated disk full")
 }
 
 /**
@@ -1324,6 +1334,141 @@ class OpenLoopViewModelTest {
             viewModel.onGalleryButtonNudgeFinished()
             assertFalse(viewModel.nudgeGalleryButton.value)
             job.cancel()
+        }
+
+    /**
+     * One full capture → save → share-sheet-dismissed round trip, the only path that can arm the
+     * review ask. Repeat it to walk the saved-loop counter.
+     */
+    private fun TestScope.saveOneLoopAndDismissShareSheet() {
+        enterTrimState()
+        viewModel.onNextFromTrim()
+        advanceUntilIdle()
+        viewModel.saveBoomerang()
+        advanceUntilIdle()
+        viewModel.onShareSheetClosed()
+        advanceUntilIdle()
+    }
+
+    /**
+     * The cadence, driven through 12 real save round trips rather than asserted against
+     * `shouldAskForReview` again (`ReviewCadenceTest` owns the rule). This proves the ViewModel feeds
+     * it the *post-increment* tally and arms on exactly those saves — an off-by-one here would shift
+     * every ask by one loop and no pure-function test would notice.
+     */
+    @Test
+    fun `the review card is asked for on the 3rd save and again on the 10th`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            val asksAfterEachSave = (1..12).map {
+                saveOneLoopAndDismissShareSheet()
+                events.count { event -> event == BoomerangEvent.RequestReview }
+            }
+            val askedOnSaves = asksAfterEachSave.mapIndexedNotNull { i, total ->
+                if (total > asksAfterEachSave.getOrElse(i - 1) { 0 }) i + 1 else null
+            }
+            assertEquals(
+                "expected an ask on the 3rd save and again on the 10th, got $events",
+                listOf(REVIEW_FIRST_ASK_AFTER_SAVES, REVIEW_REASK_EVERY_SAVES),
+                askedOnSaves,
+            )
+            assertEquals(12, fakePreferencesRepository.savedLoopCount)
+
+            // Ordering is a bug fix, so assert it exactly, not loosely. The ask must be the event
+            // immediately BEFORE its Saved: the host suspends on the Saved snackbar for ~4 s, so a
+            // RequestReview queued after it fires on a delay — long enough for the user to be
+            // recording again, and the card lands on their take. Emitting first also keeps the
+            // snackbar off the card, because the host suspends for the card's whole lifecycle.
+            events.forEachIndexed { i, event ->
+                if (event == BoomerangEvent.RequestReview) {
+                    assertEquals(
+                        "RequestReview must be emitted immediately before the Saved it precedes, " +
+                            "never queued behind that snackbar's ~4 s timeout (Issue #121), got $events",
+                        BoomerangEvent.Saved,
+                        events.getOrNull(i + 1),
+                    )
+                }
+            }
+            job.cancel()
+        }
+
+    /**
+     * The debug escape hatch (`--ez openloop.demoReview true`). The counter is monotonic, so once an
+     * install passes the cadence the ask is unreachable without rewriting DataStore by hand; this is
+     * how the flow stays testable. Saves 1 and 2 are below every threshold, so an ask on either can
+     * only have come from the override.
+     */
+    @Test
+    fun `forceReviewAsk asks on every save, including ones below the cadence`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+            viewModel.forceReviewAsk = true
+
+            repeat(2) { saveOneLoopAndDismissShareSheet() }
+
+            assertEquals(2, events.count { it == BoomerangEvent.RequestReview })
+            job.cancel()
+        }
+
+    @Test
+    fun `a failed render neither counts toward nor triggers the review ask`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+            fakeVideoProcessor.failRender = true
+
+            repeat(REVIEW_FIRST_ASK_AFTER_SAVES + 1) {
+                enterTrimState()
+                viewModel.onNextFromTrim()
+                advanceUntilIdle()
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+                // No share sheet opens on failure; call it anyway to prove nothing is armed.
+                viewModel.onShareSheetClosed()
+                advanceUntilIdle()
+            }
+
+            assertEquals(0, fakePreferencesRepository.savedLoopCount)
+            assertTrue(
+                "a review ask must never ride a failed save, got $events",
+                events.none { it == BoomerangEvent.RequestReview },
+            )
+            job.cancel()
+        }
+
+    /**
+     * The guard the host re-checks immediately before Play's card goes up. `Recording` is the state
+     * that made it necessary: the card used to ride a ~4 s snackbar timeout and could land on a take
+     * the user had already started, destroying it (Issue #121).
+     */
+    @Test
+    fun `isIdleForReview is true only on the resting screens`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
+            assertTrue("ReadyToCapture is a resting screen", viewModel.isIdleForReview)
+
+            viewModel.navigateToGallery()
+            advanceUntilIdle()
+            assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
+            assertTrue("Gallery is a resting screen", viewModel.isIdleForReview)
+
+            viewModel.onPermissionsChecked(true)
+            val slot = slot<(VideoRecordEvent) -> Unit>()
+            every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
+            viewModel.startBurstCapture(cameraManager)
+            assertEquals(OpenLoopUiState.Recording, viewModel.uiState.value)
+            assertFalse("a review card must never cover a live recording", viewModel.isIdleForReview)
+
+            val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
+            every { finalizeEvent.hasError() } returns false
+            slot.captured.invoke(finalizeEvent)
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value is OpenLoopUiState.Trim)
+            assertFalse("nor the trim editor", viewModel.isIdleForReview)
         }
 
     @Test

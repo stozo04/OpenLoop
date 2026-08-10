@@ -16,4 +16,12 @@ interface UserPreferencesRepository {
 
     /** Persist the onboarding-completed flag. Called once on "LET'S GO!" tap. */
     suspend fun setOnboardingCompleted(completed: Boolean)
+
+    /**
+     * Record one successfully saved loop and return the new lifetime total.
+     *
+     * Gates the Play in-app review card (Issue #121): the ask fires on the *n*-th save, so the
+     * caller needs the post-increment value, not a separate read that could race a second save.
+     */
+    suspend fun incrementSavedLoopCount(): Int
 }

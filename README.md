@@ -4,15 +4,21 @@
 
 No subscriptions. No ads. No accounts. Just point, tap, and loop.
 
+[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="72">](https://play.google.com/store/apps/details?id=io.github.stozo04.openloop)
+
+**[Website](https://stozo04.github.io/OpenLoop/)** · **[Google Play](https://play.google.com/store/apps/details?id=io.github.stozo04.openloop)** · **[Privacy policy](https://stozo04.github.io/OpenLoop/privacy-policy.html)**
+
 OpenLoop is a free Android camera app for creating speed-controlled video loops — the kind of thing Big Tech locks behind paywalls and cluttered UIs. We're leveraging the power of AI and open-source tooling to bring the coolest creative toys to everyone, for free, forever.
 
 Built with Google's latest Android libraries. All video processing runs on your device. Your videos never leave your phone.
 
 ## What It Does
 
-- **Burst Capture** — Tap the shutter for a quick 1.5-second video burst (custom duration coming soon)
-- **Seamless Loops** — Forward-backward loop generation entirely on-device via Media3 Transformer
+- **Capture** — Hold the shutter for a clip (up to 30 s), or import one from your library
+- **Seamless Loops** — Forward, reverse, or either bounce, generated entirely on-device via Media3 Transformer
 - **Speed Control** — Real-time playback speed slider from 0.5x to 3.0x before you save
+- **Face Lenses** — Broccoli, Shades and Big Mouth render live on the viewfinder and record into the clip
+- **Photo Mode** — Flip the shutter to stills, lenses included
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
 - **Private by design** — Your videos are processed 100% on-device and are never uploaded. No accounts, no ads, no advertising ID. The app does send limited, pseudonymous crash and usage diagnostics (Firebase Crashlytics + Analytics) — see the [privacy policy](docs/play-store/privacy-policy.md)
 

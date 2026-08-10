@@ -28,8 +28,8 @@ android {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 38
-        versionName = "1.0.38"
+        versionCode = 39
+        versionName = "1.0.39"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -285,6 +285,10 @@ dependencies {
 
     // Play In-App Updates (FLEXIBLE flow) — see update/AppUpdateController.kt.
     implementation(libs.play.app.update)
+
+    // Play In-App Review (rating card after the 3rd saved loop) — see review/InAppReview.kt.
+    implementation(libs.play.review)
+    implementation(libs.play.review.ktx)
 
     // Testing
     testImplementation(libs.junit)

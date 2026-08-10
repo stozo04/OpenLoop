@@ -117,6 +117,7 @@ io.github.stozo04.openloop/
 │   │                            # the pure math extracted out of composables so it is JVM-testable
 │   │                            # (TrimHandleMath — Lesson 030, TrimRulerMath)
 │   └── theme/                   # Color / Type / Shape / Background tokens
+├── review/                      # Play in-app review: the ask cadence + the two-call launch
 ├── update/                      # In-app update controller
 ├── work/                        # WorkManager render pipeline: scheduler, worker, FGS notifications, MediaStore publish
 └── MainActivity.kt              # Permissions, OpenLoopNavHost routing, theme, ViewModel Factory

@@ -129,6 +129,7 @@ class OpenLoopNavHostTest {
     private class NoopPreferencesRepository : UserPreferencesRepository {
         override val hasCompletedOnboarding: Flow<Boolean> = MutableStateFlow(true)
         override suspend fun setOnboardingCompleted(completed: Boolean) {}
+        override suspend fun incrementSavedLoopCount(): Int = 0
     }
 
     private class NoopVideoStorageRepository : VideoStorageRepository {

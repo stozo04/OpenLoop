@@ -24,6 +24,7 @@ import io.github.stozo04.openloop.media.ReversePreviewLog
 import io.github.stozo04.openloop.media.previewReverseMaxShortSideOrNull
 import io.github.stozo04.openloop.media.isSamsungDevice
 import io.github.stozo04.openloop.media.needsReverse
+import io.github.stozo04.openloop.review.shouldAskForReview
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
 import io.github.stozo04.openloop.work.BoomerangRenderScheduler
 import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
@@ -131,6 +132,25 @@ sealed interface BoomerangEvent {
      * and can simply tap again (docs/PRD-photo-capture.md §5.3).
      */
     object PhotoCaptureFailed : BoomerangEvent
+
+    /**
+     * The user just saved a loop on the cadence in
+     * [io.github.stozo04.openloop.review.shouldAskForReview] and the share sheet has closed — show
+     * Play's in-app review card (Issue #121).
+     *
+     * **Emitted before [Saved], and that ordering is the fix, not an accident.** Play requires the
+     * card to be the topmost layer, so the obvious move is to queue the ask behind the "Saved"
+     * snackbar. That was the original design and it was wrong: `showSnackbar` suspends the host's
+     * event collector for the snackbar's full ~4 s, during which the user is already back on the
+     * viewfinder — so the card fired on top of whatever they had started, including a live
+     * recording. Emitting first inverts it. The host suspends on `launchInAppReview` for the card's
+     * whole lifecycle, so [Saved] still cannot overlay the card, and the ask lands the instant the
+     * chooser dismisses instead of on a four-second fuse.
+     *
+     * The residual window — Play's request round trip — is closed by `launchInAppReview`'s `isIdle`
+     * re-check. The host runs it; the ViewModel never touches an Activity (Lesson 004).
+     */
+    object RequestReview : BoomerangEvent
 }
 
 class OpenLoopViewModel(
@@ -362,6 +382,24 @@ class OpenLoopViewModel(
     private var photoSaveInProgress = false
 
     private var nudgeGalleryAfterShare = false
+
+    /** Armed by a save that hits the review cadence; consumed by [onShareSheetClosed]. */
+    private var pendingReviewRequest = false
+
+    /**
+     * Debug-only override: makes every save ask. Set from `MainActivity` behind `BuildConfig.DEBUG`
+     * + [io.github.stozo04.openloop.review.EXTRA_DEMO_REVIEW], so release builds can never reach it.
+     */
+    var forceReviewAsk: Boolean = false
+
+    /**
+     * True on the two resting screens — the only states a Play review card may cover. Read live by
+     * the host immediately before the card goes up, so a recording started during Play's request
+     * round trip cancels the ask instead of losing the take (Issue #121).
+     */
+    val isIdleForReview: Boolean
+        get() = _uiState.value is OpenLoopUiState.ReadyToCapture ||
+            _uiState.value is OpenLoopUiState.Gallery
 
     /** Guards against repeated Save taps while promotion/enqueue/render is already active. */
     private var saveInProgress = false
@@ -1258,6 +1296,15 @@ class OpenLoopViewModel(
         _renderProgress.value = 0f
         nudgeGalleryAfterShare = !result.returnToGallery
         loadRecordedVideos()
+        // Only this branch counts a save — a failed or cancelled render never reaches here. Arm
+        // BEFORE emitting Share: onShareSheetClosed reads the flag the moment the chooser dismisses.
+        pendingReviewRequest = try {
+            shouldAskForReview(userPreferencesRepository.incrementSavedLoopCount()) || forceReviewAsk
+        } catch (e: IOException) {
+            // Losing the tally just means no review ask — never fail a save the user already got.
+            Log.e("OpenLoopViewModel", "Failed to record the saved-loop count", e)
+            false
+        }
         _events.send(BoomerangEvent.Share(result.outputFile))
         _uiState.value = if (result.returnToGallery) {
             OpenLoopUiState.Gallery
@@ -1278,7 +1325,14 @@ class OpenLoopViewModel(
             nudgeGalleryAfterShare = false
             _nudgeGalleryButton.value = true
         }
-        viewModelScope.launch { _events.send(BoomerangEvent.Saved) }
+        val askForReview = pendingReviewRequest
+        pendingReviewRequest = false // one ask per arming, even if the sheet somehow closes twice
+        viewModelScope.launch {
+            // Ask BEFORE Saved — see [BoomerangEvent.RequestReview]. Queuing it behind the snackbar
+            // put the card on a ~4 s fuse that could fire over a recording the user had started.
+            if (askForReview) _events.send(BoomerangEvent.RequestReview)
+            _events.send(BoomerangEvent.Saved)
+        }
     }
 
     fun onGalleryButtonNudgeFinished() {
