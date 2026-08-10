@@ -1364,12 +1364,17 @@ class OpenLoopViewModelTest {
 
             saveOneLoopAndDismissShareSheet()
             assertEquals(1, events.count { it == BoomerangEvent.RequestReview })
-            // Ordering matters: the host suspends on the Saved snackbar, so a RequestReview queued
-            // ahead of it would surface the card under a snackbar (Play forbids any overlay).
-            assertTrue(
-                "RequestReview must trail the Saved snackbar it follows",
-                events.indexOfLast { it == BoomerangEvent.Saved } <
-                    events.indexOfFirst { it == BoomerangEvent.RequestReview },
+            // Ordering is the whole bug fix, so assert it exactly, not loosely. The ask must be the
+            // event immediately BEFORE its Saved: the host suspends on the Saved snackbar for ~4 s,
+            // so a RequestReview queued after it fires on a delay — long enough for the user to be
+            // recording again, and the card lands on their take. Emitting first also keeps the
+            // snackbar off the card, because the host suspends for the card's whole lifecycle.
+            val askIndex = events.indexOfFirst { it == BoomerangEvent.RequestReview }
+            assertEquals(
+                "RequestReview must be emitted immediately before the Saved it precedes, never " +
+                    "queued behind that snackbar's ~4 s timeout (Issue #121), got $events",
+                BoomerangEvent.Saved,
+                events.getOrNull(askIndex + 1),
             )
 
             // Quota is Play's job, restraint is ours: later saves must not re-ask.
@@ -1403,6 +1408,38 @@ class OpenLoopViewModelTest {
                 events.none { it == BoomerangEvent.RequestReview },
             )
             job.cancel()
+        }
+
+    /**
+     * The guard the host re-checks immediately before Play's card goes up. `Recording` is the state
+     * that made it necessary: the card used to ride a ~4 s snackbar timeout and could land on a take
+     * the user had already started, destroying it (Issue #121).
+     */
+    @Test
+    fun `isIdleForReview is true only on the resting screens`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            assertEquals(OpenLoopUiState.ReadyToCapture, viewModel.uiState.value)
+            assertTrue("ReadyToCapture is a resting screen", viewModel.isIdleForReview)
+
+            viewModel.navigateToGallery()
+            advanceUntilIdle()
+            assertEquals(OpenLoopUiState.Gallery, viewModel.uiState.value)
+            assertTrue("Gallery is a resting screen", viewModel.isIdleForReview)
+
+            viewModel.onPermissionsChecked(true)
+            val slot = slot<(VideoRecordEvent) -> Unit>()
+            every { cameraManager.startRecording(any(), capture(slot)) } returns fakeRecording
+            viewModel.startBurstCapture(cameraManager)
+            assertEquals(OpenLoopUiState.Recording, viewModel.uiState.value)
+            assertFalse("a review card must never cover a live recording", viewModel.isIdleForReview)
+
+            val finalizeEvent = mockk<VideoRecordEvent.Finalize>(relaxed = true)
+            every { finalizeEvent.hasError() } returns false
+            slot.captured.invoke(finalizeEvent)
+            advanceUntilIdle()
+            assertTrue(viewModel.uiState.value is OpenLoopUiState.Trim)
+            assertFalse("nor the trim editor", viewModel.isIdleForReview)
         }
 
     @Test

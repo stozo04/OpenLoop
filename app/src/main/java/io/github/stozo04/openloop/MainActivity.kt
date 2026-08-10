@@ -377,11 +377,14 @@ class MainActivity : ComponentActivity() {
                             BoomerangEvent.PhotoCaptureFailed -> snackbarHostState.showSnackbar(
                                 message = photoCaptureFailedMessage,
                             )
-                            // Third saved loop, chooser dismissed, "Saved" snackbar already cleared
-                            // (this collector suspends on it) — see [BoomerangEvent.RequestReview].
+                            // Third saved loop, chooser just dismissed. This suspends for the card's
+                            // whole lifecycle, which is what keeps the Saved snackbar behind it —
+                            // see [BoomerangEvent.RequestReview]. `isIdle` reads the state live, so
+                            // a recording started during Play's round trip cancels the ask.
                             BoomerangEvent.RequestReview -> launchInAppReview(
                                 manager = reviewManager,
                                 activity = this@MainActivity,
+                                isIdle = { viewModel.isIdleForReview },
                             )
                             // Loops marked for deletion (Issue #35): show an Undo snackbar. The real
                             // file delete is deferred — Undo restores the tiles, any other dismissal
