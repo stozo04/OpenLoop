@@ -131,8 +131,8 @@ placements.
 - [ ] **Gallery** — the grid of finished loops.
 - [ ] *(optional)* **Onboarding** — a value-prop page ("No subscriptions & no ads").
 
-The lens and photo shots are the ones that matter most right now: they're the features Play users
-have never seen (1.0.25 → 1.0.38), and they're what the title rewrite is meant to describe.
+The lens and photo shots are the ones that matter most right now: they're the features the current
+listing doesn't show, and they're what the title rewrite is meant to describe.
 
 Tip: avoid screenshots that show another app's watermark baked into imported footage — shoot the
 demo clips with OpenLoop's own camera.

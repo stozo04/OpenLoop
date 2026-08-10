@@ -46,7 +46,7 @@ results disproved. Treat every ⚠️ row below as *indicative, not verbatim*.
 | Developer name | — | **`OpenLoop`** | ✅ |
 | Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.` | **`Ad Free and Open Source Boomerang Loop Video Maker`** | ⚠️ |
 | Full description | Discloses Firebase Analytics/Crashlytics | **Claims "no tracking"** | ⚠️ |
-| Version | `main` **1.0.37** (post-[#123](https://github.com/stozo04/OpenLoop/pull/123)) | **1.0.25 (Jun 23, 2026)** | ⚠️ |
+| Version | `main` **1.0.37** (post-[#123](https://github.com/stozo04/OpenLoop/pull/123)) | ~~1.0.25 (Jun 23, 2026)~~ **superseded — a release has since shipped; re-read in Console** | ⚠️ |
 | Installs | — | **10+** | ⚠️ |
 | Ratings | — | **None** | ⚠️ |
 
@@ -492,7 +492,7 @@ Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-que
 
 | Where | Version | Lenses + photo mode? |
 |---|---|---|
-| **Google Play (what users get)** | **1.0.25** (Jun 23, 2026) | ❌ Neither |
+| **Google Play (what users get)** | ~~1.0.25 (Jun 23, 2026)~~ — **stale, a release shipped after this was measured** | ✅ shipped since |
 | **`main`** | **1.0.37** | ✅ Both — #123 merged `feature/camera-lenses` |
 
 `feature/camera-lenses` carried five commits with no PR targeting `main` for several days; #123 landed
@@ -652,11 +652,12 @@ Performance (impressions on brand queries); rating count and average.
 
 1. **Which is the source of truth** — the live Console listing or `docs/play-store/store-listing.md`?
    They have drifted on every field (§2.1).
-2. **Why is Play on 1.0.25 when `main` is on 1.0.37?** Twelve versionCodes of merged-but-unshipped
-   work, including all three lenses and photo mode. **This is the single biggest gap in the whole
-   document** — the listing markets a product two feature-generations older than the code. The merge
-   half is done ([#123](https://github.com/stozo04/OpenLoop/pull/123)); **cut a release**, then
-   rewrite the listing around what users can actually install.
+2. ~~**Why is Play on 1.0.25 when `main` is on 1.0.37?**~~ **RESOLVED — the release was cut.** This
+   was the single biggest gap in the document when it was written (2026-08-09): twelve versionCodes
+   of merged-but-unshipped work, including all three lenses and photo mode. Both halves are now done
+   — merged in [#123](https://github.com/stozo04/OpenLoop/pull/123) and shipped to Play. Lenses and
+   photo mode are live, so **do not reuse the "users have never seen these features" framing**; the
+   remaining work is rewriting the listing around what users can already install.
 3. **Title choice** — brand-first (recommended) or keyword-first? (§5.2)
 4. **Is the trademark risk worth an attorney hour?** (§3.2)
 5. **Move Pages publishing off `docs/`,** or accept engineering markdown being publicly indexed?
