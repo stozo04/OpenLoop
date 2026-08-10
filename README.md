@@ -2,11 +2,11 @@
 
 **The open-source Boomerang camera app that should have existed years ago.**
 
-No subscriptions. No ads. No data harvesting. Just point, tap, and loop.
+No subscriptions. No ads. No accounts. Just point, tap, and loop.
 
 OpenLoop is a free Android camera app for creating speed-controlled video loops — the kind of thing Big Tech locks behind paywalls and cluttered UIs. We're leveraging the power of AI and open-source tooling to bring the coolest creative toys to everyone, for free, forever.
 
-Built with Google's latest Android libraries. Runs entirely on your device. Your videos never leave your phone.
+Built with Google's latest Android libraries. All video processing runs on your device. Your videos never leave your phone.
 
 ## What It Does
 
@@ -14,7 +14,7 @@ Built with Google's latest Android libraries. Runs entirely on your device. Your
 - **Seamless Loops** — Forward-backward loop generation entirely on-device via Media3 Transformer
 - **Speed Control** — Real-time playback speed slider from 0.5x to 3.0x before you save
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
-- **100% Private** — Zero network calls. Zero tracking. Everything stays on your phone
+- **Private by design** — Your videos are processed 100% on-device and are never uploaded. No accounts, no ads, no advertising ID. The app does send limited, pseudonymous crash and usage diagnostics (Firebase Crashlytics + Analytics) — see the [privacy policy](docs/play-store/privacy-policy.md)
 
 ## Why OpenLoop?
 
