@@ -24,7 +24,7 @@ import io.github.stozo04.openloop.media.ReversePreviewLog
 import io.github.stozo04.openloop.media.previewReverseMaxShortSideOrNull
 import io.github.stozo04.openloop.media.isSamsungDevice
 import io.github.stozo04.openloop.media.needsReverse
-import io.github.stozo04.openloop.review.REVIEW_AFTER_SAVED_LOOPS
+import io.github.stozo04.openloop.review.shouldAskForReview
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
 import io.github.stozo04.openloop.work.BoomerangRenderScheduler
 import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
@@ -134,8 +134,9 @@ sealed interface BoomerangEvent {
     object PhotoCaptureFailed : BoomerangEvent
 
     /**
-     * The user just saved their [io.github.stozo04.openloop.review.REVIEW_AFTER_SAVED_LOOPS]-th loop
-     * and the share sheet has closed — show Play's in-app review card (Issue #121).
+     * The user just saved a loop on the cadence in
+     * [io.github.stozo04.openloop.review.shouldAskForReview] and the share sheet has closed — show
+     * Play's in-app review card (Issue #121).
      *
      * **Emitted before [Saved], and that ordering is the fix, not an accident.** Play requires the
      * card to be the topmost layer, so the obvious move is to queue the ask behind the "Saved"
@@ -382,8 +383,14 @@ class OpenLoopViewModel(
 
     private var nudgeGalleryAfterShare = false
 
-    /** Armed by the save that hits [REVIEW_AFTER_SAVED_LOOPS]; consumed by [onShareSheetClosed]. */
+    /** Armed by a save that hits the review cadence; consumed by [onShareSheetClosed]. */
     private var pendingReviewRequest = false
+
+    /**
+     * Debug-only override: makes every save ask. Set from `MainActivity` behind `BuildConfig.DEBUG`
+     * + [io.github.stozo04.openloop.review.EXTRA_DEMO_REVIEW], so release builds can never reach it.
+     */
+    var forceReviewAsk: Boolean = false
 
     /**
      * True on the two resting screens — the only states a Play review card may cover. Read live by
@@ -1292,7 +1299,7 @@ class OpenLoopViewModel(
         // Only this branch counts a save — a failed or cancelled render never reaches here. Arm
         // BEFORE emitting Share: onShareSheetClosed reads the flag the moment the chooser dismisses.
         pendingReviewRequest = try {
-            userPreferencesRepository.incrementSavedLoopCount() == REVIEW_AFTER_SAVED_LOOPS
+            shouldAskForReview(userPreferencesRepository.incrementSavedLoopCount()) || forceReviewAsk
         } catch (e: IOException) {
             // Losing the tally just means no review ask — never fail a save the user already got.
             Log.e("OpenLoopViewModel", "Failed to record the saved-loop count", e)

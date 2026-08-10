@@ -107,6 +107,7 @@ import io.github.stozo04.openloop.ui.theme.OutlineVariant
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextPrimary
+import io.github.stozo04.openloop.review.EXTRA_DEMO_REVIEW
 import io.github.stozo04.openloop.review.launchInAppReview
 import io.github.stozo04.openloop.update.AppUpdateController
 import io.github.stozo04.openloop.update.EXTRA_DEMO_UPDATE
@@ -245,6 +246,10 @@ class MainActivity : ComponentActivity() {
             },
             launcher = appUpdateLauncher,
         )
+        // Same escape hatch for reviews: --ez openloop.demoReview true makes every save ask, so the
+        // cadence can be exercised on an install whose lifetime counter is long past it.
+        viewModel.forceReviewAsk =
+            BuildConfig.DEBUG && intent.getBooleanExtra(EXTRA_DEMO_REVIEW, false)
 
         setContent {
             OpenLoopTheme {

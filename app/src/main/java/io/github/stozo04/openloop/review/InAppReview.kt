@@ -8,18 +8,40 @@ import com.google.android.play.core.review.ReviewException
 import com.google.android.play.core.review.ReviewManager
 import kotlin.coroutines.cancellation.CancellationException
 
+/** Saved loops before the first ask — enough repeat use to have an opinion worth publishing. */
+const val REVIEW_FIRST_ASK_AFTER_SAVES: Int = 3
+
 /**
- * Saved loops after which OpenLoop asks for a rating — enough repeat use to have an opinion worth
- * publishing. Fires on exactly this save and never again — see
- * [io.github.stozo04.openloop.ui.BoomerangEvent.RequestReview] for the where and why.
- *
- * ponytail: one lifetime ask. Three windows lose it — process death between the save and the share
- * sheet closing, a sideloaded install where Play no-ops the card, and the user starting a recording
- * during Play's request round trip (see [launchInAppReview]). Dropping the ask is always better than
- * covering the viewfinder; if it ever matters, add a persisted `hasAskedForReview` flag, switch the
- * gate to `>=`, and re-arm instead of consuming on a skip.
+ * Saves between re-asks after the first one. Play's quota is the real throttle — documented only as
+ * "time-bound", roughly under a month, and explicitly subject to change — so this only has to be
+ * loose enough that we don't burn every ask inside one spent window. Ten saves is about a month of
+ * regular use.
  */
-const val REVIEW_AFTER_SAVED_LOOPS: Int = 3
+const val REVIEW_REASK_EVERY_SAVES: Int = 10
+
+/**
+ * Whether the save that brought the lifetime tally to [savedLoopCount] should ask for a rating.
+ *
+ * **We re-ask because the API cannot tell us whether the user reviewed.** Google's words: *"The API
+ * does not indicate whether the user reviewed or not, or even whether the review dialog was shown"*,
+ * and *"do not change your app's behavior based on the completion of the review flow"*. So there is
+ * no reviewed/didn't-review signal to branch on, and building one is out of the question.
+ *
+ * Play arbitrates instead, and it already does both halves of what we'd want:
+ * - **Reviewed already** → Play withholds the card (having no existing review is a documented
+ *   precondition for it to appear).
+ * - **Didn't review** → the quota window reopens, so a later ask can land.
+ *
+ * Asking exactly once left everyone who dismissed the card unreachable forever, which is backwards.
+ * An ask Play refuses is a silent ~300 ms no-op, so a missed one costs far more than a wasted one.
+ *
+ * ponytail: a plain modulo over saves, not a schedule that remembers what Play did — it can't know.
+ * If asks ever need spacing by *time* rather than by saves, persist the last-ask timestamp.
+ */
+fun shouldAskForReview(savedLoopCount: Int): Boolean =
+    savedLoopCount == REVIEW_FIRST_ASK_AFTER_SAVES ||
+        (savedLoopCount > REVIEW_FIRST_ASK_AFTER_SAVES &&
+            savedLoopCount % REVIEW_REASK_EVERY_SAVES == 0)
 
 /**
  * Show Play's in-app review card. Either call may decline to do anything (off-Play, quota) and the

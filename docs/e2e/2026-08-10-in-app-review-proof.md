@@ -44,7 +44,13 @@ the failure mode `244409f`'s widened catch exists to prevent.
 
 Counter after: `1203` — 2 → **3**, one increment for one save.
 
-## One ask, ever — verified against the 4th save
+## No re-ask on the 4th save
+
+> Recorded when the gate was `== 3` (one ask ever). The gate is now a **cadence** — the 3rd save,
+> then every 10th — because Play never reports whether the user reviewed, so asking once left
+> everyone who dismissed the card unreachable. Save 4 still doesn't ask under the new rule (4 is
+> neither 3 nor a multiple of 10), so the observation below stands unchanged; only the reason it
+> holds is different. The cadence itself is covered by `ReviewCadenceTest` and `OpenLoopViewModelTest`.
 
 A fourth full save cycle on the same install:
 
