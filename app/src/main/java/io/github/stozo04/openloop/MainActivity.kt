@@ -150,11 +150,7 @@ class MainActivity : ComponentActivity() {
     /** Play in-app updates (FLEXIBLE). Built in [onCreate]; released in [onDestroy]. */
     private lateinit var appUpdateController: AppUpdateController
 
-    /**
-     * Play in-app reviews. Lazy because most sessions never ask — the card fires once, on the
-     * [io.github.stozo04.openloop.review.REVIEW_AFTER_SAVED_LOOPS]-th saved loop. Nothing to
-     * release: unlike `AppUpdateManager` it registers no listener.
-     */
+    /** Play in-app reviews. Lazy — `applicationContext` isn't ready at field init. */
     private val reviewManager: ReviewManager by lazy {
         ReviewManagerFactory.create(applicationContext)
     }
@@ -381,10 +377,8 @@ class MainActivity : ComponentActivity() {
                             BoomerangEvent.PhotoCaptureFailed -> snackbarHostState.showSnackbar(
                                 message = photoCaptureFailedMessage,
                             )
-                            // Third saved loop, share sheet dismissed, "Saved" snackbar already
-                            // cleared (this collector suspends on it) — the one moment nothing is
-                            // drawn over Play's card. No prompt of our own precedes it: asking
-                            // "enjoying OpenLoop?" first is a policy violation, not just bad taste.
+                            // Third saved loop, chooser dismissed, "Saved" snackbar already cleared
+                            // (this collector suspends on it) — see [BoomerangEvent.RequestReview].
                             BoomerangEvent.RequestReview -> launchInAppReview(
                                 manager = reviewManager,
                                 activity = this@MainActivity,

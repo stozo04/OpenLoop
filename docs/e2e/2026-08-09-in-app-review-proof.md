@@ -3,27 +3,17 @@
 **Date:** 2026-08-09 · **Device:** `Pixel_8` AVD (`sdk_gphone16k_x86_64`, API 37, `emulator-5556`)
 **Build:** debug, from `feature/aso-landing-and-review` · **App version:** 1.0.38 (versionCode 38)
 
-## What was driven
+Full run narrative, build/test/lint gates and the manual QA checklist live in **PR #124** — this
+file keeps only what the PR description can't: the on-device evidence and the logcat read.
 
-A full real-UI round trip through the path this change touches — the save-success branch:
-
-`camera → record ~3 s → Trim → SAVE → editor → Save boomerang → render → share sheet → back → snackbar`
-
-| Step | Result |
-|---|---|
-| Launch | Camera viewfinder, permissions already granted, app focused |
-| Record + stop | Auto-routed to Trim ("TRIM YOUR VIDEO", 2.9 s clip) |
-| Advance | Editor with the four direction chips + "Save boomerang" |
-| Save | Render completed; share sheet opened on `boom_1786324342162_from_1786324342018.mp4` |
-| Back from chooser | **"Saved to Photos" snackbar** on the camera screen — screenshot below |
-| Review card | **Not shown — correct.** Counter is at 1; the gate is 3 |
+`camera → record ~3 s → Trim → SAVE → editor → Save boomerang → render → share sheet → back →`
+**"Saved to Photos" snackbar.** No review card — correct, the counter was at 1 and the gate is 3.
 
 ![Saved snackbar after the share sheet closed](2026-08-09-in-app-review-saved-snackbar-pixel8.png)
 
-## The review-specific evidence
+## The counter, read off the device
 
-The screenshot proves the save path still completes with `incrementSavedLoopCount()` in it. The
-counter itself is only observable in DataStore, so it was read straight off the device:
+Only observable in DataStore, so it was read straight out of the app's private storage:
 
 ```
 $ adb shell run-as io.github.stozo04.openloop \
@@ -44,18 +34,10 @@ whole run, so nothing crashed and restarted. The only `Failed to query component
 resources: 6` lines are pre-existing emulator noise unrelated to this change. The single SIGABRT in
 the log is `com.android.bluetooth` (emulator infrastructure, pid 1126), not the app.
 
-## What this run does NOT prove
+## The card itself is internal-test-track work
 
-**The review card itself was never rendered, and cannot be on an emulator.** The API only surfaces
-a card for an account that installed the app from Play; a sideloaded debug build gets a silent
-no-op, which is exactly what `launchInAppReview` swallows. Reaching the gate here would only have
-proved that the no-op doesn't crash.
-
-Verifying the card is **internal-test-track work**, and quotas are not enforced there:
-1. Upload to Internal testing; install as a tester account that is the primary Play account.
-2. Save three loops, dismissing the share sheet each time.
-3. The card must appear after the third — once, after the "Saved" snackbar clears, with nothing
-   drawn over it and no question asked beforehand.
-4. Save a fourth loop: **no** second card.
-
-Source: [Test in-app reviews](https://developer.android.com/guide/playcore/in-app-review/test).
+It was never rendered and **cannot** be on an emulator: Play only surfaces a card for an account
+that installed the app from Play, and a sideloaded debug build gets the silent no-op
+`launchInAppReview` swallows. Reaching the gate here would only have proved the no-op doesn't crash.
+Verification steps are in the PR's QA checklist —
+[Test in-app reviews](https://developer.android.com/guide/playcore/in-app-review/test).

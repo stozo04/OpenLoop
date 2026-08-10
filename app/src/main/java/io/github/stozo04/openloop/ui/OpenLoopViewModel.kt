@@ -374,11 +374,7 @@ class OpenLoopViewModel(
 
     private var nudgeGalleryAfterShare = false
 
-    /**
-     * Armed by the save that hits [REVIEW_AFTER_SAVED_LOOPS]; consumed by [onShareSheetClosed].
-     * In-memory on purpose — if the process dies while the chooser is up, the ask is simply
-     * dropped rather than resurfacing on a later, unrelated share.
-     */
+    /** Armed by the save that hits [REVIEW_AFTER_SAVED_LOOPS]; consumed by [onShareSheetClosed]. */
     private var pendingReviewRequest = false
 
     /** Guards against repeated Save taps while promotion/enqueue/render is already active. */
@@ -1276,11 +1272,8 @@ class OpenLoopViewModel(
         _renderProgress.value = 0f
         nudgeGalleryAfterShare = !result.returnToGallery
         loadRecordedVideos()
-        // Count the save BEFORE handing the file to the share sheet. Only this branch counts — a
-        // failed or cancelled render never reaches here, so the ask can't ride a bad experience.
-        // Ordering matters: Share opens the chooser, and onShareSheetClosed reads the flag the
-        // moment it dismisses. Arming after the emit would race that dismissal and silently drop
-        // the ask; a few ms before a share sheet that already waited on a full render is free.
+        // Only this branch counts a save — a failed or cancelled render never reaches here. Arm
+        // BEFORE emitting Share: onShareSheetClosed reads the flag the moment the chooser dismisses.
         pendingReviewRequest = try {
             userPreferencesRepository.incrementSavedLoopCount() == REVIEW_AFTER_SAVED_LOOPS
         } catch (e: IOException) {
@@ -1312,8 +1305,6 @@ class OpenLoopViewModel(
         pendingReviewRequest = false // one ask per arming, even if the sheet somehow closes twice
         viewModelScope.launch {
             _events.send(BoomerangEvent.Saved)
-            // Queued behind Saved: the host suspends on that snackbar, so the card surfaces after
-            // it clears rather than under it (Play: nothing may overlay the card).
             if (askForReview) _events.send(BoomerangEvent.RequestReview)
         }
     }

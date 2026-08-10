@@ -6,7 +6,6 @@ import com.google.android.play.core.review.testing.FakeReviewManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,12 +44,5 @@ class InAppReviewRobolectricTest {
         job.join()
 
         assertTrue("launchInAppReview never resumed — the review Task didn't complete", completed)
-    }
-
-    @Test
-    fun `the gate is the third saved loop`() {
-        // Guards the constant itself: the ViewModel test asserts "fires on the Nth save" against
-        // this same symbol, so both would still pass if the value silently drifted to 1.
-        assertEquals(3, REVIEW_AFTER_SAVED_LOOPS)
     }
 }

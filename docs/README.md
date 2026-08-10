@@ -28,7 +28,7 @@ or `docs/diagnostics/`.
 | [`e2e/`](e2e/) | Agent/human E2E run reports + proof screenshots (timestamped `.md` + PNG) — **see retention rule below** | Yes |
 | [`local/`](local/) | **Private** owner notes (signing playbook, personal paths) — **never commit** | **No** (gitignored) |
 | [`privacy-policy.html`](privacy-policy.html) | GitHub Pages host for Play privacy URL | Yes |
-| [`index.html`](index.html) | **The public landing page** at `https://stozo04.github.io/OpenLoop/` — brand token, meta description, `SoftwareApplication` JSON-LD, Play + GitHub links. **Not a doc**: edit it as a shipped web page, and keep its links and version in step with the live listing | Yes |
+| [`index.html`](index.html) | **The public landing page** at `https://stozo04.github.io/OpenLoop/` — brand token, meta description, `SoftwareApplication` JSON-LD, Play + GitHub links. **Not a doc**: edit it as a shipped web page, and keep its links in step with the live listing | Yes |
 
 > ⚠️ **Everything in `docs/` is publicly served.** Pages publishes from `main` → `/docs`, so every
 > `.md` here is world-readable and indexable, not just the two `.html` files. Moving publishing to a
