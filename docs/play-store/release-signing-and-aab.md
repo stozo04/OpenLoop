@@ -67,11 +67,37 @@ local checks, not for upload).
    and add yourself as a tester to install via the opt-in link.
 3. Promote to **Production** once you've verified on-device.
 
+## 5. Expected Play Console warnings
+
+Play flags these on every upload. They are **expected and not actionable** — don't re-investigate.
+
+### "This App Bundle contains native code, and you've not uploaded debug symbols"
+
+`app/build.gradle.kts` already sets `ndk { debugSymbolLevel = "SYMBOL_TABLE" }`, and it does run —
+it just finds nothing to extract. OpenLoop has **no native code of its own** (no `CMakeLists.txt`,
+no `externalNativeBuild`); all 20 `.so` files come from dependency AARs — ML Kit
+(`libface_detector_v2_jni.so`), CameraX (`libimage_processing_util_jni.so`, `libsurface_util_jni.so`),
+DataStore, `androidx.graphics.path` — and those publishers ship pre-stripped binaries. Only they
+could fix it upstream; there is no symbol file you can produce or upload.
+
+Reconfirm in ~30 seconds any time:
+
+```bash
+./gradlew :app:extractReleaseNativeSymbolTables --rerun --info | grep "native debug metadata"
+# Unable to extract native debug metadata from ...libface_detector_v2_jni.so
+# because the native debug metadata has already been stripped.
+```
+
+That is [Google's own documented check](https://developer.android.com/build/include-native-symbols)
+for exactly this case. Kotlin/Java deobfuscation is unaffected — `proguard.map` ships in the bundle
+under `BUNDLE-METADATA/`, so app-code crashes symbolicate normally.
+
 ## Notes
 
-- **`versionCode` must increase every upload** (`app/build.gradle.kts` → `defaultConfig.versionCode`,
-  currently `1`). Bump it for each new build you upload; `versionName` (`1.0.0`) is the
-  human-facing string.
+- **`versionCode` must increase every upload** (`app/build.gradle.kts` → `defaultConfig.versionCode`).
+  Bump it for each new build you upload; `versionName` is the human-facing string. Don't restate the
+  current values here — `app/build.gradle.kts` is the single source of truth, and a copy in this doc
+  goes stale within a release or two.
 - The app already meets Play's technical bars: `targetSdk 36` (≥ the API-35 floor), 16 KB-aligned
   native libs, minimal permissions (`CAMERA` only).
 - R8 minification + resource shrinking are on for release; if a future dependency needs keep rules,

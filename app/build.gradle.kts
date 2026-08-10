@@ -59,8 +59,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Embed native debug symbols in the AAB so Play Console can de-obfuscate native crashes/ANRs
-            // (CameraX, Media3, etc. ship .so libs). SYMBOL_TABLE is enough for Play; no separate upload.
+            // Embed native debug symbols in the AAB so Play Console can de-obfuscate native crashes/ANRs.
+            // NOTE: this is currently a no-op — OpenLoop has no native code of its own, and every .so we
+            // ship comes from a dependency AAR (ML Kit, CameraX, DataStore, androidx.graphics.path) that
+            // publishes pre-stripped binaries, so there is nothing to extract. Play therefore warns
+            // "you've not uploaded debug symbols" on every upload; that warning is expected and not
+            // actionable. Kept because it costs nothing and starts working the day we add native code.
+            // See docs/play-store/release-signing-and-aab.md § "Expected Play Console warnings".
             ndk {
                 debugSymbolLevel = "SYMBOL_TABLE"
             }
