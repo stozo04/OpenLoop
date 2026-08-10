@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -33,6 +34,7 @@ class UserPreferencesRepositoryImpl(
 
     private object PreferencesKeys {
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
+        val SAVED_LOOP_COUNT = intPreferencesKey("saved_loop_count")
         // Future keys:
         // val CAPTURE_DURATION_MS = longPreferencesKey("capture_duration_ms")
         // val DEFAULT_PLAYBACK_SPEED = floatPreferencesKey("default_playback_speed")
@@ -57,4 +59,14 @@ class UserPreferencesRepositoryImpl(
             preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] = completed
         }
     }
+
+    /**
+     * `edit` is atomic and returns the resulting snapshot, so read-modify-write and read-back are
+     * one transaction — two saves finishing close together can't both observe the same total.
+     */
+    override suspend fun incrementSavedLoopCount(): Int =
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SAVED_LOOP_COUNT] =
+                (preferences[PreferencesKeys.SAVED_LOOP_COUNT] ?: 0) + 1
+        }[PreferencesKeys.SAVED_LOOP_COUNT] ?: 0
 }

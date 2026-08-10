@@ -18,6 +18,7 @@ import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.review.REVIEW_AFTER_SAVED_LOOPS
 import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
 import io.github.stozo04.openloop.work.FakeBoomerangRenderScheduler
 import io.mockk.*
@@ -78,6 +79,12 @@ class FakeUserPreferencesRepository(
         onboardingCompletedValue = completed
         _hasCompletedOnboarding.value = completed
     }
+
+    /** Lifetime saved-loop tally, as the real DataStore counter would keep it. */
+    var savedLoopCount: Int = 0
+        private set
+
+    override suspend fun incrementSavedLoopCount(): Int = ++savedLoopCount
 }
 
 /**
@@ -90,6 +97,8 @@ class FailingWritePreferencesRepository : UserPreferencesRepository {
     override suspend fun setOnboardingCompleted(completed: Boolean) {
         throw IOException("Simulated disk full")
     }
+
+    override suspend fun incrementSavedLoopCount(): Int = throw IOException("Simulated disk full")
 }
 
 /**
@@ -1323,6 +1332,76 @@ class OpenLoopViewModelTest {
             assertTrue(viewModel.nudgeGalleryButton.value)
             viewModel.onGalleryButtonNudgeFinished()
             assertFalse(viewModel.nudgeGalleryButton.value)
+            job.cancel()
+        }
+
+    /**
+     * One full capture → save → share-sheet-dismissed round trip, the only path that can arm the
+     * review ask. Repeat it to walk the saved-loop counter.
+     */
+    private fun TestScope.saveOneLoopAndDismissShareSheet() {
+        enterTrimState()
+        viewModel.onNextFromTrim()
+        advanceUntilIdle()
+        viewModel.saveBoomerang()
+        advanceUntilIdle()
+        viewModel.onShareSheetClosed()
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `the review card is asked for once, on the REVIEW_AFTER_SAVED_LOOPS-th save`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+
+            repeat(REVIEW_AFTER_SAVED_LOOPS - 1) { saveOneLoopAndDismissShareSheet() }
+            assertEquals(
+                "no review ask before the ${REVIEW_AFTER_SAVED_LOOPS}th save, got $events",
+                0,
+                events.count { it == BoomerangEvent.RequestReview },
+            )
+
+            saveOneLoopAndDismissShareSheet()
+            assertEquals(1, events.count { it == BoomerangEvent.RequestReview })
+            // Ordering matters: the host suspends on the Saved snackbar, so a RequestReview queued
+            // ahead of it would surface the card under a snackbar (Play forbids any overlay).
+            assertTrue(
+                "RequestReview must trail the Saved snackbar it follows",
+                events.indexOfLast { it == BoomerangEvent.Saved } <
+                    events.indexOfFirst { it == BoomerangEvent.RequestReview },
+            )
+
+            // Quota is Play's job, restraint is ours: later saves must not re-ask.
+            saveOneLoopAndDismissShareSheet()
+            assertEquals(1, events.count { it == BoomerangEvent.RequestReview })
+            assertEquals(REVIEW_AFTER_SAVED_LOOPS + 1, fakePreferencesRepository.savedLoopCount)
+            job.cancel()
+        }
+
+    @Test
+    fun `a failed render neither counts toward nor triggers the review ask`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val events = mutableListOf<BoomerangEvent>()
+            val job = backgroundScope.launch { viewModel.events.toList(events) }
+            fakeVideoProcessor.failRender = true
+
+            repeat(REVIEW_AFTER_SAVED_LOOPS + 1) {
+                enterTrimState()
+                viewModel.onNextFromTrim()
+                advanceUntilIdle()
+                viewModel.saveBoomerang()
+                advanceUntilIdle()
+                // No share sheet opens on failure; call it anyway to prove nothing is armed.
+                viewModel.onShareSheetClosed()
+                advanceUntilIdle()
+            }
+
+            assertEquals(0, fakePreferencesRepository.savedLoopCount)
+            assertTrue(
+                "a review ask must never ride a failed save, got $events",
+                events.none { it == BoomerangEvent.RequestReview },
+            )
             job.cancel()
         }
 

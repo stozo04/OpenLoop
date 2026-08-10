@@ -286,6 +286,10 @@ dependencies {
     // Play In-App Updates (FLEXIBLE flow) — see update/AppUpdateController.kt.
     implementation(libs.play.app.update)
 
+    // Play In-App Review (rating card after the 3rd saved loop) — see review/InAppReview.kt.
+    implementation(libs.play.review)
+    implementation(libs.play.review.ktx)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

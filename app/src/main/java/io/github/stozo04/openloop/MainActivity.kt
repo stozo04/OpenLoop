@@ -74,6 +74,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.work.WorkManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.review.ReviewManager
+import com.google.android.play.core.review.ReviewManagerFactory
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
@@ -105,6 +107,7 @@ import io.github.stozo04.openloop.ui.theme.OutlineVariant
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextPrimary
+import io.github.stozo04.openloop.review.launchInAppReview
 import io.github.stozo04.openloop.update.AppUpdateController
 import io.github.stozo04.openloop.update.EXTRA_DEMO_UPDATE
 import io.github.stozo04.openloop.update.demoAppUpdateManager
@@ -146,6 +149,15 @@ class MainActivity : ComponentActivity() {
 
     /** Play in-app updates (FLEXIBLE). Built in [onCreate]; released in [onDestroy]. */
     private lateinit var appUpdateController: AppUpdateController
+
+    /**
+     * Play in-app reviews. Lazy because most sessions never ask — the card fires once, on the
+     * [io.github.stozo04.openloop.review.REVIEW_AFTER_SAVED_LOOPS]-th saved loop. Nothing to
+     * release: unlike `AppUpdateManager` it registers no listener.
+     */
+    private val reviewManager: ReviewManager by lazy {
+        ReviewManagerFactory.create(applicationContext)
+    }
 
     /**
      * Set when a boomerang share sheet is launched (slice 06); consumed on the next [onResume]. The
@@ -368,6 +380,14 @@ class MainActivity : ComponentActivity() {
                             // viewfinder — nudge them to tap again.
                             BoomerangEvent.PhotoCaptureFailed -> snackbarHostState.showSnackbar(
                                 message = photoCaptureFailedMessage,
+                            )
+                            // Third saved loop, share sheet dismissed, "Saved" snackbar already
+                            // cleared (this collector suspends on it) — the one moment nothing is
+                            // drawn over Play's card. No prompt of our own precedes it: asking
+                            // "enjoying OpenLoop?" first is a policy violation, not just bad taste.
+                            BoomerangEvent.RequestReview -> launchInAppReview(
+                                manager = reviewManager,
+                                activity = this@MainActivity,
                             )
                             // Loops marked for deletion (Issue #35): show an Undo snackbar. The real
                             // file delete is deferred — Undo restores the tiles, any other dismissal

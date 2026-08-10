@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -40,5 +41,16 @@ class UserPreferencesRepositoryImplRobolectricTest {
         repo.setOnboardingCompleted(true)
 
         assertTrue(repo.hasCompletedOnboarding.first())
+    }
+
+    /**
+     * The review gate compares this counter to an exact threshold, so a skipped or repeated value
+     * silently costs the one ask. Assert the returned sequence, not just the stored total.
+     */
+    @Test
+    fun incrementSavedLoopCount_returnsEachNewTotalStartingAtOne() = runTest {
+        val repo = UserPreferencesRepositoryImpl(context.dataStore)
+
+        assertEquals(listOf(1, 2, 3), (1..3).map { repo.incrementSavedLoopCount() })
     }
 }
