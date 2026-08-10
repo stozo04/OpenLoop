@@ -63,6 +63,27 @@ A fourth full save cycle on the same install:
 
 ![Saved to Photos after the 4th save](2026-08-10-in-app-review-saved-after-ask-pixel8.png)
 
+## Cadence + debug hatch — A/B on the same install
+
+Added with the cadence change (3rd save, then every 10th) and `--ez openloop.demoReview true`. The
+counter was seeded to **5**, so both saves below are off-cadence — 6 and 7 are neither 3 nor a
+multiple of 10. The forcing flag is therefore the only variable between the two runs.
+
+| Run | Launch | Counter | `requestInAppReview` |
+|---|---|---|---|
+| Control | `am start …MainActivity` | 5 → **6** | **0** — correct, 6 is off-cadence |
+| Hatch | `am start …MainActivity --ez openloop.demoReview true` | 6 → **7** | **1** — only the flag can explain it |
+
+```
+11:24:58.710  ReviewService : requestInAppReview (io.github.stozo04.openloop)
+11:24:58.890  OnRequestInstallCallback : onGetLaunchReviewFlowInfo      ← 180 ms
+```
+
+App resumed to `MainActivity` afterwards, so the collector survived the forced ask as usual.
+
+**Cold-start it.** `MainActivity` reads the extra in `onCreate`, so `am start` onto an already-running
+task delivers `onNewIntent` and the flag is ignored — `am force-stop` first.
+
 ## What this run does NOT prove
 
 **The card itself never rendered, and cannot here.** Play only surfaces it for an account that
