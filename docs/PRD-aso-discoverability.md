@@ -46,7 +46,7 @@ results disproved. Treat every ⚠️ row below as *indicative, not verbatim*.
 | Developer name | — | **`OpenLoop`** | ✅ |
 | Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.` | **`Ad Free and Open Source Boomerang Loop Video Maker`** | ⚠️ |
 | Full description | Discloses Firebase Analytics/Crashlytics | **Claims "no tracking"** | ⚠️ |
-| Version | 1.0.36 | **1.0.25 (Jun 23, 2026)** | ⚠️ |
+| Version | 1.0.37 (post-[#120](https://github.com/stozo04/OpenLoop/pull/120)) | **1.0.25 (Jun 23, 2026)** | ⚠️ |
 | Installs | — | **10+** | ⚠️ |
 | Ratings | — | **None** | ⚠️ |
 
@@ -476,21 +476,84 @@ Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-que
 
 ### 5.2 The title decision — owner's call
 
-All candidates verified ≤30 characters.
+> **Scope correction (2026-08-09, from the owner).** The product is **loops + face lenses + photos**,
+> not loops alone. Verified:
+>
+> - **Three lenses ship** — Broccoli, Shades, Big Mouth (`camera/lens/Lens.kt`).
+> - **Photo capture ships** — [PR #120, `feat(camera): photo capture mode (v1.0.37)`](https://github.com/stozo04/OpenLoop/pull/120),
+>   merged 2026-08-09, adding a photo mode across `CameraScreen`, `OpenLoopUiState`,
+>   `VideoStorageRepository` and `MediaStoreVideoPublisher`, with its own
+>   [`docs/PRD-photo-capture.md`](PRD-photo-capture.md) and on-device proof.
+>
+> This supersedes the earlier recommendation in this section's history: `OpenLoop: Boomerang Maker`
+> described only a third of the product.
+>
+> ⚠️ **This widens the §2.1 version gap.** The repo is now on **1.0.37**; Play is on **1.0.25**. Every
+> feature in this section's naming case — three lenses, photo mode — is **invisible to Play users
+> until a release ships.** Shipping the build is a prerequisite for the listing rewrite, not a
+> follow-up to it.
+
+#### Recommended: rename to **LoopLens**
+
+The research produced four naming criteria. `LoopLens` is the only candidate found that satisfies all
+four:
+
+| Criterion | Evidence |
+|---|---|
+| **Uncontested brand query** — the actual cure for §4.3 | A Play search for `"loop lens"` returns **"No results"**. Zero competing apps. The app would be the sole match on day one, versus 27 apps outranking it for `openloop`. |
+| **Category-bearing portmanteau** — the §4.4 pattern behind Boomer**it**, **Loop**iq, **Zoom**erang, **Boom Loop** | Both halves are category tokens: `Loop` (boomerang) + `Lens` (AR effects). |
+| **Covers the whole product** | Loops *and* lenses, in two syllables. |
+| **Sidesteps the §3.2 trademark exposure** | Does not use Meta's `BOOMERANG` mark as the app's name at all. |
+
+Continuity bonus: "Loop" survives from `OpenLoop`, so `io.github.stozo04.openloop` — which **can never
+change** — still reads sensibly. Users never see the package ID, and GitHub auto-redirects a renamed
+repo (already true of this repo's previous rename).
+
+Title constructions, all ≤30 chars. Prefer one that signals **more than loops**, since loops are now
+one of three things the app does:
+
+- `LoopLens: Loops & Face Lenses` (29) — **best coverage of the real product**
+- `LoopLens - Boomerang & Lenses` (28)
+- `LoopLens: Boomerang Camera` (26) — "Camera" quietly covers photo mode
+- `LoopLens: Loop & Photo Lenses` (29)
+
+#### Availability — checked on Play
+
+| Name | Status |
+|---|---|
+| **LoopLens** | ✅ **Free.** `"loop lens"` returns *no results*; a `looplens` query returns only unrelated apps |
+| ~~BoomLens~~ | ❌ Taken — "BoomLens – Media Player & IPTV", Boomlens Inc. |
+| ~~LensLoop~~ | ❌ Taken — "LensLoop – Photos & Wallpapers", SinbadEdu |
+| Funhouse · Zoetrope · LoopLab · Kaleido · Rebound | ⚠️ **Not checked.** Ideas only |
+| ~~Snaploop / Loopsnap~~ | ⚠️ **Avoid** — "Snap" plus AR-lens context leans on Snap Inc. |
+
+#### If keeping `OpenLoop` instead
 
 | Title | Chars | Tradeoff |
 |---|---|---|
-| **`OpenLoop: Boomerang Maker`** | **25** | **Recommended.** Brand carries the identity, "Boomerang Maker" is descriptive — the most defensible trademark posture (§3.2) and it fixes brand search. Costs some click-through vs keyword-first. |
-| `Boomerang Maker - OpenLoop` | 26 | Keyword-first. Better click-through for an unknown brand, since Play truncates titles in grid views and leading tokens are what users scan. Mirrors `Loop Video Maker - Loopiq`. **Weaker trademark posture** — still leads with the mark. |
-| `OpenLoop Boomerang Video Maker` | 30 | Perfect character fit, maximum token coverage. **Don't let a tidy number pick the strategy** — reads closer to keyword stuffing, no separator. |
+| `OpenLoop: Loops & Lenses` | 24 | Covers the full product, keeps the brand. Still fights 4 entities for `openloop` (§4.3) |
+| `OpenLoop: Boomerang Maker` | 25 | Best trademark posture of the OpenLoop options, but **misses the lens half** |
+| `Boomerang Maker - OpenLoop` | 26 | Better click-through; weaker trademark posture; misses lenses |
 | `Boomerang Video Maker` | 21 | **Status quo. Do not keep.** |
 
-**Recommendation: `OpenLoop: Boomerang Maker`.** The research is genuinely split — the keyword-first
-agent made the better click-through argument, the trademark evidence favours brand-first. Given that
-(a) the stated complaint is brand findability and (b) there is a live incontestable mark in this exact
-class, brand-first wins on both counts. Reject dropping "Boomerang" entirely: it would forfeit the #1
-position on `openloop boomerang` to eliminate a risk that has not materialised against any of five
-competitors.
+**Renaming is cheapest right now and gets more expensive every month.** At 10+ installs and zero
+ratings there is no brand equity to lose. The deeper argument: `OpenLoop` fails *because* four
+entities own it (§4.3). The cure for a contested brand is not better ASO — it is a brand nobody else
+has.
+
+#### Naming constraint: never write "Snapchat"
+
+The lens feature is Snapchat-like, and it is tempting to say so. **Do not.** The
+[Metadata policy](https://support.google.com/googleplay/android-developer/answer/9898842) bans
+referencing other apps' brands without permission, and the
+[Impersonation policy](https://support.google.com/googleplay/android-developer/answer/9888374) covers
+anything that "could mislead users about your app's relationship to someone else or another app" —
+the same rules that create the §3.2 exposure. Use the generic industry descriptors: **"face lenses"**,
+**"AR lenses"**, **"face filters"**.
+
+"Lens" itself is materially lower-risk than "Boomerang" — it is a literal camera component used
+generically across camera apps — but Snap Inc. does hold AR-context marks. **A USPTO check on `LENS`
+in Class 009 has not been run** and is worth doing before committing to the rename.
 
 **Rename risk is low** — there is no ranking equity to lose. Costs are operational only: up to 7 days
 review, no native A/B test, two-week read window.
@@ -574,7 +637,10 @@ Performance (impressions on brand queries); rating count and average.
 
 1. **Which is the source of truth** — the live Console listing or `docs/play-store/store-listing.md`?
    They have drifted on every field (§2.1).
-2. **Why is Play on 1.0.25 when the repo is on 1.0.36?** Deliberate, or a stalled release?
+2. **Why is Play on 1.0.25 when the repo is on 1.0.37?** Twelve versionCodes of unshipped work,
+   including all three lenses and photo mode. **This is the single biggest gap in the whole document**
+   — the listing is marketing a product two feature-generations older than the code. Ship first, then
+   rewrite the listing around what users can actually get.
 3. **Title choice** — brand-first (recommended) or keyword-first? (§5.2)
 4. **Is the trademark risk worth an attorney hour?** (§3.2)
 5. **Move Pages publishing off `docs/`,** or accept engineering markdown being publicly indexed?
