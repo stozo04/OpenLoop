@@ -269,7 +269,7 @@ fun CameraScreen(
                 .statusBarsPadding()
                 .padding(top = 12.dp, bottom = 16.dp)
         ) {
-            // Home / Gallery Button — top-left neon gradient circle.
+            // Home / Gallery Button — top-left ghost glass circle, lime icon.
             HomeButton(
                 onClick = { viewModel.navigateToGallery() },
                 bounce = nudgeGalleryButton,
@@ -422,7 +422,13 @@ fun CameraScreen(
 }
 
 /**
- * Top-left home / gallery button: a neon-gradient circle holding the pictures-folder icon.
+ * Top-left home / gallery button: a ghost-style glass circle holding the pictures-folder icon in
+ * [ElectricLime].
+ *
+ * Owner's call (2026-08-12): the previous solid-lime fill was the most eye-catching element on the
+ * viewfinder and competed with the shutter for attention. The chrome is now the same
+ * [OverlayWhite]/[OverlayWhiteBorder] glass as the lens/flip buttons, with the lime moved into the
+ * icon tint so the button still reads as OpenLoop without shouting.
  *
  * Stateless and hoisted (mirrors [ShutterButton]) so its touch target is testable without the
  * camera. Sized at 48.dp — the Material/accessibility minimum interactive target (WARNING-3); the
@@ -453,7 +459,8 @@ fun HomeButton(
             .graphicsLayer { translationY = offset.value }
             .size(48.dp)
             .clip(CircleShape)
-            .background(ElectricLime)
+            .background(OverlayWhite)
+            .border(1.dp, OverlayWhiteBorder, CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -461,7 +468,7 @@ fun HomeButton(
             painter = painterResource(id = R.drawable.ic_pictures_folder),
             contentDescription = "Gallery",
             modifier = Modifier.size(20.dp),
-            tint = LimeInk
+            tint = ElectricLime
         )
     }
 }
