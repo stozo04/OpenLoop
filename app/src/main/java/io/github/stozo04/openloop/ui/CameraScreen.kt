@@ -517,7 +517,9 @@ fun CaptureModeSelector(
         modifier = modifier
             .height(48.dp)
             .clip(RoundedCornerShape(percent = 50))
-            .background(OverlayScrim)
+            // Same clear-glass chrome as the gallery/lens/flip buttons (owner's call), not the
+            // darker OverlayScrim the info chips use.
+            .background(OverlayWhite)
             .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
             .padding(horizontal = 4.dp)
             .selectableGroup()
