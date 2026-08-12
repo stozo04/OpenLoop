@@ -2,6 +2,7 @@ package io.github.stozo04.openloop.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -9,9 +10,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -258,6 +266,89 @@ class CameraScreenTest {
 
         composeTestRule.onNodeWithContentDescription("Switch to video mode").performClick()
         composeTestRule.onNodeWithContentDescription("Switch to photo mode").assertIsDisplayed()
+    }
+
+    // ── Issue #126: the toggle must confirm itself while the icon is under the finger ──
+
+    @Test
+    fun captureModeToggle_modeLabel_readsCurrentMode_andFlipsOnTap() {
+        // The label sits BELOW the button — outside the thumb's footprint — and names the mode the
+        // camera is IN (the icon names the mode you'd switch TO). It must track every flip.
+        composeTestRule.setContent {
+            var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
+            CaptureModeToggle(
+                photoMode = mode == CaptureMode.PHOTO,
+                onClick = {
+                    mode = if (mode == CaptureMode.PHOTO) CaptureMode.VIDEO else CaptureMode.PHOTO
+                },
+            )
+        }
+
+        composeTestRule.onNodeWithTag("capture_mode_label").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("capture_mode_label").assertTextEquals("VIDEO")
+
+        composeTestRule.onNodeWithContentDescription("Switch to photo mode").performClick()
+        composeTestRule.onNodeWithTag("capture_mode_label").assertTextEquals("PHOTO")
+
+        composeTestRule.onNodeWithContentDescription("Switch to video mode").performClick()
+        composeTestRule.onNodeWithTag("capture_mode_label").assertTextEquals("VIDEO")
+    }
+
+    @Test
+    fun captureModeToggle_performsToggleHaptic_onEveryFlip() {
+        // The icon is occluded by the fingertip at the exact moment the state changes, so the tap
+        // must confirm itself through touch: ToggleOn entering photo mode (the non-default state),
+        // ToggleOff returning to video.
+        val performed = mutableListOf<HapticFeedbackType>()
+        val recordingHaptics = object : HapticFeedback {
+            override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                performed += hapticFeedbackType
+            }
+        }
+        composeTestRule.setContent {
+            CompositionLocalProvider(LocalHapticFeedback provides recordingHaptics) {
+                var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
+                CaptureModeToggle(
+                    photoMode = mode == CaptureMode.PHOTO,
+                    onClick = {
+                        mode =
+                            if (mode == CaptureMode.PHOTO) CaptureMode.VIDEO else CaptureMode.PHOTO
+                    },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Switch to photo mode").performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(listOf(HapticFeedbackType.ToggleOn), performed)
+        }
+
+        composeTestRule.onNodeWithContentDescription("Switch to video mode").performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(listOf(HapticFeedbackType.ToggleOn, HapticFeedbackType.ToggleOff), performed)
+        }
+    }
+
+    @Test
+    fun captureModeToggle_announcesModeState_forAccessibility() {
+        // TalkBack users get the current mode from the button's stateDescription — the visible
+        // PHOTO/VIDEO readout is hidden from accessibility services because it would be redundant.
+        composeTestRule.setContent {
+            var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
+            CaptureModeToggle(
+                photoMode = mode == CaptureMode.PHOTO,
+                onClick = {
+                    mode = if (mode == CaptureMode.PHOTO) CaptureMode.VIDEO else CaptureMode.PHOTO
+                },
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Switch to photo mode")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Video mode"))
+
+        composeTestRule.onNodeWithContentDescription("Switch to photo mode").performClick()
+        composeTestRule.onNodeWithContentDescription("Switch to video mode")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Photo mode"))
     }
 
     @Test

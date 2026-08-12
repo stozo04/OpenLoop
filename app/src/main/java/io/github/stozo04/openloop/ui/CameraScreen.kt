@@ -60,9 +60,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -469,8 +472,20 @@ fun HomeButton(
  *
  * The icon shows the mode you'd switch **to**, not the one you're in — a camera glyph while in video
  * mode, a video glyph while in photo mode — which is the convention users already know from the
- * stock camera app. Stateless and hoisted (mirrors [HomeButton]) so it can be exercised in a Compose
- * test without binding the camera; the caller decides when it is shown.
+ * stock camera app. But that icon is also the only thing that used to communicate the current mode,
+ * and it sits directly under the fingertip at the exact moment the state changes (issue #126), so
+ * the toggle now confirms itself two additional ways:
+ *
+ * - **Haptics on every flip** — [HapticFeedbackType.ToggleOn] entering photo mode,
+ *   [HapticFeedbackType.ToggleOff] returning to video (photo is the non-default state) — so the tap
+ *   registers through touch with nothing visible required.
+ * - **A persistent PHOTO/VIDEO readout below the button**, outside the thumb's footprint, so the
+ *   current mode stays readable mid-tap. It is hidden from accessibility services
+ *   ([hideFromAccessibility]) because it duplicates the button's [stateDescription], which is what
+ *   TalkBack announces when the mode flips.
+ *
+ * Stateless and hoisted (mirrors [HomeButton]) so it can be exercised in a Compose test without
+ * binding the camera; the caller decides when it is shown.
  *
  * Chrome comes from [CircleIconButton] — the same glass circle the gallery and trim controls use.
  */
@@ -480,14 +495,43 @@ fun CaptureModeToggle(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    CircleIconButton(
-        icon = if (photoMode) Icons.Outlined.Videocam else Icons.Outlined.PhotoCamera,
-        contentDescription = stringResource(
-            if (photoMode) R.string.camera_switch_to_video else R.string.camera_switch_to_photo
-        ),
-        onClick = onClick,
-        modifier = modifier,
+    val haptics = LocalHapticFeedback.current
+    // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
+    val modeState = stringResource(
+        if (photoMode) R.string.camera_mode_state_photo else R.string.camera_mode_state_video
     )
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircleIconButton(
+            icon = if (photoMode) Icons.Outlined.Videocam else Icons.Outlined.PhotoCamera,
+            contentDescription = stringResource(
+                if (photoMode) R.string.camera_switch_to_video else R.string.camera_switch_to_photo
+            ),
+            onClick = {
+                haptics.performHapticFeedback(
+                    if (photoMode) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn
+                )
+                onClick()
+            },
+            modifier = Modifier.semantics { stateDescription = modeState },
+        )
+        Text(
+            text = stringResource(
+                if (photoMode) R.string.camera_mode_label_photo else R.string.camera_mode_label_video
+            ),
+            style = TimerTextStyle.copy(fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 1.5.sp),
+            color = Color.White,
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(OverlayScrim)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .testTag("capture_mode_label")
+                .semantics { hideFromAccessibility() },
+        )
+    }
 }
 
 /**
