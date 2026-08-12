@@ -17,16 +17,25 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Icon
@@ -56,13 +65,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,7 +85,6 @@ import io.github.stozo04.openloop.camera.PinchZoomCallbacks
 import io.github.stozo04.openloop.camera.PinchZoomLayout
 import io.github.stozo04.openloop.camera.formatZoomRatioForChip
 import io.github.stozo04.openloop.camera.lens.Lens
-import io.github.stozo04.openloop.ui.components.CircleIconButton
 import io.github.stozo04.openloop.ui.components.LensCarousel
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.CoralRed
@@ -288,17 +296,13 @@ fun CameraScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Capture-mode toggle — top-right. Hidden while recording: mid-capture the shutter
+            // Capture-mode selector — top-right. Hidden while recording: mid-capture the shutter
             // means "stop", so offering to turn it into a photo button would strand the clip
             // (the ViewModel refuses the switch too — belt and braces).
             if (!isRecording) {
-                CaptureModeToggle(
+                CaptureModeSelector(
                     photoMode = isPhotoMode,
-                    onClick = {
-                        viewModel.setCaptureMode(
-                            if (isPhotoMode) CaptureMode.VIDEO else CaptureMode.PHOTO
-                        )
-                    },
+                    onSelect = viewModel::setCaptureMode,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(end = 16.dp, top = 4.dp)
@@ -368,7 +372,10 @@ fun CameraScreen(
                             painter = painterResource(id = R.drawable.ic_lenses),
                             contentDescription = if (lensTrayOpen) "Hide lenses" else "Lenses",
                             modifier = Modifier.size(28.dp),
-                            tint = if (activeLens != null) LimeInk else Color.White
+                            // Owner's call (2026-08-12): lime icon on glass for consistency with
+                            // the gallery button and mode selector. The active-lens state keeps
+                            // the inverse scheme (lime fill + ink icon) so it still reads as "on".
+                            tint = if (activeLens != null) LimeInk else ElectricLime
                         )
                     }
 
@@ -412,7 +419,9 @@ fun CameraScreen(
                             painter = painterResource(id = R.drawable.ic_flip_camera),
                             contentDescription = "Flip Camera",
                             modifier = Modifier.size(28.dp),
-                            tint = Color.White
+                            // Owner's call (2026-08-12): lime icon on glass — consistent with the
+                            // gallery button, mode selector, and lens button.
+                            tint = ElectricLime
                         )
                     }
                 }
@@ -474,70 +483,115 @@ fun HomeButton(
 }
 
 /**
- * Top-right capture-mode toggle: flips the shutter between recording clips and taking stills
- * (docs/PRD-photo-capture.md §5.2).
+ * Top-right capture-mode selector: a two-segment CAMERA | VIDEO control that flips the shutter
+ * between taking stills and recording clips.
  *
- * The icon shows the mode you'd switch **to**, not the one you're in — a camera glyph while in video
- * mode, a video glyph while in photo mode — which is the convention users already know from the
- * stock camera app. But that icon is also the only thing that used to communicate the current mode,
- * and it sits directly under the fingertip at the exact moment the state changes (issue #126), so
- * the toggle now confirms itself two additional ways:
+ * Supersedes the single toggling icon from docs/PRD-photo-capture.md §5.2 (owner's call,
+ * 2026-08-12, while fixing issue #126): with one icon, the only state indicator sat directly under
+ * the fingertip at the exact moment it changed, so every tap was a coin flip. A segmented control
+ * removes the guessing — the current mode is always readable from which segment carries the lime
+ * fill, and each tap names its target mode instead of meaning "the other one".
  *
- * - **Haptics on every flip** — [HapticFeedbackType.ToggleOn] entering photo mode,
- *   [HapticFeedbackType.ToggleOff] returning to video (photo is the non-default state) — so the tap
- *   registers through touch with nothing visible required.
- * - **A persistent PHOTO/VIDEO readout below the button**, outside the thumb's footprint, so the
- *   current mode stays readable mid-tap. It is hidden from accessibility services
- *   ([hideFromAccessibility]) because it duplicates the button's [stateDescription], which is what
- *   TalkBack announces when the mode flips.
+ * Feedback on top of the visible selection (issue #126):
+ * - **Haptic tick on every mode change** — [HapticFeedbackType.ToggleOn] entering photo mode (the
+ *   non-default state), [HapticFeedbackType.ToggleOff] returning to video. Tapping the already
+ *   selected segment changes nothing and fires nothing — no haptic lie.
+ * - **Selection semantics** — each segment is `selectable` with [Role.RadioButton], so TalkBack
+ *   reads "Camera, selected" / "Video, not selected" and announces the flip.
+ *
+ * The visible lime pill is inset inside a full-height touch target: the container is 48.dp tall
+ * (the Material/accessibility minimum interactive target, WARNING-3) and each segment's tappable
+ * area spans that full height even though the pill draws smaller.
  *
  * Stateless and hoisted (mirrors [HomeButton]) so it can be exercised in a Compose test without
  * binding the camera; the caller decides when it is shown.
- *
- * Chrome comes from [CircleIconButton] — the same glass circle the gallery and trim controls use.
  */
 @Composable
-fun CaptureModeToggle(
+fun CaptureModeSelector(
     photoMode: Boolean,
-    onClick: () -> Unit,
+    onSelect: (CaptureMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
-    // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
-    val modeState = stringResource(
-        if (photoMode) R.string.camera_mode_state_photo else R.string.camera_mode_state_video
-    )
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Row(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(OverlayScrim)
+            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+            .padding(horizontal = 4.dp)
+            .selectableGroup()
+            .testTag("capture_mode_selector"),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircleIconButton(
-            icon = if (photoMode) Icons.Outlined.Videocam else Icons.Outlined.PhotoCamera,
-            contentDescription = stringResource(
-                if (photoMode) R.string.camera_switch_to_video else R.string.camera_switch_to_photo
-            ),
+        CaptureModeSegment(
+            label = stringResource(R.string.camera_mode_camera),
+            selected = photoMode,
+            iconSelected = Icons.Filled.PhotoCamera,
+            iconUnselected = Icons.Outlined.PhotoCamera,
             onClick = {
-                haptics.performHapticFeedback(
-                    if (photoMode) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn
-                )
-                onClick()
+                if (!photoMode) {
+                    haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                    onSelect(CaptureMode.PHOTO)
+                }
             },
-            modifier = Modifier.semantics { stateDescription = modeState },
         )
-        Text(
-            text = stringResource(
-                if (photoMode) R.string.camera_mode_label_photo else R.string.camera_mode_label_video
-            ),
-            style = TimerTextStyle.copy(fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 1.5.sp),
-            color = Color.White,
+        CaptureModeSegment(
+            label = stringResource(R.string.camera_mode_video),
+            selected = !photoMode,
+            iconSelected = Icons.Filled.Videocam,
+            iconUnselected = Icons.Outlined.Videocam,
+            onClick = {
+                if (photoMode) {
+                    haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
+                    onSelect(CaptureMode.VIDEO)
+                }
+            },
+        )
+    }
+}
+
+/**
+ * One segment of [CaptureModeSelector]: a lime pill with [LimeInk] content when selected, ghost
+ * with white content otherwise. The icon swaps filled/outlined with selection (reference design).
+ * The `selectable` (and its merged label text) lives on the full-height outer Box so the touch
+ * target stays 48.dp tall while the pill draws inset.
+ */
+@Composable
+private fun CaptureModeSegment(
+    label: String,
+    selected: Boolean,
+    iconSelected: ImageVector,
+    iconUnselected: ImageVector,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxHeight()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
             modifier = Modifier
-                .padding(top = 4.dp)
                 .clip(RoundedCornerShape(percent = 50))
-                .background(OverlayScrim)
-                .padding(horizontal = 8.dp, vertical = 2.dp)
-                .testTag("capture_mode_label")
-                .semantics { hideFromAccessibility() },
-        )
+                .background(if (selected) ElectricLime else Color.Transparent)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = if (selected) iconSelected else iconUnselected,
+                contentDescription = null,
+                tint = if (selected) LimeInk else Color.White,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                color = if (selected) LimeInk else Color.White,
+            )
+        }
     }
 }
 
@@ -635,7 +689,7 @@ fun ShutterButton(
             } else {
                 // The neon gradient dot is shared by both idle modes — owner's call: the lime look
                 // is the app's signature and stays even when the shutter takes a still. Photo mode
-                // is signalled by the top-right toggle and the spoken label, not by the fill.
+                // is signalled by the top-right selector and the spoken label, not by the fill.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
