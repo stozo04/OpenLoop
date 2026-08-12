@@ -5,10 +5,12 @@
     <string name="share_chooser_title">Share</string>
     <string name="share_subject">OpenLoop</string>
 
-    <!-- Photo capture mode (docs/PRD-photo-capture.md) -->
-    <string name="camera_switch_to_photo">Switch to photo mode</string>
-    <string name="camera_switch_to_video">Switch to video mode</string>
+    <!-- Photo capture mode (docs/PRD-photo-capture.md; issue #126 replaced the single toggling
+         icon with a segmented CAMERA | VIDEO selector — each segment names its target mode and
+         carries selection semantics, so no separate switch/state strings are needed). -->
     <string name="camera_take_photo">Take photo</string>
+    <string name="camera_mode_camera">Camera</string>
+    <string name="camera_mode_video">Video</string>
     <string name="snackbar_photo_capture_failed">Couldn\'t take that photo. Try again.</string>
     <string name="gallery_close_photo">Close photo</string>
     <string name="gallery_photo_preview">Captured photo</string>

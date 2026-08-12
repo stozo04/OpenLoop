@@ -2,6 +2,7 @@ package io.github.stozo04.openloop.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -9,9 +10,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -236,28 +242,84 @@ class CameraScreenTest {
         }
     }
 
-    // ── Capture-mode toggle (docs/PRD-photo-capture.md §5.2) ──
+    // ── Capture-mode selector (issue #126 — supersedes the PRD §5.2 single toggling icon) ──
 
     @Test
-    fun captureModeToggle_tap_flipsBetweenPhotoAndVideoAffordances() {
+    fun captureModeSelector_showsCurrentMode_andFlipsOnTap() {
+        // The active segment IS the state readout, and it never sits under the finger that taps
+        // the other segment — the core issue-#126 fix.
         composeTestRule.setContent {
             var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
-            CaptureModeToggle(
+            CaptureModeSelector(photoMode = mode == CaptureMode.PHOTO, onSelect = { mode = it })
+        }
+
+        composeTestRule.onNodeWithTag("capture_mode_selector").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Video").assertIsSelected()
+        composeTestRule.onNodeWithText("Camera").assertIsNotSelected()
+
+        composeTestRule.onNodeWithText("Camera").performClick()
+        composeTestRule.onNodeWithText("Camera").assertIsSelected()
+        composeTestRule.onNodeWithText("Video").assertIsNotSelected()
+
+        composeTestRule.onNodeWithText("Video").performClick()
+        composeTestRule.onNodeWithText("Video").assertIsSelected()
+        composeTestRule.onNodeWithText("Camera").assertIsNotSelected()
+    }
+
+    @Test
+    fun captureModeSelector_tapNamesTargetMode_andSelectedSegmentIsInert() {
+        // Each segment selects its OWN mode (never "the other one"), and re-tapping the selected
+        // segment must not re-emit — repeated taps can no longer land you on a random mode.
+        val selections = mutableListOf<CaptureMode>()
+        composeTestRule.setContent {
+            var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
+            CaptureModeSelector(
                 photoMode = mode == CaptureMode.PHOTO,
-                onClick = {
-                    mode = if (mode == CaptureMode.PHOTO) CaptureMode.VIDEO else CaptureMode.PHOTO
+                onSelect = {
+                    selections += it
+                    mode = it
                 },
             )
         }
 
-        // In video mode the icon advertises the mode you'd switch TO.
-        composeTestRule.onNodeWithContentDescription("Switch to photo mode").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Video").performClick() // already selected → inert
+        composeTestRule.onNodeWithText("Camera").performClick()
+        composeTestRule.onNodeWithText("Camera").performClick() // now selected → inert
+        composeTestRule.onNodeWithText("Video").performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(listOf(CaptureMode.PHOTO, CaptureMode.VIDEO), selections)
+        }
+    }
 
-        composeTestRule.onNodeWithContentDescription("Switch to photo mode").performClick()
-        composeTestRule.onNodeWithContentDescription("Switch to video mode").assertIsDisplayed()
+    @Test
+    fun captureModeSelector_performsToggleHaptic_onlyOnModeChange() {
+        // The tap must confirm itself through touch: ToggleOn entering photo mode (the non-default
+        // state), ToggleOff returning to video — and NO haptic when nothing changed.
+        val performed = mutableListOf<HapticFeedbackType>()
+        val recordingHaptics = object : HapticFeedback {
+            override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+                performed += hapticFeedbackType
+            }
+        }
+        composeTestRule.setContent {
+            CompositionLocalProvider(LocalHapticFeedback provides recordingHaptics) {
+                var mode by remember { mutableStateOf(CaptureMode.VIDEO) }
+                CaptureModeSelector(photoMode = mode == CaptureMode.PHOTO, onSelect = { mode = it })
+            }
+        }
 
-        composeTestRule.onNodeWithContentDescription("Switch to video mode").performClick()
-        composeTestRule.onNodeWithContentDescription("Switch to photo mode").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Video").performClick() // inert tap → no haptic lie
+        composeTestRule.runOnIdle { assertEquals(emptyList<HapticFeedbackType>(), performed) }
+
+        composeTestRule.onNodeWithText("Camera").performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(listOf(HapticFeedbackType.ToggleOn), performed)
+        }
+
+        composeTestRule.onNodeWithText("Video").performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(listOf(HapticFeedbackType.ToggleOn, HapticFeedbackType.ToggleOff), performed)
+        }
     }
 
     @Test
