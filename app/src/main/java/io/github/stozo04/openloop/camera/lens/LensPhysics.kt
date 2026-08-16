@@ -107,6 +107,29 @@ object LensPhysics {
         step(state, pivotShiftInUnits = 0f, dtSeconds = dtSeconds, spec = spec)
 
     /**
+     * Eases [current] toward [target] with a frame-rate-independent half-life — the animation
+     * state behind a mouth-driven reveal.
+     *
+     * Deliberately **not** [step]. A spring overshoots, and a tongue that springs *past* full
+     * extension and back on every mouth-open reads as a glitch rather than as weight. This is a
+     * pure exponential approach: no overshoot, no oscillation, and it cannot leave `[0,1]` if both
+     * inputs are inside it.
+     *
+     * Half-life rather than a per-frame factor because a per-frame factor silently changes speed
+     * with frame rate — the same constant would ease twice as fast on a 60 fps preview as on a
+     * 30 fps one. [dtSeconds] is clamped by the same [MAX_STEP_SECONDS] rule as [step], so a
+     * dropped frame cannot make the reveal jump.
+     */
+    fun ease(current: Float, target: Float, dtSeconds: Float, halfLifeSeconds: Float): Float {
+        val dt = dtSeconds.coerceIn(0f, MAX_STEP_SECONDS)
+        if (dt <= 0f || !target.isFinite()) return current
+        if (halfLifeSeconds <= 0f) return target
+        // 2^(-dt/halfLife): the fraction of the remaining distance still left after this step.
+        val remaining = Math.pow(0.5, (dt / halfLifeSeconds).toDouble()).toFloat()
+        return target + (current - target) * remaining
+    }
+
+    /**
      * Longest step the integrator will take, in seconds — a little over two frames at 30 fps.
      *
      * The explicit-Euler stability bound is `dt < 2 / sqrt(stiffness)`; at the stiffest spec that

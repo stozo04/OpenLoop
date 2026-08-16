@@ -105,6 +105,13 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     private var previousFace: FaceSnapshot? = null
     private var previousFrameNs = 0L
 
+    /**
+     * Eased mouth openness, `0f`..`1f`. The detector's raw value jitters frame to frame; easing it
+     * is what turns a twitchy number into an animation. Held per-processor rather than per-layer
+     * because it describes the *subject*, not a lens.
+     */
+    private var easedOpenness = 0f
+
     private val surfaceTextureMatrix = FloatArray(MATRIX_SIZE)
     private val outputTextureMatrix = FloatArray(MATRIX_SIZE)
 
@@ -239,6 +246,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         // see a differently-advanced spring, and with two outputs attached the tongue would swing at
         // double speed. The angles come out dimensionless, so every output can use them as-is.
         val wobbles = stepWobbles(lens, trackedFace, timestampNs)
+        val openFraction = easedOpenness
 
         for ((output, eglSurface) in outputs) {
             if (!EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) continue
@@ -266,6 +274,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
                         faceFrame = faceFrame,
                         frameAspect = frameAspect,
                         wobbleRadians = wobbles.getOrElse(index) { 0f },
+                        openFraction = openFraction,
                     )
                 }
             }
@@ -336,11 +345,16 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         faceFrame: FaceFrame,
         frameAspect: Float,
         wobbleRadians: Float,
+        openFraction: Float,
     ) {
         val texture = stickerTextures.getOrPut(art.drawableRes) { loadTexture(art.drawableRes) }
         if (texture == 0) return
 
-        val quad = LensAnchor.sticker(face, faceFrame, art.placement, frameAspect, wobbleRadians)
+        val quad = LensAnchor.sticker(
+            face, faceFrame, art.placement, frameAspect, wobbleRadians, openFraction,
+        )
+        // A fully-retracted layer has no pixels; skip the draw call entirely.
+        if (quad.halfWidth <= 0f || quad.halfHeight <= 0f) return
         writeStickerCorners(quad, frameAspect)
 
         GLES20.glUseProgram(stickerProgram)
@@ -380,7 +394,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         }
         val layers = lens?.art.orEmpty()
         if (wobbleAngles.size != layers.size) wobbleAngles = FloatArray(layers.size)
-        if (layers.isEmpty()) return wobbleAngles
 
         // Camera timestamps are nanoseconds and monotonic, and tie the swing to the video's own
         // timeline rather than to how fast this thread happens to run. A device that reports 0
@@ -394,6 +407,14 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         }
         previousFrameNs = nowNs
 
+        // Same clamped dt as the spring, so a dropped frame cannot make the reveal jump either.
+        easedOpenness = LensPhysics.ease(
+            current = easedOpenness,
+            target = face?.mouthOpenness ?: 0f,
+            dtSeconds = dtSeconds,
+            halfLifeSeconds = MOUTH_EASE_HALF_LIFE_SECONDS,
+        )
+
         val previous = previousFace
         previousFace = face
         val shift = if (face != null && previous != null) {
@@ -404,6 +425,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             0f
         }
 
+        if (layers.isEmpty()) return wobbleAngles
         layers.forEachIndexed { index, art ->
             val spec = art.placement.wobble
             if (spec == null) {
@@ -717,6 +739,12 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         const val QUAD_COMPONENTS = 8
         const val MAX_ART_PX = 1024
         const val NANOS_PER_SECOND = 1_000_000_000f
+
+        /**
+         * How fast a mouth-driven layer follows the jaw. 80 ms is under a fifth of a second, so the
+         * reveal still feels immediate, while smoothing the detector's frame-to-frame jitter.
+         */
+        const val MOUTH_EASE_HALF_LIFE_SECONDS = 0.08f
 
         /** Strip order: top-left, top-right, bottom-left, bottom-right (y down, before rotation). */
         val CORNER_SIGNS = arrayOf(

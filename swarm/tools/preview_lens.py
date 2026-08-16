@@ -41,7 +41,12 @@ ANDROID = "{http://schemas.android.com/apk/res/android}"
 # Reference table from Lens.kt's KDoc. One unit = eye-to-mouth distance.
 HEAD_HALF_WIDTH = 1.55 / 2
 CROWN_ABOVE_EYES = 1.25
-CHIN_BELOW_EYES = 1.00
+# Corrected 2026-08-16. This said 1.00 — the MOUTH's number wearing the chin's label, and the
+# coincidence is the tell (the mouth is at 1.00 by definition). A real jaw runs ~0.75 units further
+# below the mouth (stomion->menton ~50mm against a ~67mm pupil->stomion face unit). The wrong value
+# is what let Pizza Face and Football ship covering only to the mouth, leaving the subject's chin
+# and the corners of their real mouth on show. See Lens.kt's header table.
+CHIN_BELOW_EYES = 1.75
 MOUTH_HALF_WIDTH = 0.8 / 2
 # Interpupillary is ~0.8 of eye-to-mouth (the Lens.kt KDoc records that assuming otherwise made
 # every lens ~20% oversized), so an eye sits ~0.4 units off the centre line.
@@ -200,7 +205,7 @@ def main() -> None:
     print(f"quad        : x +/-{half_w:.3f}u  y {a.up + half_h:+.3f}u .. {a.up - half_h:+.3f}u")
     print(f"crown +1.25 : {'COVERED' if a.up + half_h >= CROWN_ABOVE_EYES else 'EXPOSED — fails PRD 4b'}"
           f"  (top edge {a.up + half_h:+.3f})")
-    print(f"chin  -1.00 : {'covered' if a.up - half_h <= -CHIN_BELOW_EYES else 'exposed'}"
+    print(f"chin  -{CHIN_BELOW_EYES:.2f} : {'covered' if a.up - half_h <= -CHIN_BELOW_EYES else 'exposed'}"
           f"  (bottom edge {a.up - half_h:+.3f})")
     print(f"wrote       : {a.out}")
 

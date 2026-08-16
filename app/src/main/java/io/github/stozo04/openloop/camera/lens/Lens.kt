@@ -20,12 +20,30 @@ import io.github.stozo04.openloop.R
  * |---|---|
  * | head width, ear to ear | 1.55 |
  * | eye line up to the crown | 1.25 |
+ * | eye line down to the mouth | **1.00** (the definition) |
+ * | eye line down to the **chin** | **1.75** |
  * | mouth width, at rest | 0.8 |
  *
  * These are **measured off a real tracked face**, not assumed. An earlier version reasoned them
  * from published head statistics (treating one unit as the interpupillary distance) and every lens
  * came out ~20% oversized — eye-to-mouth is the larger of the two spans. If a lens ever needs
  * resizing, re-measure against this table rather than nudging a lens in isolation.
+ *
+ * ## The chin row was wrong until 2026-08-16, and it shipped two bugs
+ *
+ * This table used to say **chin = 1.00** — which is the same number as the mouth, and that
+ * coincidence is the tell: the row was the *mouth* wearing the chin's label. A real jaw runs about
+ * another **0.75 units** below the mouth (stomion→menton ≈ 50 mm against a ≈ 67 mm pupil→stomion
+ * face unit), putting the chin at **-1.75**.
+ *
+ * [PizzaFace] and [Football] were both sized against the wrong number, so both stopped at roughly
+ * the mouth and left the subject's real chin — and the corners of their real mouth — on show below
+ * the art. That is what "the mouth looks duplicated" was: the character's composited mouth *and*
+ * the subject's own, at once. [Broccoli] was never affected because it hangs a stalk far below the
+ * jaw and covers to -3.88 regardless.
+ *
+ * `LensAnchorTest.characterLensesCoverTheWholeHead` now asserts crown-to-chin coverage for every
+ * character lens, so the class of bug cannot come back silently.
  *
  * Because they are ratios of the face to itself, one set of numbers holds for every face at every
  * distance and angle — there is nothing here to re-tune per device.
@@ -74,7 +92,12 @@ enum class Lens(
                     // broccoli character.
                     widthInUnits = 4.4f,
                     artAspect = 1.117f,
-                    upInUnits = -1.42f,
+                    // -1.20, was -1.42. At -1.42 the wreath topped out at +1.04 against the +1.25
+                    // crown, leaving ~0.2 units of the top of the head bare — found by
+                    // `characterLensesCoverTheWholeHead` on 2026-08-16, never reported in the
+                    // field. Raising it 0.22 clears the crown by +0.13 and needs NO resize: the
+                    // stalk still hangs 1.91 units below the chin (it had 2.13 to give away).
+                    upInUnits = -1.20f,
                 ),
             ),
         ),
@@ -165,11 +188,17 @@ enum class Lens(
             LensArt(
                 drawableRes = R.drawable.lens_pizza_art,
                 placement = LensPlacement(
-                    widthInUnits = 3.45f,
+                    // 3.95 / -0.55, not the original 3.45 / -0.18. The wedge's BOUNDING BOX always
+                    // reached past the chin, which is exactly why a bounding-box check missed this:
+                    // a wedge tapers to a point, so from y = -0.50 downward it was narrower than
+                    // the jaw and the sides of the subject's lower face showed through. Re-solved
+                    // against the measured alpha silhouette, not the box — smallest clearing width,
+                    // +0.07 margin at the tightest point.
+                    widthInUnits = 3.95f,
                     // Measured off the encoded 1024x972 asset per the A2 rule, not estimated.
                     artAspect = 0.949f,
                     // Drops the wedge so the crust sits above the brow and the tip falls past the chin.
-                    upInUnits = -0.18f,
+                    upInUnits = -0.55f,
                 ),
             ),
         ),
@@ -211,13 +240,20 @@ enum class Lens(
             LensArt(
                 drawableRes = R.drawable.lens_football_art,
                 placement = LensPlacement(
-                    widthInUnits = 4.7f,
+                    // 5.60 / -0.26, not the original 4.7 / +0.10. At 4.7 the ellipse ended at
+                    // -1.24 — just past the mouth — so the whole chin was bare (owner report,
+                    // 2026-08-16; see the chin note in this file's header). Re-solved by measuring
+                    // the encoded alpha silhouette against the corrected head at 0.05-unit steps:
+                    // this is the SMALLEST width that clears it everywhere, with a +0.10 margin at
+                    // the tightest point. A horizontal ball has to be wide to cover a vertical
+                    // head — that is geometry, not a tuning preference.
+                    widthInUnits = 5.60f,
                     // Measured off the encoded asset (1024x585), not estimated — the art carries a
                     // 1.5% transparent margin, so the ball itself is ~97% of the quad.
                     artAspect = 0.571f,
-                    // Just above the eye line: the ball's centre sits between brow and crown so the
-                    // taller half of the head gets the deeper half of the ellipse.
-                    upInUnits = 0.10f,
+                    // Centred just below the eye line so the ellipse reaches +1.34 over the crown
+                    // and -1.86 under the chin.
+                    upInUnits = -0.26f,
                 ),
             ),
         ),
@@ -248,9 +284,19 @@ enum class Lens(
      * squarely on top of both eyes; that is arithmetic, so it was caught without a face
      * (`swarm/tools/preview_lens.py`).
      *
-     * Deliberately no drop-tongue. The canonical version animates a tongue on mouth-open, which
-     * needs a second sticker plus mouth-open detection plus animation state — a capability this
-     * renderer does not have and this change did not add.
+     * **No drop-tongue yet — but the renderer can now do one.** This KDoc used to say the
+     * capability did not exist; as of [TwistedTongue] all three pieces are in the tree and that
+     * claim was stale:
+     *
+     * * a second sticker → [art] is a `List<LensArt>`;
+     * * mouth-open detection → [LensAnchor.mouthOpenness], off `MOUTH_BOTTOM`, which
+     *   `LANDMARK_MODE_ALL` already provides at no per-frame cost (so PRD §5.1's rejection of
+     *   `CONTOUR_MODE` stands);
+     * * animation state → [LensPhysics.ease], plus [LensPhysics.step] if it should swing.
+     *
+     * Adding one is now a catalogue edit: a `MOUTH`-anchored layer with
+     * `mouthOpen = MouthOpenSpec(restFraction = 0f)` so it is hidden until the jaw drops. It is
+     * left out only because it needs its own art, which this change did not draw.
      */
     Dog(
         displayName = "Dog",
@@ -355,6 +401,12 @@ enum class Lens(
                         // the root behind the teeth (see the KDoc above).
                         limitRadians = 0.22f,
                     ),
+                    // Extends as the jaw drops. The reference effect has no trigger — its
+                    // blendshape weight is a constant — so a restFraction of 0 would have been
+                    // *unfaithful*, not merely different: the joke is a tongue that is always out.
+                    // 0.55 keeps it clearly out at rest and nearly doubles it wide open, which
+                    // adds the response without trading away the lens's identity.
+                    mouthOpen = MouthOpenSpec(restFraction = 0.55f),
                 ),
             ),
             // Same placement as the cavity above — one geometry contract, used twice, so the teeth

@@ -64,6 +64,17 @@ data class FaceSnapshot(
      * [LensAnchor.reframe].
      */
     val sourceAspect: Float,
+    /**
+     * How far open the subject's mouth is, `0f` (shut) to `1f` (wide) — see
+     * [LensAnchor.mouthOpenness].
+     *
+     * A **dimensionless scalar**, not a point, and that is deliberate. Lesson 032 warns that a
+     * scalar normalized to the *frame* cannot survive a quarter turn; this one is a ratio of two
+     * distances measured on the *face*, in the tracker's own pixels, so rotation, mirroring and
+     * re-framing all leave it alone. That is why [uprightToBuffer] and [reframe] carry it through
+     * untouched instead of transforming it.
+     */
+    val mouthOpenness: Float = 0f,
 )
 
 /**
@@ -106,6 +117,8 @@ enum class LensAnchorPoint { FACE, LEFT_EYE, RIGHT_EYE, MOUTH }
  * @param anchor the point [upInUnits] / [rightInUnits] are measured from.
  * @param wobble non-null makes this layer swing about [anchor] when the head moves — see
  *   [LensPhysics]. Null is rigid, which is every lens that does not hang off the face.
+ * @param mouthOpen non-null makes this layer grow and shrink as the subject opens their mouth.
+ *   Null means a fixed size, which is every layer that is not coming *out* of a mouth.
  */
 data class LensPlacement(
     val widthInUnits: Float,
@@ -114,7 +127,19 @@ data class LensPlacement(
     val rightInUnits: Float = 0f,
     val anchor: LensAnchorPoint = LensAnchorPoint.FACE,
     val wobble: WobbleSpec? = null,
+    val mouthOpen: MouthOpenSpec? = null,
 )
+
+/**
+ * How far a layer extends as the mouth opens.
+ *
+ * The layer is scaled **about its anchor** — size and offset together — so a part anchored at the
+ * mouth grows *out of* the mouth rather than swelling in place.
+ *
+ * @param restFraction the layer's size with the mouth shut, as a fraction of full. `0f` hides it
+ *   entirely until the mouth opens (the canonical dog drop-tongue); `1f` disables the response.
+ */
+data class MouthOpenSpec(val restFraction: Float)
 
 /**
  * Where a character's eyes and mouth sit on its face, in face units.
@@ -251,12 +276,55 @@ object LensAnchor {
      * from where it is attached instead of pivoting in place. Zero reproduces the rigid placement
      * exactly, so every non-wobbling lens is bit-identical to before this parameter existed.
      */
+    /**
+     * How far open a mouth is, `0f`..`1f`, from **two pixel distances in the tracker's own image**.
+     *
+     * `mouthToBottom` is the mouth-corner midpoint to ML Kit's `MOUTH_BOTTOM`; `eyeToMouth` is the
+     * face unit in the same pixels. Their ratio grows as the jaw drops, and because it is a ratio
+     * of two distances on the same face it is invariant to distance from the camera, to head
+     * rotation, to mirroring, and to which stream measured it. That invariance is the whole reason
+     * this is computed from raw pixels at the tracker rather than from normalized coordinates
+     * downstream — see the note on [FaceSnapshot.mouthOpenness] and Lesson 032.
+     *
+     * **No `CONTOUR_MODE`.** `MOUTH_BOTTOM` is already in `LANDMARK_MODE_ALL`, which the tracker
+     * already runs, so this costs nothing per frame. PRD §5.1 rejected contour mode on exactly
+     * that cost, and this keeps the rejection intact rather than reopening it.
+     */
+    fun mouthOpenness(eyeToMouth: Float, mouthToBottom: Float): Float {
+        if (eyeToMouth <= 0f || !eyeToMouth.isFinite() || !mouthToBottom.isFinite()) return 0f
+        val ratio = mouthToBottom / eyeToMouth
+        // Measured against a relaxed and a wide-open jaw: the lower lip sits ~0.20 units below the
+        // corner line at rest and passes ~0.62 wide open. Below CLOSED is shut, above OPEN is as
+        // open as it gets; between them it is linear.
+        return ((ratio - MOUTH_CLOSED_RATIO) / (MOUTH_OPEN_RATIO - MOUTH_CLOSED_RATIO))
+            .coerceIn(0f, 1f)
+    }
+
+    /** Lower lip below the mouth-corner line, in face units, with the jaw relaxed. */
+    private const val MOUTH_CLOSED_RATIO = 0.20f
+
+    /** The same distance with the jaw dropped as far as a face comfortably goes. */
+    private const val MOUTH_OPEN_RATIO = 0.62f
+
+    /**
+     * Scale a [MouthOpenSpec] layer takes at a given [openFraction] (already eased).
+     *
+     * Linear between [MouthOpenSpec.restFraction] and 1. Kept separate from [sticker] so the curve
+     * is assertable on its own.
+     */
+    fun mouthOpenScale(spec: MouthOpenSpec?, openFraction: Float): Float {
+        if (spec == null) return 1f
+        val open = openFraction.coerceIn(0f, 1f)
+        return spec.restFraction + (1f - spec.restFraction) * open
+    }
+
     fun sticker(
         face: FaceSnapshot,
         frame: FaceFrame,
         placement: LensPlacement,
         frameAspect: Float,
         wobbleRadians: Float = 0f,
+        openFraction: Float = 1f,
     ): StickerQuad {
         // Screen y is down, so this is the clockwise-positive rotation used everywhere else —
         // same convention as LensSurfaceProcessor.writeStickerCorners.
@@ -267,15 +335,18 @@ object LensAnchor {
         val rightX = frame.rightX * cosW - frame.rightY * sinW
         val rightY = frame.rightX * sinW + frame.rightY * cosW
 
-        val alongUp = placement.upInUnits * frame.unit
-        val alongRight = placement.rightInUnits * frame.unit
+        // Scaling the OFFSET by the same factor as the size is what makes a mouth-driven layer
+        // grow out of its anchor instead of swelling around its own centre.
+        val openScale = mouthOpenScale(placement.mouthOpen, openFraction)
+        val alongUp = placement.upInUnits * frame.unit * openScale
+        val alongRight = placement.rightInUnits * frame.unit * openScale
 
         val centerSquareX = anchorX(face, frame, placement.anchor) +
             rightX * alongRight + upX * alongUp
         val centerSquareY = anchorSquareY(face, frame, placement.anchor, frameAspect) +
             rightY * alongRight + upY * alongUp
 
-        val halfWidth = placement.widthInUnits * frame.unit / 2f
+        val halfWidth = placement.widthInUnits * frame.unit * openScale / 2f
 
         return StickerQuad(
             centerX = centerSquareX,
@@ -511,6 +582,8 @@ object LensAnchor {
         mouthRightX = x(mouthRightX, mouthRightY),
         mouthRightY = y(mouthRightX, mouthRightY),
         sourceAspect = if (quarterTurn) 1f / sourceAspect else sourceAspect,
+        // A ratio of two distances on the face — a quarter turn does not change it.
+        mouthOpenness = mouthOpenness,
     )
 
     /**
