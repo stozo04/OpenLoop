@@ -10,6 +10,7 @@ import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import com.google.mlkit.vision.face.FaceLandmark
+import kotlin.math.hypot
 
 /**
  * Turns the [ImageAnalysis] stream into [FaceSnapshot]s for the lens renderer.
@@ -158,6 +159,28 @@ class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.A
         val mouthLeft = getLandmark(FaceLandmark.MOUTH_LEFT)?.position ?: return null
         val mouthRight = getLandmark(FaceLandmark.MOUTH_RIGHT)?.position ?: return null
 
+        // Mouth openness, measured in the tracker's own PIXELS. A ratio of two distances on the
+        // same face is invariant to distance, rotation, mirroring and stream shape, so it can be
+        // carried downstream as a bare scalar where a normalized one could not (Lesson 032).
+        //
+        // MOUTH_BOTTOM comes free with LANDMARK_MODE_ALL, which is already on. Contour mode would
+        // give a better lip line and was rejected in PRD §5.1 on per-frame cost; this keeps that
+        // decision intact instead of quietly reopening it. Missing on steep angles, in which case
+        // the mouth simply reads as shut rather than the whole face being dropped.
+        val mouthBottom = getLandmark(FaceLandmark.MOUTH_BOTTOM)?.position
+        val mouthMidX = (mouthLeft.x + mouthRight.x) / 2f
+        val mouthMidY = (mouthLeft.y + mouthRight.y) / 2f
+        val eyeMidX = (leftEye.x + rightEye.x) / 2f
+        val eyeMidY = (leftEye.y + rightEye.y) / 2f
+        val openness = if (mouthBottom == null) {
+            0f
+        } else {
+            LensAnchor.mouthOpenness(
+                eyeToMouth = hypot(eyeMidX - mouthMidX, eyeMidY - mouthMidY),
+                mouthToBottom = hypot(mouthBottom.x - mouthMidX, mouthBottom.y - mouthMidY),
+            )
+        }
+
         return FaceSnapshot(
             leftEyeX = leftEye.x / frameWidth,
             leftEyeY = leftEye.y / frameHeight,
@@ -168,6 +191,7 @@ class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.A
             mouthRightX = mouthRight.x / frameWidth,
             mouthRightY = mouthRight.y / frameHeight,
             sourceAspect = frameWidth / frameHeight,
+            mouthOpenness = openness,
         )
     }
 

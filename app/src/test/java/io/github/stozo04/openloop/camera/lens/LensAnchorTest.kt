@@ -31,6 +31,17 @@ class LensAnchorTest {
 
         /** How far an eye sits off the centre line: interpupillary is ~0.8 of eye-to-mouth. */
         const val EYE_OFFSET_UNITS = 0.40f
+
+        /** Top of the head, above the eye line. */
+        const val CROWN_UNITS = 1.25f
+
+        /**
+         * Bottom of the chin, below the eye line. The mouth is at 1.00 *by definition*, and the jaw
+         * runs ~0.75 units further. This table said 1.00 until 2026-08-16 — the mouth's number
+         * wearing the chin's label — which is what let Pizza Face and Football ship covering only
+         * to the mouth. See `Lens.kt`'s header.
+         */
+        const val CHIN_UNITS = -1.75f
     }
 
     private val tolerance = 1e-3f
@@ -967,6 +978,150 @@ class LensAnchorTest {
                     offsetUnits < 3f,
                 )
             }
+        }
+    }
+
+    // ---------------------------------------------------------------- character head coverage
+
+    @Test
+    fun characterLensesCoverTheWholeHead() {
+        // THE regression for the owner-reported "my chin and mouth show under the lens" bug.
+        // A character replaces the head (PRD §4b), so anything of the subject still visible below
+        // the art is a failed character — and with the mouth composited onto the art as well, a
+        // short lens shows the subject TWO mouths.
+        //
+        // This is the vertical extent only. It would have caught Football, whose art simply ended
+        // at -1.24; it would NOT have caught Pizza, whose bounding box always reached past the chin
+        // while the wedge inside it tapered away from the jaw. Silhouette coverage needs the
+        // encoded alpha and lives in `swarm/tools/preview_lens.py`; this is the cheap half that
+        // runs on every build.
+        val subject = face()
+        val frame = frameOf(subject)
+
+        Lens.entries.filter { it.features != null }.forEach { lens ->
+            val art = lens.art.single()
+            val quad = LensAnchor.sticker(subject, frame, art.placement, frameAspect)
+            fun unitsFromEyeLine(y: Float) =
+                -LensAnchor.toSquareY(y - frame.originY, frameAspect) / frame.unit
+
+            val top = unitsFromEyeLine(quad.centerY - quad.halfHeight)
+            val bottom = unitsFromEyeLine(quad.centerY + quad.halfHeight)
+
+            // The CHIN is the reported bug and is asserted with no exceptions: anything below the
+            // art is the subject's own face, and on a character that means a second visible mouth.
+            assertTrue(
+                "${lens.name} stops at $bottom, above the $CHIN_UNITS chin — the subject's own " +
+                    "chin and mouth show under the art",
+                bottom <= CHIN_UNITS,
+            )
+
+            // The CROWN, with no exceptions either. This test found Broccoli topping out at +1.04
+            // on 2026-08-16 — a real gap nobody had reported — and it was fixed by raising the
+            // wreath 0.22 units rather than by carving out an exemption here.
+            assertTrue(
+                "${lens.name} stops at $top, below the $CROWN_UNITS crown — forehead on show",
+                top >= CROWN_UNITS,
+            )
+        }
+    }
+
+    // ---------------------------------------------------------------- mouth-open reveal
+
+    @Test
+    fun mouthOpenness_isShutWhenTheLowerLipSitsOnTheCornerLine() {
+        // A closed mouth still has MOUTH_BOTTOM slightly below the corners; that must read as 0.
+        assertEquals(0f, LensAnchor.mouthOpenness(eyeToMouth = 100f, mouthToBottom = 20f), tolerance)
+        assertEquals(0f, LensAnchor.mouthOpenness(eyeToMouth = 100f, mouthToBottom = 5f), tolerance)
+    }
+
+    @Test
+    fun mouthOpenness_reachesOneOnAWideJaw_andClampsBeyond() {
+        assertEquals(1f, LensAnchor.mouthOpenness(100f, 62f), tolerance)
+        assertEquals("must clamp, not keep climbing", 1f, LensAnchor.mouthOpenness(100f, 200f), tolerance)
+    }
+
+    @Test
+    fun mouthOpenness_isARatio_soDistanceFromTheCameraCannotChangeIt() {
+        // The property that lets it be carried as a bare scalar through rotation and re-framing.
+        val near = LensAnchor.mouthOpenness(eyeToMouth = 240f, mouthToBottom = 96f)
+        val far = LensAnchor.mouthOpenness(eyeToMouth = 60f, mouthToBottom = 24f)
+
+        assertEquals(near, far, tolerance)
+        assertTrue("the fixture must be part-open, or this proves nothing", near > 0.1f && near < 0.9f)
+    }
+
+    @Test
+    fun mouthOpenness_survivesDegenerateInput() {
+        assertEquals(0f, LensAnchor.mouthOpenness(0f, 50f), tolerance)
+        assertEquals(0f, LensAnchor.mouthOpenness(Float.NaN, 50f), tolerance)
+        assertEquals(0f, LensAnchor.mouthOpenness(100f, Float.NaN), tolerance)
+    }
+
+    @Test
+    fun openness_isCarriedThroughRotationAndReframingUntouched() {
+        val subject = face().copy(mouthOpenness = 0.64f)
+
+        assertEquals(0.64f, LensAnchor.uprightToBuffer(subject, 90).mouthOpenness, tolerance)
+        assertEquals(0.64f, LensAnchor.reframe(subject, targetAspect = 16f / 9f).mouthOpenness, tolerance)
+    }
+
+    @Test
+    fun mouthOpenScale_isTheIdentityForALayerThatDoesNotRespond() {
+        assertEquals(1f, LensAnchor.mouthOpenScale(null, openFraction = 0f), tolerance)
+        assertEquals(1f, LensAnchor.mouthOpenScale(null, openFraction = 1f), tolerance)
+    }
+
+    @Test
+    fun mouthOpenScale_runsFromRestFractionToFull() {
+        val spec = MouthOpenSpec(restFraction = 0.55f)
+
+        assertEquals(0.55f, LensAnchor.mouthOpenScale(spec, 0f), tolerance)
+        assertEquals(1f, LensAnchor.mouthOpenScale(spec, 1f), tolerance)
+        assertEquals(0.775f, LensAnchor.mouthOpenScale(spec, 0.5f), tolerance)
+    }
+
+    @Test
+    fun aMouthDrivenLayerGrowsOutOfItsAnchor_notAroundItsOwnCentre() {
+        // The distinction that makes a tongue emerge from a mouth rather than inflate on a chin:
+        // the anchored EDGE stays put while the far edge travels.
+        val subject = face()
+        val frame = frameOf(subject)
+        val tongue = Lens.TwistedTongue.art.single { it.placement.mouthOpen != null }
+        val mouthY = (subject.mouthLeftY + subject.mouthRightY) / 2f
+
+        val shut = LensAnchor.sticker(subject, frame, tongue.placement, frameAspect, openFraction = 0f)
+        val wide = LensAnchor.sticker(subject, frame, tongue.placement, frameAspect, openFraction = 1f)
+
+        assertTrue("a wide mouth must show more tongue", wide.halfHeight > shut.halfHeight)
+        assertTrue(
+            "the tip must travel further from the mouth",
+            (wide.centerY + wide.halfHeight) > (shut.centerY + shut.halfHeight),
+        )
+        // Root: the top edge is pinned near the mouth at both extremes, within a tenth of a unit.
+        val shutRoot = abs((shut.centerY - shut.halfHeight) - mouthY)
+        val wideRoot = abs((wide.centerY - wide.halfHeight) - mouthY)
+        assertTrue(
+            "the root wandered: shut $shutRoot vs wide $wideRoot",
+            abs(shutRoot - wideRoot) < 0.1f * frame.unit / LensAnchor.toSquareY(1f, frameAspect),
+        )
+    }
+
+    @Test
+    fun theTongueIsStillVisibleWithTheMouthShut() {
+        // The reference effect has NO trigger — its blendshape weight is a constant — so the tongue
+        // being out at rest is the faithful behaviour. A restFraction of 0 would be a different joke.
+        val spec = requireNotNull(
+            Lens.TwistedTongue.art.single { it.placement.mouthOpen != null }.placement.mouthOpen,
+        )
+
+        assertTrue("Twisted Tongue's tongue must not vanish when the mouth shuts", spec.restFraction > 0.25f)
+        assertTrue("...but it must still visibly extend", spec.restFraction < 0.9f)
+    }
+
+    @Test
+    fun everyMouthOpenSpecInTheCatalogueIsInRange() {
+        Lens.entries.flatMap { it.art }.mapNotNull { it.placement.mouthOpen }.forEach { spec ->
+            assertTrue("$spec restFraction must be 0..1", spec.restFraction in 0f..1f)
         }
     }
 

@@ -17,7 +17,7 @@ Built with Google's latest Android libraries. All video processing runs on your 
 - **Capture** — Hold the shutter for a clip (up to 30 s), or import one from your library
 - **Seamless Loops** — Forward, reverse, or either bounce, generated entirely on-device via Media3 Transformer
 - **Speed Control** — Real-time playback speed slider from 0.5x to 3.0x before you save
-- **Face Lenses** — Broccoli, Shades and Big Mouth render live on the viewfinder and record into the clip
+- **Face Lenses** — eight of them: Broccoli, Shades, Big Mouth, Bug Eyes, Pizza Face, Football, Dog and Twisted Tongue. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth
 - **Photo Mode** — Flip the shutter to stills, lenses included
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
 - **Private by design** — Your videos are processed 100% on-device and are never uploaded. No accounts, no ads, no advertising ID. The app does send limited, pseudonymous crash and usage diagnostics (Firebase Crashlytics + Analytics) — see the [privacy policy](docs/play-store/privacy-policy.md)
@@ -49,31 +49,41 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 
 ### State Machine
 
-```
+```text
 Initializing → Onboarding → CheckingPermissions → ReadyToCapture <-> Recording
-           \                       |                      |
-        CheckingPermissions     Gallery            LoopingPreview
-         (returning user)          |
-                            ReadyToCapture
+   (returning user ↗)                                                  │ finalize
+                                                                       ▼
+                                                    Trim ──NEXT──▶ BoomerangEditor
+                                                      ▲                  │ save
+                                                      └──back────────────┤
+                                                                         ▼
+                                   ReadyToCapture ◀──success──────── Processing
+
+Gallery <-> ReadyToCapture
 ```
 
 All navigation is driven by a single `MutableStateFlow<OpenLoopUiState>` — no Jetpack Navigation needed at this scale. The `Initializing` state reads from DataStore to determine whether to show onboarding or skip straight to the camera.
 
 ### Project Structure
 
-```
+```text
 io.github.stozo04.openloop/
-├── camera/          CameraX lifecycle, recording, lens toggle
+├── camera/          CameraX lifecycle, recording, pinch-zoom
+│   └── lens/        The lens catalogue, face tracking, and the GL renderer
 ├── data/            DataStore preferences, repository pattern
+├── media/           Media3 Transformer pipeline + the two-pass reverse
 ├── ui/              Compose screens, ViewModel, state machine
-├── MainActivity.kt  Permissions, routing, theme
-└── (planned)
-    └── media/       Media3 Transformer pipeline
+├── work/            WorkManager render pipeline and MediaStore publish
+└── MainActivity.kt  Permissions, routing, theme
 ```
+
+> A fuller map — including `diagnostics/`, `review/` and `update/` — is in
+> [`CLAUDE.md`](CLAUDE.md#source-layout).
 
 ## Getting Started
 
 1. **Clone it:**
+
    ```bash
    git clone https://github.com/stozo04/OpenLoop.git
    ```
@@ -91,10 +101,13 @@ Sometimes you just want to build from a terminal — to check it compiles or to 
 **1. Point Java at a JDK.** Gradle needs a Java Development Kit to run. The easiest one to use is the JDK bundled *inside* Android Studio (the "JBR"). Tell your terminal where it lives:
 
 - **Windows (PowerShell):**
+
   ```powershell
   $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
   ```
+
 - **macOS:**
+
   ```bash
   export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
   ```
@@ -183,17 +196,18 @@ for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.
 
 ## Performance (Baseline Profiles)
 
-**What is a Baseline Profile? (Explained like a 5th grader)**
+### What is a Baseline Profile? (Explained like a 5th grader)
 
 Imagine you have a new board game. The first time you play, you have to stop and read the rules every few seconds. It feels slow and jerky. But after you've played it 10 times, you know the rules by heart and the game moves fast!
 
-Baseline Profiles are like a **"Cheat Sheet"** for your phone. Usually, when someone downloads your app, the phone has to "read the rules" of how to run the code while the user is using it. This can make the app feel "laggy" or "jerky." 
+Baseline Profiles are like a **"Cheat Sheet"** for your phone. Usually, when someone downloads your app, the phone has to "read the rules" of how to run the code while the user is using it. This can make the app feel "laggy" or "jerky."
 
 By building a Baseline Profile, we "play the game" for the phone ahead of time and write down all the rules. When the user opens the app, the phone reads the Cheat Sheet first, so everything feels smooth and fast from the very first tap.
 
 ### How we use them
 
 We use the `androidx.baselineprofile` plugin to automate this:
+
 1. The `:baselineprofile` module "drives" the app through its most important parts (opening, taking a video).
 2. It records which parts of the code were used.
 3. It saves this as a file that gets bundled into the final app (`.aab`) sent to Google Play.
@@ -201,10 +215,12 @@ We use the `androidx.baselineprofile` plugin to automate this:
 **Automation:** You don't need to run this manually! The project is set up so that whenever you build a "Release" version of the app, Gradle automatically runs the generator to make sure the "Cheat Sheet" is up to date for the latest version.
 
 If you *do* want to run it manually to see it work:
+
 ```powershell
 .\gradlew.bat :app:generateReleaseBaselineProfile
 ```
-*(Note: This requires a connected device or emulator.)*
+
+> Note: this requires a connected device or emulator.
 
 ## Guides
 
@@ -254,9 +270,10 @@ Android Studio's *Analyze → Inspect Code* produces, run headlessly. There are 
   slow); the reviewer notes whether it was run.
 
 **To merge, a PR must:**
+
 1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
 2. Address all **WARNINGS** or document why they're accepted
-3. Pass all unit tests (19+) and UI regression tests (6+)
+3. Pass all unit tests (430+) and instrumented tests (100+)
 4. Show **zero new Android Lint errors** (Engine 1), and have **IDE Code Inspection** (Engine 2)
    run locally with its findings addressed or accepted
 
@@ -267,20 +284,21 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 ## Build Status
 
 **What's shipping:**
+
 - 3-page onboarding (with DataStore persistence — you only see it once)
-- CameraX viewfinder with 1.5s burst capture + auto-stop
-- Front/back camera toggle
-- Persistent video storage + thumbnail caching
-- Looping preview (ExoPlayer)
-- Gallery with delete and full-screen playback
-- 19 unit tests + 6 UI regression tests
+- CameraX viewfinder, capture up to 30 s, plus import from your library
+- Front/back toggle, pinch-to-zoom, and a stills photo mode
+- Loop generation — forward, reverse and both bounces — via Media3 Transformer
+- Trim, speed control (0.5x–3.0x) and Looks, all previewed before you save
+- Eight face lenses, tracked with ML Kit and baked into the recording
+- Gallery with delete, full-screen playback and a share sheet
+- In-app updates and a Play review prompt
+- 430 unit tests + 100 instrumented tests
 
 **What's next:**
-- Loop generation (Media3 Transformer reversal + concatenation)
-- Speed slider on preview screen
-- Export with speed burn-in to device gallery
+
+- More lenses, including ones that react to your expression
 - Custom capture duration
-- Share flow
 
 ## Contributing
 
