@@ -1015,8 +1015,12 @@ class LensAnchorTest {
 
     @Test
     fun elvis_shadesContainTheEyeLine() {
-        // Shades are the last layer (index 1). The quad must span y = 0 (eye line).
+        // Shades are the last layer (index 1). Measured 1420×504 PNG, aspect 0.3549.
         val shades = Lens.Elvis.art[1]
+        
+        // Verify measured aspect is used (not placeholder).
+        assertEquals(0.3549f, shades.placement.artAspect, 0.001f)
+        
         val halfHeight = shades.placement.widthInUnits * shades.placement.artAspect / 2f
         val top = shades.placement.upInUnits + halfHeight
         val bottom = shades.placement.upInUnits - halfHeight
@@ -1037,20 +1041,25 @@ class LensAnchorTest {
 
     @Test
     fun elvis_hairCoversAboveTheCrown() {
-        // Hair (with sideburns) is layer 0. Top must clear the crown (+1.25), bottom must stay
-        // above the eye line (hairline on forehead).
+        // Hair (U-wig with face hole) is layer 0. Measured 974×980 PNG, aspect 1.0062.
+        // Top must clear the crown (+1.25), face hole exposes eyes/mouth.
         val hair = Lens.Elvis.art[0]
+        
+        // Verify measured aspect is used (not placeholder).
+        assertEquals(1.0062f, hair.placement.artAspect, 0.001f)
+        
         val halfHeight = hair.placement.widthInUnits * hair.placement.artAspect / 2f
         val top = hair.placement.upInUnits + halfHeight
         val bottom = hair.placement.upInUnits - halfHeight
 
         assertTrue(
-            "Elvis hair top ${top} must reach above the crown at $CROWN_UNITS",
-            top >= CROWN_UNITS,
+            "Elvis hair top ${top} must reach well above the crown at $CROWN_UNITS",
+            top >= CROWN_UNITS + 0.5f,
         )
+        // Bottom can be negative (face hole in lower-center exposes eyes at 0, mouth at −1.00).
         assertTrue(
-            "Elvis hair bottom ${bottom} must stay above the eye line (y = 0) — hairline on forehead",
-            bottom > 0f,
+            "Elvis hair bottom ${bottom} extends down (face hole design)",
+            bottom < 0f,
         )
     }
 

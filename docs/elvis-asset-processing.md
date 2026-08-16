@@ -1,26 +1,23 @@
 # Elvis Lens Asset Processing — Photoreal Bitmap Workflow
 
 **Date:** 2026-08-16  
-**Status:** Awaiting high-res PNG processing
+**Status:** Complete — assets processed and measured
 
-## Source Assets (Provided by User)
+## Processed Assets
 
-Three photoreal 3D renders on chroma-key green (#00FF00):
+Two photoreal bitmap layers in `app/src/main/res/drawable-nodpi/`:
 
-1. **elvis-shades-hq.png** — Gold aviators, front view
-   - PBR metal frames in polished gold
-   - Double bridge (aviator signature)
-   - Brown gradient lenses with real reflections
-   - Quality bar: right pair from user's reference image
+1. **lens_elvis_shades_art.webp** — Gold aviators
+   - Source: chroma-keyed 3D render, alpha applied, trimmed
+   - Measured: 1420×504 pixels, artAspect = 0.3549
+   - PBR metal frames in polished gold, double bridge, brown gradient lenses
+   - Compressed ~q90 WebP
 
-2. **elvis-pompadour-hq.png** — Glossy black quiff with sideburns INCLUDED
-   - Front view, high-volume pompadour
-   - Sideburns already integrated into this asset
-   - Do NOT stack additional sideburn layers
-
-3. **elvis-sideburn-hq.png** — Spare single burn (optional)
-   - Only if cropping quiff to hair-only
-   - Prefer simpler 2-layer approach: hair + shades
+2. **lens_elvis_pompadour_art.webp** — U-wig (quiff + sideburns + face hole)
+   - Source: chroma-keyed 3D render, alpha applied, trimmed
+   - Measured: 974×980 pixels, artAspect = 1.0062
+   - Glossy black hair with integrated sideburns, face hole in lower-center
+   - Compressed ~q90 WebP
 
 ## Processing Steps
 

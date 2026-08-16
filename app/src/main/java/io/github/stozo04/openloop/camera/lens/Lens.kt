@@ -451,29 +451,26 @@ enum class Lens(
      *
      * **BITMAP workflow** (Snapchat pattern): photoreal 3D renders baked to front-on PNGs, chroma-keyed
      * from green (#00FF00) to alpha, saved as WebP in `drawable-nodpi/`. No 3D renderer, no vector XML.
-     * Processing: `docs/elvis-asset-processing.md`.
      *
-     * * **lens_elvis_pompadour_art.webp** — Glossy black quiff with sideburns ALREADY INCLUDED.
-     *   Front view, high volume above crown. Chroma-keyed, trimmed to opaque bounds. Do not stack
-     *   additional sideburn layers — this asset is complete hair.
-     * * **lens_elvis_shades_art.webp** — Gold aviators. PBR metal frames (#C9A227-range), double
-     *   bridge, brown gradient lenses with real reflections. Chroma-keyed, trimmed to opaque bounds.
+     * * **lens_elvis_pompadour_art.webp** — U-wig: glossy black quiff + baked sideburns + face hole.
+     *   974×980 PNG (aspect 1.0062). Front view, high volume above crown, sideburns down the sides,
+     *   face hole in lower-center exposes eyes and mouth. Sized generously (2.6 units) so sideburns
+     *   land on cheeks, not forehead — smaller quad parks the burns too high.
+     * * **lens_elvis_shades_art.webp** — Gold aviators. 1420×504 PNG (aspect 0.3549). PBR metal
+     *   frames (#C9A227-range), double bridge, brown gradient lenses with real reflections.
      *
      * ## The numbers
      *
      * Solved against the reference table at the top of this file, not eyeballed. upInUnits is the
-     * quad CENTER, derived from (top + bottom) / 2. artAspect measured from the ACTUAL processed
-     * PNG's opaque bounds (height / width after trim), not assumed.
+     * quad CENTER, derived from (top + bottom) / 2. artAspect measured from the processed PNG's
+     * opaque bounds (height / width after trim): 980/974 = 1.0062 (hair), 504/1420 = 0.3549 (shades).
      *
-     * **AWAITING ASSET PROCESSING** — dimensions below are placeholders based on typical photoreal
-     * proportions. After chroma-key + trim, measure actual PNGs and update artAspect + widthInUnits.
-     *
-     * * **Hair.** Assumed ~1.5 units wide to cover forehead + sideburns, aspect ~1.2 (tall quiff).
-     *   Bottom at hairline +0.70, top at +1.60 (above +1.25 crown). Height 0.90 gives center
-     *   (0.70 + 1.60) / 2 = +1.15. Update after measuring PNG.
-     * * **Shades.** 2.1 units wide (overhang past Sunglasses 1.9), aspect ~0.38 (typical aviators).
-     *   Quad spans +0.46 to -0.34, centered +0.06 on bridge. Contains y=0 (eye line), clears mouth.
-     *   Update aspect after measuring PNG.
+     * * **Hair.** 2.6 units wide (generous, following Broccoli's face-hole pattern: 4.4 units for
+     *   that larger piece). Height 2.6 × 1.0062 = 2.616 units. Centered +0.70 → top +2.008 (well
+     *   above +1.25 crown), bottom −0.608 (face hole exposes eyes at 0, mouth at −1.00). Sideburns
+     *   in the PNG's sides land on cheeks, not pupils.
+     * * **Shades.** 2.1 units wide (overhang past Sunglasses 1.9). Height 2.1 × 0.3549 = 0.745 units.
+     *   Centered +0.06 on bridge → top +0.433, bottom −0.313. Contains y=0 (eye line), clears mouth.
      *
      * Draw order: hair first (back), shades LAST (front) so glasses sit over everything.
      */
@@ -481,26 +478,27 @@ enum class Lens(
         displayName = "Elvis",
         thumbnailRes = R.drawable.lens_elvis,
         art = listOf(
-            // Hair with integrated sideburns, drawn first.
+            // Hair with integrated sideburns (U-wig with face hole), drawn first.
             LensArt(
                 drawableRes = R.drawable.lens_elvis_pompadour_art,
                 placement = LensPlacement(
-                    // PLACEHOLDER — measure actual chroma-keyed PNG and update.
-                    widthInUnits = 1.5f,
-                    // PLACEHOLDER — artAspect = PNG_height / PNG_width after trim.
-                    artAspect = 1.2f,
-                    // Center +1.15 spans +0.70 (hairline) to +1.60 (above crown).
-                    upInUnits = 1.15f,
+                    // Generous width so sideburns land on cheeks. Measured PNG: 974×980.
+                    widthInUnits = 2.6f,
+                    // Measured: 980 / 974 = 1.0062.
+                    artAspect = 1.0062f,
+                    // Center +0.70 → top +2.008 (above crown), bottom −0.608 (face hole clears eyes/mouth).
+                    upInUnits = 0.70f,
                 ),
             ),
             // Shades drawn last, sit on eye line.
             LensArt(
                 drawableRes = R.drawable.lens_elvis_shades_art,
                 placement = LensPlacement(
+                    // Wider than Sunglasses (1.9) for aviator overhang. Measured PNG: 1420×504.
                     widthInUnits = 2.1f,
-                    // PLACEHOLDER — artAspect = PNG_height / PNG_width after trim.
-                    artAspect = 0.38f,
-                    // Rests on bridge, same as Sunglasses.
+                    // Measured: 504 / 1420 = 0.3549.
+                    artAspect = 0.3549f,
+                    // Rests on bridge, same as Sunglasses. Spans +0.433 to −0.313 (contains y=0).
                     upInUnits = 0.06f,
                 ),
             ),
