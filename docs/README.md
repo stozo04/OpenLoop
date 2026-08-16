@@ -73,7 +73,7 @@ In-app launcher assets live only under `app/src/main/res/` (see root [`README.md
 
 1. **Agents:** `CLAUDE.md` mandates reading the core `docs/lessons_learned/` tier and this layout before adding docs.
 2. **PR review:** the [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) skill flags new `.md` outside `docs/` (except root `README.md` / `CLAUDE.md`).
-3. **CI — doc layout gate:** [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml) fails PRs that **add** new `*.md` outside allowed paths.
+3. **CI — doc layout gate:** [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml) fails PRs that **add** new `*.md` outside allowed paths. Allowed today: `docs/`, root `README.md` / `CLAUDE.md`, `swarm/`, `.claude/`, and `twisted-tounge/*.md` — the last because a reverse-engineering guide has to sit with the third-party reference project it documents, whose vendor assets are gitignored (owner instruction, 2026-08-16).
 4. **CI / Tier 3 static analysis:** [`STATIC_ANALYSIS.md`](STATIC_ANALYSIS.md) — `markdown-link-check` on changed Markdown.
 5. **Secrets:** `keystore.properties`, `*.jks`, and `docs/local/` are gitignored.
 
@@ -85,3 +85,4 @@ In-app launcher assets live only under `app/src/main/res/` (see root [`README.md
 - Play Store beginner walkthrough (private): `docs/local/play-store-beginner-guide.md` on your machine
 - Testing guides index: [`guides/README.md`](guides/README.md)
 - Reverse algorithm reference: [`guides/reverse-video-research.md`](guides/reverse-video-research.md)
+- Porting a third-party AR effect (DeepAR → a native lens): [`twisted-tounge/GUIDE.md`](../twisted-tounge/GUIDE.md)

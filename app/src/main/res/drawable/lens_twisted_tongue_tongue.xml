@@ -1,0 +1,115 @@
+<!--
+  Twisted Tongue — the tongue. Original art, authored in this repo, Apache 2.0.
+
+  Layer 2 of 5: over the cavity and the lower lip, under the teeth. The ONLY part of any lens in
+  this repo that carries a LensPhysics.WobbleSpec — it hangs off the mouth, so it swings when the
+  head moves (Lens.TwistedTongue).
+
+  GEOMETRY CONTRACT with Lens.TwistedTongue — keep these in sync:
+
+      viewport      160 x 380   -> artAspect 2.375
+      widthInUnits  0.56        -> 1 face unit = 286 viewport units
+      half-width    0.28 face units
+
+  The art is drawn hanging straight down. The swing is applied by the renderer as a rotation about
+  the MOUTH anchor, NOT baked in here — which is why the root is at the very top of the viewport:
+  the pivot is above the art, so the whole thing arcs rather than pivoting about its own middle.
+
+  The root (top ~40 viewport units) is always hidden behind the teeth, so it is drawn flat and dark
+  rather than shaded; anything spent on it would never be seen.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="80dp"
+    android:height="190dp"
+    android:viewportWidth="160"
+    android:viewportHeight="380">
+
+  <!-- Contact shadow down the left side, so the tongue sits IN FRONT of the lip and chin instead of
+       being coplanar with them. -->
+  <path
+      android:fillAlpha="0.28"
+      android:fillColor="#FF3A1218"
+      android:pathData="M28,60
+                        C14,120 12,250 40,330
+                        C56,364 80,376 92,378
+                        C60,372 34,352 24,318
+                        C4,246 8,120 28,60 Z" />
+
+  <!-- The body. A long strap that widens a little below the lips and rounds off at the tip — the
+       reference tongue is widest around a third of the way down, not at the root. -->
+  <path
+      android:pathData="M80,4
+                        C118,4 138,26 142,72
+                        C148,140 146,236 134,296
+                        C126,338 106,372 80,372
+                        C54,372 34,338 26,296
+                        C14,236 12,140 18,72
+                        C22,26 42,4 80,4 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="60"
+          android:centerY="150"
+          android:gradientRadius="260">
+        <item android:offset="0.0" android:color="#FFD98A8C" />
+        <item android:offset="0.45" android:color="#FFC5787C" />
+        <item android:offset="0.8" android:color="#FFAA6068" />
+        <item android:offset="1.0" android:color="#FF8E4A55" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Root shadow. The mouth is dark inside, so the top of the tongue has to fall off into that
+       darkness or the strap looks like it starts at the teeth rather than behind them. -->
+  <path
+      android:pathData="M80,4
+                        C118,4 138,26 142,72
+                        C110,58 50,58 18,72
+                        C22,26 42,4 80,4 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="linear"
+          android:startX="80"
+          android:startY="4"
+          android:endX="80"
+          android:endY="76">
+        <item android:offset="0.0" android:color="#FF3C1218" />
+        <item android:offset="1.0" android:color="#00C5787C" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Median groove. One soft line down the centre is the whole difference between "tongue" and
+       "pink strip". Stops short of the tip, as a real one does. -->
+  <path
+      android:fillAlpha="0.34"
+      android:fillColor="#FF7E3A44"
+      android:pathData="M80,92
+                        C86,92 89,96 89,104
+                        C90,170 89,246 85,300
+                        C84,312 76,312 75,300
+                        C71,246 70,170 71,104
+                        C71,96 74,92 80,92 Z" />
+
+  <!-- Wet highlight along the upper left, matching the shadow on the other side. -->
+  <path
+      android:fillAlpha="0.42"
+      android:fillColor="#FFF6C7C4"
+      android:pathData="M50,96
+                        C58,94 62,102 60,120
+                        C56,164 54,224 56,268
+                        C57,284 48,286 45,270
+                        C40,224 40,158 44,116
+                        C45,104 46,97 50,96 Z" />
+
+  <!-- Tip. Rounded and a touch deeper in colour, which is where the eye lands first. -->
+  <path
+      android:fillAlpha="0.30"
+      android:fillColor="#FF8E4A55"
+      android:pathData="M80,372
+                        C58,370 42,352 34,326
+                        C54,346 72,352 80,352
+                        C88,352 106,346 126,326
+                        C118,352 102,370 80,372 Z" />
+</vector>

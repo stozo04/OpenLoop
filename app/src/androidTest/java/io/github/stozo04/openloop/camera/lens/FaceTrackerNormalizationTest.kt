@@ -122,8 +122,8 @@ class FaceTrackerNormalizationTest {
         assertTrue("face unit implausibly small: ${frame.unit}", frame.unit > 0.05f)
 
         // And every shipped lens lands somewhere on the head rather than off in a corner.
-        Lens.entries.mapNotNull { it.art }.forEach { art ->
-            val quad = LensAnchor.sticker(frame, art.placement, aspect)
+        Lens.entries.flatMap { it.art }.forEach { art ->
+            val quad = LensAnchor.sticker(snapshot, frame, art.placement, aspect)
             assertTrue(
                 "lens centre ${quad.centerX} is far outside the frame",
                 quad.centerX > -1f && quad.centerX < 2f,

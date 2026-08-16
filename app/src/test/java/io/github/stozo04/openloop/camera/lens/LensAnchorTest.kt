@@ -21,6 +21,18 @@ import org.junit.Test
  */
 class LensAnchorTest {
 
+    private companion object {
+        /**
+         * The anatomy the catalogue is tuned against, from `Lens.kt`'s header table. Measured off a
+         * real tracked face, not assumed — a lens sized against `face()` below would be sized
+         * against a synthetic head whose eye span was picked to make the unit a round number.
+         */
+        const val HEAD_HALF_WIDTH_UNITS = 0.775f
+
+        /** How far an eye sits off the centre line: interpupillary is ~0.8 of eye-to-mouth. */
+        const val EYE_OFFSET_UNITS = 0.40f
+    }
+
     private val tolerance = 1e-3f
 
     /** 4:3, the shape CameraX gives the lens effect on real hardware. */
@@ -136,7 +148,7 @@ class LensAnchorTest {
 
     @Test
     fun sticker_withNoOffset_sitsOnTheEyeLine() {
-        val quad = LensAnchor.sticker(frameOf(face()), onEyes, frameAspect)
+        val quad = LensAnchor.sticker(face(), frameOf(face()), onEyes, frameAspect)
 
         assertEquals(0.5f, quad.centerX, tolerance)
         assertEquals(0.40f, quad.centerY, tolerance)
@@ -145,7 +157,7 @@ class LensAnchorTest {
 
     @Test
     fun sticker_positiveUp_movesTowardTheCrown() {
-        val quad = LensAnchor.sticker(frameOf(face()), hat, frameAspect)
+        val quad = LensAnchor.sticker(face(), frameOf(face()), hat, frameAspect)
 
         assertTrue("a hat belongs above the eyes, got ${quad.centerY}", quad.centerY < 0.40f)
         assertEquals(0.5f, quad.centerX, tolerance)
@@ -154,11 +166,13 @@ class LensAnchorTest {
     @Test
     fun sticker_sizeScalesWithTheFace_notTheFrame() {
         // The same lens on a face twice as far away must be half the size.
-        val near = frameOf(face(eyeY = 0.30f, mouthY = 0.70f))
-        val far = frameOf(face(eyeY = 0.45f, mouthY = 0.55f))
+        val nearFace = face(eyeY = 0.30f, mouthY = 0.70f)
+        val farFace = face(eyeY = 0.45f, mouthY = 0.55f)
+        val near = frameOf(nearFace)
+        val far = frameOf(farFace)
 
-        val nearQuad = LensAnchor.sticker(near, onEyes, frameAspect)
-        val farQuad = LensAnchor.sticker(far, onEyes, frameAspect)
+        val nearQuad = LensAnchor.sticker(nearFace, near, onEyes, frameAspect)
+        val farQuad = LensAnchor.sticker(farFace, far, onEyes, frameAspect)
 
         assertEquals(4f, nearQuad.halfWidth / farQuad.halfWidth, tolerance)
         assertEquals(onEyes.widthInUnits * near.unit / 2f, nearQuad.halfWidth, tolerance)
@@ -166,8 +180,8 @@ class LensAnchorTest {
 
     @Test
     fun sticker_keepsArtProportions_onANonSquareFrame() {
-        val square = LensAnchor.sticker(frameOf(face()), onEyes, frameAspect)
-        val tall = LensAnchor.sticker(frameOf(face()), onEyes.copy(artAspect = 2f), frameAspect)
+        val square = LensAnchor.sticker(face(), frameOf(face()), onEyes, frameAspect)
+        val tall = LensAnchor.sticker(face(), frameOf(face()), onEyes.copy(artAspect = 2f), frameAspect)
 
         // Square art must cover equal PIXELS on both axes, which on a 4:3 frame means a larger
         // normalized y extent by exactly the aspect.
@@ -182,7 +196,7 @@ class LensAnchorTest {
     fun sticker_rotatesWithTheHead() {
         val tilted = face().tiltedBy(30f, frameAspect)
 
-        val quad = LensAnchor.sticker(frameOf(tilted), onEyes, frameAspect)
+        val quad = LensAnchor.sticker(tilted, frameOf(tilted), onEyes, frameAspect)
 
         assertEquals(30f * PI.toFloat() / 180f, quad.rotationRadians, 1e-2f)
     }
@@ -190,11 +204,12 @@ class LensAnchorTest {
     @Test
     fun sticker_offsetOrbitsWithTheHead_keepingItsDistance() {
         // A hat stays on the crown when the head tilts: same distance from the eyes, new direction.
+        val tiltedFace = face().tiltedBy(90f, frameAspect)
         val upright = frameOf(face())
-        val tilted = frameOf(face().tiltedBy(90f, frameAspect))
+        val tilted = frameOf(tiltedFace)
 
-        val uprightQuad = LensAnchor.sticker(upright, hat, frameAspect)
-        val tiltedQuad = LensAnchor.sticker(tilted, hat, frameAspect)
+        val uprightQuad = LensAnchor.sticker(face(), upright, hat, frameAspect)
+        val tiltedQuad = LensAnchor.sticker(tiltedFace, tilted, hat, frameAspect)
 
         fun squareDistanceFromEyes(quad: StickerQuad, originX: Float, originY: Float) = hypot(
             quad.centerX - originX,
@@ -212,8 +227,8 @@ class LensAnchorTest {
 
     @Test
     fun sticker_sizeIsUnchangedByTilt() {
-        val upright = LensAnchor.sticker(frameOf(face()), onEyes, frameAspect)
-        val tilted = LensAnchor.sticker(frameOf(face().tiltedBy(37f, frameAspect)), onEyes, frameAspect)
+        val upright = LensAnchor.sticker(face(), frameOf(face()), onEyes, frameAspect)
+        val tilted = LensAnchor.sticker(face().tiltedBy(37f, frameAspect), frameOf(face().tiltedBy(37f, frameAspect)), onEyes, frameAspect)
 
         assertEquals(upright.halfWidth, tilted.halfWidth, tolerance)
     }
@@ -231,8 +246,8 @@ class LensAnchorTest {
 
     @Test
     fun sticker_onAMirroredFace_isTheMirroredPlacement() {
-        val normal = LensAnchor.sticker(frameOf(face(centerX = 0.35f)), hat, frameAspect)
-        val mirrored = LensAnchor.sticker(frameOf(face(centerX = 0.35f).mirrored()), hat, frameAspect)
+        val normal = LensAnchor.sticker(face(centerX = 0.35f), frameOf(face(centerX = 0.35f)), hat, frameAspect)
+        val mirrored = LensAnchor.sticker(face(centerX = 0.35f).mirrored(), frameOf(face(centerX = 0.35f).mirrored()), hat, frameAspect)
 
         assertEquals(1f - normal.centerX, mirrored.centerX, tolerance)
         assertEquals(normal.centerY, mirrored.centerY, tolerance)
@@ -271,8 +286,8 @@ class LensAnchorTest {
 
         val uprightFrame = frameOf(upright, uprightAspect)
         val bufferFrame = frameOf(buffer, 1f / uprightAspect)
-        val uprightQuad = LensAnchor.sticker(uprightFrame, hat, uprightAspect)
-        val bufferQuad = LensAnchor.sticker(bufferFrame, hat, 1f / uprightAspect)
+        val uprightQuad = LensAnchor.sticker(upright, uprightFrame, hat, uprightAspect)
+        val bufferQuad = LensAnchor.sticker(buffer, bufferFrame, hat, 1f / uprightAspect)
 
         fun offsetInUnits(quad: StickerQuad, frame: FaceFrame, aspect: Float) = hypot(
             quad.centerX - frame.originX,
@@ -523,8 +538,10 @@ class LensAnchorTest {
         val frame = frameOf(face())
         Lens.entries.forEach { lens ->
             val featureLayout = lens.features ?: return@forEach
-            val art = requireNotNull(lens.art) { "${lens.name} needs art to carry features" }
-            val quad = LensAnchor.sticker(frame, art.placement, frameAspect)
+            // A character wears exactly one opaque layer; features go on that.
+            val art = lens.art.singleOrNull()
+                ?: error("${lens.name} carries features, so it needs exactly one art layer")
+            val quad = LensAnchor.sticker(face(), frame, art.placement, frameAspect)
             LensAnchor.features(face(), frame, featureLayout, frameAspect).forEach { feature ->
                 assertTrue(
                     "${lens.name}: a feature at ${feature.destCenterX} is outside its art",
@@ -545,7 +562,7 @@ class LensAnchorTest {
         Lens.entries.forEach { lens ->
             assertTrue(
                 "${lens.name} must do something: art, a warp, or both",
-                lens.art != null || lens.warp != null,
+                lens.art.isNotEmpty() || lens.warp != null,
             )
             assertTrue("${lens.name} needs a display name", lens.displayName.isNotBlank())
         }
@@ -553,7 +570,7 @@ class LensAnchorTest {
 
     @Test
     fun everyStickerLensHasSaneProportions() {
-        Lens.entries.mapNotNull { it.art }.forEach { art ->
+        Lens.entries.flatMap { it.art }.forEach { art ->
             assertTrue("width must be positive", art.placement.widthInUnits > 0f)
             assertTrue("art aspect must be positive", art.placement.artAspect > 0f)
             // A lens more than ~6 face-units across is almost certainly a units mistake.
@@ -565,8 +582,8 @@ class LensAnchorTest {
     fun placementsProduceQuadsNearTheFace() {
         // Catches a sign error in upInUnits that would fling a lens off the frame.
         val frame = frameOf(face())
-        Lens.entries.mapNotNull { it.art }.forEach { art ->
-            val quad = LensAnchor.sticker(frame, art.placement, frameAspect)
+        Lens.entries.flatMap { it.art }.forEach { art ->
+            val quad = LensAnchor.sticker(face(), frame, art.placement, frameAspect)
             val offsetUnits = abs(
                 LensAnchor.toSquareY(quad.centerY - frame.originY, frameAspect),
             ) / frame.unit
@@ -577,10 +594,386 @@ class LensAnchorTest {
         }
     }
 
+    // ---------------------------------------------------------------- landmark anchors
+
+    @Test
+    fun anchor_defaultsToTheFaceOrigin_soEveryOlderLensIsUnchanged() {
+        val subject = face()
+        val frame = frameOf(subject)
+
+        val quad = LensAnchor.sticker(subject, frame, onEyes, frameAspect)
+
+        assertEquals(frame.originX, quad.centerX, tolerance)
+        assertEquals(frame.originY, quad.centerY, tolerance)
+    }
+
+    @Test
+    fun anchor_measuresFromTheNamedLandmark() {
+        val subject = face()
+        val frame = frameOf(subject)
+        fun centredOn(anchor: LensAnchorPoint) = LensAnchor.sticker(
+            subject,
+            frame,
+            onEyes.copy(anchor = anchor),
+            frameAspect,
+        )
+
+        val leftEye = centredOn(LensAnchorPoint.LEFT_EYE)
+        val rightEye = centredOn(LensAnchorPoint.RIGHT_EYE)
+        val mouth = centredOn(LensAnchorPoint.MOUTH)
+
+        assertEquals(subject.leftEyeX, leftEye.centerX, tolerance)
+        assertEquals(subject.leftEyeY, leftEye.centerY, tolerance)
+        assertEquals(subject.rightEyeX, rightEye.centerX, tolerance)
+        assertEquals((subject.mouthLeftX + subject.mouthRightX) / 2f, mouth.centerX, tolerance)
+        assertEquals((subject.mouthLeftY + subject.mouthRightY) / 2f, mouth.centerY, tolerance)
+    }
+
+    @Test
+    fun anchor_followsTheLandmarkNotAFixedSpacing() {
+        // THE reason anchors exist. A character lens wants fixed destinations; a PROP that must
+        // cover the subject's real eye has to move with that eye, or it misses on a wide face.
+        val onLeftEye = onEyes.copy(anchor = LensAnchorPoint.LEFT_EYE)
+        val wide = face(eyeHalfSpan = 0.16f)
+        val narrow = face(eyeHalfSpan = 0.03f)
+
+        val wideQuad = LensAnchor.sticker(wide, frameOf(wide), onLeftEye, frameAspect)
+        val narrowQuad = LensAnchor.sticker(narrow, frameOf(narrow), onLeftEye, frameAspect)
+
+        assertEquals(wide.leftEyeX, wideQuad.centerX, tolerance)
+        assertEquals(narrow.leftEyeX, narrowQuad.centerX, tolerance)
+        assertTrue(
+            "the two must genuinely differ, or this test proves nothing",
+            abs(wideQuad.centerX - narrowQuad.centerX) > tolerance,
+        )
+    }
+
+    @Test
+    fun anchor_offsetsStillRotateWithTheHead() {
+        // An anchored offset must orbit its landmark the way a face-anchored one orbits the eyes.
+        val below = LensPlacement(
+            widthInUnits = 0.5f,
+            artAspect = 1f,
+            upInUnits = -1f,
+            anchor = LensAnchorPoint.MOUTH,
+        )
+        val tiltedFace = face().tiltedBy(90f, frameAspect)
+        val tilted = frameOf(tiltedFace)
+
+        val quad = LensAnchor.sticker(tiltedFace, tilted, below, frameAspect)
+
+        val mouthX = (tiltedFace.mouthLeftX + tiltedFace.mouthRightX) / 2f
+        val mouthY = (tiltedFace.mouthLeftY + tiltedFace.mouthRightY) / 2f
+        // A quarter turn puts "below the mouth" out to the side, at the same distance.
+        assertEquals(mouthY, quad.centerY, tolerance)
+        assertEquals(
+            tilted.unit,
+            hypot(quad.centerX - mouthX, LensAnchor.toSquareY(quad.centerY - mouthY, frameAspect)),
+            tolerance,
+        )
+    }
+
+    @Test
+    fun rightInUnits_movesAcrossTheFace_andDefaultsToTheCentreLine() {
+        val subject = face()
+        val frame = frameOf(subject)
+
+        val centred = LensAnchor.sticker(subject, frame, onEyes, frameAspect)
+        val offset = LensAnchor.sticker(
+            subject,
+            frame,
+            onEyes.copy(rightInUnits = 0.5f),
+            frameAspect,
+        )
+
+        assertEquals(frame.originX, centred.centerX, tolerance)
+        assertEquals(0.5f * frame.unit, offset.centerX - centred.centerX, tolerance)
+        assertEquals(centred.centerY, offset.centerY, tolerance)
+    }
+
+    // ---------------------------------------------------------------- the wobble
+
+    private val hanging = LensPlacement(
+        widthInUnits = 0.5f,
+        artAspect = 2f,
+        upInUnits = -1f,
+        anchor = LensAnchorPoint.MOUTH,
+    )
+
+    @Test
+    fun wobble_ofZero_isExactlyTheRigidPlacement() {
+        // Every non-wobbling lens must be bit-identical to before the parameter existed.
+        val subject = face()
+        val frame = frameOf(subject)
+
+        val rigid = LensAnchor.sticker(subject, frame, hanging, frameAspect)
+        val explicitZero = LensAnchor.sticker(subject, frame, hanging, frameAspect, wobbleRadians = 0f)
+
+        assertEquals(rigid, explicitZero)
+    }
+
+    @Test
+    fun wobble_turnsTheArtAboutItsAnchor_notItsOwnCentre() {
+        // The distinction that makes a hanging part swing instead of spin in place: the art's
+        // distance from the anchor is preserved while its position moves.
+        val subject = face()
+        val frame = frameOf(subject)
+        val mouthX = (subject.mouthLeftX + subject.mouthRightX) / 2f
+        val mouthY = (subject.mouthLeftY + subject.mouthRightY) / 2f
+        fun distanceFromMouth(quad: StickerQuad) = hypot(
+            quad.centerX - mouthX,
+            LensAnchor.toSquareY(quad.centerY - mouthY, frameAspect),
+        )
+
+        val rest = LensAnchor.sticker(subject, frame, hanging, frameAspect)
+        val swung = LensAnchor.sticker(subject, frame, hanging, frameAspect, wobbleRadians = 0.3f)
+
+        assertEquals(
+            "a swing must not change how far the part hangs",
+            distanceFromMouth(rest),
+            distanceFromMouth(swung),
+            tolerance,
+        )
+        assertTrue(
+            "a swing must actually move it sideways",
+            abs(swung.centerX - rest.centerX) > 0.01f,
+        )
+    }
+
+    @Test
+    fun wobble_turnsTheArtByExactlyTheSwingAngle() {
+        val subject = face()
+        val frame = frameOf(subject)
+
+        val swung = LensAnchor.sticker(subject, frame, hanging, frameAspect, wobbleRadians = 0.3f)
+        val rest = LensAnchor.sticker(subject, frame, hanging, frameAspect)
+
+        assertEquals(0.3f, swung.rotationRadians - rest.rotationRadians, tolerance)
+    }
+
+    @Test
+    fun wobble_isSymmetricAboutRest() {
+        val subject = face()
+        val frame = frameOf(subject)
+        val mouthX = (subject.mouthLeftX + subject.mouthRightX) / 2f
+
+        val left = LensAnchor.sticker(subject, frame, hanging, frameAspect, wobbleRadians = -0.25f)
+        val right = LensAnchor.sticker(subject, frame, hanging, frameAspect, wobbleRadians = 0.25f)
+
+        assertEquals(mouthX - left.centerX, right.centerX - mouthX, tolerance)
+        assertEquals(left.centerY, right.centerY, tolerance)
+    }
+
+    @Test
+    fun wobble_neverChangesHowBigThePartIs() {
+        val subject = face()
+        val frame = frameOf(subject)
+
+        val rest = LensAnchor.sticker(subject, frame, hanging, frameAspect)
+        val swung = LensAnchor.sticker(subject, frame, hanging, frameAspect, wobbleRadians = 0.4f)
+
+        assertEquals(rest.halfWidth, swung.halfWidth, tolerance)
+        assertEquals(rest.halfHeight, swung.halfHeight, tolerance)
+    }
+
+    // ---------------------------------------------------------------- the physics drive
+
+    @Test
+    fun lateralShift_isZeroWhenTheHeadHoldsStill() {
+        val subject = face()
+
+        val shift = LensAnchor.lateralShiftInUnits(subject, subject, frameOf(subject), frameAspect)
+
+        assertEquals(0f, shift, tolerance)
+    }
+
+    @Test
+    fun lateralShift_isSignedAlongTheFacesOwnRightAxis() {
+        val before = face(centerX = 0.40f)
+        val after = face(centerX = 0.50f)
+
+        val shift = LensAnchor.lateralShiftInUnits(before, after, frameOf(after), frameAspect)
+
+        assertTrue("moving toward +x is a positive shift, got $shift", shift > 0f)
+        assertEquals(
+            -shift,
+            LensAnchor.lateralShiftInUnits(after, before, frameOf(before), frameAspect),
+            tolerance,
+        )
+    }
+
+    @Test
+    fun lateralShift_isInFaceUnits_soDistanceFromTheCameraCannotChangeIt() {
+        // THE property that lets one WobbleSpec work at any distance: the same head movement,
+        // measured relative to the head, must give the same number however big the head looks.
+        val nearBefore = face(centerX = 0.40f, eyeY = 0.30f, mouthY = 0.70f)
+        val nearAfter = face(centerX = 0.50f, eyeY = 0.30f, mouthY = 0.70f)
+        // A face a QUARTER the size (eye-to-mouth 0.10 against 0.40) sliding a quarter as far:
+        // the same movement relative to the head, so it must produce the same drive.
+        val farBefore = face(centerX = 0.475f, eyeY = 0.45f, mouthY = 0.55f)
+        val farAfter = face(centerX = 0.50f, eyeY = 0.45f, mouthY = 0.55f)
+
+        assertEquals(
+            LensAnchor.lateralShiftInUnits(nearBefore, nearAfter, frameOf(nearAfter), frameAspect),
+            LensAnchor.lateralShiftInUnits(farBefore, farAfter, frameOf(farAfter), frameAspect),
+            tolerance,
+        )
+    }
+
+    @Test
+    fun lateralShift_ignoresMovementStraightUpTheFace() {
+        // A nod is not a swing. Only travel along the face's `right` axis drives the pendulum.
+        val before = face(eyeY = 0.40f, mouthY = 0.60f)
+        val after = face(eyeY = 0.45f, mouthY = 0.65f)
+
+        val shift = LensAnchor.lateralShiftInUnits(before, after, frameOf(after), frameAspect)
+
+        assertEquals(0f, shift, tolerance)
+    }
+
+    // ---------------------------------------------------------------- Twisted Tongue's own shape
+
+    @Test
+    fun twistedTongue_putsAnEyeballOnEachTrackedEye() {
+        val subject = face()
+        val frame = frameOf(subject)
+        val eyeAnchors = Lens.TwistedTongue.art
+            .map { it.placement.anchor }
+            .filter { it == LensAnchorPoint.LEFT_EYE || it == LensAnchorPoint.RIGHT_EYE }
+
+        assertEquals("one eyeball per eye", 2, eyeAnchors.size)
+        assertEquals(2, eyeAnchors.toSet().size)
+
+        val eyes = Lens.TwistedTongue.art
+            .filter { it.placement.anchor in setOf(LensAnchorPoint.LEFT_EYE, LensAnchorPoint.RIGHT_EYE) }
+            .map { LensAnchor.sticker(subject, frame, it.placement, frameAspect) }
+        assertTrue(
+            "the eyeballs must straddle the centre line",
+            (eyes[0].centerX - frame.originX) * (eyes[1].centerX - frame.originX) < 0f,
+        )
+    }
+
+    @Test
+    fun twistedTongue_eyeballsCoverTheEyeButStayOnTheHead() {
+        // Asserted against the catalogue NUMBERS and the anatomy table in Lens.kt's header, not
+        // against `face()` — that fixture is a convenient synthetic head with an eye span chosen to
+        // make the unit a round number, so it is not a witness to real proportions. The claim here
+        // is about the shipped constants, so the constants are what the test reads.
+        val halfWidthUnits = Lens.TwistedTongue.art
+            .first { it.placement.anchor == LensAnchorPoint.LEFT_EYE }
+            .placement.widthInUnits / 2f
+
+        assertTrue(
+            "an eyeball reaching ${EYE_OFFSET_UNITS + halfWidthUnits} units is off the head",
+            EYE_OFFSET_UNITS + halfWidthUnits < HEAD_HALF_WIDTH_UNITS,
+        )
+        assertTrue(
+            "the eyeballs must not merge across the nose bridge",
+            EYE_OFFSET_UNITS - halfWidthUnits > 0f,
+        )
+    }
+
+    /** The x of a quad's two TOP corners, in square space — where a hanging part is attached. */
+    private fun topCornerXs(quad: StickerQuad, aspect: Float): List<Float> {
+        val cos = kotlin.math.cos(quad.rotationRadians)
+        val sin = kotlin.math.sin(quad.rotationRadians)
+        val halfHeightSquare = LensAnchor.toSquareY(quad.halfHeight, aspect)
+        return listOf(-1f, 1f).map { signX ->
+            quad.centerX + (signX * quad.halfWidth) * cos - (-halfHeightSquare) * sin
+        }
+    }
+
+    @Test
+    fun twistedTongue_hidesTheTonguesRootBehindTheTeeth_atFullSwing() {
+        // The check that decides whether this reads as a tongue in a mouth or a sticker on a chin,
+        // and the whole reason the teeth are their own layer. Evaluated at the swing LIMIT, because
+        // at rest it passes trivially and the failure only ever happens mid-swing.
+        val subject = face()
+        val frame = frameOf(subject)
+        val tongue = Lens.TwistedTongue.art.single { it.placement.wobble != null }
+        val limit = requireNotNull(tongue.placement.wobble).limitRadians
+        val teeth = Lens.TwistedTongue.art.last { it.placement.anchor == LensAnchorPoint.MOUTH }
+
+        val teethQuad = LensAnchor.sticker(subject, frame, teeth.placement, frameAspect)
+
+        listOf(-limit, 0f, limit).forEach { swing ->
+            val swung = LensAnchor.sticker(subject, frame, tongue.placement, frameAspect, swing)
+            topCornerXs(swung, frameAspect).forEach { cornerX ->
+                val reach = abs(cornerX - teethQuad.centerX)
+                assertTrue(
+                    "at swing $swing the tongue root reaches $reach, " +
+                        "past the teeth's ${teethQuad.halfWidth}",
+                    reach < teethQuad.halfWidth,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun twistedTongue_rootStaysTuckedAboveTheTeethsLowerEdge() {
+        // The other half of the same claim: covered SIDEWAYS is not enough, the root also has to
+        // start high enough to be behind the teeth rather than below them.
+        val subject = face()
+        val frame = frameOf(subject)
+        val tongue = Lens.TwistedTongue.art.single { it.placement.wobble != null }
+        val teeth = Lens.TwistedTongue.art.last { it.placement.anchor == LensAnchorPoint.MOUTH }
+
+        val tongueQuad = LensAnchor.sticker(subject, frame, tongue.placement, frameAspect)
+        val teethQuad = LensAnchor.sticker(subject, frame, teeth.placement, frameAspect)
+
+        val tongueTop = tongueQuad.centerY - tongueQuad.halfHeight
+        val teethBottom = teethQuad.centerY + teethQuad.halfHeight
+        assertTrue(
+            "the tongue starts at $tongueTop, below the teeth layer's $teethBottom — it would " +
+                "emerge in front of them instead of behind",
+            tongueTop < teethBottom,
+        )
+    }
+
+    @Test
+    fun twistedTongue_isTheOnlyLensThatSwings_andOnlyItsTongueDoes() {
+        val wobbling = Lens.entries.flatMap { lens -> lens.art.map { lens to it } }
+            .filter { (_, art) -> art.placement.wobble != null }
+
+        assertEquals("exactly one layer in the catalogue swings", 1, wobbling.size)
+        assertEquals(Lens.TwistedTongue, wobbling.single().first)
+        assertEquals(
+            "the swinging layer must hang from the mouth",
+            LensAnchorPoint.MOUTH,
+            wobbling.single().second.placement.anchor,
+        )
+    }
+
+    @Test
+    fun twistedTongue_isAProp_soTheSubjectsFaceShowsAround() {
+        assertNull("features would replace the face; this lens decorates it", Lens.TwistedTongue.features)
+        assertNull("the eyeballs are drawn art, not a pixel bulge", Lens.TwistedTongue.warp)
+    }
+
+    @Test
+    fun multiLayerLenses_keepEveryLayerOnTheHead() {
+        // Catalogue-driven: a new layer with a sign error in upInUnits fails here, not on a phone.
+        val subject = face()
+        val frame = frameOf(subject)
+        Lens.entries.forEach { lens ->
+            lens.art.forEach { art ->
+                val quad = LensAnchor.sticker(subject, frame, art.placement, frameAspect)
+                val offsetUnits = hypot(
+                    quad.centerX - frame.originX,
+                    LensAnchor.toSquareY(quad.centerY - frame.originY, frameAspect),
+                ) / frame.unit
+                assertTrue(
+                    "${lens.name}: a layer $offsetUnits units from the eyes is off the head",
+                    offsetUnits < 3f,
+                )
+            }
+        }
+    }
+
     @Test
     fun faceFrameRotation_matchesTheRightVector() {
         val frame = frameOf(face().tiltedBy(-25f, frameAspect))
-        val quad = LensAnchor.sticker(frame, onEyes, frameAspect)
+        val quad = LensAnchor.sticker(face(), frame, onEyes, frameAspect)
 
         assertEquals(atan2(frame.rightY, frame.rightX), quad.rotationRadians, tolerance)
         assertNotNull(quad)

@@ -33,7 +33,15 @@ import io.github.stozo04.openloop.R
 enum class Lens(
     val displayName: String,
     @param:DrawableRes val thumbnailRes: Int,
-    val art: LensArt?,
+    /**
+     * The art layers, drawn in list order — later layers paint over earlier ones.
+     *
+     * Most lenses are one layer on the face's centre line. A lens becomes multi-layer when its
+     * parts track *different* anatomy: [TwistedTongue] puts an eyeball on each eye and a mouth and
+     * tongue on the mouth, which one quad cannot do at any size. Each layer carries its own
+     * [LensPlacement], so the anchor, offset and wobble are per-layer.
+     */
+    val art: List<LensArt>,
     val warp: WarpSpec?,
     /**
      * Non-null turns this lens into a **character**: the art is drawn opaque over the head and the
@@ -56,16 +64,18 @@ enum class Lens(
     Broccoli(
         displayName = "Broccoli",
         thumbnailRes = R.drawable.lens_broccoli,
-        art = LensArt(
-            drawableRes = R.drawable.lens_broccoli_art,
-            placement = LensPlacement(
-                // The art is OPAQUE and covers the whole head — no window. Sized to swallow the
-                // head and hang a stalk below the chin; the opening approach that came before left
-                // a human nose and jaw on show, which read as a man in a costume rather than a
-                // broccoli character.
-                widthInUnits = 4.4f,
-                artAspect = 1.117f,
-                upInUnits = -1.42f,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_broccoli_art,
+                placement = LensPlacement(
+                    // The art is OPAQUE and covers the whole head — no window. Sized to swallow the
+                    // head and hang a stalk below the chin; the opening approach that came before left
+                    // a human nose and jaw on show, which read as a man in a costume rather than a
+                    // broccoli character.
+                    widthInUnits = 4.4f,
+                    artAspect = 1.117f,
+                    upInUnits = -1.42f,
+                ),
             ),
         ),
         // The eyes and mouth are lifted off the subject and painted onto the vegetable. Positions
@@ -90,13 +100,15 @@ enum class Lens(
     Sunglasses(
         displayName = "Shades",
         thumbnailRes = R.drawable.lens_sunglasses,
-        art = LensArt(
-            drawableRes = R.drawable.lens_sunglasses,
-            placement = LensPlacement(
-                widthInUnits = 1.9f,
-                artAspect = 0.36f,
-                // Frames rest on the bridge, a touch above the pupil line.
-                upInUnits = 0.06f,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_sunglasses,
+                placement = LensPlacement(
+                    widthInUnits = 1.9f,
+                    artAspect = 0.36f,
+                    // Frames rest on the bridge, a touch above the pupil line.
+                    upInUnits = 0.06f,
+                ),
             ),
         ),
         warp = null,
@@ -109,7 +121,7 @@ enum class Lens(
     BigMouth(
         displayName = "Big Mouth",
         thumbnailRes = R.drawable.lens_big_mouth,
-        art = null,
+        art = emptyList(),
         // Radius a little over a mouth-width (~0.8 units) so the bulge takes in the lips and the
         // jaw around them; strength high enough to read as a caricature rather than a lens flaw.
         warp = WarpSpec(radiusInUnits = 1.0f, strength = 0.78f),
@@ -119,7 +131,7 @@ enum class Lens(
     BugEyes(
         displayName = "Bug Eyes",
         thumbnailRes = R.drawable.lens_bug_eyes,
-        art = null,
+        art = emptyList(),
         warp = WarpSpec(
             radiusInUnits = 0.36f,
             strength = 0.75f,
@@ -149,14 +161,16 @@ enum class Lens(
     PizzaFace(
         displayName = "Pizza Face",
         thumbnailRes = R.drawable.lens_pizza,
-        art = LensArt(
-            drawableRes = R.drawable.lens_pizza_art,
-            placement = LensPlacement(
-                widthInUnits = 3.45f,
-                // Measured off the encoded 1024x972 asset per the A2 rule, not estimated.
-                artAspect = 0.949f,
-                // Drops the wedge so the crust sits above the brow and the tip falls past the chin.
-                upInUnits = -0.18f,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_pizza_art,
+                placement = LensPlacement(
+                    widthInUnits = 3.45f,
+                    // Measured off the encoded 1024x972 asset per the A2 rule, not estimated.
+                    artAspect = 0.949f,
+                    // Drops the wedge so the crust sits above the brow and the tip falls past the chin.
+                    upInUnits = -0.18f,
+                ),
             ),
         ),
         // Unchanged from the pie: these still land on cheese rather than crust, and the slice is
@@ -193,16 +207,18 @@ enum class Lens(
     Football(
         displayName = "Football",
         thumbnailRes = R.drawable.lens_football,
-        art = LensArt(
-            drawableRes = R.drawable.lens_football_art,
-            placement = LensPlacement(
-                widthInUnits = 4.7f,
-                // Measured off the encoded asset (1024x585), not estimated — the art carries a
-                // 1.5% transparent margin, so the ball itself is ~97% of the quad.
-                artAspect = 0.571f,
-                // Just above the eye line: the ball's centre sits between brow and crown so the
-                // taller half of the head gets the deeper half of the ellipse.
-                upInUnits = 0.10f,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_football_art,
+                placement = LensPlacement(
+                    widthInUnits = 4.7f,
+                    // Measured off the encoded asset (1024x585), not estimated — the art carries a
+                    // 1.5% transparent margin, so the ball itself is ~97% of the quad.
+                    artAspect = 0.571f,
+                    // Just above the eye line: the ball's centre sits between brow and crown so the
+                    // taller half of the head gets the deeper half of the ellipse.
+                    upInUnits = 0.10f,
+                ),
             ),
         ),
         // The ball's own face. Placed on the upper-middle of the ellipse where the Wilson script
@@ -239,17 +255,134 @@ enum class Lens(
     Dog(
         displayName = "Dog",
         thumbnailRes = R.drawable.lens_dog,
-        art = LensArt(
-            drawableRes = R.drawable.lens_dog,
-            placement = LensPlacement(
-                widthInUnits = 2.90f,
-                // Measured from the authored 290x213 viewport, which is exactly 100 viewport units
-                // per face unit at this width — so every coordinate in the vector is readable as
-                // anatomy. Keep the two in sync if either changes.
-                artAspect = 0.7345f,
-                // Ear tips reach 1.45 above the eye line, clearing the 1.25 crown; the snout lands
-                // on the subject's own nose and stops well clear of the mouth at -1.0.
-                upInUnits = 0.385f,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_dog,
+                placement = LensPlacement(
+                    widthInUnits = 2.90f,
+                    // Measured from the authored 290x213 viewport, which is exactly 100 viewport units
+                    // per face unit at this width — so every coordinate in the vector is readable as
+                    // anatomy. Keep the two in sync if either changes.
+                    artAspect = 0.7345f,
+                    // Ear tips reach 1.45 above the eye line, clearing the 1.25 crown; the snout lands
+                    // on the subject's own nose and stops well clear of the mouth at -1.0.
+                    upInUnits = 0.385f,
+                ),
+            ),
+        ),
+        warp = null,
+    ),
+
+    /**
+     * Twisted Tongue — bulging cartoon eyeballs and a long tongue lolling out of an open mouth.
+     * Reverse-engineered from a DeepAR Studio project; the full derivation, the mapping from its
+     * scene graph to these numbers, and what was deliberately dropped are in
+     * `twisted-tounge/GUIDE.md`.
+     *
+     * **The first lens with parts on different anatomy.** Every lens before it is one quad on the
+     * face's centre line. This one cannot be: an eyeball has to sit on each *eye* and the tongue has
+     * to hang from the *mouth*, and no single quad tracks three landmarks. Hence [LensPlacement]'s
+     * `anchor`, and hence [art] being a list.
+     *
+     * A **prop**, not a character — [features] stays null and the subject's own face shows around
+     * the parts. The reference effect covers the mouth region with skin-toned geometry that samples
+     * the camera for its colour; that machinery is not here and is not needed, because the mouth
+     * layer is lips-and-cavity rather than a patch of cheek, so it has no skin tone to match.
+     *
+     * ## The numbers
+     *
+     * Solved against the reference table at the top of this file, not eyeballed:
+     *
+     * * **Eyeballs.** A ball 0.62 units across, centred on each tracked eye. Eyes sit ±0.40 off the
+     *   centre line, so the inner edges land at 0.09 — an 0.18 gap across the bridge, which is the
+     *   nearly-touching look of the reference — and the outer edges at 0.71, inside the 0.775 head
+     *   edge. The ball is 200/220 of its square viewport (the rest is the contact shadow that makes
+     *   it read as *proud of* the socket rather than painted on it), so `widthInUnits` is
+     *   0.62 / 0.909 = 0.68.
+     * * **Mouth.** 1.02 units wide against a 0.8-unit resting mouth, because it is drawn open.
+     *   Dropped 0.10 so it spans -0.80 to -1.40 from the eye line: the jaw opens downward, so an
+     *   open mouth is not centred on the closed mouth's corners.
+     * * **Tongue.** 0.56 x 1.33 units, centred 0.565 below the mouth, which puts its root 0.10
+     *   *above* the anchor — up inside the mouth, overlapping the teeth that hide it. The tip lands
+     *   2.23 units below the eye line, well past the chin; that length *is* the joke.
+     *
+     * ## Why the teeth are a separate layer
+     *
+     * A tongue lolling out passes **over** the lower lip but **under** the upper teeth. That is a
+     * three-way interleave, so the mouth cannot be one drawable: the cavity has to be behind the
+     * tongue and the teeth in front of it. Hence `_mouth` (lips + cavity) and `_teeth` as two
+     * layers sharing one placement, with the tongue sandwiched between them. Drawn as a single
+     * sticker instead, the tongue reads as a pink shape stuck on a chin.
+     *
+     * The root stays covered at full swing: it sits 0.10 units from the pivot, so the 0.22-radian
+     * limit moves it 0.022 sideways, putting the tongue's edge at 0.302 against the teeth's 0.408
+     * half-width and the cavity's 0.414. Arithmetic, so it did not need a face to check.
+     *
+     * Draw order is cavity, tongue, teeth, then the eyes last because nothing may cover them.
+     */
+    TwistedTongue(
+        displayName = "Twisted Tongue",
+        thumbnailRes = R.drawable.lens_twisted_tongue,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_twisted_tongue_mouth,
+                placement = LensPlacement(
+                    widthInUnits = 1.02f,
+                    // Measured off the authored 340x200 viewport.
+                    artAspect = 0.588f,
+                    upInUnits = -0.10f,
+                    anchor = LensAnchorPoint.MOUTH,
+                ),
+            ),
+            LensArt(
+                drawableRes = R.drawable.lens_twisted_tongue_tongue,
+                placement = LensPlacement(
+                    widthInUnits = 0.56f,
+                    // Measured off the authored 160x380 viewport.
+                    artAspect = 2.375f,
+                    // Root 0.10 ABOVE the anchor, so it overlaps the teeth that hide it.
+                    upInUnits = -0.565f,
+                    anchor = LensAnchorPoint.MOUTH,
+                    // The one part that hangs, so the one part that swings. The reference effect
+                    // puts a pendulum on four tongue joints; this is the single-flap stand-in.
+                    // 150 rings at ~1.95 Hz and 6.0 is a quarter of critical damping, so it bounces
+                    // three or four times before settling — floppy, not springy. See LensPhysics.
+                    wobble = WobbleSpec(
+                        stiffness = 150f,
+                        damping = 6f,
+                        drive = 1.2f,
+                        // 0.22 rad swings the tip 0.33 units — a big, readable arc that still keeps
+                        // the root behind the teeth (see the KDoc above).
+                        limitRadians = 0.22f,
+                    ),
+                ),
+            ),
+            // Same placement as the cavity above — one geometry contract, used twice, so the teeth
+            // can never drift off the mouth they belong to.
+            LensArt(
+                drawableRes = R.drawable.lens_twisted_tongue_teeth,
+                placement = LensPlacement(
+                    widthInUnits = 1.02f,
+                    artAspect = 0.588f,
+                    upInUnits = -0.10f,
+                    anchor = LensAnchorPoint.MOUTH,
+                ),
+            ),
+            LensArt(
+                drawableRes = R.drawable.lens_twisted_tongue_eye,
+                placement = LensPlacement(
+                    widthInUnits = 0.68f,
+                    artAspect = 1f,
+                    anchor = LensAnchorPoint.LEFT_EYE,
+                ),
+            ),
+            LensArt(
+                drawableRes = R.drawable.lens_twisted_tongue_eye,
+                placement = LensPlacement(
+                    widthInUnits = 0.68f,
+                    artAspect = 1f,
+                    anchor = LensAnchorPoint.RIGHT_EYE,
+                ),
             ),
         ),
         warp = null,

@@ -1,0 +1,88 @@
+<!--
+  Twisted Tongue — the open mouth's lips and cavity. Original art, authored in this repo, Apache 2.0.
+
+  Layer 1 of 5. Drawn FIRST, so the tongue lies over the lower lip; the upper teeth are a SEPARATE
+  drawable (lens_twisted_tongue_teeth) drawn AFTER the tongue, because a lolling tongue passes over
+  the lip but under the teeth. See Lens.TwistedTongue's KDoc for why that interleave forces two
+  files rather than one.
+
+  GEOMETRY CONTRACT with Lens.TwistedTongue — keep these in sync:
+
+      viewport      340 x 200   -> artAspect 0.588
+      widthInUnits  1.02        -> 1 face unit = 333 viewport units
+      cavity        x 32..308   -> 0.828 units wide, half-width 0.414
+
+  The cavity half-width is what has to clear the tongue's 0.28 half-width at full swing (0.302);
+  that check lives in the Lens KDoc because it spans both files.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="170dp"
+    android:height="100dp"
+    android:viewportWidth="340"
+    android:viewportHeight="200">
+
+  <!-- Lip ring. Deliberately a lip colour, not a skin colour: the reference effect covers this
+       region with skin-toned geometry that samples the camera for its tone, and the only reason
+       this lens does not need that machinery is that nothing here has to match a complexion. -->
+  <path
+      android:pathData="M8,100
+                        C8,50 60,12 170,12
+                        C280,12 332,50 332,100
+                        C332,150 280,188 170,188
+                        C60,188 8,150 8,100 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="170"
+          android:centerY="86"
+          android:gradientRadius="188">
+        <item android:offset="0.0" android:color="#FFB4525A" />
+        <item android:offset="0.7" android:color="#FF8E3742" />
+        <item android:offset="1.0" android:color="#FF63232E" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Lower-lip highlight. A wet catch-light along the bottom rim; without it the ring reads as
+       flat paint rather than a lip the tongue is resting on. -->
+  <path
+      android:fillAlpha="0.35"
+      android:fillColor="#FFE8949B"
+      android:pathData="M74,170
+                        C110,184 230,184 266,170
+                        C232,178 108,178 74,170 Z" />
+
+  <!-- The cavity. Very dark but not black — a warm near-black keeps it looking like the inside of a
+       mouth rather than a hole cut in the frame. -->
+  <path
+      android:pathData="M32,100
+                        C32,60 76,42 170,42
+                        C264,42 308,60 308,100
+                        C308,140 264,162 170,162
+                        C76,162 32,140 32,100 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="170"
+          android:centerY="78"
+          android:gradientRadius="150">
+        <item android:offset="0.0" android:color="#FF3E1219" />
+        <item android:offset="0.55" android:color="#FF250A10" />
+        <item android:offset="1.0" android:color="#FF14050A" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Two lower canines at the corners, where the reference shows them. They sit at the cavity's
+       bottom edge so the tongue (drawn next) passes in front of them. -->
+  <path
+      android:fillAlpha="0.85"
+      android:fillColor="#FFF6F1E2"
+      android:pathData="M64,150
+                        C70,142 80,142 85,150
+                        C80,158 70,158 64,150 Z
+                        M255,150
+                        C261,142 271,142 276,150
+                        C271,158 261,158 255,150 Z" />
+</vector>

@@ -84,7 +84,26 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     private var cameraProgram = 0
     private var stickerProgram = 0
     private var featureProgram = 0
-    private val stickerTextures = HashMap<Lens, Int>()
+
+    /**
+     * Uploaded art, keyed by **drawable** rather than by lens. A lens can now carry several layers,
+     * and two of them can be the same file — Twisted Tongue draws one eyeball on each eye — so
+     * keying by lens would either upload the same bitmap twice or need a nested map.
+     */
+    private val stickerTextures = HashMap<Int, Int>()
+
+    // ---- Wobble state. Touched only on glThread, stepped once per frame (see [stepWobbles]). ----
+
+    /** The lens the states below belong to; a change clears them so a swing cannot carry over. */
+    private var wobbleLens: Lens? = null
+    private val wobbleStates = HashMap<Int, LensPhysics.Wobble>()
+
+    /** This frame's swing angle per art layer, index-aligned with the lens's art. Reused. */
+    private var wobbleAngles = FloatArray(0)
+
+    /** Previous frame's face and timestamp — the two things a spring step needs. */
+    private var previousFace: FaceSnapshot? = null
+    private var previousFrameNs = 0L
 
     private val surfaceTextureMatrix = FloatArray(MATRIX_SIZE)
     private val outputTextureMatrix = FloatArray(MATRIX_SIZE)
@@ -215,6 +234,12 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         val lens = activeLens
         val trackedFace = face
 
+        // Physics advances ONCE per frame, here, before the per-output loop. Stepping it inside the
+        // loop would run the simulation once per output — the preview and the recording would each
+        // see a differently-advanced spring, and with two outputs attached the tongue would swing at
+        // double speed. The angles come out dimensionless, so every output can use them as-is.
+        val wobbles = stepWobbles(lens, trackedFace, timestampNs)
+
         for ((output, eglSurface) in outputs) {
             if (!EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) continue
 
@@ -231,8 +256,18 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
             GLES20.glViewport(0, 0, size.width, size.height)
             drawCamera(input.textureId, lens, snapshot, faceFrame, frameAspect)
-            if (lens?.art != null && faceFrame != null) {
-                drawSticker(lens, lens.art, faceFrame, frameAspect)
+            // Layers paint in catalogue order, so a lens controls its own stacking — Twisted
+            // Tongue's teeth land on top of its tongue purely by sitting later in the list.
+            if (lens != null && snapshot != null && faceFrame != null) {
+                lens.art.forEachIndexed { index, art ->
+                    drawSticker(
+                        art = art,
+                        face = snapshot,
+                        faceFrame = faceFrame,
+                        frameAspect = frameAspect,
+                        wobbleRadians = wobbles.getOrElse(index) { 0f },
+                    )
+                }
             }
             // Character lenses paste the subject's own eyes and mouth back on top of the art, so
             // the vegetable does the acting. Must come after the sticker, which is opaque.
@@ -296,15 +331,16 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     }
 
     private fun drawSticker(
-        lens: Lens,
         art: LensArt,
+        face: FaceSnapshot,
         faceFrame: FaceFrame,
         frameAspect: Float,
+        wobbleRadians: Float,
     ) {
-        val texture = stickerTextures.getOrPut(lens) { loadTexture(art.drawableRes) }
+        val texture = stickerTextures.getOrPut(art.drawableRes) { loadTexture(art.drawableRes) }
         if (texture == 0) return
 
-        val quad = LensAnchor.sticker(faceFrame, art.placement, frameAspect)
+        val quad = LensAnchor.sticker(face, faceFrame, art.placement, frameAspect, wobbleRadians)
         writeStickerCorners(quad, frameAspect)
 
         GLES20.glUseProgram(stickerProgram)
@@ -321,6 +357,69 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, VERTEX_COUNT)
         GLES20.glDisable(GLES20.GL_BLEND)
+    }
+
+    /**
+     * Advances every wobbling layer of [lens] by one frame and returns their swing angles.
+     *
+     * Three things make this correct, and each was a bug waiting to happen:
+     *
+     * 1. **Once per frame, not once per output.** Called from [drawFrame] *before* the output loop.
+     * 2. **In the tracker's own space.** The drive is measured on the raw snapshot against its own
+     *    `sourceAspect`, never an output's shape. [LensAnchor.lateralShiftInUnits] divides by the
+     *    face unit, so the result is dimensionless and means the same thing to preview and recorder.
+     * 3. **No face means settle, not snap.** With no previous face the shift is zero, which decays
+     *    the spring toward rest instead of teleporting it — matching [FaceTracker]'s own drop-out
+     *    hold, so a blink does not make the tongue jump.
+     */
+    private fun stepWobbles(lens: Lens?, face: FaceSnapshot?, timestampNs: Long): FloatArray {
+        if (lens !== wobbleLens) {
+            wobbleStates.clear()
+            wobbleLens = lens
+            previousFace = null
+        }
+        val layers = lens?.art.orEmpty()
+        if (wobbleAngles.size != layers.size) wobbleAngles = FloatArray(layers.size)
+        if (layers.isEmpty()) return wobbleAngles
+
+        // Camera timestamps are nanoseconds and monotonic, and tie the swing to the video's own
+        // timeline rather than to how fast this thread happens to run. A device that reports 0
+        // (or steps backwards) falls back to the wall clock rather than freezing the animation.
+        val nowNs = if (timestampNs > 0L) timestampNs else System.nanoTime()
+        val elapsedNs = nowNs - previousFrameNs
+        val dtSeconds = if (previousFrameNs == 0L || elapsedNs <= 0L) {
+            0f
+        } else {
+            elapsedNs / NANOS_PER_SECOND
+        }
+        previousFrameNs = nowNs
+
+        val previous = previousFace
+        previousFace = face
+        val shift = if (face != null && previous != null) {
+            LensAnchor.faceFrame(face, face.sourceAspect)
+                ?.let { LensAnchor.lateralShiftInUnits(previous, face, it, face.sourceAspect) }
+                ?: 0f
+        } else {
+            0f
+        }
+
+        layers.forEachIndexed { index, art ->
+            val spec = art.placement.wobble
+            if (spec == null) {
+                wobbleAngles[index] = 0f
+                return@forEachIndexed
+            }
+            val stepped = LensPhysics.step(
+                state = wobbleStates[index] ?: LensPhysics.Wobble.REST,
+                pivotShiftInUnits = shift,
+                dtSeconds = dtSeconds,
+                spec = spec,
+            )
+            wobbleStates[index] = stepped
+            wobbleAngles[index] = stepped.offsetRadians
+        }
+        return wobbleAngles
     }
 
     /**
@@ -561,6 +660,10 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         loggedOutputs.clear()
         stickerTextures.values.forEach { GLES20.glDeleteTextures(1, intArrayOf(it), 0) }
         stickerTextures.clear()
+        wobbleStates.clear()
+        wobbleLens = null
+        previousFace = null
+        previousFrameNs = 0L
         if (eglDisplay != EGL14.EGL_NO_DISPLAY) {
             EGL14.eglMakeCurrent(
                 eglDisplay,
@@ -613,6 +716,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         const val VERTEX_COUNT = 4
         const val QUAD_COMPONENTS = 8
         const val MAX_ART_PX = 1024
+        const val NANOS_PER_SECOND = 1_000_000_000f
 
         /** Strip order: top-left, top-right, bottom-left, bottom-right (y down, before rotation). */
         val CORNER_SIGNS = arrayOf(

@@ -1,7 +1,9 @@
 package io.github.stozo04.openloop.camera.lens
 
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 
 /**
  * Pure placement math for camera lenses — no Android types, so every coordinate rule is
@@ -79,20 +81,39 @@ data class FaceFrame(
 )
 
 /**
+ * Which tracked point a [LensPlacement] measures its offset from.
+ *
+ * [FACE] is the eye midpoint — the frame's own origin, and what every lens used before anything
+ * needed to sit on a specific feature. The others let one lens carry parts that track *different*
+ * anatomy: an eyeball on each eye, a tongue on the mouth.
+ *
+ * [LEFT_EYE] / [RIGHT_EYE] are ML Kit's subject-relative labels, so which side of the *image* each
+ * lands on flips under mirroring. That is harmless here and deliberately not corrected: a lens
+ * anchoring to both eyes draws the same art at each, so it cannot tell them apart anyway. A lens
+ * that ever needs a genuinely left-vs-right-different part must resolve sides the way
+ * [LensAnchor.features] does, by comparing against the frame's `right` axis.
+ */
+enum class LensAnchorPoint { FACE, LEFT_EYE, RIGHT_EYE, MOUTH }
+
+/**
  * Where a lens sits on the face and how big it is — expressed entirely in face units, which is why
  * one set of numbers works for every human face at every distance and angle.
  *
- * Every lens so far sits on the face's centre line, so there is no sideways term — add one when a
- * lens actually needs to be off-centre.
- *
  * @param widthInUnits sticker width as a multiple of the eye-to-mouth distance.
  * @param artAspect the art's own height / width, so it never renders squashed.
- * @param upInUnits how far above the eye line the sticker's centre sits (negative = below).
+ * @param upInUnits how far above [anchor] the sticker's centre sits (negative = below).
+ * @param rightInUnits how far along the face's `right` axis the centre sits (negative = left).
+ * @param anchor the point [upInUnits] / [rightInUnits] are measured from.
+ * @param wobble non-null makes this layer swing about [anchor] when the head moves — see
+ *   [LensPhysics]. Null is rigid, which is every lens that does not hang off the face.
  */
 data class LensPlacement(
     val widthInUnits: Float,
     val artAspect: Float,
     val upInUnits: Float = 0f,
+    val rightInUnits: Float = 0f,
+    val anchor: LensAnchorPoint = LensAnchorPoint.FACE,
+    val wobble: WobbleSpec? = null,
 )
 
 /**
@@ -224,16 +245,35 @@ object LensAnchor {
     /**
      * Places [placement]'s art on [frame]. Position, size and rotation all come from the frame, so
      * a tilted, distant, or mirrored face needs no special case.
+     *
+     * [wobbleRadians] turns the art **about its anchor** rather than about its own centre: the
+     * offset vector and the art rotate by the same angle, which is what makes a hanging part swing
+     * from where it is attached instead of pivoting in place. Zero reproduces the rigid placement
+     * exactly, so every non-wobbling lens is bit-identical to before this parameter existed.
      */
     fun sticker(
+        face: FaceSnapshot,
         frame: FaceFrame,
         placement: LensPlacement,
         frameAspect: Float,
+        wobbleRadians: Float = 0f,
     ): StickerQuad {
-        val alongUp = placement.upInUnits * frame.unit
+        // Screen y is down, so this is the clockwise-positive rotation used everywhere else —
+        // same convention as LensSurfaceProcessor.writeStickerCorners.
+        val cosW = cos(wobbleRadians)
+        val sinW = sin(wobbleRadians)
+        val upX = frame.upX * cosW - frame.upY * sinW
+        val upY = frame.upX * sinW + frame.upY * cosW
+        val rightX = frame.rightX * cosW - frame.rightY * sinW
+        val rightY = frame.rightX * sinW + frame.rightY * cosW
 
-        val centerSquareX = frame.originX + frame.upX * alongUp
-        val centerSquareY = toSquareY(frame.originY, frameAspect) + frame.upY * alongUp
+        val alongUp = placement.upInUnits * frame.unit
+        val alongRight = placement.rightInUnits * frame.unit
+
+        val centerSquareX = anchorX(face, frame, placement.anchor) +
+            rightX * alongRight + upX * alongUp
+        val centerSquareY = anchorSquareY(face, frame, placement.anchor, frameAspect) +
+            rightY * alongRight + upY * alongUp
 
         val halfWidth = placement.widthInUnits * frame.unit / 2f
 
@@ -242,10 +282,63 @@ object LensAnchor {
             centerY = fromSquareY(centerSquareY, frameAspect),
             halfWidth = halfWidth,
             halfHeight = fromSquareY(halfWidth * placement.artAspect, frameAspect),
-            // The sticker's own "right" is the face's "right"; y is down, so this is the
-            // clockwise-positive screen angle with no sign conventions to remember.
-            rotationRadians = atan2(frame.rightY, frame.rightX),
+            // The sticker's own "right" is the face's "right", turned by the wobble.
+            rotationRadians = atan2(rightY, rightX),
         )
+    }
+
+    /** Normalized x of the point [anchor] names. */
+    private fun anchorX(face: FaceSnapshot, frame: FaceFrame, anchor: LensAnchorPoint): Float =
+        when (anchor) {
+            LensAnchorPoint.FACE -> frame.originX
+            LensAnchorPoint.LEFT_EYE -> face.leftEyeX
+            LensAnchorPoint.RIGHT_EYE -> face.rightEyeX
+            LensAnchorPoint.MOUTH -> (face.mouthLeftX + face.mouthRightX) / 2f
+        }
+
+    /** Square-space y of the point [anchor] names — square, because the offset maths is. */
+    private fun anchorSquareY(
+        face: FaceSnapshot,
+        frame: FaceFrame,
+        anchor: LensAnchorPoint,
+        frameAspect: Float,
+    ): Float = toSquareY(
+        when (anchor) {
+            LensAnchorPoint.FACE -> frame.originY
+            LensAnchorPoint.LEFT_EYE -> face.leftEyeY
+            LensAnchorPoint.RIGHT_EYE -> face.rightEyeY
+            LensAnchorPoint.MOUTH -> (face.mouthLeftY + face.mouthRightY) / 2f
+        },
+        frameAspect,
+    )
+
+    /**
+     * How far the head slid **sideways** between two snapshots, in face units — the drive signal a
+     * hanging lens part swings from ([LensPhysics]).
+     *
+     * Measured along the current frame's `right` axis and divided by the face unit, so it is
+     * dimensionless: the same head movement produces the same number whether the subject is close
+     * or far, and whichever output stream is being drawn. That is what lets the physics be stepped
+     * once per frame in one canonical space and consumed by every output.
+     *
+     * Deliberately translation only. Head *roll* also swings a real pendulum, but that needs the
+     * part to hang in world-down rather than face-down, which is a different and much larger model.
+     * ponytail: translation-only drive; add a roll term if the swing reads dead on a head tilt.
+     */
+    fun lateralShiftInUnits(
+        previous: FaceSnapshot,
+        current: FaceSnapshot,
+        frame: FaceFrame,
+        frameAspect: Float,
+    ): Float {
+        if (frame.unit <= 0f) return 0f
+        val previousX = (previous.leftEyeX + previous.rightEyeX) / 2f
+        val previousY = (previous.leftEyeY + previous.rightEyeY) / 2f
+        val currentX = (current.leftEyeX + current.rightEyeX) / 2f
+        val currentY = (current.leftEyeY + current.rightEyeY) / 2f
+        val dx = currentX - previousX
+        val dy = toSquareY(currentY - previousY, frameAspect)
+        return (dx * frame.rightX + dy * frame.rightY) / frame.unit
     }
 
     /**

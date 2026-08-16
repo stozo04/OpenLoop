@@ -57,3 +57,12 @@ functions/.secret.local
 # (decisions.md, LESSONS.md, research-*.md) IS tracked; see swarm/README.md.
 swarm/collab/bus/*.jsonl
 swarm/bus-follow.html
+
+# Third-party AR reference material — DeepAR Studio projects used ONLY as a
+# reverse-engineering reference. OpenLoop is public under Apache 2.0 and we hold no
+# redistribution rights to these meshes, matcaps, normal maps or the compiled .deepar
+# bundle. The GUIDE we wrote from them IS tracked; the vendor assets are not.
+twisted-tounge/**
+!twisted-tounge/*.md
+!twisted-tounge/images/
+!twisted-tounge/images/**

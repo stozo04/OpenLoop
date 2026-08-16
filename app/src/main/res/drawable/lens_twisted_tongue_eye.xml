@@ -1,0 +1,131 @@
+<!--
+  Twisted Tongue — one bulging eyeball. Original art, authored in this repo, Apache 2.0.
+
+  Drawn ONCE and placed twice, on Lens.TwistedTongue's LEFT_EYE and RIGHT_EYE anchors. It is
+  therefore deliberately left-right symmetric apart from the highlight, and the iris is offset
+  straight DOWN rather than sideways so the same file reads correctly on both eyes.
+
+  GEOMETRY CONTRACT with Lens.TwistedTongue — keep these in sync:
+
+      viewport         220 x 220   -> artAspect 1.0
+      ball             centre (110,110), r = 100, i.e. 200/220 = 0.909 of the quad
+      widthInUnits     0.62 / 0.909 = 0.68, so the BALL is 0.62 face units across
+
+  The 20px of viewport outside the ball is the contact shadow below it. That shadow is the only
+  thing that says "in front of the socket" instead of "painted on the eyelid" — a flat disc on skin
+  reads as a sticker no matter how well it is shaded.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="110dp"
+    android:height="110dp"
+    android:viewportWidth="220"
+    android:viewportHeight="220">
+
+  <!-- Contact shadow. Drawn FIRST so the ball covers its inner half and only the crescent that
+       falls on the cheek survives. -->
+  <path
+      android:fillAlpha="0.34"
+      android:pathData="M110,26
+                        C168,26 214,72 214,130
+                        C214,180 172,216 110,216
+                        C48,216 6,180 6,130
+                        C6,72 52,26 110,26 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="110"
+          android:centerY="132"
+          android:gradientRadius="106">
+        <item android:offset="0.72" android:color="#FF2B1D14" />
+        <item android:offset="1.0" android:color="#002B1D14" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- The sclera. Warm cream lit from the upper left, falling to a shadowed olive-grey at the
+       lower right — that single gradient is what makes a flat disc read as a sphere. -->
+  <path
+      android:pathData="M10,110
+                        A100,100 0 1 0 210,110
+                        A100,100 0 1 0 10,110 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="76"
+          android:centerY="74"
+          android:gradientRadius="176">
+        <item android:offset="0.0" android:color="#FFFFFEF6" />
+        <item android:offset="0.45" android:color="#FFF3EEDC" />
+        <item android:offset="0.78" android:color="#FFCFC6A9" />
+        <item android:offset="1.0" android:color="#FF9E9377" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Terminator shading along the lower-right limb. Keeps the sphere from flattening out where
+       the radial gradient alone runs out of contrast. -->
+  <path
+      android:fillAlpha="0.30"
+      android:pathData="M196,152
+                        C178,190 145,210 110,210
+                        C86,210 64,201 47,185
+                        C74,193 104,193 132,182
+                        C160,171 182,155 196,152 Z"
+      android:fillColor="#FF6E6248" />
+
+  <!-- Iris. Offset DOWN only (see the header) and sized so the ball still reads as mostly white,
+       which is what makes the eye look popped rather than merely large. -->
+  <path
+      android:pathData="M74,126
+                        A36,36 0 1 0 146,126
+                        A36,36 0 1 0 74,126 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="100"
+          android:centerY="114"
+          android:gradientRadius="52">
+        <item android:offset="0.0" android:color="#FF6B4B33" />
+        <item android:offset="0.6" android:color="#FF3A2718" />
+        <item android:offset="1.0" android:color="#FF14100C" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Pupil. -->
+  <path
+      android:fillColor="#FF0B0907"
+      android:pathData="M94,126
+                        A16,16 0 1 0 126,126
+                        A16,16 0 1 0 94,126 Z" />
+
+  <!-- Specular highlight, upper left to agree with the sclera's light direction. A second, smaller
+       glint on the opposite side is what stops the eye looking dead. -->
+  <path
+      android:fillAlpha="0.92"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M88,110
+                        C96,102 108,101 112,107
+                        C116,113 108,122 99,123
+                        C90,124 84,117 88,110 Z" />
+  <path
+      android:fillAlpha="0.40"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M132,146
+                        C138,143 144,146 143,151
+                        C142,156 135,158 131,154
+                        C128,151 129,147 132,146 Z" />
+
+  <!-- Rim. A thin dark edge so the ball separates from pale skin; without it the sclera and a light
+       complexion merge and the eye loses its silhouette. -->
+  <path
+      android:fillAlpha="0.28"
+      android:fillColor="#FF4A3F2C"
+      android:pathData="M10,110
+                        A100,100 0 1 1 210,110
+                        A100,100 0 1 1 10,110 Z
+                        M17,110
+                        A93,93 0 1 0 203,110
+                        A93,93 0 1 0 17,110 Z" />
+</vector>
