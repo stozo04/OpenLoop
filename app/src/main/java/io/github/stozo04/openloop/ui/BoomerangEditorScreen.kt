@@ -52,6 +52,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -69,6 +70,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.ui.components.EditorBottomToolbar
 import io.github.stozo04.openloop.ui.components.EditorLoadingOverlay
 import io.github.stozo04.openloop.ui.components.FilterTabPanel
@@ -442,7 +444,7 @@ fun BoomerangEditorContent(
 
             if (activeOverlay != null) {
                 EditorLoadingOverlay(
-                    message = activeOverlay.message,
+                    message = stringResource(activeOverlay.message),
                     modifier = Modifier.fillMaxSize(),
                     testTag = "reverse_loading",
                 )
@@ -468,27 +470,27 @@ fun BoomerangEditorContent(
                             .padding(horizontal = 28.dp, vertical = 22.dp),
                     ) {
                         Text(
-                            text = "Couldn't loop that clip",
+                            text = stringResource(R.string.reverse_failed_title),
                             color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            text = "Try again, or pick the Forward direction.",
+                            text = stringResource(R.string.reverse_failed_body),
                             color = Color.White.copy(alpha = 0.7f),
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Send debug info below, or reopen the app once to upload an automatic report.",
+                            text = stringResource(R.string.reverse_failed_report_hint),
                             color = Color.White.copy(alpha = 0.55f),
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "TRY AGAIN",
+                            text = stringResource(R.string.reverse_failed_retry),
                             color = LimeInk,
                             style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier
@@ -500,10 +502,11 @@ fun BoomerangEditorContent(
                         )
                         if (!reverseSupportReport.isNullOrBlank()) {
                             Spacer(Modifier.height(12.dp))
+                            val debugChooserTitle = stringResource(R.string.debug_report_chooser_title)
                             Text(
                                 // Label unified with the snackbar actions ("Send debug report") —
                                 // reverse-output-validation spec §4.
-                                text = "SEND DEBUG REPORT",
+                                text = stringResource(R.string.reverse_failed_send_report),
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelLarge,
                                 modifier = Modifier
@@ -512,8 +515,10 @@ fun BoomerangEditorContent(
                                     .clickable {
                                         context.shareDebugReport(
                                             report = reverseSupportReport,
+                                            // Subject stays English on purpose: it routes a support
+                                            // mail to the maintainer, it is not app UI.
                                             subject = "OpenLoop loop debug",
-                                            chooserTitle = "Send debug report",
+                                            chooserTitle = debugChooserTitle,
                                         )
                                     }
                                     .padding(horizontal = 20.dp, vertical = 10.dp)
@@ -578,7 +583,7 @@ fun BoomerangEditorContent(
                         onFilterChange = onFilterChange,
                         disabledHint = if (!effectsPreviewEnabled) {
                             // Gate is memory-pressure only (reverse failure no longer closes Looks).
-                            "Looks preview paused — device is low on memory. Tap a look to retry."
+                            stringResource(R.string.looks_disabled_hint)
                         } else {
                             null
                         },
@@ -601,8 +606,8 @@ fun BoomerangEditorContent(
     if (showDeleteClipDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteClipDialog = false },
-            title = { Text("Discard this clip?") },
-            text = { Text("Your captured clip will be deleted and you'll return to the camera.") },
+            title = { Text(stringResource(R.string.discard_dialog_title)) },
+            text = { Text(stringResource(R.string.discard_dialog_body)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -610,10 +615,12 @@ fun BoomerangEditorContent(
                         onDiscard()
                     },
                     modifier = Modifier.testTag("discard_confirm"),
-                ) { Text("Discard") }
+                ) { Text(stringResource(R.string.discard_dialog_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteClipDialog = false }) { Text("Keep editing") }
+                TextButton(onClick = { showDeleteClipDialog = false }) {
+                    Text(stringResource(R.string.discard_dialog_keep_editing))
+                }
             },
         )
     }
@@ -674,6 +681,8 @@ private fun SaveCheckmark(
         targetValue = if (enabled && isPressed) PrimaryButtonPressedScale else 1f,
         label = "save_checkmark_scale",
     )
+    // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
+    val saveLabel = stringResource(R.string.editor_save)
     Box(
         modifier = modifier
             .scale(scale)
@@ -689,7 +698,7 @@ private fun SaveCheckmark(
                 haptics.performHapticFeedback(HapticFeedbackType.Confirm)
                 onClick()
             }
-            .semantics { contentDescription = "Save boomerang" },
+            .semantics { contentDescription = saveLabel },
         contentAlignment = Alignment.Center,
     ) {
         Icon(

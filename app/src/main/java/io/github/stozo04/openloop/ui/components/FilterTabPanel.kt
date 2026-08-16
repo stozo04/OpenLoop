@@ -35,6 +35,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -42,6 +43,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
@@ -90,7 +92,7 @@ fun FilterTabPanel(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Choose a look",
+                text = stringResource(R.string.filter_title),
                 color = Color.White.copy(alpha = 0.9f),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,

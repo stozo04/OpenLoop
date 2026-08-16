@@ -271,7 +271,7 @@ private fun GalleryTopBar(
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         BackButton(
-            contentDescription = "Back to camera",
+            contentDescription = stringResource(R.string.gallery_back_to_camera),
             onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -388,13 +388,13 @@ internal fun EmptyGalleryState(
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "NO LOOPS YET",
+                text = stringResource(R.string.gallery_empty_title),
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White.copy(alpha = 0.6f),
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Record your first loop to see it here!",
+                text = stringResource(R.string.gallery_empty_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.35f),
                 textAlign = TextAlign.Center
@@ -477,7 +477,7 @@ private fun VideoThumbnailCard(
         if (thumb != null) {
             Image(
                 bitmap = thumb,
-                contentDescription = "Video thumbnail",
+                contentDescription = stringResource(R.string.gallery_video_thumbnail),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )

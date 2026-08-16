@@ -682,23 +682,21 @@ fun OpenLoopNavHost(
         }
         is OpenLoopUiState.PermissionRationale -> {
             PermissionExplanationScreen(
-                title = "We need a quick permission",
-                body = "OpenLoop needs Camera access to record video for your " +
-                    "loops. Tap Grant to continue.",
-                primaryActionLabel = "Grant Permission",
+                title = stringResource(R.string.permission_rationale_title),
+                body = stringResource(R.string.permission_rationale_body),
+                primaryActionLabel = stringResource(R.string.permission_grant),
                 onPrimaryAction = { onRationaleAcknowledged() },
-                secondaryActionLabel = "Not now",
+                secondaryActionLabel = stringResource(R.string.permission_not_now),
                 onSecondaryAction = { viewModel.onRationaleDeclined() }
             )
         }
         is OpenLoopUiState.PermissionDenied -> {
             PermissionExplanationScreen(
-                title = "Permission Required",
-                body = "OpenLoop needs Camera access to record video for your " +
-                    "speed-controlled loops.",
-                primaryActionLabel = "Try Again",
+                title = stringResource(R.string.permission_denied_title),
+                body = stringResource(R.string.permission_denied_body),
+                primaryActionLabel = stringResource(R.string.permission_try_again),
                 onPrimaryAction = { onCheckPermissions() },
-                secondaryActionLabel = "Open Device Settings",
+                secondaryActionLabel = stringResource(R.string.permission_open_settings),
                 onSecondaryAction = { onOpenAppSettings() }
             )
         }
@@ -771,7 +769,7 @@ fun InfinityLoadingScreen() {
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_launcher_foreground),
-            contentDescription = "Loading",
+            contentDescription = stringResource(R.string.loading_content_description),
             modifier = Modifier.size(200.dp)
         )
     }
@@ -984,7 +982,7 @@ private fun ImportClipLengthDialog(
                     .height(48.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.import_length_dialog_button),
+                    text = stringResource(R.string.dialog_got_it),
                     style = MaterialTheme.typography.labelLarge,
                     color = LimeInk
                 )

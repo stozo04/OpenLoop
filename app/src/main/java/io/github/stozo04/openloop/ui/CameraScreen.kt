@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -370,7 +371,9 @@ fun CameraScreen(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lenses),
-                            contentDescription = if (lensTrayOpen) "Hide lenses" else "Lenses",
+                            contentDescription = stringResource(
+                                if (lensTrayOpen) R.string.camera_hide_lenses else R.string.camera_lenses
+                            ),
                             modifier = Modifier.size(28.dp),
                             // Owner's call (2026-08-12): lime icon on glass for consistency with
                             // the gallery button and mode selector. The active-lens state keeps
@@ -417,7 +420,7 @@ fun CameraScreen(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_flip_camera),
-                            contentDescription = "Flip Camera",
+                            contentDescription = stringResource(R.string.camera_flip),
                             modifier = Modifier.size(28.dp),
                             // Owner's call (2026-08-12): lime icon on glass — consistent with the
                             // gallery button, mode selector, and lens button.
@@ -475,7 +478,7 @@ fun HomeButton(
     ) {
         Icon(
             painter = painterResource(id = R.drawable.ic_pictures_folder),
-            contentDescription = "Gallery",
+            contentDescription = stringResource(R.string.camera_gallery),
             modifier = Modifier.size(20.dp),
             tint = ElectricLime
         )
@@ -626,6 +629,8 @@ fun ShutterButton(
     )
     // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
     val photoLabel = stringResource(R.string.camera_take_photo)
+    val stopLabel = stringResource(R.string.camera_stop_recording)
+    val startLabel = stringResource(R.string.camera_start_recording)
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // Progress ring — drawn just outside the 86.dp button, recording only.
@@ -673,9 +678,9 @@ fun ShutterButton(
                 )
                 .semantics {
                     contentDescription = when {
-                        isRecording -> "Stop recording"
+                        isRecording -> stopLabel
                         photoMode -> photoLabel
-                        else -> "Start recording"
+                        else -> startLabel
                     }
                 },
             contentAlignment = Alignment.Center
@@ -746,6 +751,11 @@ fun ZoomRatioChip(
     text: () -> String,
     modifier: Modifier = Modifier
 ) {
+    // Resources, not stringResource: the label interpolates the live ratio, and that read must stay
+    // inside the semantics lambda (Lesson 016) — which is not a composable scope. LocalResources (not
+    // LocalContext.current.resources — lint LocalContextGetResourceValueCall) so the read is
+    // invalidated on a Configuration change, and the format string still comes from strings.xml.
+    val resources = LocalResources.current
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
@@ -760,7 +770,10 @@ fun ZoomRatioChip(
                 .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
                 .padding(horizontal = 14.dp, vertical = 6.dp)
                 .testTag("zoom_chip")
-                .semantics(mergeDescendants = true) { contentDescription = "Zoom level, ${text()}" }
+                .semantics(mergeDescendants = true) {
+                    contentDescription =
+                        resources.getString(R.string.camera_zoom_level_content_description, text())
+                }
         ) {
             Text(
                 text = text(),

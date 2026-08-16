@@ -1,9 +1,19 @@
+<!--
+  Every user-visible string lives here, not as a Kotlin literal in a composable. Beyond the usual
+  reason (one place to change copy), this file IS the input to Play Console's free Gemini app-strings
+  translation (Grow users → Translations → App strings): Play reads the latest strings.xml out of the
+  uploaded bundle and injects the translated resources back in. A literal baked into a composable is
+  invisible to it and stays English in every locale, so a hardcoded string is now a shipping bug, not
+  a style nit. See docs/guides/localization.md.
+
+  Brand nouns carry translatable="false" so the service leaves them alone.
+-->
 <resources>
-    <string name="app_name">OpenLoop</string>
+    <string name="app_name" translatable="false">OpenLoop</string>
 
     <!-- Share sheet (slice 06). Kind-neutral: the same sheet shares a loop and a photo. -->
     <string name="share_chooser_title">Share</string>
-    <string name="share_subject">OpenLoop</string>
+    <string name="share_subject" translatable="false">OpenLoop</string>
 
     <!-- Photo capture mode (docs/PRD-photo-capture.md; issue #126 replaced the single toggling
          icon with a segmented CAMERA | VIDEO selector — each segment names its target mode and
@@ -56,7 +66,6 @@
     <string name="snackbar_import_failed">Couldn\'t import that video.</string>
     <string name="import_too_long_title">That clip\'s a bit long</string>
     <string name="import_too_long_body">OpenLoop makes loops from videos up to 30 seconds. Pick a shorter clip and we\'ll loop it.</string>
-    <string name="import_length_dialog_button">Got it</string>
 
     <!-- Clip shorter than the minimum loopable window (issue #95 follow-up) -->
     <string name="import_too_short_title">That clip\'s a bit short</string>
@@ -66,4 +75,115 @@
     <!-- Play in-app updates (FLEXIBLE flow) -->
     <string name="update_ready_message">Update ready — restart to install.</string>
     <string name="update_ready_action">Restart</string>
+
+    <!-- ─────────────────────────────────────────────────────────────────────────────────────────
+         Below: strings that were Kotlin literals until the localization-readiness pass. Same copy,
+         byte for byte — the 68 Compose test assertions match on rendered English and must keep
+         passing. Do not "improve" the wording in this commit.
+         ───────────────────────────────────────────────────────────────────────────────────────── -->
+
+    <!-- Loading / permissions (MainActivity) -->
+    <string name="loading_content_description">Loading</string>
+    <string name="permission_rationale_title">We need a quick permission</string>
+    <string name="permission_rationale_body">OpenLoop needs Camera access to record video for your loops. Tap Grant to continue.</string>
+    <string name="permission_grant">Grant Permission</string>
+    <string name="permission_not_now">Not now</string>
+    <string name="permission_denied_title">Permission Required</string>
+    <string name="permission_denied_body">OpenLoop needs Camera access to record video for your speed-controlled loops.</string>
+    <string name="permission_try_again">Try Again</string>
+    <string name="permission_open_settings">Open Device Settings</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_headline">Free. Forever.</string>
+    <string name="onboarding_badge_no_subscriptions">No Subscriptions · No Ads</string>
+    <string name="onboarding_badge_open_source">Open source · 100% on your phone</string>
+    <string name="onboarding_cta">LET\'S GO!</string>
+    <string name="onboarding_image_content_description">Onboarding visual asset representing loops</string>
+    <string name="onboarding_video_content_description">Looping demo of a boomerang video</string>
+
+    <!-- Camera screen -->
+    <string name="camera_lenses">Lenses</string>
+    <string name="camera_hide_lenses">Hide lenses</string>
+    <string name="camera_flip">Flip Camera</string>
+    <string name="camera_gallery">Gallery</string>
+    <string name="camera_start_recording">Start recording</string>
+    <string name="camera_stop_recording">Stop recording</string>
+    <string name="camera_close_lenses">Close lenses</string>
+    <!-- %1$s is the live zoom ratio, e.g. "2.3x". -->
+    <string name="camera_zoom_level_content_description">Zoom level, %1$s</string>
+
+    <!-- Gallery -->
+    <string name="gallery_back_to_camera">Back to camera</string>
+    <string name="gallery_empty_title">NO LOOPS YET</string>
+    <string name="gallery_empty_body">Record your first loop to see it here!</string>
+    <string name="gallery_video_thumbnail">Video thumbnail</string>
+
+    <!-- Trim screen -->
+    <string name="trim_title">Trim</string>
+    <string name="trim_save">SAVE</string>
+    <string name="trim_discard_clip">Discard clip</string>
+    <string name="trim_section_title">TRIM YOUR VIDEO</string>
+    <string name="trim_handle_start">Trim start</string>
+    <string name="trim_handle_end">Trim end</string>
+
+    <!-- Discard-clip dialog, shared by Trim and the editor (only the dismiss verb differs). -->
+    <string name="discard_dialog_title">Discard this clip?</string>
+    <string name="discard_dialog_body">Your captured clip will be deleted and you\'ll return to the camera.</string>
+    <string name="discard_dialog_confirm">Discard</string>
+    <string name="discard_dialog_keep">Keep</string>
+    <string name="discard_dialog_keep_editing">Keep editing</string>
+
+    <!-- Editor: preview overlay captions (EditorLoadingKind) -->
+    <string name="editor_loading_trimming">Trimming..</string>
+    <string name="editor_loading_loopifying">Loopifying..</string>
+    <string name="editor_loading_hold_tight">Hold Tight..</string>
+    <string name="editor_loading_filtering">Filtering..</string>
+    <string name="editor_loading_deleting">Deleting..</string>
+
+    <!-- Editor: reverse-unavailable panel (lesson 020 degrade path) -->
+    <string name="editor_save">Save boomerang</string>
+    <string name="reverse_failed_title">Couldn\'t loop that clip</string>
+    <string name="reverse_failed_body">Try again, or pick the Forward direction.</string>
+    <string name="reverse_failed_report_hint">Send debug info below, or reopen the app once to upload an automatic report.</string>
+    <string name="reverse_failed_retry">TRY AGAIN</string>
+    <string name="reverse_failed_send_report">SEND DEBUG REPORT</string>
+    <string name="debug_report_chooser_title">Send debug report</string>
+
+    <!-- Editor bottom toolbar -->
+    <string name="toolbar_trim">Trim</string>
+    <string name="toolbar_speed">Speed</string>
+    <string name="toolbar_loop">Loop</string>
+    <string name="toolbar_filter">Filter</string>
+    <string name="toolbar_delete">Delete</string>
+
+    <!-- Speed tab -->
+    <string name="speed_title">Slow down or speed up the video</string>
+    <string name="speed_current_label">Current speed</string>
+    <string name="speed_slider_content_description">Playback speed</string>
+    <!-- %1$s is the multiplier, e.g. "1.5" — spoken by TalkBack as the slider's state. -->
+    <string name="speed_state_description">%1$s times speed</string>
+
+    <!-- Looks (filter) tab. VideoFilter.label values are product names and stay untranslated. -->
+    <string name="filter_title">Choose a look</string>
+    <string name="looks_disabled_hint">Looks preview paused — device is low on memory. Tap a look to retry.</string>
+
+    <!-- Loop-direction tab + its help dialog -->
+    <string name="loop_select_direction">Select loop direction</string>
+    <string name="loop_info_content_description">What do the loop icons mean?</string>
+    <string name="loop_help_title">Loop directions</string>
+    <string name="loop_forward_label">Forward loop</string>
+    <string name="loop_forward_title">Forward</string>
+    <string name="loop_forward_description">Repeats your trim playing forward only — like a normal short loop.</string>
+    <string name="loop_reverse_label">Reverse loop</string>
+    <string name="loop_reverse_title">Reverse</string>
+    <string name="loop_reverse_description">Repeats your trim playing backward only.</string>
+    <string name="loop_forward_then_reverse_label">Forward then reverse</string>
+    <string name="loop_forward_then_reverse_title">Boomerang</string>
+    <string name="loop_forward_then_reverse_description">Plays forward, then backward, then repeats — the classic ping-pong boomerang.</string>
+    <string name="loop_reverse_then_forward_label">Reverse then forward</string>
+    <string name="loop_reverse_then_forward_title">Reverse then forward</string>
+    <string name="loop_reverse_then_forward_description">Plays backward, then forward, then repeats — the mirror of Boomerang.</string>
+
+    <!-- Generic acknowledgement button, shared by the clip-length and loop-help dialogs. -->
+    <string name="dialog_got_it">Got it</string>
 </resources>

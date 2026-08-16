@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -44,6 +45,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.ui.components.BackButton
 import io.github.stozo04.openloop.ui.components.EditorBottomToolbar
 import io.github.stozo04.openloop.ui.components.EditorLoadingOverlay
@@ -167,14 +169,14 @@ fun TrimScreenContent(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 BackButton(
-                    contentDescription = "Discard clip",
+                    contentDescription = stringResource(R.string.trim_discard_clip),
                     onClick = { showDiscardDialog = true },
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .testTag("trim_back"),
                 )
                 Text(
-                    text = "Trim",
+                    text = stringResource(R.string.trim_title),
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.align(Alignment.Center),
@@ -241,7 +243,7 @@ fun TrimScreenContent(
 
         if (sessionOverlayLoading != null) {
             EditorLoadingOverlay(
-                message = sessionOverlayLoading.message,
+                message = stringResource(sessionOverlayLoading.message),
                 modifier = Modifier.fillMaxSize(),
                 testTag = "session_loading_overlay",
             )
@@ -252,16 +254,18 @@ fun TrimScreenContent(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard this clip?") },
-            text = { Text("Your captured clip will be deleted and you'll return to the camera.") },
+            title = { Text(stringResource(R.string.discard_dialog_title)) },
+            text = { Text(stringResource(R.string.discard_dialog_body)) },
             confirmButton = {
                 TextButton(
                     onClick = { onDiscard() },
                     modifier = Modifier.testTag("discard_confirm"),
-                ) { Text("Discard") }
+                ) { Text(stringResource(R.string.discard_dialog_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep") }
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text(stringResource(R.string.discard_dialog_keep))
+                }
             },
         )
     }
@@ -285,7 +289,7 @@ private fun TrimSaveButton(
     val textColor = if (enabled) LimeInk else Color.White.copy(alpha = 0.5f)
 
     Text(
-        text = "SAVE",
+        text = stringResource(R.string.trim_save),
         color = textColor,
         style = MaterialTheme.typography.labelLarge,
         modifier = modifier

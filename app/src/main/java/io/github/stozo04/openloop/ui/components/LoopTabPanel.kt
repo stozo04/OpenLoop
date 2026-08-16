@@ -1,5 +1,6 @@
 package io.github.stozo04.openloop.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -42,6 +44,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.LimeInk
@@ -55,37 +58,39 @@ private val LOOP_PANEL_MAX_WIDTH = 520.dp
 private val CHIP_SIZE_INACTIVE = 48.dp
 private val CHIP_SIZE_ACTIVE = 56.dp
 
+// Resource ids, not Strings: this table is a top-level constant with no composable scope to resolve
+// copy in — and a literal here would never reach Play's app-strings translation.
 private data class LoopModeChip(
     val mode: BoomerangMode,
-    val accessibilityLabel: String,
-    val helpTitle: String,
-    val helpDescription: String,
+    @param:StringRes val accessibilityLabelRes: Int,
+    @param:StringRes val helpTitleRes: Int,
+    @param:StringRes val helpDescriptionRes: Int,
 )
 
 private val LOOP_MODE_CHIPS = listOf(
     LoopModeChip(
         mode = BoomerangMode.FORWARD,
-        accessibilityLabel = "Forward loop",
-        helpTitle = "Forward",
-        helpDescription = "Repeats your trim playing forward only — like a normal short loop.",
+        accessibilityLabelRes = R.string.loop_forward_label,
+        helpTitleRes = R.string.loop_forward_title,
+        helpDescriptionRes = R.string.loop_forward_description,
     ),
     LoopModeChip(
         mode = BoomerangMode.REVERSE,
-        accessibilityLabel = "Reverse loop",
-        helpTitle = "Reverse",
-        helpDescription = "Repeats your trim playing backward only.",
+        accessibilityLabelRes = R.string.loop_reverse_label,
+        helpTitleRes = R.string.loop_reverse_title,
+        helpDescriptionRes = R.string.loop_reverse_description,
     ),
     LoopModeChip(
         mode = BoomerangMode.FORWARD_THEN_REVERSE,
-        accessibilityLabel = "Forward then reverse",
-        helpTitle = "Boomerang",
-        helpDescription = "Plays forward, then backward, then repeats — the classic ping-pong boomerang.",
+        accessibilityLabelRes = R.string.loop_forward_then_reverse_label,
+        helpTitleRes = R.string.loop_forward_then_reverse_title,
+        helpDescriptionRes = R.string.loop_forward_then_reverse_description,
     ),
     LoopModeChip(
         mode = BoomerangMode.REVERSE_THEN_FORWARD,
-        accessibilityLabel = "Reverse then forward",
-        helpTitle = "Reverse then forward",
-        helpDescription = "Plays backward, then forward, then repeats — the mirror of Boomerang.",
+        accessibilityLabelRes = R.string.loop_reverse_then_forward_label,
+        helpTitleRes = R.string.loop_reverse_then_forward_title,
+        helpDescriptionRes = R.string.loop_reverse_then_forward_description,
     ),
 )
 
@@ -123,7 +128,7 @@ fun LoopTabPanel(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Select loop direction",
+                    text = stringResource(R.string.loop_select_direction),
                     color = Color.White.copy(alpha = 0.9f),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.testTag("loop_direction_title"),
@@ -136,7 +141,7 @@ fun LoopTabPanel(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Info,
-                        contentDescription = "What do the loop icons mean?",
+                        contentDescription = stringResource(R.string.loop_info_content_description),
                         tint = Color.White.copy(alpha = 0.85f),
                         modifier = Modifier.size(22.dp),
                     )
@@ -177,7 +182,7 @@ private fun LoopDirectionHelpDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Loop directions") },
+        title = { Text(stringResource(R.string.loop_help_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 LOOP_MODE_CHIPS.forEach { chip ->
@@ -201,12 +206,12 @@ private fun LoopDirectionHelpDialog(
                         }
                         Column {
                             Text(
-                                text = chip.helpTitle,
+                                text = stringResource(chip.helpTitleRes),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                text = chip.helpDescription,
+                                text = stringResource(chip.helpDescriptionRes),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = TextSecondary,
                             )
@@ -216,7 +221,7 @@ private fun LoopDirectionHelpDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Got it") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_got_it)) }
         },
     )
 }
@@ -233,6 +238,8 @@ private fun LoopModeButton(
     )
     val background = if (selected) ElectricLime else SurfaceContainerHigh
     val iconTint = if (selected) LimeInk else Color.White
+    // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
+    val chipLabel = stringResource(chip.accessibilityLabelRes)
 
     Box(
         modifier = Modifier
@@ -248,7 +255,7 @@ private fun LoopModeButton(
             )
             .clickable(role = Role.Button, onClick = onClick)
             .semantics {
-                contentDescription = chip.accessibilityLabel
+                contentDescription = chipLabel
                 this.selected = selected
                 role = Role.Button
             }

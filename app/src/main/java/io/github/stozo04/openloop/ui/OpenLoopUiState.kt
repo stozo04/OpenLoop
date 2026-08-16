@@ -1,5 +1,7 @@
 package io.github.stozo04.openloop.ui
 
+import androidx.annotation.StringRes
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
 import java.io.File
@@ -92,13 +94,20 @@ data class TrimState(
     val trimEndMs: Long = sourceDurationMs,
 )
 
-/** Context-specific copy for the editor preview overlay and full-screen export spinner. */
-enum class EditorLoadingKind(val message: String) {
-    TRIMMING("Trimming.."),
-    LOOPIFYING("Loopifying.."),
-    HOLD_TIGHT("Hold Tight.."),
-    FILTERING("Filtering.."),
-    DELETING("Deleting.."),
+/**
+ * Context-specific copy for the editor preview overlay and full-screen export spinner.
+ *
+ * [message] is a string resource id, not a `String`: this enum lives in the state layer, which must
+ * not hold resolved copy (Lesson 004 — no `Context` down here). The two consumers ([TrimScreen] and
+ * [BoomerangEditorScreen]) resolve it with `stringResource` in composable scope, which is also what
+ * keeps this copy visible to Play's app-strings translation.
+ */
+enum class EditorLoadingKind(@param:StringRes val message: Int) {
+    TRIMMING(R.string.editor_loading_trimming),
+    LOOPIFYING(R.string.editor_loading_loopifying),
+    HOLD_TIGHT(R.string.editor_loading_hold_tight),
+    FILTERING(R.string.editor_loading_filtering),
+    DELETING(R.string.editor_loading_deleting),
 }
 
 /** True while VideoReverser preview pass is running (pass 1/2); ExoPlayer must release codecs first. */
