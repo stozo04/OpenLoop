@@ -52,3 +52,8 @@ openloop-google-service-account-key-DO-NOT-COMMIT.json
 # Firebase Functions local secrets (for emulator / functions:shell) — NEVER commit
 *.secret.local
 functions/.secret.local
+
+# AR lens swarm — message churn and the generated viewer. The durable output
+# (decisions.md, LESSONS.md, research-*.md) IS tracked; see swarm/README.md.
+swarm/collab/bus/*.jsonl
+swarm/bus-follow.html

@@ -3,6 +3,12 @@
 **Single rule:** all project documentation lives under `docs/`. The only exceptions at the repo
 root are `README.md` and `CLAUDE.md` (convention).
 
+**Documented exception — `swarm/`** (owner, 2026-08-15). The two-agent lens-build harness is a
+*working tool*, not documentation: its `GOAL.md` / `SWARM-PROMPT.md` are pasted into agent sessions
+and its `tools/` render a live message bus. It stays out of `docs/` for two reasons — `docs/` is
+served publicly by GitHub Pages, and the harness must sit beside the code it drives. Its durable
+output lands here as `PRD-camera-lenses.md` §13. See [`../swarm/README.md`](../swarm/README.md).
+
 **Private docs:** owner-only notes (keystore paths, personal checklists) go in `docs/local/`.
 That folder is **gitignored** — never commit secrets there.
 
