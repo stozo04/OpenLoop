@@ -114,6 +114,146 @@ enum class Lens(
         // jaw around them; strength high enough to read as a caricature rather than a lens flaw.
         warp = WarpSpec(radiusInUnits = 1.0f, strength = 0.78f),
     ),
+
+    /** Two radial bulges centred on the tracked eyes; the thumbnail is carousel-only. */
+    BugEyes(
+        displayName = "Bug Eyes",
+        thumbnailRes = R.drawable.lens_bug_eyes,
+        art = null,
+        warp = WarpSpec(
+            radiusInUnits = 0.36f,
+            strength = 0.75f,
+            target = WarpTarget.EYES,
+        ),
+    ),
+
+    /**
+     * Pizza Face — an opaque **slice** worn as a head, crust across the brow and the tip below the
+     * chin, with the subject's own eyes and mouth composited onto the cheese. Character pattern,
+     * same as [Broccoli]. Source: owner-supplied `pizza-slice.jpg` (owner decision — a whole pie was
+     * tried first and rejected).
+     *
+     * **A wedge is not a disc, so none of these numbers survived from the pie.** The art tapers from
+     * a wide crust to a point, and a head tapers the same way — widest across the cheekbones,
+     * narrowing to the jaw — which is why a downward wedge is a better head-cover than its area
+     * suggests. It is also why sizing it off the centre line alone would be meaningless.
+     *
+     * The width was solved against the reference table rather than eyeballed: model the head as the
+     * ellipse those numbers describe (crown +1.25, chin −1.00, half-width 0.775 at the eye line),
+     * then find the smallest `widthInUnits` whose *measured* silhouette covers that ellipse at every
+     * height. At 3.45 the encoded wedge clears the head by at least **0.095 units everywhere**, with
+     * its narrowest margin down at y = −0.64 where the slice is tapering fastest — nowhere near the
+     * centre line, and exactly the place a single-point check would have missed. Top lands at
+     * **+1.40**, a 0.15-unit margin over the crown, matching [Football].
+     */
+    PizzaFace(
+        displayName = "Pizza Face",
+        thumbnailRes = R.drawable.lens_pizza,
+        art = LensArt(
+            drawableRes = R.drawable.lens_pizza_art,
+            placement = LensPlacement(
+                widthInUnits = 3.45f,
+                // Measured off the encoded 1024x972 asset per the A2 rule, not estimated.
+                artAspect = 0.949f,
+                // Drops the wedge so the crust sits above the brow and the tip falls past the chin.
+                upInUnits = -0.18f,
+            ),
+        ),
+        // Unchanged from the pie: these still land on cheese rather than crust, and the slice is
+        // wider than they need at both heights — 1.28 units available at the eye row against the
+        // 0.88 they span, and 0.76 at the mouth row against 0.58.
+        features = FeatureLayout(
+            eyeSpacingInUnits = 0.50f,
+            eyeUpInUnits = 0.30f,
+            eyeWidthInUnits = 0.75f,
+            mouthUpInUnits = -0.50f,
+            mouthWidthInUnits = 1.15f,
+        ),
+        warp = null,
+    ),
+
+    /**
+     * Football Head — the owner-supplied Wilson ball worn as a head, with the subject's own eyes
+     * and mouth composited onto it. Character pattern, same as [Broccoli].
+     *
+     * The ball is photographed **lying flat**, long axis horizontal, and it is kept that way: the
+     * Wilson script and NFL shield stay upright and readable, which is the whole point of the
+     * owner's ruling that the marks stay. Rotating the art to stand the ball on end would have made
+     * a head-shaped silhouette but laid both marks on their side.
+     *
+     * That orientation is what drives the width. A head is taller than it is wide (1.25 units from
+     * the eye line to the crown, ~1.0 down to the chin) while the art is **wider** than it is tall
+     * by the [LensPlacement.artAspect] below, so the only way an opaque ball covers brow-to-jaw is
+     * to be wide. At 4.7 units the
+     * encoded ellipse reaches 1.40 above the eye line — a 0.15-unit margin over the crown, matching
+     * [PizzaFace] — and 1.20 below it, clearing the chin. Checked at the *sides* too, not just the
+     * centre line: at the ear (±0.775 units) the ellipse has narrowed to ±1.23 and still covers
+     * crown and chin, which is the check a bounding box would have missed.
+     */
+    Football(
+        displayName = "Football",
+        thumbnailRes = R.drawable.lens_football,
+        art = LensArt(
+            drawableRes = R.drawable.lens_football_art,
+            placement = LensPlacement(
+                widthInUnits = 4.7f,
+                // Measured off the encoded asset (1024x585), not estimated — the art carries a
+                // 1.5% transparent margin, so the ball itself is ~97% of the quad.
+                artAspect = 0.571f,
+                // Just above the eye line: the ball's centre sits between brow and crown so the
+                // taller half of the head gets the deeper half of the ellipse.
+                upInUnits = 0.10f,
+            ),
+        ),
+        // The ball's own face. Placed on the upper-middle of the ellipse where the Wilson script
+        // sits and above the NFL shield, which is exactly the overlap the owner predicted when he
+        // ruled the marks stay. Wider mouth than [Broccoli]'s eye spacing suggests, because a
+        // horizontal ball gives the character a broad face and a narrow mouth reads pinched on it.
+        features = FeatureLayout(
+            eyeSpacingInUnits = 0.58f,
+            eyeUpInUnits = 0.45f,
+            eyeWidthInUnits = 0.80f,
+            mouthUpInUnits = -0.45f,
+            mouthWidthInUnits = 1.30f,
+        ),
+        warp = null,
+    ),
+
+    /**
+     * Dog — floppy ears and a snout, worn as a **prop**: [features] stays null so the subject's own
+     * face shows through between the ears. Same mechanism as [Sunglasses], and like it the one
+     * drawable serves as both art and carousel thumbnail (the tray uses `ContentScale.Fit`, so wide
+     * art letterboxes into the circle rather than being cropped).
+     *
+     * **The eyes are what set the ear positions.** An eye sits ~0.40 units off the centre line, and
+     * the head edge is at 0.775; an ear therefore has to live in the band between them — outboard
+     * enough to miss the eye, inboard enough to still meet the head. These ears run from 0.59 to
+     * 1.35 units, clearing each eye by 0.19. A first draft put the inner edges at 0.34 and sat them
+     * squarely on top of both eyes; that is arithmetic, so it was caught without a face
+     * (`swarm/tools/preview_lens.py`).
+     *
+     * Deliberately no drop-tongue. The canonical version animates a tongue on mouth-open, which
+     * needs a second sticker plus mouth-open detection plus animation state — a capability this
+     * renderer does not have and this change did not add.
+     */
+    Dog(
+        displayName = "Dog",
+        thumbnailRes = R.drawable.lens_dog,
+        art = LensArt(
+            drawableRes = R.drawable.lens_dog,
+            placement = LensPlacement(
+                widthInUnits = 2.90f,
+                // Measured from the authored 290x213 viewport, which is exactly 100 viewport units
+                // per face unit at this width — so every coordinate in the vector is readable as
+                // anatomy. Keep the two in sync if either changes.
+                artAspect = 0.7345f,
+                // Ear tips reach 1.45 above the eye line, clearing the 1.25 crown; the snout lands
+                // on the subject's own nose and stops well clear of the mouth at -1.0.
+                upInUnits = 0.385f,
+            ),
+        ),
+        warp = null,
+    ),
 }
 
 /** A lens's sticker: the drawable to composite and where it sits in the face frame. */

@@ -355,12 +355,33 @@ class LensAnchorTest {
         val frame = frameOf(snapshot)
         val spec = WarpSpec(radiusInUnits = 1.2f, strength = 0.7f)
 
-        val circle = LensAnchor.warp(snapshot, frame, spec)
+        val circle = LensAnchor.warps(snapshot, frame, spec).single()
 
         assertEquals(0.5f, circle.centerX, tolerance)
         assertEquals(0.60f, circle.centerY, tolerance)
         assertEquals(1.2f * frame.unit, circle.radius, tolerance)
         assertEquals(0.7f, circle.strength, tolerance)
+    }
+
+    @Test
+    fun warps_eyeTargetUsesBothTrackedEyes() {
+        val snapshot = face()
+        val frame = frameOf(snapshot)
+        val circles = LensAnchor.warps(
+            snapshot,
+            frame,
+            WarpSpec(radiusInUnits = 0.36f, strength = 0.75f, target = WarpTarget.EYES),
+        )
+
+        assertEquals(2, circles.size)
+        assertEquals(snapshot.leftEyeX, circles[0].centerX, tolerance)
+        assertEquals(snapshot.leftEyeY, circles[0].centerY, tolerance)
+        assertEquals(snapshot.rightEyeX, circles[1].centerX, tolerance)
+        assertEquals(snapshot.rightEyeY, circles[1].centerY, tolerance)
+        circles.forEach { circle ->
+            assertEquals(0.36f * frame.unit, circle.radius, tolerance)
+            assertEquals(0.75f, circle.strength, tolerance)
+        }
     }
 
     @Test

@@ -1,0 +1,92 @@
+<!--
+  Dog lens art — original, authored in this repo, Apache 2.0 (swarm decisions.md, lens 3).
+
+  Floppy ears plus a snout, drawn as a PROP: the middle is deliberately empty so the subject's own
+  face shows through between the ears. `features = null` on Lens.Dog.
+
+  The 290x213 viewport is a 0.7345 aspect and MUST stay in sync with Lens.Dog's artAspect.
+
+  Everything is positioned in the face frame first and then converted, so the numbers are checkable
+  rather than eyeballed. With widthInUnits = 2.90 the viewport is exactly 100 units per face unit,
+  and with upInUnits = 0.385 the art's top edge sits 1.45 units above the eye line:
+
+      face unit -> viewport y  =  (1.45 - u) * 100          centre line: x = 145
+
+      crown      +1.25  ->  y =  20
+      eye line    0.00  ->  y = 145
+      nose        -0.42 ->  y = 187
+      art bottom  -0.68 ->  y = 213
+
+  THE CONSTRAINT THAT SET THE EAR POSITIONS. An eye sits about 0.40 units off the centre line
+  (Lens.kt's KDoc records that interpupillary is ~0.8 of eye-to-mouth), i.e. x = 105 and x = 185.
+  The head edge is at 0.775 units, x = 42.5 and x = 247.5. So each ear has to live in the band
+  between them — outboard enough to clear the eye, inboard enough to still touch the head. These
+  ears run x = 12..86 and x = 204..278, clearing the eyes by 0.19 units on each side.
+
+  A first draft put the inner edges at 0.34 units and the schematic preview
+  (swarm/tools/preview_lens.py) showed them sitting straight on top of both eyes. That is the whole
+  reason the previewer exists — it is arithmetic, so it did not need a face to catch it.
+
+  Deliberately NOT here: the animated drop-tongue of the canonical Snapchat dog lens. That needs a
+  second sticker plus mouth-open detection plus animation state, which is a scope increase both
+  agents refused. Static ears and snout still read as "the dog filter".
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="145dp"
+    android:height="107dp"
+    android:viewportWidth="290"
+    android:viewportHeight="213">
+
+  <!-- Ear outers. Attached at the crown, bellying outward past the head edge, rounding to a soft
+       tip just below the eye line. Left and right are exact mirrors about x = 145. -->
+  <path
+      android:fillColor="#FF8C5A32"
+      android:pathData="M76,22
+                        C48,26 16,58 12,102
+                        C9,132 22,156 44,153
+                        C68,150 84,128 85,100
+                        C86,68 88,32 76,22 Z
+                        M214,22
+                        C242,26 274,58 278,102
+                        C281,132 268,156 246,153
+                        C222,150 206,128 205,100
+                        C204,68 202,32 214,22 Z" />
+
+  <!-- Ear inners, inset so a rim of the outer colour always reads as the edge of the ear. -->
+  <path
+      android:fillColor="#FF5E3A1E"
+      android:pathData="M76,42
+                        C56,48 34,74 31,106
+                        C29,128 38,144 52,141
+                        C66,138 76,120 77,98
+                        C78,74 82,50 76,42 Z
+                        M214,42
+                        C234,48 256,74 259,106
+                        C261,128 252,144 238,141
+                        C224,138 214,120 213,98
+                        C212,74 208,50 214,42 Z" />
+
+  <!-- Snout. Centred on the face's centre line and sitting on the subject's own nose: it spans
+       -0.22 to -0.62 units, below the eyes and well clear of the mouth at -1.0. -->
+  <path
+      android:fillColor="#FF221C18"
+      android:pathData="M145,167
+                        C161,167 173,175 173,186
+                        C173,198 160,207 145,207
+                        C130,207 117,198 117,186
+                        C117,175 129,167 145,167 Z" />
+
+  <!-- Nostril dimples and one specular highlight — the cheapest cue that reads as "wet nose"
+       rather than "black blob" at carousel size. -->
+  <path
+      android:fillAlpha="0.55"
+      android:fillColor="#FF000000"
+      android:pathData="M135,180 A4,6 0 1 1 135,181 Z
+                        M155,180 A4,6 0 1 1 155,181 Z" />
+  <path
+      android:fillAlpha="0.30"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M131,174
+                        C138,171 152,171 159,174
+                        C152,177 138,177 131,174 Z" />
+</vector>

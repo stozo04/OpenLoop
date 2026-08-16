@@ -430,3 +430,84 @@ Resource names are extension-independent, so `R.drawable.lens_broccoli*` is unch
 * [MediaPipe Face Landmarker (Android)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker/android)
 * [Snap Camera Kit](https://developers.snap.com/camera-kit/home) · [Camera Kit Terms](https://www.snap.com/terms/snap-camera-kit)
 * [Sceneform Augmented Faces guide](https://developers.google.com/sceneform/develop/augmented-faces/developer-guide) (archived) · [SceneView fork](https://github.com/SceneView/sceneform-android/releases)
+
+---
+
+## 13. 2026-08-15 expansion — four new lenses, seven total
+
+The catalogue now contains the original **Broccoli**, **Shades**, and **Big Mouth**, plus four
+evidence-selected additions: **Bug Eyes**, **Pizza Face**, **Football**, and **Dog**. The candidates,
+sources, disagreements, kills, and final mutual ACK are preserved in
+`swarm/collab/research-codex.md`, `research-claude.md`, and `decisions.md`; this section records the
+result as built.
+
+| Lens | Tier | Final data | Art |
+|---|---|---|---|
+| Bug Eyes | warp | Two circles centred exactly on `FaceSnapshot.leftEye` and `rightEye`; radius `0.36`, strength `0.75`, target `EYES` | Original in-repo carousel vector; no live sticker art |
+| Pizza Face | character | width `3.6`, aspect `1.005`, up `-0.4`; features `0.50 / 0.30 / 0.75 / -0.50 / 1.15` | Original generated near-photo food source, keyed to 1019×1024 WebP plus 255×256 thumbnail |
+| Football | character | width `4.7`, aspect `0.571`, up `0.10`; features `0.58 / 0.45 / 0.80 / -0.45 / 1.30` | Owner-provided `football.jpg`, keyed to 1024×585 WebP plus 256×146 thumbnail; known source clip at the left tip retained honestly |
+| Dog | prop | width `2.90`, aspect `0.7345`, up `0.385`; no feature compositing or warp | Original 290×213 in-repo vector; same resource is reused for the carousel |
+
+Feature tuples are `eyeSpacing / eyeUp / eyeWidth / mouthUp / mouthWidth`, in face units. Every
+photographic asset is at or below the renderer's 1024-pixel long-side limit, uses lossless alpha,
+has transparent corners, and has no baked cast shadow. Pizza's first five-circle vector draft was
+rejected as clip-art and removed; the shipped carousel and live art both use the near-photo source.
+Kayley accepted the replacement on 2026-08-15 after inspecting the encoded file.
+
+### Generic two-eye warp
+
+`WarpSpec` gained the anatomical `WarpTarget` values `MOUTH` and `EYES`, defaulting to `MOUTH`.
+`LensAnchor.warps()` therefore produces one unchanged mouth circle for Big Mouth or two landmark-
+centred eye circles for Bug Eyes. `LensSurfaceProcessor` binds two generic uniform sets and applies
+the same shader function twice; an unused set is disabled with `WarpCircle.NONE`. No renderer,
+tracker, UI, camera, or capture branch names a lens, and the default keeps Big Mouth's centre,
+radius, and strength unchanged.
+
+`LensAnchorTest.warps_eyeTargetUsesBothTrackedEyes` is the smallest regression check for the new
+branch. It asserts two circles and exact landmark centres; the existing mouth-centred test protects
+the old path.
+
+### Final-tree verification
+
+On 2026-08-15, one no-daemon invocation of `assembleDebug`, `assembleRelease`,
+`testDebugUnitTest`, and `lintDebug` completed with `BUILD SUCCESSFUL` (107 tasks; 3 executed,
+104 up-to-date after the preceding uncached execution). Debug lint had **zero errors**, 25 visible
+warnings, and 11 baseline-filtered warnings; this is not represented as warning-clean. The unit
+result XML totals **381 tests, 0 failures, 0 errors, 0 skipped**, and the release APK passes
+`zipalign -c -P 16 4` with exit 0.
+
+The Pixel_8 AVD walk-to-image-room run reached the stock dining-room portrait, which ML Kit detects
+even though it is a painting rather than a real face. All seven carousel labels rendered. Football
+rendered in the live preview, and the pulled saved JPEG plus frame 60 from the pulled 720×1280,
+26.9-second MP4 both contain the composited lens with no UI chrome. Recording finalized cleanly;
+logcat showed `targets=3`, 1280×960 lens output, 640×480 analysis, and no
+`ERROR_SOURCE_INACTIVE`. Evidence is in `swarm/collab/evidence-claude/`.
+
+Bug Eyes and Dog were then selected against the same detected portrait. The Bug Eyes comparison
+shows two independently firing circles with the nose bridge unchanged; Dog shows both ears clear of
+the detected eyes and the snout on the nose. These are useful bind/shader/placement checks, not look
+approval: Kayley kept Bug Eyes' joke magnitude and Dog's human-face fit in Steven's hardware lane.
+
+Pizza v2 was recaptured only after reinstalling and pulling the installed APK back from the device.
+Its embedded `lens_pizza_art.webp` is byte-identical to the repo asset (337,878 bytes; SHA-1 prefix
+`a53a010b5cbc`). Evidence `10-pizza-v2-VERIFIED-hash-checked-install.png` visibly shows the accepted
+near-photo pizza, with the tracked eyes and mouth composited through it and the painted head covered.
+The stale v1 capture remains explicitly named `09-REJECTED-...-DO-NOT-USE.png`; it is not shipping
+evidence. Evidence `11-dod-run-screenshot-full.png` is the final full-screen Pixel_8 run proof.
+
+That closes the bind/render/photo/video-bake path, including the explicit question of whether the
+preview-bitmap photo path drops the lens: it does not. It does **not** turn the painting into
+hardware QA. Kayley ruled that its oversized painted head cannot pass or fail character coverage or
+the Bug Eyes visual-read gate; Football stays at the table-derived width `4.7` rather than being
+inflated against the painting.
+
+The Pixel_8 instrumented gate initially exposed two real failures in `LensCarouselTest`: once the
+catalogue reached seven entries, the trailing `LazyRow` thumbnails were not composed until scrolled
+into view. The test now scrolls to each catalogue entry before retaining the same displayed and
+48 dp touch-target assertions; no production carousel code changed. The fresh result XML records
+**102 tests, 0 failures, 0 errors, 1 skipped**.
+
+Real-face quality remains a hardware gate owned by Steven: front/back mirroring, head roll,
+portrait/landscape alignment, steadiness and flicker, fast movement, distance scaling, no-face
+pass-through, and whether each joke actually looks good. A static emulator poster can prove bind,
+render, capture, and saved-media paths; it cannot prove those human-facing behaviours.

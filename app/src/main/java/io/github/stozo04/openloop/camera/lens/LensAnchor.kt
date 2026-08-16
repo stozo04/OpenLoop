@@ -150,9 +150,12 @@ data class StickerQuad(
  * How a warp lens deforms the frame, in face units. [radiusInUnits] scales with the face;
  * [strength] is the peak magnification at the centre (0f = off).
  */
+enum class WarpTarget { MOUTH, EYES }
+
 data class WarpSpec(
     val radiusInUnits: Float,
     val strength: Float,
+    val target: WarpTarget = WarpTarget.MOUTH,
 )
 
 /**
@@ -357,23 +360,29 @@ object LensAnchor {
     /** Height / width for every feature cut-out — eyes and mouths are both wider than they are tall. */
     private const val FEATURE_ASPECT = 0.62f
 
-    /**
-     * Resolves [spec] onto the mouth, scaled by the same face unit every lens uses.
-     *
-     * No aspect argument: the centre is normalized and the radius is already in square space
-     * (it comes from [FaceFrame.unit]), so the shader does the one conversion — see
-     * `LensSurfaceProcessor.CAMERA_FRAGMENT_SHADER`.
-     */
-    fun warp(
+    /** Resolves [spec] onto its tracked anatomy, scaled by the same face unit every lens uses. */
+    fun warps(
         face: FaceSnapshot,
         frame: FaceFrame,
         spec: WarpSpec,
-    ): WarpCircle = WarpCircle(
-        centerX = (face.mouthLeftX + face.mouthRightX) / 2f,
-        centerY = (face.mouthLeftY + face.mouthRightY) / 2f,
-        radius = spec.radiusInUnits * frame.unit,
-        strength = spec.strength,
-    )
+    ): List<WarpCircle> {
+        fun circle(x: Float, y: Float) = WarpCircle(
+            centerX = x,
+            centerY = y,
+            radius = spec.radiusInUnits * frame.unit,
+            strength = spec.strength,
+        )
+        return when (spec.target) {
+            WarpTarget.MOUTH -> listOf(circle(
+                (face.mouthLeftX + face.mouthRightX) / 2f,
+                (face.mouthLeftY + face.mouthRightY) / 2f,
+            ))
+            WarpTarget.EYES -> listOf(
+                circle(face.leftEyeX, face.leftEyeY),
+                circle(face.rightEyeX, face.rightEyeY),
+            )
+        }
+    }
 
     /**
      * Rewrites a face measured in the **upright** image into **camera-buffer** coordinates.

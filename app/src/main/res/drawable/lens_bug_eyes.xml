@@ -1,0 +1,31 @@
+<!-- Carousel icon only; the live lens is a two-circle camera warp with no art overlay. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="256dp"
+    android:height="256dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+    <path
+        android:fillColor="#FFF1BE93"
+        android:pathData="M128,8 a120,120 0,1 1,0 240 a120,120 0,1 1,0 -240 Z" />
+
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M70,38 a55,68 0,1 1,0 136 a55,68 0,1 1,0 -136 Z
+                          M186,38 a55,68 0,1 1,0 136 a55,68 0,1 1,0 -136 Z" />
+
+    <path
+        android:fillColor="#FF20242C"
+        android:pathData="M76,76 a20,28 0,1 1,0 56 a20,28 0,1 1,0 -56 Z
+                          M180,76 a20,28 0,1 1,0 56 a20,28 0,1 1,0 -56 Z" />
+
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillAlpha="0.72"
+        android:pathData="M68,70 a7,9 0,1 1,0 18 a7,9 0,1 1,0 -18 Z
+                          M172,70 a7,9 0,1 1,0 18 a7,9 0,1 1,0 -18 Z" />
+
+    <path
+        android:fillColor="#FF9B3A46"
+        android:pathData="M91,201 C108,220 148,220 165,201 C153,232 103,232 91,201 Z" />
+</vector>

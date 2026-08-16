@@ -256,10 +256,10 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         frameAspect: Float,
     ) {
         val spec = lens?.warp
-        val warp = if (spec != null && snapshot != null && faceFrame != null) {
-            LensAnchor.warp(snapshot, faceFrame, spec)
+        val warps = if (spec != null && snapshot != null && faceFrame != null) {
+            LensAnchor.warps(snapshot, faceFrame, spec)
         } else {
-            WarpCircle.NONE
+            emptyList()
         }
 
         GLES20.glUseProgram(cameraProgram)
@@ -275,13 +275,17 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             outputTextureMatrix,
             0,
         )
-        GLES20.glUniform2f(
-            GLES20.glGetUniformLocation(cameraProgram, "uWarpCenter"),
-            warp.centerX,
-            warp.centerY,
-        )
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uWarpRadius"), warp.radius)
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uWarpStrength"), warp.strength)
+        fun bindWarp(index: Int, warp: WarpCircle) {
+            GLES20.glUniform2f(
+                GLES20.glGetUniformLocation(cameraProgram, "uWarpCenter$index"),
+                warp.centerX,
+                warp.centerY,
+            )
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uWarpRadius$index"), warp.radius)
+            GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uWarpStrength$index"), warp.strength)
+        }
+        bindWarp(0, warps.getOrNull(0) ?: WarpCircle.NONE)
+        bindWarp(1, warps.getOrNull(1) ?: WarpCircle.NONE)
         GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uFrameAspect"), frameAspect)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
@@ -630,38 +634,45 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         """
 
         /**
-         * Camera pass. Samples the external OES texture, optionally through a radial bulge centred
-         * on the mouth — the whole of the Big Mouth lens is the `uWarpStrength` branch below. The
-         * warp is computed in *square space* (y scaled by the frame aspect) so the affected region
-         * is a circle in pixels rather than an ellipse.
+         * Camera pass. Samples the external OES texture, optionally through up to two radial
+         * bulges. Each warp is computed in *square space* (y scaled by the frame aspect) so the
+         * affected region is a circle in pixels rather than an ellipse.
          */
         const val CAMERA_FRAGMENT_SHADER = """
             #extension GL_OES_EGL_image_external : require
             precision mediump float;
             uniform samplerExternalOES uCamera;
             uniform mat4 uTexMatrix;
-            uniform vec2 uWarpCenter;
-            uniform float uWarpRadius;
-            uniform float uWarpStrength;
+            uniform vec2 uWarpCenter0;
+            uniform float uWarpRadius0;
+            uniform float uWarpStrength0;
+            uniform vec2 uWarpCenter1;
+            uniform float uWarpRadius1;
+            uniform float uWarpStrength1;
             uniform float uFrameAspect;
             varying vec2 vTexCoord;
-            void main() {
-                // Screen space, y down, to match LensAnchor.
-                vec2 uv = vec2(vTexCoord.x, 1.0 - vTexCoord.y);
-                if (uWarpStrength > 0.0 && uWarpRadius > 0.0) {
-                    vec2 delta = uv - uWarpCenter;
+            vec2 applyWarp(vec2 uv, vec2 center, float radius, float strength) {
+                if (strength > 0.0 && radius > 0.0) {
+                    vec2 delta = uv - center;
                     // → square space: a y unit spans `height` px against x's `width`, so dividing
                     // by the aspect puts both axes on the same scale (LensAnchor.toSquareY).
                     delta.y /= uFrameAspect;
                     float dist = length(delta);
-                    if (dist < uWarpRadius) {
-                        float falloff = 1.0 - dist / uWarpRadius;
+                    if (dist < radius) {
+                        float falloff = 1.0 - dist / radius;
                         // Sampling closer to the centre magnifies; squared falloff keeps the rim smooth.
-                        delta *= 1.0 - uWarpStrength * falloff * falloff;
+                        delta *= 1.0 - strength * falloff * falloff;
                         delta.y *= uFrameAspect;
-                        uv = uWarpCenter + delta;
+                        uv = center + delta;
                     }
                 }
+                return uv;
+            }
+            void main() {
+                // Screen space, y down, to match LensAnchor.
+                vec2 uv = vec2(vTexCoord.x, 1.0 - vTexCoord.y);
+                uv = applyWarp(uv, uWarpCenter0, uWarpRadius0, uWarpStrength0);
+                uv = applyWarp(uv, uWarpCenter1, uWarpRadius1, uWarpStrength1);
                 vec2 sampleCoord = vec2(uv.x, 1.0 - uv.y);
                 gl_FragColor = texture2D(uCamera, (uTexMatrix * vec4(sampleCoord, 0.0, 1.0)).xy);
             }
