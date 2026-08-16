@@ -439,6 +439,81 @@ enum class Lens(
         ),
         warp = null,
     ),
+
+    /**
+     * Elvis — gold aviator shades, pompadour quiff, and sideburns. Multi-layer prop lens with
+     * parts on different vertical positions and symmetric horizontal offsets.
+     *
+     * A **prop**, not a character — [features] stays null and the subject's own face shows through.
+     * Three layers on the FACE anchor at different heights and lateral positions.
+     *
+     * ## The numbers
+     *
+     * Solved against the reference table at the top of this file, not eyeballed:
+     *
+     * * **Aviator shades.** 2.1 units wide (wider than Sunglasses' 1.9 — aviators overhang) to
+     *   reach beyond the head sides at ±1.05, giving the characteristic aviator look. Rests on the
+     *   bridge at +0.06, same vertical position as Sunglasses.
+     * * **Pompadour.** 1.4 units wide, positioned well above the crown at +1.60 (crown is +1.25).
+     *   High quiff is the defining Elvis feature.
+     * * **Sideburns.** 0.30 units wide each, positioned at ±0.62 off centre to run down the cheeks
+     *   from just below the ears (head half-width is 0.775, so sideburns start inboard of the ear
+     *   line). Positioned at +0.15 vertically, which puts them from the eye line down toward the
+     *   jaw. Draw order: shades first (base layer), then pompadour and sideburns on top.
+     */
+    Elvis(
+        displayName = "Elvis",
+        thumbnailRes = R.drawable.lens_elvis,
+        art = listOf(
+            // Shades drawn first so they form the base layer.
+            LensArt(
+                drawableRes = R.drawable.lens_elvis_shades,
+                placement = LensPlacement(
+                    widthInUnits = 2.1f,
+                    // Measured off the authored 420x176 viewport.
+                    artAspect = 0.419f,
+                    // Rests on the bridge, same as Sunglasses.
+                    upInUnits = 0.06f,
+                ),
+            ),
+            // Pompadour on top of the head.
+            LensArt(
+                drawableRes = R.drawable.lens_elvis_pompadour,
+                placement = LensPlacement(
+                    widthInUnits = 1.4f,
+                    // Measured off the authored 280x320 viewport.
+                    artAspect = 1.143f,
+                    // Well above the crown (+1.25), distinctive high quiff.
+                    upInUnits = 1.60f,
+                ),
+            ),
+            // Left sideburn.
+            LensArt(
+                drawableRes = R.drawable.lens_elvis_sideburns,
+                placement = LensPlacement(
+                    widthInUnits = 0.30f,
+                    // Measured off the authored 60x180 viewport.
+                    artAspect = 3.0f,
+                    // Positioned down from eye line toward jaw.
+                    upInUnits = 0.15f,
+                    // Left side, negative rightInUnits.
+                    rightInUnits = -0.62f,
+                ),
+            ),
+            // Right sideburn (same art, mirrored by positive offset).
+            LensArt(
+                drawableRes = R.drawable.lens_elvis_sideburns,
+                placement = LensPlacement(
+                    widthInUnits = 0.30f,
+                    artAspect = 3.0f,
+                    upInUnits = 0.15f,
+                    // Right side, positive rightInUnits.
+                    rightInUnits = 0.62f,
+                ),
+            ),
+        ),
+        warp = null,
+    ),
 }
 
 /** A lens's sticker: the drawable to composite and where it sits in the face frame. */

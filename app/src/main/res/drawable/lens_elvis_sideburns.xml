@@ -1,0 +1,54 @@
+<!--
+  Elvis sideburns art - used twice with mirrored rightInUnits.
+
+  The 60x180 viewport gives a 3.0 aspect and MUST stay in sync with Lens.Elvis's artAspect
+  for the sideburns layers. Runs down the cheek from just below the ear.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="30dp"
+    android:height="90dp"
+    android:viewportWidth="60"
+    android:viewportHeight="180">
+
+  <!-- Main sideburn shape - tapers from ear toward jaw. -->
+  <path
+      android:fillColor="#FF1A1A1A"
+      android:pathData="M10,0
+                        L50,0
+                        Q55,30 52,60
+                        Q50,90 47,120
+                        Q45,150 40,170
+                        L35,180
+                        L25,180
+                        L20,170
+                        Q15,150 13,120
+                        Q10,90 8,60
+                        Q5,30 10,0 Z" />
+
+  <!-- Inner gradient for texture. -->
+  <path
+      android:fillColor="#FF2A2A2A"
+      android:pathData="M18,10
+                        L42,10
+                        Q46,35 44,65
+                        Q42,95 40,125
+                        Q38,155 35,168
+                        L32,172
+                        L28,172
+                        L25,168
+                        Q22,155 20,125
+                        Q18,95 16,65
+                        Q14,35 18,10 Z" />
+
+  <!-- Highlight edge for dimension. -->
+  <path
+      android:fillAlpha="0.18"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M15,5
+                        L20,5
+                        Q18,40 17,80
+                        Q16,120 16,150
+                        L14,150
+                        Q14,120 15,80
+                        Q16,40 15,5 Z" />
+</vector>

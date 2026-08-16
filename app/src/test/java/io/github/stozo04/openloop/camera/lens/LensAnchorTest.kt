@@ -981,6 +981,89 @@ class LensAnchorTest {
         }
     }
 
+    // ---------------------------------------------------------------- Elvis lens geometry
+
+    @Test
+    fun elvis_shadesWiderThanSunglasses() {
+        // Elvis aviators must overhang more than standard Sunglasses.
+        val elvisShades = Lens.Elvis.art.first()
+        val sunglasses = Lens.Sunglasses.art.first()
+
+        assertTrue(
+            "Elvis aviators (${elvisShades.placement.widthInUnits}) must be wider than " +
+                "Sunglasses (${sunglasses.placement.widthInUnits})",
+            elvisShades.placement.widthInUnits > sunglasses.placement.widthInUnits,
+        )
+    }
+
+    @Test
+    fun elvis_pompadourAboveTheCrown() {
+        // The pompadour must sit well above the crown (+1.25 units).
+        val pompadour = Lens.Elvis.art[1]
+
+        assertTrue(
+            "Elvis pompadour at ${pompadour.placement.upInUnits} must be well above " +
+                "the crown at $CROWN_UNITS",
+            pompadour.placement.upInUnits > CROWN_UNITS + 0.2f,
+        )
+    }
+
+    @Test
+    fun elvis_sideburnsSymmetricAndInboard() {
+        // Sideburns must be symmetric (same magnitude, opposite signs) and inboard of the head edge.
+        val leftSideburn = Lens.Elvis.art[2]
+        val rightSideburn = Lens.Elvis.art[3]
+
+        assertEquals(
+            "Sideburns must be symmetric",
+            -leftSideburn.placement.rightInUnits,
+            rightSideburn.placement.rightInUnits,
+            tolerance,
+        )
+
+        val sideburnOffset = abs(leftSideburn.placement.rightInUnits)
+        val halfSideburnWidth = leftSideburn.placement.widthInUnits / 2f
+
+        assertTrue(
+            "Sideburn outer edge at ${sideburnOffset + halfSideburnWidth} must stay inside " +
+                "the head edge at $HEAD_HALF_WIDTH_UNITS",
+            sideburnOffset + halfSideburnWidth < HEAD_HALF_WIDTH_UNITS,
+        )
+        assertTrue(
+            "Sideburns must be offset from centre line",
+            sideburnOffset > 0.3f,
+        )
+    }
+
+    @Test
+    fun elvis_allLayersStayOnFace() {
+        // All Elvis layers must resolve to reasonable positions on a face.
+        val subject = face()
+        val frame = frameOf(subject)
+
+        Lens.Elvis.art.forEachIndexed { index, art ->
+            val quad = LensAnchor.sticker(subject, frame, art.placement, frameAspect)
+
+            // All layers must be reasonably positioned.
+            assertTrue(
+                "Elvis layer $index centerX ${quad.centerX} is off frame",
+                quad.centerX in 0f..1f,
+            )
+            assertTrue(
+                "Elvis layer $index centerY ${quad.centerY} is off frame",
+                quad.centerY in -0.2f..1.2f,
+            )
+        }
+    }
+
+    @Test
+    fun elvis_isAProp_notACharacter() {
+        // Elvis is a prop lens, so the subject's face shows through.
+        assertNull("Elvis is a prop, not a character replacement", Lens.Elvis.features)
+        assertNull("Elvis has no warp effect", Lens.Elvis.warp)
+        assertTrue("Elvis must have art layers", Lens.Elvis.art.isNotEmpty())
+    }
+
     // ---------------------------------------------------------------- character head coverage
 
     @Test

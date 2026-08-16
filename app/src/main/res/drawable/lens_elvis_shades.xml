@@ -1,0 +1,67 @@
+<!--
+  Elvis aviator shades art.
+
+  The 420x176 viewport gives a 0.419 aspect and MUST stay in sync with Lens.Elvis's artAspect
+  for the shades layer. Wider than Sunglasses (400x144) to achieve the aviator overhang look.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/apk/res-auto"
+    android:width="210dp"
+    android:height="88dp"
+    android:viewportWidth="420"
+    android:viewportHeight="176">
+
+  <!-- Arms, drawn first so the frames sit over them. Gold color. -->
+  <path
+      android:fillColor="#FFD4AF37"
+      android:pathData="M0,68 L28,68 L28,96 L0,96 Z
+                        M392,68 L420,68 L420,96 L392,96 Z" />
+
+  <!-- Bridge, gold. -->
+  <path
+      android:fillColor="#FFD4AF37"
+      android:pathData="M192,58 L228,58 L228,82 L192,82 Z" />
+
+  <!-- Left frame - gold with slight teardrop aviator shape. -->
+  <path
+      android:fillColor="#FFD4AF37"
+      android:pathData="M48,20 L168,20 A38,38 0 0 1 206,58 L206,94 A44,44 0 0 1 162,138 L54,138 A44,44 0 0 1 10,94 L10,58 A38,38 0 0 1 48,20 Z" />
+
+  <!-- Right frame - gold with slight teardrop aviator shape. -->
+  <path
+      android:fillColor="#FFD4AF37"
+      android:pathData="M252,20 L372,20 A38,38 0 0 1 410,58 L410,94 A44,44 0 0 1 366,138 L258,138 A44,44 0 0 1 214,94 L214,58 A38,38 0 0 1 252,20 Z" />
+
+  <!-- Left lens - dark gradient for reflective look. -->
+  <path android:pathData="M54,34 L162,34 A32,32 0 0 1 194,66 L194,94 A36,36 0 0 1 158,130 L60,130 A36,36 0 0 1 24,94 L24,66 A32,32 0 0 1 54,34 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="109"
+          android:centerY="72"
+          android:gradientRadius="80"
+          android:startColor="#FF1A1A1A"
+          android:endColor="#FF000000" />
+    </aapt:attr>
+  </path>
+
+  <!-- Right lens - dark gradient for reflective look. -->
+  <path android:pathData="M258,34 L366,34 A32,32 0 0 1 398,66 L398,94 A36,36 0 0 1 362,130 L264,130 A36,36 0 0 1 228,94 L228,66 A32,32 0 0 1 258,34 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="radial"
+          android:centerX="313"
+          android:centerY="72"
+          android:gradientRadius="80"
+          android:startColor="#FF1A1A1A"
+          android:endColor="#FF000000" />
+    </aapt:attr>
+  </path>
+
+  <!-- Gloss streaks on lenses. -->
+  <path
+      android:fillAlpha="0.32"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M56,120 L104,46 L128,46 L80,120 Z
+                        M260,120 L308,46 L332,46 L284,120 Z" />
+</vector>

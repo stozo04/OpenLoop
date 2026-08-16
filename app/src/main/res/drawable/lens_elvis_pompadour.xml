@@ -1,0 +1,67 @@
+<!--
+  Elvis pompadour/quiff art.
+
+  The 280x320 viewport gives a 1.143 aspect and MUST stay in sync with Lens.Elvis's artAspect
+  for the pompadour layer. High, swept-back hair characteristic of Elvis style.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="140dp"
+    android:height="160dp"
+    android:viewportWidth="280"
+    android:viewportHeight="320">
+
+  <!-- Main pompadour volume - glossy black with blue highlights. -->
+  <path
+      android:fillColor="#FF1A1A1A"
+      android:pathData="M140,20 
+                        C100,20 70,40 50,70
+                        C40,90 35,115 35,145
+                        L35,200
+                        C35,240 50,270 80,290
+                        C110,310 130,315 140,315
+                        C150,315 170,310 200,290
+                        C230,270 245,240 245,200
+                        L245,145
+                        C245,115 240,90 230,70
+                        C210,40 180,20 140,20 Z" />
+
+  <!-- Highlight sweep - the iconic pompadour volume. -->
+  <path
+      android:fillColor="#FF2A2A3A"
+      android:pathData="M140,25
+                        C105,25 78,42 62,68
+                        C54,84 50,105 50,130
+                        L50,165
+                        C50,190 58,210 75,225
+                        C92,240 115,248 140,248
+                        C165,248 188,240 205,225
+                        C222,210 230,190 230,165
+                        L230,130
+                        C230,105 226,84 218,68
+                        C202,42 175,25 140,25 Z" />
+
+  <!-- Front wave/curl of the pompadour. -->
+  <path
+      android:fillColor="#FF000000"
+      android:pathData="M70,160
+                        Q70,120 90,90
+                        Q110,60 140,55
+                        Q170,60 190,90
+                        Q210,120 210,160
+                        L210,190
+                        Q210,210 195,220
+                        Q180,230 140,230
+                        Q100,230 85,220
+                        Q70,210 70,190 Z" />
+
+  <!-- Top highlight for shine. -->
+  <path
+      android:fillAlpha="0.22"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M100,75
+                        Q120,60 140,58
+                        Q160,60 180,75
+                        L170,100
+                        Q155,90 140,90
+                        Q125,90 110,100 Z" />
+</vector>
