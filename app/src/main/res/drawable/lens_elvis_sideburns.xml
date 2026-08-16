@@ -1,54 +1,104 @@
 <!--
-  Elvis sideburns art - used twice with mirrored rightInUnits.
+  Elvis sideburns art — original, authored in this repo, Apache 2.0. Used twice with mirrored
+  rightInUnits (±0.62).
 
-  The 60x180 viewport gives a 3.0 aspect and MUST stay in sync with Lens.Elvis's artAspect
-  for the sideburns layers. Runs down the cheek from just below the ear.
+  The 60x150 viewport gives a 2.5 aspect and MUST stay in sync with Lens.Elvis's artAspect.
+  Tapered hair running from temple/ear down the cheek toward the jaw. Dark hair matching the
+  pompadour style, with texture and flow. NOT flat black bars.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/apk/res-auto"
     android:width="30dp"
-    android:height="90dp"
+    android:height="75dp"
     android:viewportWidth="60"
-    android:viewportHeight="180">
+    android:viewportHeight="150">
 
-  <!-- Main sideburn shape - tapers from ear toward jaw. -->
+  <!-- Base sideburn shape — tapers from wide at temple to narrow toward jaw. -->
   <path
-      android:fillColor="#FF1A1A1A"
-      android:pathData="M10,0
-                        L50,0
-                        Q55,30 52,60
-                        Q50,90 47,120
-                        Q45,150 40,170
-                        L35,180
-                        L25,180
-                        L20,170
-                        Q15,150 13,120
-                        Q10,90 8,60
-                        Q5,30 10,0 Z" />
+      android:pathData="M8,0
+                        L52,0
+                        Q55,15 54,35
+                        Q53,55 51,75
+                        Q49,95 46,115
+                        Q43,135 38,145
+                        L32,150
+                        L28,150
+                        L22,145
+                        Q17,135 14,115
+                        Q11,95 9,75
+                        Q7,55 6,35
+                        Q5,15 8,0 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="linear"
+          android:startX="30"
+          android:startY="0"
+          android:endX="30"
+          android:endY="150"
+          android:startColor="#FF1C1815"
+          android:endColor="#FF0E0D0B" />
+    </aapt:attr>
+  </path>
 
-  <!-- Inner gradient for texture. -->
+  <!-- Inner contour — lighter for hair volume. -->
   <path
-      android:fillColor="#FF2A2A2A"
-      android:pathData="M18,10
-                        L42,10
-                        Q46,35 44,65
-                        Q42,95 40,125
-                        Q38,155 35,168
-                        L32,172
-                        L28,172
-                        L25,168
-                        Q22,155 20,125
-                        Q18,95 16,65
-                        Q14,35 18,10 Z" />
+      android:fillColor="#FF27231F"
+      android:pathData="M16,6
+                        L44,6
+                        Q46,22 45,42
+                        Q44,62 42,82
+                        Q40,102 37,122
+                        Q35,138 32,143
+                        L30,145
+                        L28,143
+                        Q25,138 23,122
+                        Q20,102 18,82
+                        Q16,62 15,42
+                        Q14,22 16,6 Z" />
 
-  <!-- Highlight edge for dimension. -->
+  <!-- Highlight edge — catches light on the forward contour. -->
   <path
-      android:fillAlpha="0.18"
-      android:fillColor="#FFFFFFFF"
-      android:pathData="M15,5
-                        L20,5
-                        Q18,40 17,80
-                        Q16,120 16,150
-                        L14,150
-                        Q14,120 15,80
-                        Q16,40 15,5 Z" />
+      android:fillAlpha="0.22"
+      android:pathData="M12,2
+                        Q10,30 9,60
+                        Q8,90 8,120
+                        Q8,135 10,143
+                        L11,2 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="linear"
+          android:startX="10"
+          android:startY="2"
+          android:endX="10"
+          android:endY="143"
+          android:startColor="#FFFFFFFF"
+          android:endColor="#00FFFFFF" />
+    </aapt:attr>
+  </path>
+
+  <!-- Hair texture strokes — directional flow lines. -->
+  <path
+      android:fillAlpha="0.15"
+      android:fillColor="#FF000000"
+      android:pathData="M20,15 Q22,40 23,70 Q24,100 25,130 L23,130 Q22,100 21,70 Q20,40 20,15 Z
+                        M28,10 Q30,38 31,72 Q32,106 33,138 L31,138 Q30,106 29,72 Q28,38 28,10 Z
+                        M36,12 Q38,42 39,76 Q40,110 41,140 L39,140 Q38,110 37,76 Q36,42 36,12 Z" />
+
+  <!-- Shadow at the taper for depth. -->
+  <path
+      android:fillAlpha="0.30"
+      android:fillColor="#FF000000"
+      android:pathData="M22,138
+                        Q25,142 28,145
+                        L30,148
+                        L32,145
+                        Q35,142 38,138
+                        Q34,141 30,142
+                        Q26,141 22,138 Z" />
+
+  <!-- Subtle bottom edge definition. -->
+  <path
+      android:fillAlpha="0.20"
+      android:fillColor="#FF000000"
+      android:pathData="M24,144 Q27,147 30,148 Q33,147 36,144 Q33,146 30,147 Q27,146 24,144 Z" />
 </vector>

@@ -984,76 +984,118 @@ class LensAnchorTest {
     // ---------------------------------------------------------------- Elvis lens geometry
 
     @Test
-    fun elvis_shadesWiderThanSunglasses() {
-        // Elvis aviators must overhang more than standard Sunglasses.
-        val elvisShades = Lens.Elvis.art.first()
-        val sunglasses = Lens.Sunglasses.art.first()
-
-        assertTrue(
-            "Elvis aviators (${elvisShades.placement.widthInUnits}) must be wider than " +
-                "Sunglasses (${sunglasses.placement.widthInUnits})",
-            elvisShades.placement.widthInUnits > sunglasses.placement.widthInUnits,
-        )
+    fun elvis_hasFourLayersAndIsNamedCorrectly() {
+        assertEquals("Elvis", Lens.Elvis.displayName)
+        assertEquals(4, Lens.Elvis.art.size)
     }
 
     @Test
-    fun elvis_pompadourAboveTheCrown() {
-        // The pompadour must sit well above the crown (+1.25 units).
-        val pompadour = Lens.Elvis.art[1]
+    fun elvis_mouthUncovered() {
+        // No layer's AABB may reach the mouth at y = -1.00 within the mouth's x extent ±0.40.
+        // Checked against the catalogue numbers and the anatomy table, not a face() fixture.
+        Lens.Elvis.art.forEach { art ->
+            val halfHeight = art.placement.widthInUnits * art.placement.artAspect / 2f
+            val bottom = art.placement.upInUnits - halfHeight
+            val halfWidth = art.placement.widthInUnits / 2f
+            val leftEdge = art.placement.rightInUnits - halfWidth
+            val rightEdge = art.placement.rightInUnits + halfWidth
 
-        assertTrue(
-            "Elvis pompadour at ${pompadour.placement.upInUnits} must be well above " +
-                "the crown at $CROWN_UNITS",
-            pompadour.placement.upInUnits > CROWN_UNITS + 0.2f,
-        )
-    }
-
-    @Test
-    fun elvis_sideburnsSymmetricAndInboard() {
-        // Sideburns must be symmetric (same magnitude, opposite signs) and inboard of the head edge.
-        val leftSideburn = Lens.Elvis.art[2]
-        val rightSideburn = Lens.Elvis.art[3]
-
-        assertEquals(
-            "Sideburns must be symmetric",
-            -leftSideburn.placement.rightInUnits,
-            rightSideburn.placement.rightInUnits,
-            tolerance,
-        )
-
-        val sideburnOffset = abs(leftSideburn.placement.rightInUnits)
-        val halfSideburnWidth = leftSideburn.placement.widthInUnits / 2f
-
-        assertTrue(
-            "Sideburn outer edge at ${sideburnOffset + halfSideburnWidth} must stay inside " +
-                "the head edge at $HEAD_HALF_WIDTH_UNITS",
-            sideburnOffset + halfSideburnWidth < HEAD_HALF_WIDTH_UNITS,
-        )
-        assertTrue(
-            "Sideburns must be offset from centre line",
-            sideburnOffset > 0.3f,
-        )
-    }
-
-    @Test
-    fun elvis_allLayersStayOnFace() {
-        // All Elvis layers must resolve to reasonable positions on a face.
-        val subject = face()
-        val frame = frameOf(subject)
-
-        Lens.Elvis.art.forEachIndexed { index, art ->
-            val quad = LensAnchor.sticker(subject, frame, art.placement, frameAspect)
-
-            // All layers must be reasonably positioned.
-            assertTrue(
-                "Elvis layer $index centerX ${quad.centerX} is off frame",
-                quad.centerX in 0f..1f,
-            )
-            assertTrue(
-                "Elvis layer $index centerY ${quad.centerY} is off frame",
-                quad.centerY in -0.2f..1.2f,
-            )
+            // If the layer's x range overlaps the mouth's ±0.40, its bottom must not reach -1.00.
+            val xOverlapsMouth = (leftEdge < 0.40f && rightEdge > -0.40f)
+            if (xOverlapsMouth) {
+                assertTrue(
+                    "Elvis layer at rightInUnits ${art.placement.rightInUnits} reaches y = $bottom, " +
+                        "covering the mouth at -1.00",
+                    bottom > -1.00f,
+                )
+            }
         }
+    }
+
+    @Test
+    fun elvis_shadesContainTheEyeLine() {
+        // Shades are the last layer (index 3 after reordering). The quad must span y = 0 (eye line).
+        val shades = Lens.Elvis.art[3]
+        val halfHeight = shades.placement.widthInUnits * shades.placement.artAspect / 2f
+        val top = shades.placement.upInUnits + halfHeight
+        val bottom = shades.placement.upInUnits - halfHeight
+
+        assertTrue(
+            "Elvis shades top ${top} must be above the eye line (y = 0)",
+            top > 0f,
+        )
+        assertTrue(
+            "Elvis shades bottom ${bottom} must be below the eye line (y = 0)",
+            bottom < 0f,
+        )
+        assertTrue(
+            "Elvis shades must be wider than Sunglasses (${Lens.Sunglasses.art.first().placement.widthInUnits})",
+            shades.placement.widthInUnits > Lens.Sunglasses.art.first().placement.widthInUnits,
+        )
+    }
+
+    @Test
+    fun elvis_pompadourCoversAboveTheCrown() {
+        // Pompadour is layer 2. Top must clear the crown (+1.25), bottom must stay above the eyes.
+        val pompadour = Lens.Elvis.art[2]
+        val halfHeight = pompadour.placement.widthInUnits * pompadour.placement.artAspect / 2f
+        val top = pompadour.placement.upInUnits + halfHeight
+        val bottom = pompadour.placement.upInUnits - halfHeight
+
+        assertTrue(
+            "Elvis pompadour top ${top} must reach above the crown at $CROWN_UNITS",
+            top >= CROWN_UNITS,
+        )
+        assertTrue(
+            "Elvis pompadour bottom ${bottom} must stay above the eye line (y = 0)",
+            bottom > 0f,
+        )
+    }
+
+    @Test
+    fun elvis_sideburnsSymmetricAndCorrectlyPlaced() {
+        // Sideburns are layers 0 and 1. Must be symmetric at exactly ±0.62, with edges that clear
+        // the eye (±0.40) and sit near the ear (0.775). Vertical span must run from temple down
+        // the cheek toward the jaw.
+        val leftSideburn = Lens.Elvis.art[0]
+        val rightSideburn = Lens.Elvis.art[1]
+
+        // Exact symmetry at ±0.62.
+        assertEquals(-0.62f, leftSideburn.placement.rightInUnits, tolerance)
+        assertEquals(0.62f, rightSideburn.placement.rightInUnits, tolerance)
+
+        // Horizontal coverage.
+        val halfWidth = leftSideburn.placement.widthInUnits / 2f
+        val sideburnOffset = abs(leftSideburn.placement.rightInUnits)
+        val innerEdge = sideburnOffset - halfWidth
+        val outerEdge = sideburnOffset + halfWidth
+
+        assertTrue(
+            "Sideburn inner edge ${innerEdge} must clear the eye/mouth region at ±0.40",
+            innerEdge > 0.40f,
+        )
+        assertTrue(
+            "Sideburn outer edge ${outerEdge} must stay on the head (half-width $HEAD_HALF_WIDTH_UNITS)",
+            outerEdge <= HEAD_HALF_WIDTH_UNITS + 0.05f,
+        )
+
+        // Vertical span: temple/ear down the cheek toward jaw.
+        val halfHeight = leftSideburn.placement.widthInUnits * leftSideburn.placement.artAspect / 2f
+        val top = leftSideburn.placement.upInUnits + halfHeight
+        val bottom = leftSideburn.placement.upInUnits - halfHeight
+
+        assertTrue(
+            "Sideburn top ${top} should start near or above the eye line (y = 0)",
+            top >= -0.10f,
+        )
+        assertTrue(
+            "Sideburn bottom ${bottom} must extend well down the cheek (well below eye line)",
+            bottom < -0.30f,
+        )
+        assertTrue(
+            "Sideburn bottom ${bottom} must not reach the mouth at -1.00",
+            bottom > -1.00f,
+        )
     }
 
     @Test
@@ -1061,7 +1103,6 @@ class LensAnchorTest {
         // Elvis is a prop lens, so the subject's face shows through.
         assertNull("Elvis is a prop, not a character replacement", Lens.Elvis.features)
         assertNull("Elvis has no warp effect", Lens.Elvis.warp)
-        assertTrue("Elvis must have art layers", Lens.Elvis.art.isNotEmpty())
     }
 
     // ---------------------------------------------------------------- character head coverage
