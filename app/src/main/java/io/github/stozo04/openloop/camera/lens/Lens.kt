@@ -441,81 +441,66 @@ enum class Lens(
     ),
 
     /**
-     * Elvis — gold aviator shades, pompadour quiff, and sideburns. Multi-layer prop lens with
-     * parts on different vertical positions and symmetric horizontal offsets.
+     * Elvis — photoreal gold aviator shades and pompadour. Two-layer BITMAP prop lens using
+     * chroma-keyed 3D renders, not vector XML.
      *
      * A **prop**, not a character — [features] stays null and the subject's own face shows through.
-     * Four layers on the FACE anchor: sideburns at different horizontal offsets, pompadour hair,
-     * and aviator shades on top.
+     * Two layers on the FACE anchor: hair (with sideburns integrated) drawn first, then shades on top.
+     *
+     * ## The assets
+     *
+     * **BITMAP workflow** (Snapchat pattern): photoreal 3D renders baked to front-on PNGs, chroma-keyed
+     * from green (#00FF00) to alpha, saved as WebP in `drawable-nodpi/`. No 3D renderer, no vector XML.
+     * Processing: `docs/elvis-asset-processing.md`.
+     *
+     * * **lens_elvis_pompadour_art.webp** — Glossy black quiff with sideburns ALREADY INCLUDED.
+     *   Front view, high volume above crown. Chroma-keyed, trimmed to opaque bounds. Do not stack
+     *   additional sideburn layers — this asset is complete hair.
+     * * **lens_elvis_shades_art.webp** — Gold aviators. PBR metal frames (#C9A227-range), double
+     *   bridge, brown gradient lenses with real reflections. Chroma-keyed, trimmed to opaque bounds.
      *
      * ## The numbers
      *
      * Solved against the reference table at the top of this file, not eyeballed. upInUnits is the
-     * quad CENTER, derived from (top + bottom) / 2 after choosing extent constraints. Height is
-     * widthInUnits * artAspect.
+     * quad CENTER, derived from (top + bottom) / 2. artAspect measured from the ACTUAL processed
+     * PNG's opaque bounds (height / width after trim), not assumed.
      *
-     * * **Aviator shades.** 2.1 units wide (wider than Sunglasses' 1.9 — aviators overhang) to
-     *   reach ±1.05, giving the characteristic aviator look. Height 0.88 units (0.419 aspect).
-     *   Quad spans +0.50 (above eyes) to -0.38 (below eyes), centred +0.06 on the bridge.
-     * * **Pompadour.** Open-bottom quiff, 1.4 units wide. Bottom sits on the hairline at +0.80,
-     *   top reaches +1.70 (0.45 above the +1.25 crown). Height 0.90 units (0.643 aspect), centred
-     *   +1.25. The high volume is the defining Elvis feature.
-     * * **Sideburns.** 0.30 units wide each, symmetric at ±0.62 off centre. Run from temple/ear
-     *   (+0.10) down the cheek to -0.65 (well toward the jaw, still clear of the -1.00 mouth).
-     *   Height 0.75 units (2.5 aspect), centred -0.275. Inner edge 0.47 clears the ±0.40 eye/mouth
-     *   regions; outer edge 0.77 sits near the 0.775 ear line.
+     * **AWAITING ASSET PROCESSING** — dimensions below are placeholders based on typical photoreal
+     * proportions. After chroma-key + trim, measure actual PNGs and update artAspect + widthInUnits.
      *
-     * Draw order: sideburns first (behind), then pompadour, shades LAST so glasses sit over
-     * everything. The earlier order (shades → pompadour → sideburns) buried the outer aviator
-     * lenses under the burns' temple overlap.
+     * * **Hair.** Assumed ~1.5 units wide to cover forehead + sideburns, aspect ~1.2 (tall quiff).
+     *   Bottom at hairline +0.70, top at +1.60 (above +1.25 crown). Height 0.90 gives center
+     *   (0.70 + 1.60) / 2 = +1.15. Update after measuring PNG.
+     * * **Shades.** 2.1 units wide (overhang past Sunglasses 1.9), aspect ~0.38 (typical aviators).
+     *   Quad spans +0.46 to -0.34, centered +0.06 on bridge. Contains y=0 (eye line), clears mouth.
+     *   Update aspect after measuring PNG.
+     *
+     * Draw order: hair first (back), shades LAST (front) so glasses sit over everything.
      */
     Elvis(
         displayName = "Elvis",
         thumbnailRes = R.drawable.lens_elvis,
         art = listOf(
-            // Left sideburn, drawn first.
+            // Hair with integrated sideburns, drawn first.
             LensArt(
-                drawableRes = R.drawable.lens_elvis_sideburns,
+                drawableRes = R.drawable.lens_elvis_pompadour_art,
                 placement = LensPlacement(
-                    widthInUnits = 0.30f,
-                    // Measured off the re-authored 60x150 viewport.
-                    artAspect = 2.5f,
-                    // Centre -0.275 puts the quad from +0.10 (temple) to -0.65 (cheek toward jaw).
-                    upInUnits = -0.275f,
-                    // Left side, negative rightInUnits.
-                    rightInUnits = -0.62f,
+                    // PLACEHOLDER — measure actual chroma-keyed PNG and update.
+                    widthInUnits = 1.5f,
+                    // PLACEHOLDER — artAspect = PNG_height / PNG_width after trim.
+                    artAspect = 1.2f,
+                    // Center +1.15 spans +0.70 (hairline) to +1.60 (above crown).
+                    upInUnits = 1.15f,
                 ),
             ),
-            // Right sideburn (same art, mirrored by positive offset).
+            // Shades drawn last, sit on eye line.
             LensArt(
-                drawableRes = R.drawable.lens_elvis_sideburns,
-                placement = LensPlacement(
-                    widthInUnits = 0.30f,
-                    artAspect = 2.5f,
-                    upInUnits = -0.275f,
-                    // Right side, positive rightInUnits.
-                    rightInUnits = 0.62f,
-                ),
-            ),
-            // Pompadour, drawn over sideburns.
-            LensArt(
-                drawableRes = R.drawable.lens_elvis_pompadour,
-                placement = LensPlacement(
-                    widthInUnits = 1.4f,
-                    // Measured off the re-authored 280x180 viewport.
-                    artAspect = 0.643f,
-                    // Centre 1.25 puts the quad from +0.80 (hairline) to +1.70 (high quiff).
-                    upInUnits = 1.25f,
-                ),
-            ),
-            // Shades drawn last so they sit over sideburns and hair.
-            LensArt(
-                drawableRes = R.drawable.lens_elvis_shades,
+                drawableRes = R.drawable.lens_elvis_shades_art,
                 placement = LensPlacement(
                     widthInUnits = 2.1f,
-                    // Measured off the authored 420x176 viewport.
-                    artAspect = 0.419f,
-                    // Rests on the bridge, same as Sunglasses. Quad spans +0.50 to -0.38.
+                    // PLACEHOLDER — artAspect = PNG_height / PNG_width after trim.
+                    artAspect = 0.38f,
+                    // Rests on bridge, same as Sunglasses.
                     upInUnits = 0.06f,
                 ),
             ),

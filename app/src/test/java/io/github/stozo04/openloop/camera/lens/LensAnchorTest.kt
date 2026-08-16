@@ -981,12 +981,13 @@ class LensAnchorTest {
         }
     }
 
-    // ---------------------------------------------------------------- Elvis lens geometry
+    // ---------------------------------------------------------------- Elvis lens geometry (bitmap assets)
 
     @Test
-    fun elvis_hasFourLayersAndIsNamedCorrectly() {
+    fun elvis_hasTwoLayersAndIsNamedCorrectly() {
+        // Photoreal bitmap lens: hair (with sideburns) + shades.
         assertEquals("Elvis", Lens.Elvis.displayName)
-        assertEquals(4, Lens.Elvis.art.size)
+        assertEquals(2, Lens.Elvis.art.size)
     }
 
     @Test
@@ -1014,8 +1015,8 @@ class LensAnchorTest {
 
     @Test
     fun elvis_shadesContainTheEyeLine() {
-        // Shades are the last layer (index 3 after reordering). The quad must span y = 0 (eye line).
-        val shades = Lens.Elvis.art[3]
+        // Shades are the last layer (index 1). The quad must span y = 0 (eye line).
+        val shades = Lens.Elvis.art[1]
         val halfHeight = shades.placement.widthInUnits * shades.placement.artAspect / 2f
         val top = shades.placement.upInUnits + halfHeight
         val bottom = shades.placement.upInUnits - halfHeight
@@ -1035,67 +1036,35 @@ class LensAnchorTest {
     }
 
     @Test
-    fun elvis_pompadourCoversAboveTheCrown() {
-        // Pompadour is layer 2. Top must clear the crown (+1.25), bottom must stay above the eyes.
-        val pompadour = Lens.Elvis.art[2]
-        val halfHeight = pompadour.placement.widthInUnits * pompadour.placement.artAspect / 2f
-        val top = pompadour.placement.upInUnits + halfHeight
-        val bottom = pompadour.placement.upInUnits - halfHeight
+    fun elvis_hairCoversAboveTheCrown() {
+        // Hair (with sideburns) is layer 0. Top must clear the crown (+1.25), bottom must stay
+        // above the eye line (hairline on forehead).
+        val hair = Lens.Elvis.art[0]
+        val halfHeight = hair.placement.widthInUnits * hair.placement.artAspect / 2f
+        val top = hair.placement.upInUnits + halfHeight
+        val bottom = hair.placement.upInUnits - halfHeight
 
         assertTrue(
-            "Elvis pompadour top ${top} must reach above the crown at $CROWN_UNITS",
+            "Elvis hair top ${top} must reach above the crown at $CROWN_UNITS",
             top >= CROWN_UNITS,
         )
         assertTrue(
-            "Elvis pompadour bottom ${bottom} must stay above the eye line (y = 0)",
+            "Elvis hair bottom ${bottom} must stay above the eye line (y = 0) — hairline on forehead",
             bottom > 0f,
         )
     }
 
     @Test
-    fun elvis_sideburnsSymmetricAndCorrectlyPlaced() {
-        // Sideburns are layers 0 and 1. Must be symmetric at exactly ±0.62, with edges that clear
-        // the eye (±0.40) and sit near the ear (0.775). Vertical span must run from temple down
-        // the cheek toward the jaw.
-        val leftSideburn = Lens.Elvis.art[0]
-        val rightSideburn = Lens.Elvis.art[1]
-
-        // Exact symmetry at ±0.62.
-        assertEquals(-0.62f, leftSideburn.placement.rightInUnits, tolerance)
-        assertEquals(0.62f, rightSideburn.placement.rightInUnits, tolerance)
-
-        // Horizontal coverage.
-        val halfWidth = leftSideburn.placement.widthInUnits / 2f
-        val sideburnOffset = abs(leftSideburn.placement.rightInUnits)
-        val innerEdge = sideburnOffset - halfWidth
-        val outerEdge = sideburnOffset + halfWidth
-
-        assertTrue(
-            "Sideburn inner edge ${innerEdge} must clear the eye/mouth region at ±0.40",
-            innerEdge > 0.40f,
-        )
-        assertTrue(
-            "Sideburn outer edge ${outerEdge} must stay on the head (half-width $HEAD_HALF_WIDTH_UNITS)",
-            outerEdge <= HEAD_HALF_WIDTH_UNITS + 0.05f,
-        )
-
-        // Vertical span: temple/ear down the cheek toward jaw.
-        val halfHeight = leftSideburn.placement.widthInUnits * leftSideburn.placement.artAspect / 2f
-        val top = leftSideburn.placement.upInUnits + halfHeight
-        val bottom = leftSideburn.placement.upInUnits - halfHeight
-
-        assertTrue(
-            "Sideburn top ${top} should start near or above the eye line (y = 0)",
-            top >= -0.10f,
-        )
-        assertTrue(
-            "Sideburn bottom ${bottom} must extend well down the cheek (well below eye line)",
-            bottom < -0.30f,
-        )
-        assertTrue(
-            "Sideburn bottom ${bottom} must not reach the mouth at -1.00",
-            bottom > -1.00f,
-        )
+    fun elvis_centeredOnFace() {
+        // Both layers should be centered (rightInUnits = 0) since hair includes sideburns symmetrically.
+        Lens.Elvis.art.forEach { art ->
+            assertEquals(
+                "Elvis ${art.drawableRes} should be centered on face",
+                0f,
+                art.placement.rightInUnits,
+                tolerance,
+            )
+        }
     }
 
     @Test
