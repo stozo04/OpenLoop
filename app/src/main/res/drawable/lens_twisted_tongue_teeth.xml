@@ -1,0 +1,74 @@
+<!--
+  Twisted Tongue — the upper teeth. Original art, authored in this repo, Apache 2.0.
+
+  Layer 3 of 5, drawn AFTER the tongue so the tongue's root passes behind them. Shares
+  lens_twisted_tongue_mouth's placement exactly (same 340x200 viewport, same widthInUnits and
+  upInUnits in Lens.TwistedTongue), so the two always register — the teeth cannot drift off the
+  mouth they belong to, because there is only one set of numbers.
+
+  Everything outside the tooth band is transparent.
+
+      viewport   340 x 200  -> artAspect 0.588
+      band       x 34..306, y 43..92   -> half-width 0.408 face units
+
+  0.408 is the number that has to beat the tongue root's 0.302 at full swing (Lens KDoc).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="170dp"
+    android:height="100dp"
+    android:viewportWidth="340"
+    android:viewportHeight="200">
+
+  <!-- The tooth band. Top follows the cavity's upper curve; the bottom edge dips in the middle so
+       the incisors are longer than the molars, which is what makes it read as teeth rather than a
+       white stripe. -->
+  <path
+      android:pathData="M34,92
+                        C34,58 78,43 170,43
+                        C262,43 306,58 306,92
+                        C268,80 220,86 170,86
+                        C120,86 72,80 34,92 Z">
+    <aapt:attr name="android:fillColor">
+      <gradient
+          android:type="linear"
+          android:startX="170"
+          android:startY="43"
+          android:endX="170"
+          android:endY="92">
+        <item android:offset="0.0" android:color="#FFFFFFFB" />
+        <item android:offset="0.62" android:color="#FFF4EEDC" />
+        <item android:offset="1.0" android:color="#FFD9CFB4" />
+      </gradient>
+    </aapt:attr>
+  </path>
+
+  <!-- Gaps between teeth. Thin, dark, and slightly splayed outward to follow the arch — parallel
+       lines would flatten the curve the band's silhouette just established. -->
+  <path
+      android:fillAlpha="0.55"
+      android:fillColor="#FF2A1015"
+      android:pathData="M76,50 L82,50 L88,84 L82,84 Z
+                        M120,45 L126,45 L128,86 L122,86 Z
+                        M167,44 L173,44 L173,87 L167,87 Z
+                        M214,45 L220,45 L218,86 L212,86 Z
+                        M258,50 L264,50 L258,84 L252,84 Z" />
+
+  <!-- Gum line where the band meets the top of the cavity. -->
+  <path
+      android:fillAlpha="0.45"
+      android:fillColor="#FF8E3742"
+      android:pathData="M34,92
+                        C34,58 78,43 170,43
+                        C262,43 306,58 306,92
+                        C300,66 254,53 170,53
+                        C86,53 40,66 34,92 Z" />
+
+  <!-- Enamel highlight across the incisors. -->
+  <path
+      android:fillAlpha="0.55"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M110,60
+                        C140,54 200,54 230,60
+                        C200,66 140,66 110,60 Z" />
+</vector>

@@ -101,7 +101,7 @@ it is a prop pretending to be a character.
 
 Three pieces, each already a supported Google API.
 
-```
+```text
 CameraX bindToLifecycle
   ├─ Preview ─────────┐
   ├─ VideoCapture ────┤──▶ LensEffect (CameraEffect, targets PREVIEW|VIDEO_CAPTURE)
@@ -511,3 +511,92 @@ Real-face quality remains a hardware gate owned by Steven: front/back mirroring,
 portrait/landscape alignment, steadiness and flicker, fast movement, distance scaling, no-face
 pass-through, and whether each joke actually looks good. A static emulator poster can prove bind,
 render, capture, and saved-media paths; it cannot prove those human-facing behaviours.
+
+---
+
+## 14. 2026-08-16 — Twisted Tongue, and the framework it forced
+
+**Status:** built, verified on the owner's hardware · **Guide:** [`twisted-tounge/GUIDE.md`](../twisted-tounge/GUIDE.md)
+**Ships in:** 1.0.41 (versionCode 41)
+
+The eighth lens, and the first sourced from a **third-party AR project** rather than designed here.
+The owner supplied a DeepAR Studio project (`twisted-tounge/`); §4 already ruled DeepAR out as a
+dependency on C1/C3, so the SDK and its assets could not ship. What shipped instead is a native
+reimplementation in this repo's own renderer, with original art. The guide carries the full method,
+the dead ends, and a playbook for the next one — that playbook is the durable deliverable, since the
+owner has more effects of this kind queued.
+
+### 14.1 What the reference effect does
+
+Read out of `effect.json`'s scene graph and the `.mat` shader bindings, not from the preview image:
+
+| Reference node | What it is | Shipped as |
+|---|---|---|
+| `L_eye_phy` / `R_eye_phy` + `pSphere5/6` on `matcap*.mat` | matcap-shaded eyeball spheres at ±3.08 units, each on `simplePendulumPhysics` | Opaque eyeball art on the `LEFT_EYE` / `RIGHT_EYE` anchors |
+| `tongue_1..5` chain, four with `simplePendulumPhysics` | a bone chain that lags the head | One tongue layer with a single damped spring (`LensPhysics`) |
+| `Group48969` / `group1group4` / `Group17997` on `skinsamplingmat.mat` + `colorSampling` | skin-toned mouth surround that samples the camera for its colour | **Dropped** — the mouth layer is lips-and-cavity, so it has no complexion to match |
+| `morphbase2.fbx` → `dense_new`, `blendShapeWeights = [1.0]` | a static full-face morph | **Dropped** — a dense mesh warp is a different renderer |
+| `nose1.fbx` | phong nose overlay | **Dropped** — invisible under the eyes and mouth |
+
+The two drops are the honest scope line: this renderer composites textured quads and does one
+radial UV bulge. It does not skin meshes, and nothing here pretends otherwise.
+
+### 14.2 Framework changes
+
+Three, all generic — **no renderer, tracker, UI or camera branch names a lens**, and the catalogue
+rule ("adding a lens is one entry plus its art") survives:
+
+1. **`Lens.art` is a `List<LensArt>`.** Layers draw in list order, so a lens controls its own
+   stacking. Every previous lens is a one-element list.
+2. **`LensPlacement` gained `anchor` (`FACE`/`LEFT_EYE`/`RIGHT_EYE`/`MOUTH`) and `rightInUnits`.**
+   `FACE` is the default and reproduces the old centre-line behaviour exactly. This is what lets one
+   lens track three landmarks at once — impossible with a single quad at any size.
+3. **`LensPhysics`** — a pure damped-spring module. A layer opts in with a `WobbleSpec`;
+   `LensAnchor.sticker` takes a `wobbleRadians` that rotates the art **about its anchor**, so a
+   hanging part swings from where it is attached instead of spinning in place. Zero is bit-identical
+   to the rigid placement.
+
+### 14.3 Decisions
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Ship the DeepAR SDK? | **No** — §4 C1/C3, decided 2026-08-08 and unchanged. Paid/MAU-metered, and a proprietary binary cannot ship in an Apache 2.0 app. |
+| 2 | Ship the DeepAR *assets* (matcaps, normal maps, FBX meshes)? | **No.** This repo is public; we hold no redistribution rights. `twisted-tounge/**` is gitignored except the guide. Art is original vector, authored here. |
+| 3 | Gate the tongue on mouth-open? | **No.** The reference does not either — its blendshape weight is statically `1.0` and there is no trigger in the graph. Openness detection would need ML Kit `CONTOUR_MODE`, which §5.1 rejected on per-frame cost. Faithful *and* cheap. |
+| 4 | Bulge the eyes with the existing `WarpTarget.EYES`? | **No.** The eyeball art is opaque and covers the socket, so a warp underneath is invisible — one less moving part. |
+| 5 | Wobble the eyeballs too? | **No.** The reference does, but the eyeball is centred *on* its anchor, so rotation about that anchor barely moves it; a visible jiggle would need a second mechanism (translation). The tongue carries the motion. Same primitive with a lever arm if it is ever wanted. |
+| 6 | Roll as a physics drive? | **No.** Translation only. A roll term needs the part to hang in world-down rather than face-down — a different, larger model. Marked `ponytail:` in `LensAnchor.lateralShiftInUnits`. |
+| 7 | Teeth as their own layer? | **Yes.** A lolling tongue passes *over* the lower lip but *under* the upper teeth — a three-way interleave one drawable cannot express. |
+| 8 | Carousel thumbnail art | **Redrawn once.** The first version used the live art's cream eyeballs on transparency; the tray renders each thumbnail on a light glass chip, so it read as a pale blob (owner feedback, 2026-08-16). Every light shape now carries a heavy dark rim. Thumbnails are designed for the chip they sit on, not scaled down from the live art. |
+
+### 14.4 Where this feature is actually verified
+
+**The wobble is verified on the JVM, and that is not a compromise — it is the only place it can be.**
+The emulator's virtual scene is a static poster. It can prove the lens binds, renders to preview,
+composites onto a detected face, and bakes into a recording. It can never move a head, so it cannot
+exercise one line of the spring.
+
+* **`LensPhysicsTest`** — settles, is under-damped enough to actually flop, never exceeds its limit
+  under an absurd drive, cannot explode on a long frame gap, and is stable at `MAX_STEP_SECONDS`
+  for *every* spec in the catalogue. Properties, not expected numbers, so retuning the feel cannot
+  silently break the safety guarantees.
+* **`LensAnchorTest`** — anchors resolve to their landmarks, `FACE` is unchanged, a wobble of zero
+  is bit-identical to rigid, the swing preserves the hanging distance, and the drive is dimensionless
+  (the same head movement gives the same number at any distance). Plus Twisted Tongue's own claims:
+  the eyeballs clear the nose bridge and stay inside the head, and the tongue's root stays behind the
+  teeth **at the swing limit**, not just at rest.
+* **`LensCarouselTest`** is catalogue-driven and covered the eighth entry with no edit.
+* **Emulator (Pixel_8 AVD):** carousel entry renders, selection sets the active lens (name pill),
+  no shader-compile or link failures, no `ERROR_SOURCE_INACTIVE`.
+* **Owner hardware, 2026-08-16:** confirmed working on a real face — the one check that settles it.
+
+### 14.5 Residual risk — unchanged and owner-owned
+
+Everything in §11.1 still applies, plus one item this lens adds — call it **item 9**, continuing
+that list's numbering:
+
+**Does the tongue's swing look right on a real head?** Frequency, damping and drive are tuned
+   from arithmetic (≈1.95 Hz, a quarter of critical damping) against a reference video, not against
+   a moving face. It is the one number set here that a person has to judge. All three live together
+   in one `WobbleSpec` in `Lens.kt` so retuning is a single edit — and `LensPhysicsTest` asserts the
+   *properties*, so the feel can be changed freely without weakening the guarantees.

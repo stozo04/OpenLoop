@@ -1,0 +1,98 @@
+<!--
+  Twisted Tongue — carousel thumbnail. Original art, authored in this repo, Apache 2.0.
+
+  Carousel only; the live lens composites four separate drawables onto tracked landmarks and none of
+  them is this file. It is a miniature of the whole joke — two popped eyes over a lolling tongue —
+  because at thumbnail size any one part alone is unreadable.
+
+  CONTRAST IS THE WHOLE DESIGN CONSTRAINT HERE. The first version drew the eyeballs in the same
+  cream as the live art, on transparency; the tray renders each thumbnail on a light glass chip, so
+  a cream ball on a white chip has almost no edge and the whole lens read as a pale blob (owner
+  feedback, 2026-08-16). Every light shape therefore carries a heavy dark rim, and the mouth is a
+  solid dark mass — the silhouette has to survive at ~56dp against a light background, which is the
+  only size and background this file is ever seen at.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+  <!-- Dark rims behind the eyeballs. Drawn as full discs rather than strokes so the white fills
+       below leave an even ring — this is what gives the eyes an edge on a white chip. -->
+  <path
+      android:fillColor="#FF241A12"
+      android:pathData="M8,66
+                        A48,48 0 1 0 104,66
+                        A48,48 0 1 0 8,66 Z
+                        M96,66
+                        A48,48 0 1 0 192,66
+                        A48,48 0 1 0 96,66 Z" />
+
+  <!-- Sclera. -->
+  <path
+      android:fillColor="#FFFDFAEE"
+      android:pathData="M14,66
+                        A42,42 0 1 0 98,66
+                        A42,42 0 1 0 14,66 Z
+                        M102,66
+                        A42,42 0 1 0 186,66
+                        A42,42 0 1 0 102,66 Z" />
+
+  <!-- Pupils, low and slightly splayed so it reads as googly rather than staring. -->
+  <path
+      android:fillColor="#FF17110C"
+      android:pathData="M38,78
+                        A18,18 0 1 0 74,78
+                        A18,18 0 1 0 38,78 Z
+                        M126,78
+                        A18,18 0 1 0 162,78
+                        A18,18 0 1 0 126,78 Z" />
+  <path
+      android:fillAlpha="0.95"
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M44,62 A7,7 0 1 0 58,62 A7,7 0 1 0 44,62 Z
+                        M132,62 A7,7 0 1 0 146,62 A7,7 0 1 0 132,62 Z" />
+
+  <!-- Mouth: one solid dark mass, wide enough to anchor the lower half of the icon. -->
+  <path
+      android:fillColor="#FF2A0C12"
+      android:pathData="M42,124
+                        C42,112 68,105 100,105
+                        C132,105 158,112 158,124
+                        C158,142 132,154 100,154
+                        C68,154 42,142 42,124 Z" />
+
+  <!-- Upper teeth. -->
+  <path
+      android:fillColor="#FFFDFAEE"
+      android:pathData="M46,122
+                        C46,111 70,105 100,105
+                        C130,105 154,111 154,122
+                        C128,114 72,114 46,122 Z" />
+
+  <!-- Tongue, hanging well past the mouth the way the live lens does — the part that names it. -->
+  <path
+      android:fillColor="#FF241A12"
+      android:pathData="M100,118
+                        C124,118 136,133 136,158
+                        C136,182 122,199 100,199
+                        C78,199 64,182 64,158
+                        C64,133 76,118 100,118 Z" />
+  <path
+      android:fillColor="#FFCE7A80"
+      android:pathData="M100,124
+                        C121,124 131,137 131,158
+                        C131,179 118,193 100,193
+                        C82,193 69,179 69,158
+                        C69,137 79,124 100,124 Z" />
+  <path
+      android:fillAlpha="0.40"
+      android:fillColor="#FF7E3A44"
+      android:pathData="M100,140
+                        C103,140 104,143 104,149
+                        C104,166 103,178 102,183
+                        C101,187 99,187 98,183
+                        C97,178 96,166 96,149
+                        C96,143 97,140 100,140 Z" />
+</vector>

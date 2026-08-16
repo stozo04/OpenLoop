@@ -53,6 +53,12 @@ jobs:
               # Neither is the product docs this gate exists to keep tidy.
               swarm/*|.claude/*)
                 ;;
+              # Reverse-engineering guides that must sit WITH the third-party reference project
+              # they document (owner instruction, 2026-08-16). The vendor assets in those folders
+              # are gitignored — only the guide is tracked — so the folder is worthless without it.
+              # Splitting the two would leave a docs/ page pointing at files nobody can see.
+              twisted-tounge/*.md)
+                ;;
               *)
                 VIOLATIONS="${VIOLATIONS}${f}\n"
                 ;;
