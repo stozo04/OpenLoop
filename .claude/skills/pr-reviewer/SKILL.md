@@ -106,12 +106,12 @@ Lint is fully headless and deterministic. Run it and parse the XML:
 
 - Report lands at `app/build/reports/lint-results-debug.xml` (+ `.html`). Parse the XML —
   each `<issue id= severity= category=>` is a finding with file + line.
-- A `lint-baseline.xml` is configured, so lint reports **only issues introduced by this PR**,
-  not the ~294 pre-existing repo items. **If lint reports zero new issues, that's a clean
-  pass — say so. Never regenerate the baseline to silence findings.**
-- Ignore the single informational `id="LintBaseline" severity="Hint"` entry — it just reports
-  how many pre-existing warnings the baseline filtered out; it is not a finding. A report that
-  contains *only* that entry = clean pass.
+- There is **no `lint-baseline.xml`**, so every finding in the report is live. Judge a PR on
+  whether it *introduced* errors: compare against `main` if unsure. **If lint reports zero
+  errors, that's a clean pass — say so. Never add a baseline to silence findings.**
+- Long-standing dependency-freshness warnings (`GradleDependency`, `NewerVersionAvailable`,
+  `AndroidGradlePluginVersion`) are expected background noise — report them at REC severity and
+  never as a blocker unless the PR is specifically a dependency bump.
 - Map lint severity → skill severity:
   - lint `Error`/`Fatal` → **FAIL**
   - `Warning` in Correctness / Security / Performance (incl. `OldTargetApi`, `GradleDependency`,

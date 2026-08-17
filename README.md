@@ -156,14 +156,15 @@ Set `JAVA_HOME` first (same as the build section above).
 .\gradlew.bat :app:lintDebug
 ```
 
-Report lands at `app/build/reports/lint-results-debug.xml` (+ `.html`). A committed
-`lint-baseline.xml` filters out the project's pre-existing items, so a clean run reports **only
-issues your branch introduced** — the XML will contain just the informational `LintBaseline`
-"Hint" line. The [`pr-reviewer`](.claude/skills/pr-reviewer/SKILL.md) skill runs this automatically
-and folds the findings into its PR comment.
+Report lands at `app/build/reports/lint-results-debug.xml` (+ `.html`). A clean run has **zero
+`severity="Error"` entries**; the remaining warnings are triaged by severity. The
+[`pr-reviewer`](.claude/skills/pr-reviewer/SKILL.md) skill runs this automatically and folds the
+findings into its PR comment.
 
-> Regenerating the baseline (`app/lint-baseline.xml`) silently swallows *all* current issues,
-> including newly-introduced ones — only do it deliberately. See `docs/STATIC_ANALYSIS.md`.
+> There is deliberately **no `lint-baseline.xml`** — the 11 entries it used to hold were fixed
+> rather than carried. Suppress a genuinely un-fixable finding at the source (`tools:ignore`,
+> `@Suppress`) with the reason in a comment, instead of reintroducing a baseline that hides
+> whatever else happens to be in the tree. See `docs/STATIC_ANALYSIS.md`.
 
 **Engine 2 — IDE inspections + proofreading** (faithful Kotlin/Markdown/grammar pass; slow, local):
 
@@ -235,8 +236,8 @@ The visual identity in one place — colors, the on-device launcher icon, and th
 | Asset | Where it lives | Notes |
 |---|---|---|
 | **Color tokens** | [`app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt) | Single source of truth — `ElectricLime` (`#CDFF4F`) primary, `Aqua` (`#34E1D5`) tertiary, coral semantic-only (recording + destructive). UI must read via `MaterialTheme.colorScheme`, never inline hex (Lesson 001). |
-| **Launcher icon (adaptive)** | [`app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`](app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml) + [`app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`](app/src/main/res/drawable-nodpi/ic_launcher_foreground.png) | Lime→aqua infinity on a transparent foreground over pure black. The same foreground feeds the API 31+ splash screen via [`app/src/main/res/values/themes.xml`](app/src/main/res/values/themes.xml). |
-| **Launcher icon (legacy)** | `app/src/main/res/mipmap-xxxhdpi/ic_launcher.png` + `ic_launcher_round.png` | Pre-API-26 fallback. `minSdk 26` means these are effectively unused on real devices, but the build still requires them. Keep them in sync with the adaptive foreground. |
+| **Launcher icon (adaptive)** | [`app/src/main/res/mipmap-anydpi/ic_launcher.xml`](app/src/main/res/mipmap-anydpi/ic_launcher.xml) + [`app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`](app/src/main/res/drawable-nodpi/ic_launcher_foreground.png) | Lime→aqua infinity on a transparent foreground over pure black. This is the **only** launcher icon the app ships — `minSdk 26` is exactly where adaptive icons landed, so `-anydpi` wins on every supported device and there is no legacy bitmap to keep in sync. The same foreground feeds the API 31+ splash screen via [`app/src/main/res/values/themes.xml`](app/src/main/res/values/themes.xml). |
+| **Launcher icon (themed / monochrome)** | [`app/src/main/res/drawable-nodpi/ic_launcher_monochrome.png`](app/src/main/res/drawable-nodpi/ic_launcher_monochrome.png) | The `<monochrome>` layer the launcher tints from the user's wallpaper on Android 13+. **Derived** from `ic_launcher_foreground.png` (glow thresholded off, ribbon-crossing seam preserved) — regenerate it from the foreground rather than editing it by hand, so the two can't drift. |
 | **Play Store app icon (512×512)** | [`docs/play-store/play_store_icon_512.png`](docs/play-store/play_store_icon_512.png) | RGB (**no alpha**), solid Canvas-dark background, **no baked corners** — Play auto-applies a 30% corner radius at display time (active since 2026-03-31). Upload via **Play Console → Grow → Store presence → Main store listing → Graphics → App icon**. |
 | **Play Store feature graphic (1024×500)** | [`docs/play-store/main-image.png`](docs/play-store/main-image.png) | RGB (**no alpha**). Logo sits left-of-center so Play's promo-video play button (which lands dead-center if a promo video is attached) won't overlap it. Wordmark uses Space Grotesk Bold; tagline uses Inter Medium — matches the in-app type ramp in [`Type.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Type.kt). Upload via **Play Console → … → Graphics → Feature graphic**. |
 
@@ -263,8 +264,8 @@ Android Studio's *Analyze → Inspect Code* produces, run headlessly. There are 
 [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md) for the full design and the exact commands):
 
 - **Engine 1 — Android Lint** (`./gradlew :app:lintDebug`): automated, run by the reviewer skill,
-  a hard gate — **zero new lint errors** to merge. A committed `lint-baseline.xml` means only
-  issues *introduced by the PR* are reported, not the project's pre-existing items.
+  a hard gate — **zero lint errors** to merge. No baseline: findings are fixed, or suppressed at
+  the source with a stated reason.
 - **Engine 2 — IDE inspections + proofreading** (`inspect.bat`): the faithful Kotlin-redundancy /
   Markdown / grammar-and-typo pass. Run **locally before merge** (it needs Android Studio and is
   slow); the reviewer notes whether it was run.

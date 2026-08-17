@@ -4,7 +4,7 @@ This is OpenLoop's plan and runbook for running the same checks Android Studio's
 Inspect Code** produces, headlessly, and folding them into the PR-merge gate alongside the
 [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) standards review.
 
-Last verified: 2026-05-28 · AGP 8.13.2 · Android Studio at `C:\Program Files\Android\Android Studio`
+Last verified: 2026-08-17 · AGP 9.2.1 · Android Studio at `C:\Program Files\Android\Android Studio`
 
 ---
 
@@ -33,7 +33,7 @@ android {
         xmlReport = true          // machine-readable — the skill parses this
         htmlReport = true         // human-readable companion for local triage
         checkDependencies = true  // lint included-module code too
-        baseline = file("lint-baseline.xml")
+        // No baseline — see "No baseline" below.
         abortOnError = false      // the skill decides the verdict, not the build
         warningsAsErrors = false  // warnings surface at WARNING/REC, not as build failures
     }
@@ -51,45 +51,58 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # macOS: see RE
 
 - Reports: `app/build/reports/lint-results-debug.xml` (+ `.html`).
 - **Verifying the result honestly:** check the *real* exit code, not a piped one. A genuinely
-  clean run prints `BUILD SUCCESSFUL` with exit `0`, and the XML contains only the informational
-  `id="LintBaseline" severity="Hint"` entry (which reports how many pre-existing warnings were
-  filtered). Anything else under `<issue>` is a finding introduced by your branch.
+  clean run prints `BUILD SUCCESSFUL` with exit `0` and **zero `severity="Error"` entries** in the
+  XML. Warnings are expected and are triaged by severity (below), not treated as failures.
 
-### The baseline
+### No baseline
 
-The repo carried **~294 pre-existing inspection items** when this gate was added. Without a
-baseline, every PR would re-report all of them and bury the real signal. `lint-baseline.xml`
-(committed, at `app/lint-baseline.xml`) snapshots the lint-detectable subset (11 entries across
-`GradleDependency`, `IconLocation`, `NewerVersionAvailable`, `MonochromeLauncherIcon`,
-`IconLauncherShape`, `ObsoleteSdkInt`, `IconDuplicates`, `UnusedAttribute`) so lint reports
-**only newly-introduced** issues.
+**There is no `lint-baseline.xml`, and adding one back needs a reason.** The file existed from when
+this gate was added (the repo carried ~294 pre-existing inspection items, of which 11 were
+lint-detectable) until 2026-08-17, when all 11 were **fixed** rather than carried:
 
-> ⚠️ **Regenerate the baseline only deliberately.** Deleting `app/lint-baseline.xml` and
-> re-running lint regenerates it — which *silently swallows every issue currently in the tree*,
-> including ones a PR just introduced. Treat a baseline change like a code change: it needs a
-> reason and a review. To regenerate intentionally: delete the file, run `:app:lintDebug` once
-> (it creates the baseline and aborts — this is normal AGP behavior), then run it again to get a
-> green build. Ideally do this only when burning down the pre-existing items, never to hide new ones.
+| Entries | Issue | How it was cleared |
+|---|---|---|
+| 2 | `MonochromeLauncherIcon` | Added a `<monochrome>` layer — themed icons on Android 13+ (a real product gap, not just a lint nag) |
+| 2 + 1 | `IconLauncherShape`, `IconDuplicates` | Deleted `mipmap-xxxhdpi/` — legacy pre-API-26 bitmaps, unreachable at minSdk 26 |
+| 1 | `ObsoleteSdkInt` | `mipmap-anydpi-v26/` → `mipmap-anydpi/` |
+| 1 | `IconLocation` | `onboarding_skater.jpg` deleted — it only ever rendered under Compose `@Preview`, and shipped 649 KB to do it (owner's call) |
+| 1 | `UnusedAttribute` | Scoped `tools:ignore` **at the source** in `AndroidManifest.xml`, with the reason next to the attribute |
+| 2 + 1 | `GradleDependency`, `NewerVersionAvailable` | Bumped activity-compose, datastore-preferences, kotlinx-coroutines-test to current stable |
+
+An **empty** baseline is worse than none: it reproduces the "created with a different
+target/variant" noise on every `lintVitalRelease` and stands as an invitation to regenerate.
+
+> ⚠️ **If you reintroduce a baseline, understand what it costs.** Deleting the file and re-running
+> lint regenerates it — which *silently swallows every issue currently in the tree*, including ones
+> a PR just introduced. An August 2026 pass found the baseline at 18 entries with 7 not matching;
+> a regenerate would have produced **37** — swallowing 26 live warnings, including three
+> `InlinedApi` hits in `MainActivity.kt`. **Prefer suppressing at the source** (`tools:ignore`,
+> `@Suppress`) with a comment giving the reason, so the justification lives next to the code
+> instead of in an opaque XML blob.
 
 #### "N errors/warnings were listed in the baseline file but not found in the project"
 
-This line is **not** N findings in your code — it means N *baseline entries* no longer match
-anything. Read it as bookkeeping, never as a failure. Two different causes hide behind it:
+Kept here because it is the single most misread line lint emits, and it will reappear the moment
+anyone adds a baseline back.
 
-- **Genuinely fixed** — the issue is gone (the file was deleted, the dependency was upgraded past
-  the advisory). The entry is dead weight.
-- **Message drift** — the issue is still live, but the entry text embeds a *moving* value, so it
-  stops matching without anything being fixed. Every `GradleDependency` /
-  `NewerVersionAvailable` / `AndroidGradlePluginVersion` message ends in `…is available: <version>`,
-  which changes every time upstream publishes. These entries self-invalidate on a schedule nobody
-  controls, and the issue immediately resurfaces as a "new" warning under the updated message.
+This is **not** N findings in your code — it means N *baseline entries* no longer match anything.
+Read it as bookkeeping, never as a failure. Three causes hide behind it:
 
-**Prune, don't regenerate.** Drop only the entries that no longer match; keep the rest. This is the
-one safe edit — it cannot hide anything, because a non-matching entry was suppressing nothing.
-Regenerating to clear the message is the trap the warning above describes: an August 2026 pass found
-the baseline at 18 entries with 7 not matching, while a regenerate would have produced **37** —
-silently swallowing 26 live warnings, including three `InlinedApi` hits in `MainActivity.kt`.
-Verify a prune by confirming the `filtered by baseline` count is unchanged.
+- **Wrong variant.** If the line is followed by `Creation variant: lint / Current variant:
+  lintVitalRelease`, it is pure noise: `lintVital` runs only the **fatal-severity** subset against
+  the release variant, so it cannot find warning-severity entries and reports every one of them as
+  "not found". Nothing is fixed. Check with `:app:lintDebug`, which uses the full check set.
+- **Genuinely fixed** — the issue is gone. The entry is dead weight.
+- **Message drift** — the issue is still live, but the entry embeds a *moving* value. Every
+  `GradleDependency` / `NewerVersionAvailable` / `AndroidGradlePluginVersion` message ends in
+  `…is available: <version>`, which changes whenever upstream publishes. These entries
+  self-invalidate on a schedule nobody controls, and the issue immediately resurfaces as a "new"
+  warning under the updated message. **This is why those two checks were never a good fit for a
+  baseline** — and why clearing them meant upgrading the dependencies, not re-snapshotting.
+
+If a baseline does exist, **prune, don't regenerate**: drop only the non-matching entries. That edit
+cannot hide anything, because a non-matching entry was suppressing nothing. Verify by confirming the
+`filtered by baseline` count is unchanged.
 
 ### Severity mapping (lint → review verdict)
 

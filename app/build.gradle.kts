@@ -105,17 +105,20 @@ android {
         //
         //  - xmlReport / htmlReport: machine-readable (skill) + human-readable (local triage).
         //  - checkDependencies: lint included module code too, not just :app sources.
-        //  - baseline: snapshot of pre-existing issues so the gate only flags NEW regressions.
-        //    The repo carried ~294 pre-existing inspection items; without a baseline they'd
-        //    drown the signal on every PR. Regenerate deliberately (see docs/STATIC_ANALYSIS.md),
-        //    never casually — a regenerated baseline silently swallows freshly-introduced issues.
         //  - abortOnError = false: the SKILL decides the PR verdict, not the build, so lint always
         //    emits a full report instead of failing the build on the first error.
         //  - warningsAsErrors = false: warnings are surfaced by the skill at WARNING/REC severity.
+        //
+        // There is deliberately NO baseline. The file that used to sit here held 11 entries; all 11
+        // were fixed rather than carried (icon/theming, resource placement, dependency ages), so the
+        // baseline had nothing left to suppress and an empty one is worse than none — it re-creates
+        // the "created with a different target/variant" noise on every lintVitalRelease and invites
+        // a casual regeneration that silently swallows fresh issues. If a genuinely un-fixable
+        // finding ever appears, suppress it AT THE SOURCE with a commented `tools:ignore` /
+        // `@Suppress`, where the reason lives next to the code, instead of reintroducing this file.
         xmlReport = true
         htmlReport = true
         checkDependencies = true
-        baseline = file("lint-baseline.xml")
         abortOnError = false
         warningsAsErrors = false
     }

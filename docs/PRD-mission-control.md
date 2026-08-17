@@ -156,7 +156,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Private color palette:** `DeepIndigo`, `DarkPlum`, `VoidBlack`, `FrostedGlass`, `FrostedGlassBorder`
 
 **Pages:**
-1. "No Subscriptions & No Ads" — autoplaying looping boomerang video (coral glow); `onboarding_skater` drawable is the `@Preview` fallback
+1. "No Subscriptions & No Ads" — autoplaying looping boomerang video (coral glow). There is no still-image `@Preview` fallback: an ExoPlayer can't render under `LocalInspectionMode`, so the preview shows the scrimmed gradient and the drawable that used to stand in was deleted (it shipped 649 KB to every user for a design-time nicety)
 2. "Built by Everyone, For Everyone" — bubbles visual, purple glow
 3. "Just Point, Tap & Loop!" — confetti visual, cyan glow
 

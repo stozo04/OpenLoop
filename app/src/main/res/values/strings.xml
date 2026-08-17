@@ -98,7 +98,6 @@
     <string name="onboarding_badge_no_subscriptions">No Subscriptions · No Ads</string>
     <string name="onboarding_badge_open_source">Open source · 100% on your phone</string>
     <string name="onboarding_cta">LET\'S GO!</string>
-    <string name="onboarding_image_content_description">Onboarding visual asset representing loops</string>
     <string name="onboarding_video_content_description">Looping demo of a boomerang video</string>
 
     <!-- Camera screen -->

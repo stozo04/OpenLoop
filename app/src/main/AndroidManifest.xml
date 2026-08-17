@@ -39,9 +39,15 @@
     <uses-feature android:name="android.hardware.camera" android:required="true" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
+    <!-- tools:ignore="UnusedAttribute" covers enableOnBackInvokedCallback, which lint notes is only
+         read at API 33+ while minSdk is 26. That is the intended shape, not an oversight: the flag
+         opts into predictive back where the platform supports it and is inert below 33, and the app
+         routes back through OnBackPressedDispatcher on every API level (Lesson 015). Scoped to this
+         one check so any other API-gating mistake on <application> still surfaces. -->
     <application
         android:allowBackup="true"
         android:enableOnBackInvokedCallback="true"
+        tools:ignore="UnusedAttribute"
         android:resizeableActivity="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
