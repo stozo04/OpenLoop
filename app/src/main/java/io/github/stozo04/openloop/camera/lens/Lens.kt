@@ -439,6 +439,72 @@ enum class Lens(
         ),
         warp = null,
     ),
+
+    /**
+     * Elvis — photoreal gold aviator shades and pompadour. Two-layer BITMAP prop lens using
+     * chroma-keyed 3D renders, not vector XML.
+     *
+     * A **prop**, not a character — [features] stays null and the subject's own face shows through.
+     * Two layers on the FACE anchor: hair (with sideburns integrated) drawn first, then shades on top.
+     *
+     * ## The assets
+     *
+     * **BITMAP workflow** (Snapchat pattern): photoreal 3D renders baked to front-on PNGs, chroma-keyed
+     * from green (#00FF00) to alpha, saved as WebP in `drawable-nodpi/`. No 3D renderer, no vector XML.
+     *
+     * * **lens_elvis_pompadour_art.webp** — U-wig: glossy black quiff + baked sideburns + face hole.
+     *   974×980 PNG (aspect 1.0062). Front view, high volume above crown, sideburns down the sides,
+     *   face hole in lower-center exposes eyes and mouth. Sized generously (2.6 units) so sideburns
+     *   land on cheeks, not forehead — smaller quad parks the burns too high.
+     * * **lens_elvis_shades_art.webp** — Gold aviators. 1420×504 PNG (aspect 0.3549). PBR metal
+     *   frames (#C9A227-range), double bridge, brown gradient lenses with real reflections.
+     *
+     * ## The numbers
+     *
+     * Solved against the reference table at the top of this file, not eyeballed. upInUnits is the
+     * quad CENTER, derived from (top + bottom) / 2. artAspect measured from the processed PNG's
+     * opaque bounds (height / width after trim): 980/974 = 1.0062 (hair), 504/1420 = 0.3549 (shades).
+     *
+     * * **Hair.** 2.6 units wide (generous, following Broccoli's face-hole pattern: 4.4 units for
+     *   that larger piece). Height 2.6 × 1.0062 = 2.616 units. Centered +0.70 → top +2.008 (well
+     *   above +1.25 crown), bottom −0.608 (face hole exposes eyes at 0, mouth at −1.00). Sideburns
+     *   in the PNG's sides land on cheeks, not pupils.
+     * * **Shades.** 2.1 units wide (overhang past Sunglasses 1.9). Height 2.1 × 0.3549 = 0.745 units.
+     *   Centered +0.06 on bridge → top +0.433, bottom −0.313. Contains y=0 (eye line), clears mouth.
+     *
+     * Draw order: hair first (back), shades LAST (front) so glasses sit over everything.
+     */
+    Elvis(
+        displayName = "Elvis",
+        thumbnailRes = R.drawable.lens_elvis,
+        art = listOf(
+            // Hair with integrated sideburns (U-wig with face hole), drawn first.
+            LensArt(
+                drawableRes = R.drawable.lens_elvis_pompadour_art,
+                placement = LensPlacement(
+                    // Generous width so sideburns land on cheeks. Measured PNG: 974×980.
+                    widthInUnits = 2.6f,
+                    // Measured: 980 / 974 = 1.0062.
+                    artAspect = 1.0062f,
+                    // Center +0.70 → top +2.008 (above crown), bottom −0.608 (face hole clears eyes/mouth).
+                    upInUnits = 0.70f,
+                ),
+            ),
+            // Shades drawn last, sit on eye line.
+            LensArt(
+                drawableRes = R.drawable.lens_elvis_shades_art,
+                placement = LensPlacement(
+                    // Wider than Sunglasses (1.9) for aviator overhang. Measured PNG: 1420×504.
+                    widthInUnits = 2.1f,
+                    // Measured: 504 / 1420 = 0.3549.
+                    artAspect = 0.3549f,
+                    // Rests on bridge, same as Sunglasses. Spans +0.433 to −0.313 (contains y=0).
+                    upInUnits = 0.06f,
+                ),
+            ),
+        ),
+        warp = null,
+    ),
 }
 
 /** A lens's sticker: the drawable to composite and where it sits in the face frame. */

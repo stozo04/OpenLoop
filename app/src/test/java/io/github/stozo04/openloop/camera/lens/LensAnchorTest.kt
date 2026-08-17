@@ -981,6 +981,108 @@ class LensAnchorTest {
         }
     }
 
+    // ---------------------------------------------------------------- Elvis lens geometry (bitmap assets)
+
+    @Test
+    fun elvis_hasTwoLayersAndIsNamedCorrectly() {
+        // Photoreal bitmap lens: hair (with sideburns) + shades.
+        assertEquals("Elvis", Lens.Elvis.displayName)
+        assertEquals(2, Lens.Elvis.art.size)
+    }
+
+    @Test
+    fun elvis_mouthUncovered() {
+        // No layer's AABB may reach the mouth at y = -1.00 within the mouth's x extent ±0.40.
+        // Checked against the catalogue numbers and the anatomy table, not a face() fixture.
+        Lens.Elvis.art.forEach { art ->
+            val halfHeight = art.placement.widthInUnits * art.placement.artAspect / 2f
+            val bottom = art.placement.upInUnits - halfHeight
+            val halfWidth = art.placement.widthInUnits / 2f
+            val leftEdge = art.placement.rightInUnits - halfWidth
+            val rightEdge = art.placement.rightInUnits + halfWidth
+
+            // If the layer's x range overlaps the mouth's ±0.40, its bottom must not reach -1.00.
+            val xOverlapsMouth = (leftEdge < 0.40f && rightEdge > -0.40f)
+            if (xOverlapsMouth) {
+                assertTrue(
+                    "Elvis layer at rightInUnits ${art.placement.rightInUnits} reaches y = $bottom, " +
+                        "covering the mouth at -1.00",
+                    bottom > -1.00f,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun elvis_shadesContainTheEyeLine() {
+        // Shades are the last layer (index 1). Measured 1420×504 PNG, aspect 0.3549.
+        val shades = Lens.Elvis.art[1]
+        
+        // Verify measured aspect is used (not placeholder).
+        assertEquals(0.3549f, shades.placement.artAspect, 0.001f)
+        
+        val halfHeight = shades.placement.widthInUnits * shades.placement.artAspect / 2f
+        val top = shades.placement.upInUnits + halfHeight
+        val bottom = shades.placement.upInUnits - halfHeight
+
+        assertTrue(
+            "Elvis shades top ${top} must be above the eye line (y = 0)",
+            top > 0f,
+        )
+        assertTrue(
+            "Elvis shades bottom ${bottom} must be below the eye line (y = 0)",
+            bottom < 0f,
+        )
+        assertTrue(
+            "Elvis shades must be wider than Sunglasses (${Lens.Sunglasses.art.first().placement.widthInUnits})",
+            shades.placement.widthInUnits > Lens.Sunglasses.art.first().placement.widthInUnits,
+        )
+    }
+
+    @Test
+    fun elvis_hairCoversAboveTheCrown() {
+        // Hair (U-wig with face hole) is layer 0. Measured 974×980 PNG, aspect 1.0062.
+        // Top must clear the crown (+1.25), face hole exposes eyes/mouth.
+        val hair = Lens.Elvis.art[0]
+        
+        // Verify measured aspect is used (not placeholder).
+        assertEquals(1.0062f, hair.placement.artAspect, 0.001f)
+        
+        val halfHeight = hair.placement.widthInUnits * hair.placement.artAspect / 2f
+        val top = hair.placement.upInUnits + halfHeight
+        val bottom = hair.placement.upInUnits - halfHeight
+
+        assertTrue(
+            "Elvis hair top ${top} must reach well above the crown at $CROWN_UNITS",
+            top >= CROWN_UNITS + 0.5f,
+        )
+        // Bottom can be negative (face hole in lower-center exposes eyes at 0, mouth at −1.00).
+        assertTrue(
+            "Elvis hair bottom ${bottom} extends down (face hole design)",
+            bottom < 0f,
+        )
+    }
+
+    @Test
+    fun elvis_centeredOnFace() {
+        // Both layers should be centered (rightInUnits = 0) since hair includes sideburns symmetrically.
+        Lens.Elvis.art.forEach { art ->
+            assertEquals(
+                "Elvis ${art.drawableRes} should be centered on face",
+                0f,
+                art.placement.rightInUnits,
+                tolerance,
+            )
+        }
+    }
+
+    @Test
+    fun elvis_isAProp_notACharacter() {
+        // Elvis is a prop lens, so the subject's face shows through.
+        assertNull("Elvis is a prop, not a character replacement", Lens.Elvis.features)
+        assertNull("Elvis has no warp effect", Lens.Elvis.warp)
+    }
+
     // ---------------------------------------------------------------- character head coverage
 
     @Test
