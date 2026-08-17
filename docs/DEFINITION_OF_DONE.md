@@ -45,7 +45,7 @@ Reproduce both Inspect Code engines and clear them. Full design + severity rules
 ```powershell
 .\gradlew.bat :app:lintDebug --console=plain        # Engine 1 — Android Lint (the automated gate)
 ```
-`app/lint-baseline.xml` filters out the project's pre-existing items, so the report must show **zero *new* errors** — a genuinely clean run's XML contains only the informational `LintBaseline` "Hint" line. Then run **Engine 2** (IDE inspections + proofreading) locally via `inspect.bat` (command in `STATIC_ANALYSIS.md`) — it's slow and needs Android Studio closed. **Never regenerate `lint-baseline.xml` to silence findings** — that swallows newly-introduced issues too.
+There is no lint baseline, so the report must show **zero `severity="Error"` entries** outright; remaining warnings are triaged by severity. Then run **Engine 2** (IDE inspections + proofreading) locally via `inspect.bat` (command in `STATIC_ANALYSIS.md`) — it's slow and needs Android Studio closed. **Do not introduce a `lint-baseline.xml` to silence findings** — a generated baseline swallows every issue currently in the tree, including ones the PR just added. Fix it, or suppress it at the source with a stated reason.
 
 ### 4. Automated tests — unit and instrumented
 ```powershell

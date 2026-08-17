@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive launcher icon. minSdk is 26, which is exactly where adaptive icons landed, so this is
+     the ONLY launcher icon the app ships — there is no legacy bitmap fallback to keep in step (the
+     old mipmap-xxxhdpi PNGs were unreachable on every supported device and were deleted).
+     The folder is plain `-anydpi`, not `-anydpi-v26`: the version qualifier was redundant at
+     minSdk 26 and lint flagged it (ObsoleteSdkInt).
+
+     Foreground = the neon infinity on a transparent canvas; background = pure black.
+     Monochrome = the same mark as a flat silhouette, which the launcher tints from the user's
+     wallpaper on Android 13+ (themed icons). Three things about it are deliberate:
+       - It is DERIVED from the foreground, not redrawn, so the two can never drift apart.
+       - The soft outer glow is thresholded away — adaptive-icon layers must carry no shadow or
+         mask around the outline.
+       - The seam where the ribbon crosses over itself is carved back out (owner's call), so the
+         twist that makes this the OpenLoop mark survives being flattened to a single tint colour
+         instead of reading as a generic infinity.
+     Regenerate it from ic_launcher_foreground.png rather than editing it by hand. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/black" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+</adaptive-icon>

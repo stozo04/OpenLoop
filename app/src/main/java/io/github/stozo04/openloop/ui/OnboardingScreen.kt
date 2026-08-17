@@ -4,7 +4,6 @@ import android.content.ContentResolver
 import androidx.annotation.OptIn
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -31,10 +30,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -67,11 +64,11 @@ private data class OnboardingPage(
     @param:StringRes val headlineRes: Int,
     // Glass "pills" beneath the headline — the persistent trust promises (no subscriptions, open source).
     val badgeRes: List<Int> = emptyList(),
-    val drawableRes: Int,
-    // When set, the page plays this looping raw-resource video full-bleed instead of [drawableRes].
-    // [drawableRes] is still required: in inspection mode (Compose @Preview) the page falls back to it,
-    // since an ExoPlayer can't render in a preview (see LocalInspectionMode in OnboardingPageMedia).
-    val videoRawRes: Int? = null,
+    // The looping raw-resource video played full-bleed behind the title/CTA. There is no still-image
+    // companion: the only thing a static drawable ever did was stand in under Compose @Preview (an
+    // ExoPlayer can't render there), and it cost 649 KB in every download to do it. @Preview now falls
+    // through to the scrimmed gradient instead — see OnboardingPageMedia.
+    val videoRawRes: Int,
 )
 
 // Single-screen onboarding: one strong value/trust screen, then straight into the camera. Per Google's
@@ -84,7 +81,6 @@ private val onboardingPage = OnboardingPage(
         R.string.onboarding_badge_no_subscriptions,
         R.string.onboarding_badge_open_source,
     ),
-    drawableRes = R.drawable.onboarding_skater,
     videoRawRes = R.raw.onboarding_loop_1,
 )
 
@@ -149,28 +145,22 @@ internal fun GetStartedButton(onClick: () -> Unit, modifier: Modifier = Modifier
 // ── Full-bleed page media ──
 
 /**
- * The full-screen onboarding hero: the looping product video (or a still drawable in inspection mode),
- * cropped to fill the whole screen, with a baked-in vertical scrim so the floating title and CTA stay
- * legible over any frame. The top scrim protects the status-bar icons; the heavier bottom scrim sits
- * under the title/CTA.
+ * The full-screen onboarding hero: the looping product video, cropped to fill the whole screen, with
+ * a baked-in vertical scrim so the floating title and CTA stay legible over any frame. The top scrim
+ * protects the status-bar icons; the heavier bottom scrim sits under the title/CTA.
  */
 @Composable
 private fun OnboardingPageMedia(playing: Boolean = false) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // A Compose @Preview / inspection host can't run an ExoPlayer, so fall back to the static
-        // drawable there; on-device the video plays full-bleed.
-        if (onboardingPage.videoRawRes != null && !LocalInspectionMode.current) {
+        // A Compose @Preview / inspection host can't run an ExoPlayer, so it simply renders no media
+        // and the scrimmed gradient below shows through. There is deliberately no still-image stand-in:
+        // the previous one only ever appeared here, in a design-time preview, and shipped 649 KB to
+        // every user to do it. On-device this branch always runs and the video plays full-bleed.
+        if (!LocalInspectionMode.current) {
             OnboardingVideoCard(
                 rawResId = onboardingPage.videoRawRes,
                 playing = playing,
                 modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Image(
-                painter = painterResource(id = onboardingPage.drawableRes),
-                contentDescription = stringResource(R.string.onboarding_image_content_description),
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
             )
         }
 

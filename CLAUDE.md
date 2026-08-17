@@ -83,8 +83,8 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 | UI | Jetpack Compose | BOM 2026.05.01 |
 | Camera | AndroidX CameraX | 1.6.1 |
 | Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.10.1 |
-| Preferences | Jetpack DataStore (Preferences) | 1.0.0 |
-| Build | Gradle 9.0.0, AGP 8.13.2 | — |
+| Preferences | Jetpack DataStore (Preferences) | 1.2.1 |
+| Build | Gradle 9.5.0, AGP 9.2.1 | — |
 | Target | compileSdk 36, minSdk 26, targetSdk 36 | — |
 
 > **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26 — clearing Google Play's target-API floor (currently API 35). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and `ANDROID_STANDARDS.md` §11. Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
@@ -160,7 +160,7 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
 | `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. **OEM lanes:** [`docs/guides/oem-regression-testing.md`](docs/guides/oem-regression-testing.md). |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
-| `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the `lint-baseline.xml` policy, and severity mapping. |
+| `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the no-baseline policy, and severity mapping. |
 | `docs/guides/` | **Plain-English how-tos and durable reference** (reverse algorithm, Robolectric, OEM lanes). Index: [`docs/guides/README.md`](docs/guides/README.md). |
 | `docs/play-store/` | **Play Console submission pack** — privacy policy, data safety, store listing copy, signing. |
 | `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |
