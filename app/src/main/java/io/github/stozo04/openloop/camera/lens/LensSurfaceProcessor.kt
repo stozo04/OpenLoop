@@ -306,6 +306,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             outputTextureMatrix,
             0,
         )
+
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, cameraTextureId)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(cameraProgram, "uCamera"), 0)
