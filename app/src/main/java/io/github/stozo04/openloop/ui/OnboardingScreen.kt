@@ -2,6 +2,7 @@ package io.github.stozo04.openloop.ui
 
 import android.content.ContentResolver
 import androidx.annotation.OptIn
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -34,6 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -59,10 +61,12 @@ import io.github.stozo04.openloop.ui.theme.SurfaceContainerLow
 // ── Page data model ──
 
 private data class OnboardingPage(
-    // Big headline shown over the bottom of the full-bleed media.
-    val headline: String,
+    // Big headline shown over the bottom of the full-bleed media. Held as a resource id, not a
+    // String: this is a top-level constant, so there is no composable scope here to resolve one in —
+    // and a literal would be invisible to Play's app-strings translation.
+    @param:StringRes val headlineRes: Int,
     // Glass "pills" beneath the headline — the persistent trust promises (no subscriptions, open source).
-    val badges: List<String> = emptyList(),
+    val badgeRes: List<Int> = emptyList(),
     val drawableRes: Int,
     // When set, the page plays this looping raw-resource video full-bleed instead of [drawableRes].
     // [drawableRes] is still required: in inspection mode (Compose @Preview) the page falls back to it,
@@ -75,10 +79,10 @@ private data class OnboardingPage(
 // doesn't need a multipage walkthrough, and camera permission is primed in-context at the shutter — not
 // as a startup gate (developer.android.com/training/permissions/usage-notes).
 private val onboardingPage = OnboardingPage(
-    headline = "Free. Forever.",
-    badges = listOf(
-        "No Subscriptions · No Ads",
-        "Open source · 100% on your phone",
+    headlineRes = R.string.onboarding_headline,
+    badgeRes = listOf(
+        R.string.onboarding_badge_no_subscriptions,
+        R.string.onboarding_badge_open_source,
     ),
     drawableRes = R.drawable.onboarding_skater,
     videoRawRes = R.raw.onboarding_loop_1,
@@ -135,7 +139,7 @@ fun OnboardingScreen(
 @Composable
 internal fun GetStartedButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     PrimaryButton(
-        text = "LET'S GO!",
+        text = stringResource(R.string.onboarding_cta),
         onClick = onClick,
         modifier = modifier,
         testTag = "onboarding_cta",
@@ -164,7 +168,7 @@ private fun OnboardingPageMedia(playing: Boolean = false) {
         } else {
             Image(
                 painter = painterResource(id = onboardingPage.drawableRes),
-                contentDescription = "Onboarding visual asset representing loops",
+                contentDescription = stringResource(R.string.onboarding_image_content_description),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -196,14 +200,14 @@ private fun OnboardingTitle() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = onboardingPage.headline,
+            text = stringResource(onboardingPage.headlineRes),
             style = MaterialTheme.typography.displayMedium,
             color = Color.White,
             textAlign = TextAlign.Center
         )
-        onboardingPage.badges.forEach { badge ->
+        onboardingPage.badgeRes.forEach { badgeRes ->
             Spacer(modifier = Modifier.height(12.dp))
-            BenefitBadge(text = badge)
+            BenefitBadge(text = stringResource(badgeRes))
         }
     }
 }
@@ -254,6 +258,8 @@ private fun OnboardingVideoCard(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
+    val videoDescription = stringResource(R.string.onboarding_video_content_description)
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
             val uri = "${ContentResolver.SCHEME_ANDROID_RESOURCE}://${context.packageName}/$rawResId".toUri()
@@ -285,7 +291,7 @@ private fun OnboardingVideoCard(
         // The looping clip is a decorative product demo; the title below is the real label. Give
         // TalkBack a short description rather than leaving the bare PlayerView unlabeled.
         modifier = modifier.semantics {
-            contentDescription = "Looping demo of a boomerang video"
+            contentDescription = videoDescription
         },
     )
 }

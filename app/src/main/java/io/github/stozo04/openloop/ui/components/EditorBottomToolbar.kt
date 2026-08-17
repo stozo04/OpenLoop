@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.ui.EditorTab
 import io.github.stozo04.openloop.ui.theme.CoralRed
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -102,35 +104,35 @@ fun EditorBottomToolbar(
             verticalAlignment = Alignment.Top,
         ) {
             ToolbarSlot(
-                label = "Trim",
+                label = stringResource(R.string.toolbar_trim),
                 icon = Icons.Outlined.ContentCut,
                 testTag = "tab_trim",
                 active = activeSlot == EditorToolbarSlot.TRIM,
                 onClick = onTrimClick,
             )
             ToolbarSlot(
-                label = "Speed",
+                label = stringResource(R.string.toolbar_speed),
                 icon = Icons.Outlined.Speed,
                 testTag = "tab_speed",
                 active = activeSlot == EditorToolbarSlot.SPEED,
                 onClick = onSpeedClick,
             )
             ToolbarSlot(
-                label = "Loop",
+                label = stringResource(R.string.toolbar_loop),
                 icon = Icons.Outlined.AllInclusive,
                 testTag = "tab_loop",
                 active = activeSlot == EditorToolbarSlot.LOOP,
                 onClick = onLoopClick,
             )
             ToolbarSlot(
-                label = "Filter",
+                label = stringResource(R.string.toolbar_filter),
                 icon = Icons.Outlined.FilterAlt,
                 testTag = "tab_filter",
                 active = activeSlot == EditorToolbarSlot.FILTER,
                 onClick = onFilterClick,
             )
             ToolbarSlot(
-                label = "Delete",
+                label = stringResource(R.string.toolbar_delete),
                 icon = Icons.Outlined.Delete,
                 testTag = "tab_delete",
                 active = false,

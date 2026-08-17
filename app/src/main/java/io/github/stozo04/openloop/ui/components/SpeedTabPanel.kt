@@ -39,6 +39,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -48,6 +49,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
 import io.github.stozo04.openloop.ui.theme.ElectricLime
 import io.github.stozo04.openloop.ui.theme.Outline
@@ -95,7 +97,7 @@ fun SpeedTabPanel(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "Slow down or speed up the video",
+                text = stringResource(R.string.speed_title),
                 color = Color.White.copy(alpha = 0.9f),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
@@ -140,7 +142,7 @@ private fun SpeedCurrentPill(
         // text "Current speed " which an exact-match onNodeWithText("Current speed") can't find
         // (BoomerangEditorScreenTest), and reads as a stray pause in TalkBack.
         Text(
-            text = "Current speed",
+            text = stringResource(R.string.speed_current_label),
             color = TextSecondary,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(end = 4.dp),
@@ -203,6 +205,9 @@ private fun SpeedSlider(
 
     var widthPx by remember { mutableFloatStateOf(0f) }
     val latestSpeed by rememberUpdatedState(speed)
+    // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
+    val sliderLabel = stringResource(R.string.speed_slider_content_description)
+    val sliderState = stringResource(R.string.speed_state_description, formatSpeedNumber(speed))
 
     val emit: (Float) -> Unit = { raw ->
         val clamped = raw.coerceIn(start, end)
@@ -239,8 +244,8 @@ private fun SpeedSlider(
                 detectTapGestures { offset -> emit(xToValue(offset.x)) }
             }
             .semantics {
-                contentDescription = "Playback speed"
-                stateDescription = formatSpeedAccessibilityLabel(speed)
+                contentDescription = sliderLabel
+                stateDescription = sliderState
                 progressBarRangeInfo = ProgressBarRangeInfo(speed, start..end)
                 setProgress { target ->
                     emit(target)
@@ -301,7 +306,9 @@ fun formatSpeedMultiplier(speed: Float): String {
     return "${number}x"
 }
 
-private fun formatSpeedAccessibilityLabel(speed: Float): String {
-    val number = String.format(Locale.US, "%.2f", speed).trimEnd('0').trimEnd('.')
-    return "$number times speed"
-}
+/**
+ * The bare multiplier for the slider's spoken state ("1.5"). The surrounding phrasing lives in
+ * `R.string.speed_state_description` so it can be translated; only the number is formatted here.
+ */
+private fun formatSpeedNumber(speed: Float): String =
+    String.format(Locale.US, "%.2f", speed).trimEnd('0').trimEnd('.')

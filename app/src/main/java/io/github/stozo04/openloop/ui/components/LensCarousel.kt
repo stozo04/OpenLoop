@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -82,6 +83,8 @@ fun LensCarousel(
             }
         }
 
+        // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
+        val closeLabel = stringResource(R.string.camera_close_lenses)
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Clear + close, mirroring the reference UI's leading ✕.
             Box(
@@ -91,7 +94,7 @@ fun LensCarousel(
                     .background(OverlayWhite)
                     .border(1.dp, OverlayWhiteBorder, CircleShape)
                     .clickable(onClick = onClose)
-                    .semantics { contentDescription = "Close lenses" }
+                    .semantics { contentDescription = closeLabel }
                     .testTag("lens_close"),
                 contentAlignment = Alignment.Center,
             ) {

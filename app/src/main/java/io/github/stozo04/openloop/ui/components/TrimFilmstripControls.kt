@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -61,6 +62,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.media.extractTrimFilmstripFrames
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -111,7 +113,7 @@ fun TrimFilmstripControls(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            text = "TRIM YOUR VIDEO",
+            text = stringResource(R.string.trim_section_title),
             color = Color.White.copy(alpha = 0.85f),
             style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp),
             textAlign = TextAlign.Center,
@@ -396,7 +398,7 @@ private fun FilmstripTrimSelector(
             offsetPx = { (positionPx(startMs) - handleVisualPx / 2f).roundToInt() },
             topOffsetPx = stripTopPx,
             testTag = "trim_handle_start",
-            label = "Trim start",
+            label = stringResource(R.string.trim_handle_start),
             valueMs = startMs,
             rangeMs = 0f..durationMs.toFloat(),
             onSetValueMs = { target ->
@@ -412,7 +414,7 @@ private fun FilmstripTrimSelector(
             offsetPx = { (positionPx(endMs) - handleVisualPx / 2f).roundToInt() },
             topOffsetPx = stripTopPx,
             testTag = "trim_handle_end",
-            label = "Trim end",
+            label = stringResource(R.string.trim_handle_end),
             valueMs = endMs,
             rangeMs = 0f..durationMs.toFloat(),
             onSetValueMs = { target ->
