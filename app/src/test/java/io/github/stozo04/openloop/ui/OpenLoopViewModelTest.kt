@@ -2218,9 +2218,9 @@ class OpenLoopViewModelTest {
     @Test
     fun `selecting a different lens swaps it`() {
         viewModel.selectLens(Lens.Broccoli)
-        viewModel.selectLens(Lens.BigMouth)
+        viewModel.selectLens(Lens.Football)
 
-        assertEquals(Lens.BigMouth, viewModel.activeLens.value)
+        assertEquals(Lens.Football, viewModel.activeLens.value)
     }
 
     @Test
@@ -2259,7 +2259,7 @@ class OpenLoopViewModelTest {
             assertTrue(viewModel.uiState.value is OpenLoopUiState.Recording)
 
             viewModel.setLensTrayOpen(true)
-            viewModel.selectLens(Lens.BigMouth)
+            viewModel.selectLens(Lens.Football)
             viewModel.selectLens(Lens.Broccoli)
             viewModel.selectLens(null)
             runCurrent()

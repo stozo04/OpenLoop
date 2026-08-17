@@ -540,7 +540,7 @@ class LensAnchorTest {
         // A prop lens leaves the subject's face alone; only characters replace it.
         assertNotNull("Broccoli is the character lens", Lens.Broccoli.features)
         assertNull("Shades is a prop, not a character", Lens.Sunglasses.features)
-        assertNull("Big Mouth warps the real face", Lens.BigMouth.features)
+        assertNull("Dog is a prop — the subject's own face shows through", Lens.Dog.features)
     }
 
     @Test

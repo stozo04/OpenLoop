@@ -600,3 +600,26 @@ that list's numbering:
    a moving face. It is the one number set here that a person has to judge. All three live together
    in one `WobbleSpec` in `Lens.kt` so retuning is a single edit — and `LensPhysicsTest` asserts the
    *properties*, so the feel can be changed freely without weakening the guarantees.
+
+---
+
+## 15. 2026-08-17 — Big Mouth and Bug Eyes removed
+
+Owner decision: both warp lenses come out of the catalogue entirely. The sections above are left as
+written — they are the dated record of how the feature was built, and rewriting them would erase the
+reasoning rather than the lenses.
+
+### 15.1 What went
+
+* `Lens.BigMouth` and `Lens.BugEyes`, plus their carousel-only vectors `lens_big_mouth.xml` and
+  `lens_bug_eyes.xml`.
+* Manual check **5** in §11 ("Big Mouth: the bulge sits on the mouth") no longer has a subject; it is
+  retired rather than renumbered, so the surviving check numbers still match the e2e proofs that cite
+  them.
+* The catalogue is now **seven** lenses: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue,
+  Elvis.
+
+Nothing outside the catalogue named either lens — that was §5's design goal and it held, so the
+removal is one enum edit plus the test call sites that happened to pick Big Mouth as a stand-in.
+Lens selection is session state (`MutableStateFlow<Lens?>(null)` in `OpenLoopViewModel`), never
+persisted, so no user can hold a stale reference to a deleted entry across a launch.

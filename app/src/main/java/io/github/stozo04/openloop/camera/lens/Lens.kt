@@ -138,31 +138,6 @@ enum class Lens(
     ),
 
     /**
-     * The warp lens: a radial bulge on the mouth. Deforms the camera pixels themselves, so it
-     * carries no art — [thumbnailRes] is a carousel icon only.
-     */
-    BigMouth(
-        displayName = "Big Mouth",
-        thumbnailRes = R.drawable.lens_big_mouth,
-        art = emptyList(),
-        // Radius a little over a mouth-width (~0.8 units) so the bulge takes in the lips and the
-        // jaw around them; strength high enough to read as a caricature rather than a lens flaw.
-        warp = WarpSpec(radiusInUnits = 1.0f, strength = 0.78f),
-    ),
-
-    /** Two radial bulges centred on the tracked eyes; the thumbnail is carousel-only. */
-    BugEyes(
-        displayName = "Bug Eyes",
-        thumbnailRes = R.drawable.lens_bug_eyes,
-        art = emptyList(),
-        warp = WarpSpec(
-            radiusInUnits = 0.36f,
-            strength = 0.75f,
-            target = WarpTarget.EYES,
-        ),
-    ),
-
-    /**
      * Pizza Face — an opaque **slice** worn as a head, crust across the brow and the tip below the
      * chin, with the subject's own eyes and mouth composited onto the cheese. Character pattern,
      * same as [Broccoli]. Source: owner-supplied `pizza-slice.jpg` (owner decision — a whole pie was

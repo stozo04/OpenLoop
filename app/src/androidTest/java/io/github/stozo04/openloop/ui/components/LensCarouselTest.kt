@@ -102,10 +102,11 @@ class LensCarouselTest {
         }
 
         // Scrolled first so this keeps working when the catalogue grows past the viewport again.
-        composeTestRule.scrollTo(Lens.BigMouth)
-        composeTestRule.onNodeWithTag("lens_thumb_${Lens.BigMouth.name}").performClick()
+        // A late-list lens on purpose: it is off-screen at rest, so the scroll is load-bearing.
+        composeTestRule.scrollTo(Lens.Elvis)
+        composeTestRule.onNodeWithTag("lens_thumb_${Lens.Elvis.name}").performClick()
 
-        assertEquals(Lens.BigMouth, selected)
+        assertEquals(Lens.Elvis, selected)
     }
 
     @Test
