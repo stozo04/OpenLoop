@@ -17,7 +17,7 @@ Built with Google's latest Android libraries. All video processing runs on your 
 - **Capture** — Hold the shutter for a clip (up to 30 s), or import one from your library
 - **Seamless Loops** — Forward, reverse, or either bounce, generated entirely on-device via Media3 Transformer
 - **Speed Control** — Real-time playback speed slider from 0.5x to 3.0x before you save
-- **Face Lenses** — eight of them: Broccoli, Shades, Big Mouth, Bug Eyes, Pizza Face, Football, Dog and Twisted Tongue. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth
+- **Face Lenses** — seven of them: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue and Elvis. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth
 - **Photo Mode** — Flip the shutter to stills, lenses included
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
 - **Private by design** — Your videos are processed 100% on-device and are never uploaded. No accounts, no ads, no advertising ID. The app does send limited, pseudonymous crash and usage diagnostics (Firebase Crashlytics + Analytics) — see the [privacy policy](docs/play-store/privacy-policy.md)
@@ -291,10 +291,10 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 - Front/back toggle, pinch-to-zoom, and a stills photo mode
 - Loop generation — forward, reverse and both bounces — via Media3 Transformer
 - Trim, speed control (0.5x–3.0x) and Looks, all previewed before you save
-- Eight face lenses, tracked with ML Kit and baked into the recording
+- Seven face lenses, tracked with ML Kit and baked into the recording
 - Gallery with delete, full-screen playback and a share sheet
 - In-app updates and a Play review prompt
-- 430 unit tests + 100 instrumented tests
+- 433 unit tests + 102 instrumented tests
 
 **What's next:**
 

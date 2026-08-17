@@ -63,7 +63,7 @@ OpenLoop turns a quick clip into a smooth, speed-controlled video loop — a "bo
 
 WHAT YOU CAN DO
 • Capture a clip with the built-in camera, or import one you already have.
-• Add a live face lens — Broccoli, Shades or Big Mouth — that follows your face as you record.
+• Add a live face lens — Broccoli, Shades or Elvis — that follows your face as you record.
 • Take photos too, lenses included, with the same shutter.
 • Trim to the exact moment with a simple two-handle bar.
 • Pick a direction: forward, reverse, forward-then-reverse, or reverse-then-forward.

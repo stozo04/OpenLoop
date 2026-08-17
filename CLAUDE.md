@@ -100,7 +100,7 @@ io.github.stozo04.openloop/
 │   └── lens/                    # Live camera lenses — docs/PRD-camera-lenses.md
 │       ├── Lens.kt              # The catalogue. Nothing outside this file names an individual lens
 │       ├── LensAnchor.kt        # Pure face-frame placement math (JVM-tested: LensAnchorTest)
-│       ├── LensSurfaceProcessor.kt  # The ONE CameraEffect: EGL + 3 GL programs, sticker/warp/feature draw
+│       ├── LensSurfaceProcessor.kt  # The ONE CameraEffect: EGL + 3 GL programs, sticker/feature draw
 │       └── FaceTracker.kt       # ML Kit (stable API) ImageAnalysis.Analyzer → FaceSnapshot
 ├── data/                        # UserPreferencesRepository (DataStore), VideoStorageRepository, VideoImporter
 ├── diagnostics/                 # AnalyticsReporter + Crashlytics wrappers, debug-report share

@@ -60,7 +60,7 @@ Modifier.semantics { contentDescription = context.getString(R.string.camera_zoom
 |-------|-----|
 | `app_name`, `share_subject` | Brand nouns — marked `translatable="false"` so Gemini leaves them alone |
 | `VideoFilter.label` (`B&W`, `Warm`, `Pop`, …) | Product-style look names, like Instagram's filters. Also keeps the diff out of the JVM-pure `media/` package |
-| `Lens.displayName` (`Broccoli`, `Big Mouth`, …) | Same — lens names are product identity, and `camera/lens/Lens.kt` is the one file that names them |
+| `Lens.displayName` (`Broccoli`, `Twisted Tongue`, …) | Same — lens names are product identity, and `camera/lens/Lens.kt` is the one file that names them |
 | Debug-report **subject** lines | They route a support mail to the maintainer; they are not app UI. The chooser *title* beside them **is** localized |
 | Numeric readouts (`00:02.3`, `2.3x`, `48%`) | Values, not copy. The phrasing around them (`"%1$s times speed"`) is a resource |
 

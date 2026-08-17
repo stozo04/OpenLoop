@@ -16,8 +16,8 @@ import kotlin.math.hypot
  * Turns the [ImageAnalysis] stream into [FaceSnapshot]s for the lens renderer.
  *
  * Uses ML Kit's **stable** face detector, not the beta face-mesh API: landmark mode already gives
- * the mouth corners a warp lens needs, at a fraction of the cost of 468 mesh points, and it carries
- * an SLA. See `docs/PRD-camera-lenses.md` §5.1 for the comparison.
+ * the eyes and mouth corners the face frame is built from, at a fraction of the cost of 468 mesh
+ * points, and it carries an SLA. See `docs/PRD-camera-lenses.md` §5.1 for the comparison.
  *
  * Only the most prominent face is tracked. Lenses are a selfie feature; picking the largest face
  * keeps a bystander in the background from stealing the broccoli.
@@ -37,8 +37,8 @@ class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.A
             // FAST over ACCURATE: this runs per preview frame, and a lens that lags is worse than
             // a lens that is a pixel off.
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-            // Landmarks (not contours) — MOUTH_LEFT/RIGHT is all the Big Mouth warp needs, and
-            // contour mode is several times the work per frame.
+            // Landmarks (not contours) — the eyes, MOUTH_LEFT/RIGHT and MOUTH_BOTTOM are the whole
+            // input to LensAnchor, and contour mode is several times the work per frame.
             .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
             .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
             .setMinFaceSize(MIN_FACE_SIZE)
