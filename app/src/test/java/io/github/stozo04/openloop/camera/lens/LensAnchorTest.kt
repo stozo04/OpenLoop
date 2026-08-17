@@ -373,49 +373,6 @@ class LensAnchorTest {
         assertEquals(original.mouthLeftY, back.mouthLeftY, tolerance)
     }
 
-    // ---------------------------------------------------------------- warp
-
-    @Test
-    fun warp_sitsOnTheMouth_andScalesWithTheFace() {
-        val snapshot = face()
-        val frame = frameOf(snapshot)
-        val spec = WarpSpec(radiusInUnits = 1.2f, strength = 0.7f)
-
-        val circle = LensAnchor.warps(snapshot, frame, spec).single()
-
-        assertEquals(0.5f, circle.centerX, tolerance)
-        assertEquals(0.60f, circle.centerY, tolerance)
-        assertEquals(1.2f * frame.unit, circle.radius, tolerance)
-        assertEquals(0.7f, circle.strength, tolerance)
-    }
-
-    @Test
-    fun warps_eyeTargetUsesBothTrackedEyes() {
-        val snapshot = face()
-        val frame = frameOf(snapshot)
-        val circles = LensAnchor.warps(
-            snapshot,
-            frame,
-            WarpSpec(radiusInUnits = 0.36f, strength = 0.75f, target = WarpTarget.EYES),
-        )
-
-        assertEquals(2, circles.size)
-        assertEquals(snapshot.leftEyeX, circles[0].centerX, tolerance)
-        assertEquals(snapshot.leftEyeY, circles[0].centerY, tolerance)
-        assertEquals(snapshot.rightEyeX, circles[1].centerX, tolerance)
-        assertEquals(snapshot.rightEyeY, circles[1].centerY, tolerance)
-        circles.forEach { circle ->
-            assertEquals(0.36f * frame.unit, circle.radius, tolerance)
-            assertEquals(0.75f, circle.strength, tolerance)
-        }
-    }
-
-    @Test
-    fun warpNone_isAnIdentityTheRendererCanBindUnconditionally() {
-        assertEquals(0f, WarpCircle.NONE.strength, tolerance)
-        assertEquals(0f, WarpCircle.NONE.radius, tolerance)
-    }
-
     // ---------------------------------------------------------------- square space
 
     @Test
@@ -569,12 +526,11 @@ class LensAnchorTest {
     // ---------------------------------------------------------------- the catalogue
 
     @Test
-    fun everyLensIsEitherArtOrWarp_andNamed() {
+    fun everyLensHasArt_andIsNamed() {
         Lens.entries.forEach { lens ->
-            assertTrue(
-                "${lens.name} must do something: art, a warp, or both",
-                lens.art.isNotEmpty() || lens.warp != null,
-            )
+            // Art is now the ONLY way a lens does anything — the warp path that let Big Mouth and
+            // Bug Eyes ship with an empty `art` list went with them.
+            assertTrue("${lens.name} must carry at least one art layer", lens.art.isNotEmpty())
             assertTrue("${lens.name} needs a display name", lens.displayName.isNotBlank())
         }
     }
@@ -958,7 +914,6 @@ class LensAnchorTest {
     @Test
     fun twistedTongue_isAProp_soTheSubjectsFaceShowsAround() {
         assertNull("features would replace the face; this lens decorates it", Lens.TwistedTongue.features)
-        assertNull("the eyeballs are drawn art, not a pixel bulge", Lens.TwistedTongue.warp)
     }
 
     @Test
@@ -1080,7 +1035,6 @@ class LensAnchorTest {
     fun elvis_isAProp_notACharacter() {
         // Elvis is a prop lens, so the subject's face shows through.
         assertNull("Elvis is a prop, not a character replacement", Lens.Elvis.features)
-        assertNull("Elvis has no warp effect", Lens.Elvis.warp)
     }
 
     // ---------------------------------------------------------------- character head coverage

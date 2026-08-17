@@ -8,7 +8,7 @@ import io.github.stozo04.openloop.R
  *
  * Adding a lens is meant to be *only* this: one entry here plus its art. Nothing in
  * `LensSurfaceProcessor`, `CameraManager`, or the UI names an individual lens — the carousel
- * renders `Lens.entries` and the renderer switches on [art] / [warp] being present.
+ * renders `Lens.entries` and the renderer just walks [art] and [features].
  *
  * ## Reading the numbers
  *
@@ -60,7 +60,6 @@ enum class Lens(
      * [LensPlacement], so the anchor, offset and wobble are per-layer.
      */
     val art: List<LensArt>,
-    val warp: WarpSpec?,
     /**
      * Non-null turns this lens into a **character**: the art is drawn opaque over the head and the
      * subject's own eyes and mouth are composited onto it. Null leaves the subject's face visible
@@ -113,7 +112,6 @@ enum class Lens(
             mouthUpInUnits = -0.58f,
             mouthWidthInUnits = 1.30f,
         ),
-        warp = null,
     ),
 
     /**
@@ -134,7 +132,6 @@ enum class Lens(
                 ),
             ),
         ),
-        warp = null,
     ),
 
     /**
@@ -187,7 +184,6 @@ enum class Lens(
             mouthUpInUnits = -0.50f,
             mouthWidthInUnits = 1.15f,
         ),
-        warp = null,
     ),
 
     /**
@@ -243,7 +239,6 @@ enum class Lens(
             mouthUpInUnits = -0.45f,
             mouthWidthInUnits = 1.30f,
         ),
-        warp = null,
     ),
 
     /**
@@ -291,7 +286,6 @@ enum class Lens(
                 ),
             ),
         ),
-        warp = null,
     ),
 
     /**
@@ -412,7 +406,6 @@ enum class Lens(
                 ),
             ),
         ),
-        warp = null,
     ),
 
     /**
@@ -478,7 +471,6 @@ enum class Lens(
                 ),
             ),
         ),
-        warp = null,
     ),
 }
 

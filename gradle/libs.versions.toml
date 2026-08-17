@@ -100,8 +100,8 @@ play-review = { group = "com.google.android.play", name = "review", version.ref 
 play-review-ktx = { group = "com.google.android.play", name = "review-ktx", version.ref = "playReview" }
 
 # ML Kit face detection — powers camera lenses (docs/PRD-camera-lenses.md). Deliberately the
-# STABLE face-detection API, not the beta face-mesh one; landmark mode already gives the mouth
-# corners the Big Mouth warp needs. Bundled model: no Play-services round trip on first use.
+# STABLE face-detection API, not the beta face-mesh one; landmark mode already gives the eyes and
+# mouth corners LensAnchor needs. Bundled model: no Play-services round trip on first use.
 mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFaceDetection" }
 
 

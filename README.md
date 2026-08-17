@@ -293,7 +293,7 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 - Seven face lenses, tracked with ML Kit and baked into the recording
 - Gallery with delete, full-screen playback and a share sheet
 - In-app updates and a Play review prompt
-- 430 unit tests + 100 instrumented tests
+- 433 unit tests + 100 instrumented tests
 
 **What's next:**
 

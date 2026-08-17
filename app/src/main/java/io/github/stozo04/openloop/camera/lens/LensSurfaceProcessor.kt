@@ -30,9 +30,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The lens renderer: a CameraX [SurfaceProcessor] that draws every camera frame through a shader
- * which can bulge the pixels and composite a sticker, then hands the result to *all* of the
- * effect's outputs — preview and video recorder alike.
+ * The lens renderer: a CameraX [SurfaceProcessor] that draws every camera frame, composites the
+ * active lens's stickers and features over it, and hands the result to *all* of the effect's
+ * outputs — preview and video recorder alike.
  *
  * ## Why one processor for every lens
  *
@@ -263,7 +263,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             val faceFrame = snapshot?.let { LensAnchor.faceFrame(it, frameAspect) }
 
             GLES20.glViewport(0, 0, size.width, size.height)
-            drawCamera(input.textureId, lens, snapshot, faceFrame, frameAspect)
+            drawCamera(input.textureId)
             // Layers paint in catalogue order, so a lens controls its own stacking — Twisted
             // Tongue's teeth land on top of its tongue purely by sitting later in the list.
             if (lens != null && snapshot != null && faceFrame != null) {
@@ -292,20 +292,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         }
     }
 
-    private fun drawCamera(
-        cameraTextureId: Int,
-        lens: Lens?,
-        snapshot: FaceSnapshot?,
-        faceFrame: FaceFrame?,
-        frameAspect: Float,
-    ) {
-        val spec = lens?.warp
-        val warps = if (spec != null && snapshot != null && faceFrame != null) {
-            LensAnchor.warps(snapshot, faceFrame, spec)
-        } else {
-            emptyList()
-        }
-
+    private fun drawCamera(cameraTextureId: Int) {
         GLES20.glUseProgram(cameraProgram)
         GLES20.glDisable(GLES20.GL_BLEND)
 
@@ -319,19 +306,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             outputTextureMatrix,
             0,
         )
-        fun bindWarp(index: Int, warp: WarpCircle) {
-            GLES20.glUniform2f(
-                GLES20.glGetUniformLocation(cameraProgram, "uWarpCenter$index"),
-                warp.centerX,
-                warp.centerY,
-            )
-            GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uWarpRadius$index"), warp.radius)
-            GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uWarpStrength$index"), warp.strength)
-        }
-        bindWarp(0, warps.getOrNull(0) ?: WarpCircle.NONE)
-        bindWarp(1, warps.getOrNull(1) ?: WarpCircle.NONE)
-        GLES20.glUniform1f(GLES20.glGetUniformLocation(cameraProgram, "uFrameAspect"), frameAspect)
-
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, cameraTextureId)
         GLES20.glUniform1i(GLES20.glGetUniformLocation(cameraProgram, "uCamera"), 0)
@@ -766,47 +740,22 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         """
 
         /**
-         * Camera pass. Samples the external OES texture, optionally through up to two radial
-         * bulges. Each warp is computed in *square space* (y scaled by the frame aspect) so the
-         * affected region is a circle in pixels rather than an ellipse.
+         * Camera pass — a straight sample of the external OES texture through CameraX's transform.
+         *
+         * This used to carry up to two radial bulges (Big Mouth, Bug Eyes). Both lenses are gone,
+         * and with them the flip into y-down screen space they needed: the shader converted
+         * `vTexCoord`, warped, and converted back, which is exactly the identity when no warp
+         * fires. A lens that deforms pixels again wants that scaffolding back — it is in the
+         * history, not commented out here.
          */
         const val CAMERA_FRAGMENT_SHADER = """
             #extension GL_OES_EGL_image_external : require
             precision mediump float;
             uniform samplerExternalOES uCamera;
             uniform mat4 uTexMatrix;
-            uniform vec2 uWarpCenter0;
-            uniform float uWarpRadius0;
-            uniform float uWarpStrength0;
-            uniform vec2 uWarpCenter1;
-            uniform float uWarpRadius1;
-            uniform float uWarpStrength1;
-            uniform float uFrameAspect;
             varying vec2 vTexCoord;
-            vec2 applyWarp(vec2 uv, vec2 center, float radius, float strength) {
-                if (strength > 0.0 && radius > 0.0) {
-                    vec2 delta = uv - center;
-                    // → square space: a y unit spans `height` px against x's `width`, so dividing
-                    // by the aspect puts both axes on the same scale (LensAnchor.toSquareY).
-                    delta.y /= uFrameAspect;
-                    float dist = length(delta);
-                    if (dist < radius) {
-                        float falloff = 1.0 - dist / radius;
-                        // Sampling closer to the centre magnifies; squared falloff keeps the rim smooth.
-                        delta *= 1.0 - strength * falloff * falloff;
-                        delta.y *= uFrameAspect;
-                        uv = center + delta;
-                    }
-                }
-                return uv;
-            }
             void main() {
-                // Screen space, y down, to match LensAnchor.
-                vec2 uv = vec2(vTexCoord.x, 1.0 - vTexCoord.y);
-                uv = applyWarp(uv, uWarpCenter0, uWarpRadius0, uWarpStrength0);
-                uv = applyWarp(uv, uWarpCenter1, uWarpRadius1, uWarpStrength1);
-                vec2 sampleCoord = vec2(uv.x, 1.0 - uv.y);
-                gl_FragColor = texture2D(uCamera, (uTexMatrix * vec4(sampleCoord, 0.0, 1.0)).xy);
+                gl_FragColor = texture2D(uCamera, (uTexMatrix * vec4(vTexCoord, 0.0, 1.0)).xy);
             }
         """
 

@@ -623,3 +623,19 @@ Nothing outside the catalogue named either lens — that was §5's design goal a
 removal is one enum edit plus the test call sites that happened to pick Big Mouth as a stand-in.
 Lens selection is session state (`MutableStateFlow<Lens?>(null)` in `OpenLoopViewModel`), never
 persisted, so no user can hold a stale reference to a deleted entry across a launch.
+
+### 15.2 The warp engine went with them
+
+Big Mouth and Bug Eyes were the **only** users of the warp path, so §5's `WarpSpec` / `WarpTarget` /
+`WarpCircle`, `LensAnchor.warps()`, `Lens.warp`, and the shader's two uniform sets and `applyWarp()`
+are all deleted rather than left as unreachable code. §13's "Generic two-eye warp" subsection
+describes machinery that no longer exists; it stays as the record of why it was built that way.
+
+The camera fragment shader collapses to a single `texture2D`. Its flip into y-down screen space
+existed **only** so the warp centres could be compared against `LensAnchor`'s coordinates — with the
+warp gone the flip and its inverse cancel exactly, so removing both is a no-op on output, not a
+behaviour change. `drawCamera` no longer needs the lens, the face, or the frame aspect, and
+`uFrameAspect` survives only on the feature program, which has its own copy.
+
+This is a separate commit from §15.1 on purpose: reverting it restores the engine without bringing
+back the two lenses, if a future warp lens wants it.

@@ -192,34 +192,6 @@ data class StickerQuad(
     val rotationRadians: Float,
 )
 
-/**
- * How a warp lens deforms the frame, in face units. [radiusInUnits] scales with the face;
- * [strength] is the peak magnification at the centre (0f = off).
- */
-enum class WarpTarget { MOUTH, EYES }
-
-data class WarpSpec(
-    val radiusInUnits: Float,
-    val strength: Float,
-    val target: WarpTarget = WarpTarget.MOUTH,
-)
-
-/**
- * A resolved warp for the shader: a circle whose centre is normalized and whose [radius] is in
- * square space, so the shader can treat it as a true circle.
- */
-data class WarpCircle(
-    val centerX: Float,
-    val centerY: Float,
-    val radius: Float,
-    val strength: Float,
-) {
-    companion object {
-        /** The no-op warp the renderer binds when the active lens does not deform pixels. */
-        val NONE = WarpCircle(centerX = 0.5f, centerY = 0.5f, radius = 0f, strength = 0f)
-    }
-}
-
 object LensAnchor {
 
     /**
@@ -523,30 +495,6 @@ object LensAnchor {
 
     /** Height / width for every feature cut-out — eyes and mouths are both wider than they are tall. */
     private const val FEATURE_ASPECT = 0.62f
-
-    /** Resolves [spec] onto its tracked anatomy, scaled by the same face unit every lens uses. */
-    fun warps(
-        face: FaceSnapshot,
-        frame: FaceFrame,
-        spec: WarpSpec,
-    ): List<WarpCircle> {
-        fun circle(x: Float, y: Float) = WarpCircle(
-            centerX = x,
-            centerY = y,
-            radius = spec.radiusInUnits * frame.unit,
-            strength = spec.strength,
-        )
-        return when (spec.target) {
-            WarpTarget.MOUTH -> listOf(circle(
-                (face.mouthLeftX + face.mouthRightX) / 2f,
-                (face.mouthLeftY + face.mouthRightY) / 2f,
-            ))
-            WarpTarget.EYES -> listOf(
-                circle(face.leftEyeX, face.leftEyeY),
-                circle(face.rightEyeX, face.rightEyeY),
-            )
-        }
-    }
 
     /**
      * Rewrites a face measured in the **upright** image into **camera-buffer** coordinates.
