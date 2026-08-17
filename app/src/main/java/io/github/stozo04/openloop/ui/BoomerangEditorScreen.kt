@@ -37,10 +37,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,6 +78,8 @@ import io.github.stozo04.openloop.ui.components.EditorLoadingOverlay
 import io.github.stozo04.openloop.ui.components.FilterTabPanel
 import io.github.stozo04.openloop.ui.components.LoopTabPanel
 import io.github.stozo04.openloop.ui.components.SpeedTabPanel
+import io.github.stozo04.openloop.ui.components.seamFractionsFor
+import io.github.stozo04.openloop.ui.components.speedDiffersMeaningfully
 import io.github.stozo04.openloop.ui.components.toToolbarSlot
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.ElectricLime
@@ -88,30 +92,62 @@ import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import io.github.stozo04.openloop.diagnostics.shareDebugReport
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.ClipDirection
+import io.github.stozo04.openloop.media.SpeedCurve
 import io.github.stozo04.openloop.media.VideoFilter
-import io.github.stozo04.openloop.media.boomerangOutputDurationMs
 import io.github.stozo04.openloop.media.boomerangSequence
+import io.github.stozo04.openloop.media.loopClipSpans
+import io.github.stozo04.openloop.media.loopOutputDurationMs
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.sourceSeamDurationMs
+import io.github.stozo04.openloop.media.totalUs
+import io.github.stozo04.openloop.media.videoDurationMsOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Hit target ≥ 48 dp (Material / ANDROID_STANDARDS §7 minimum) for the top-bar buttons and chips. */
 private val CONTROL_SIZE = 56.dp
 
-/** Tab-panel heights: fixed per tab so the bottom toolbar stays put; Speed is tallest (slider + pill). */
-private fun editorPanelHeight(tab: EditorTab) = when (tab) {
-    EditorTab.SPEED -> 240.dp
+/**
+ * Tab-panel heights: fixed per tab so the bottom toolbar stays put; Speed is tallest.
+ *
+ * Curve mode is taller again — graph + readout + two rows of actions — so the panel is sized on the
+ * mode as well as the tab. A single height for both would either clip the curve editor or leave the
+ * slider floating in dead space.
+ */
+private fun editorPanelHeight(tab: EditorTab, curveMode: Boolean) = when (tab) {
+    // Constant was 240.dp before the mode toggle existed; the toggle (40) plus its spacer (18) is
+    // 58.dp of new chrome above the slider, and without it the "Current speed" pill is clipped off
+    // the bottom of the card.
+    EditorTab.SPEED -> if (curveMode) 376.dp else 298.dp
     EditorTab.LOOKS -> 188.dp
     EditorTab.DIRECTION -> 168.dp
 }
 
 /** Debounce before pushing a new speed to the player — coalesces a drag's stream into one apply. */
 private val SPEED_DEBOUNCE = 50.milliseconds
+
+/** How often Curve mode samples the player position to re-aim `setPlaybackSpeed` and the playhead. */
+private val PLAYHEAD_POLL = 50.milliseconds
+
+/**
+ * Minimum speed delta before Curve mode re-applies `setPlaybackSpeed`.
+ *
+ * Hysteresis, not thrift: a steep ramp would otherwise push a new playback speed 20×/s, and each call
+ * resets ExoPlayer's `PlaybackParameters`. On a flat stretch of the curve this keeps the player
+ * completely untouched.
+ */
+private const val PLAYHEAD_SPEED_EPSILON = 0.02f
+
+/**
+ * How far a dragged keyframe must travel before the preview re-seeks to it. A decoder seek per
+ * pointer event would stutter; ~1.5% of the loop is roughly a finger-width of graph.
+ */
+private const val SCRUB_EPSILON = 0.015f
 
 /** Debounce playlist rebinding — coalesces trim/mode/seam changes (editor-memory-oom WS-2). */
 private val PLAYLIST_DEBOUNCE = EditorPlaylistBind.PLAYLIST_DEBOUNCE
@@ -134,6 +170,7 @@ fun BoomerangEditorScreen(
     val trim by viewModel.editorState.collectAsStateWithLifecycle()
     val tab by viewModel.editorTabState.collectAsStateWithLifecycle()
     val sessionOverlay by viewModel.sessionOverlayLoading.collectAsStateWithLifecycle()
+    val hasSeenCurveIntro by viewModel.hasSeenSpeedCurveIntro.collectAsStateWithLifecycle()
     val editor = trim ?: return // No active session (transient state); router keeps us here.
 
     BoomerangEditorContent(
@@ -142,6 +179,8 @@ fun BoomerangEditorScreen(
         trimEndMs = editor.trimEndMs,
         mode = tab.mode,
         speed = tab.speed,
+        curve = tab.curve,
+        hasSeenCurveIntro = hasSeenCurveIntro,
         filter = tab.filter,
         activeTab = tab.activeTab,
         reversedFile = tab.reversedFile,
@@ -153,6 +192,11 @@ fun BoomerangEditorScreen(
         onRetryReverse = viewModel::retryReverseSegment,
         onSelectMode = viewModel::updateMode,
         onSpeedChange = viewModel::updateSpeed,
+        onEnterCurveMode = viewModel::enterCurveMode,
+        onCurveChange = viewModel::updateCurve,
+        onFlattenCurve = viewModel::flattenCurveToConstant,
+        onUseCurrentAsConstant = viewModel::setConstantSpeedFromCurve,
+        onCurveIntroSeen = viewModel::markSpeedCurveIntroSeen,
         onFilterChange = viewModel::updateFilter,
         onFilterPreviewSettled = viewModel::onFilterPreviewSettled,
         onSwitchTab = viewModel::switchTab,
@@ -189,6 +233,8 @@ fun BoomerangEditorContent(
     previewLoading: EditorLoadingKind? = null,
     sessionOverlayLoading: EditorLoadingKind? = null,
     speed: Float = OpenLoopViewModel.DEFAULT_SPEED,
+    curve: SpeedCurve? = null,
+    hasSeenCurveIntro: Boolean = true,
     filter: VideoFilter = VideoFilter.ORIGINAL,
     activeTab: EditorTab = EditorTab.DIRECTION,
     reverseFailed: Boolean = false,
@@ -196,6 +242,11 @@ fun BoomerangEditorContent(
     effectsPreviewEnabled: Boolean = true,
     onRetryReverse: () -> Unit = {},
     onSpeedChange: (Float) -> Unit = {},
+    onEnterCurveMode: () -> Unit = {},
+    onCurveChange: (SpeedCurve) -> Unit = {},
+    onFlattenCurve: () -> Unit = {},
+    onUseCurrentAsConstant: (Float) -> Unit = {},
+    onCurveIntroSeen: () -> Unit = {},
     onFilterChange: (VideoFilter) -> Unit = {},
     onFilterPreviewSettled: () -> Unit = {},
     onSwitchTab: (EditorTab) -> Unit = {},
@@ -396,9 +447,110 @@ fun BoomerangEditorContent(
     // Apply speed to the preview, debounced: re-keying on `speed` cancels the prior pending delay, so a
     // drag's stream of values collapses into a single setPlaybackSpeed once the user settles (~50 ms).
     // This is a player-side effect — free, no re-render, and independent of the cached reversed clip.
-    LaunchedEffect(speed) {
+    //
+    // Gated on Constant mode so this and the curve poller below can never both drive
+    // setPlaybackSpeed: exactly one writer owns it at any moment. `curve == null` is a key, not just a
+    // guard, so leaving Curve mode re-applies the flattened constant even when the number is unchanged.
+    LaunchedEffect(speed, curve == null) {
+        if (curve != null) return@LaunchedEffect
         delay(SPEED_DEBOUNCE)
         exoPlayer.setPlaybackSpeed(speed)
+    }
+
+    // The loop laid out on its 1× input timeline — the domain a SpeedCurve is defined over. Built
+    // from the SAME post-seam-drop clip plan the render uses (loopClipSpans), so the graph's turn
+    // markers and the playhead sit exactly where the encoder puts them (Lesson 018).
+    // The reversed clip's real length, measured off the main thread. The render measures it too, so
+    // the graph, the playhead and the duration chip all describe the loop the encoder will build —
+    // not an idealised one where the reversed half is assumed to match the trim window exactly.
+    val reversedDurationMs by produceState<Long?>(null, reversedFile) {
+        value = reversedFile?.let { withContext(Dispatchers.IO) { videoDurationMsOf(it) } }
+    }
+    val clipSpans = remember(mode, trimStartMs, trimEndMs, seamMs, reversedDurationMs) {
+        loopClipSpans(
+            specs = boomerangSequence(mode, OpenLoopViewModel.DEFAULT_REPS),
+            windowMs = trimEndMs - trimStartMs,
+            seamMs = seamMs,
+            reversedMs = reversedDurationMs,
+        )
+    }
+    val seamFractions = remember(clipSpans) { seamFractionsFor(clipSpans.map { it.durationUs }) }
+
+    // Playhead position as a fraction of the whole loop. Held as a raw MutableFloatState and never
+    // read in this composable's body — the curve panel reads it inside its Canvas draw scope, so a
+    // 20 Hz tick redraws the graph without recomposing the tree that hosts the player (Lesson 016).
+    val playheadFraction = remember { mutableFloatStateOf(0f) }
+    // Newest curve without restarting the poller: keying the effect on `curve` itself would tear
+    // down and rebuild the loop on every drag frame.
+    val latestCurve by rememberUpdatedState(curve)
+
+    // Scrub-to-handle: while a keyframe is being dragged, park the preview on the moment that
+    // keyframe governs and pause there, so the frame on screen is the one the user is shaping rather
+    // than wherever the loop happened to be. Release resumes the loop at the new curve — the user
+    // sees the moment while editing and the result the instant they let go.
+    var scrubbing by remember { mutableStateOf(false) }
+    var lastScrubFraction by remember { mutableFloatStateOf(Float.NaN) }
+    val onScrubToFraction: (Float?) -> Unit = handler@{ fraction ->
+        val totalUs = clipSpans.totalUs()
+        if (fraction == null) {
+            lastScrubFraction = Float.NaN
+            scrubbing = false
+            exoPlayer.playWhenReady = true
+            return@handler
+        }
+        if (totalUs <= 0L || clipSpans.isEmpty()) return@handler
+        if (!lastScrubFraction.isNaN() && abs(fraction - lastScrubFraction) < SCRUB_EPSILON) return@handler
+        lastScrubFraction = fraction
+        scrubbing = true
+        exoPlayer.playWhenReady = false
+
+        // Resolve the global instant back to (clip index, clip-local ms) across the post-seam-drop
+        // layout — the same spans the curve itself is sliced over, so the seek lands where the graph
+        // says it will.
+        val targetUs = (fraction.toDouble() * totalUs).toLong()
+        var accumulatedUs = 0L
+        var index = clipSpans.lastIndex
+        for (i in clipSpans.indices) {
+            if (targetUs < accumulatedUs + clipSpans[i].durationUs) {
+                index = i
+                break
+            }
+            if (i < clipSpans.lastIndex) accumulatedUs += clipSpans[i].durationUs
+        }
+        exoPlayer.seekTo(index, ((targetUs - accumulatedUs) / 1_000L).coerceAtLeast(0L))
+        playheadFraction.floatValue = fraction
+    }
+
+    LaunchedEffect(exoPlayer, curve != null, clipSpans, reversePreviewLoading) {
+        if (curve == null) return@LaunchedEffect
+        // Never poll during the reverse pass — that window is already codec- and memory-starved, and
+        // adding load there is exactly what Lesson 026 warns about.
+        if (reversePreviewLoading) return@LaunchedEffect
+        val totalUs = clipSpans.totalUs()
+        if (totalUs <= 0L) return@LaunchedEffect
+
+        var lastApplied = Float.NaN
+        while (true) {
+            val index = exoPlayer.currentMediaItemIndex.coerceIn(0, (clipSpans.size - 1).coerceAtLeast(0))
+            // currentPosition is MEDIA time within the clipped window, i.e. already on the 1× input
+            // timeline — setPlaybackSpeed changes how fast it advances against the wall clock, not
+            // its scale. So it composes directly with the spans above.
+            val priorUs = clipSpans.take(index).sumOf { it.durationUs }
+            val positionUs = (exoPlayer.currentPosition.coerceAtLeast(0L)) * 1_000L
+            val fraction = ((priorUs + positionUs).toFloat() / totalUs.toFloat()).coerceIn(0f, 1f)
+            // While a handle is being dragged the scrub handler owns the playhead; letting the poller
+            // also write it would fight the seek for the frames before it lands.
+            if (!scrubbing) playheadFraction.floatValue = fraction
+
+            val target = latestCurve?.speedAt(fraction)
+            if (target != null &&
+                (lastApplied.isNaN() || speedDiffersMeaningfully(target, lastApplied, PLAYHEAD_SPEED_EPSILON))
+            ) {
+                exoPlayer.setPlaybackSpeed(target)
+                lastApplied = target
+            }
+            delay(PLAYHEAD_POLL)
+        }
     }
 
     OpenLoopBackground(modifier = modifier) {
@@ -538,13 +690,11 @@ fun BoomerangEditorContent(
                     text = String.format(
                         Locale.US,
                         "%.1fs",
-                        boomerangOutputDurationMs(
-                            mode = mode,
-                            trimStartMs = trimStartMs,
-                            trimEndMs = trimEndMs,
-                            speed = speed,
-                            repetitions = OpenLoopViewModel.DEFAULT_REPS,
-                        ) / 1000f,
+                        // Derived from the SAME clip spans the render slices the curve over, so this
+                        // number cannot promise a length the encoder will not produce. A curve's
+                        // equivalent constant is its harmonic mean — the speed defined as yielding
+                        // the same output length — so one formula covers both modes.
+                        loopOutputDurationMs(clipSpans, curve?.flatten() ?: speed) / 1000f,
                     ),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -563,7 +713,7 @@ fun BoomerangEditorContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(editorPanelHeight(activeTab))
+                .height(editorPanelHeight(activeTab, curve != null))
                 .background(Brush.verticalGradient(listOf(Color.Transparent, OverlayScrim))),
             contentAlignment = Alignment.TopCenter,
         ) {
@@ -576,7 +726,21 @@ fun BoomerangEditorContent(
             ) { tab ->
                 when (tab) {
                     EditorTab.DIRECTION -> LoopTabPanel(mode = mode, onSelectMode = onSelectMode)
-                    EditorTab.SPEED -> SpeedTabPanel(speed = speed, onSpeedChange = onSpeedChange)
+                    EditorTab.SPEED -> SpeedTabPanel(
+                        speed = speed,
+                        onSpeedChange = onSpeedChange,
+                        curve = curve,
+                        playheadFraction = { playheadFraction.floatValue },
+                        seamFractions = seamFractions,
+                        loopDurationMs = clipSpans.totalUs() / 1_000L,
+                        hasSeenCurveIntro = hasSeenCurveIntro,
+                        onEnterCurveMode = onEnterCurveMode,
+                        onCurveChange = onCurveChange,
+                        onFlattenCurve = onFlattenCurve,
+                        onUseCurrentAsConstant = onUseCurrentAsConstant,
+                        onScrubToFraction = onScrubToFraction,
+                        onCurveIntroSeen = onCurveIntroSeen,
+                    )
                     EditorTab.LOOKS -> FilterTabPanel(
                         filter = filter,
                         thumbnailFrame = thumbnailFrame,

@@ -93,7 +93,7 @@ class BoomerangRenderWorker(
                     trimStartMs = parsed.trimStartMs,
                     trimEndMs = parsed.trimEndMs,
                     mode = parsed.mode,
-                    speed = parsed.speed,
+                    curve = parsed.effectiveCurve,
                     filter = parsed.filter,
                     repetitions = parsed.repetitions,
                     outputFile = parsed.outputFile,

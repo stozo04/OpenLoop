@@ -10,19 +10,27 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -44,18 +52,22 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import io.github.stozo04.openloop.R
+import io.github.stozo04.openloop.media.SpeedCurve
 import io.github.stozo04.openloop.ui.OpenLoopViewModel
 import io.github.stozo04.openloop.ui.theme.ElectricLime
+import io.github.stozo04.openloop.ui.theme.LimeInk
 import io.github.stozo04.openloop.ui.theme.Outline
 import io.github.stozo04.openloop.ui.theme.OverlayScrim
 import io.github.stozo04.openloop.ui.theme.OutlineVariant
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
+import io.github.stozo04.openloop.ui.theme.SurfaceContainerHigh
 import io.github.stozo04.openloop.ui.theme.TextSecondary
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -71,15 +83,35 @@ private val SCALE_LABEL_MARKERS = listOf(0.5f, 1.0f, 2.0f)
 private val SPEED_DETENTS = listOf(0.5f, 1.0f, 2.0f)
 
 /**
- * Speed tab panel matching the reference mock: dark rounded card, caption, lime slider with a 1×
- * tick, 0.5× / 1× / 2× scale labels, and a "Current speed Nx" pill.
+ * Speed tab panel: dark rounded card, caption, a `Constant | Curve` mode toggle, and then either the
+ * lime slider (Constant — unchanged from slice 04) or the curve editor.
+ *
+ * [curve] is the mode discriminator as well as the data: `null` = Constant. Constant stays the
+ * default so the 80% who want "1.5× and done" see exactly what shipped before, and Curve is one tap
+ * away (PRD-speed-curves.md §4.1).
+ *
+ * @param hasSeenCurveIntro when false, the first switch to Curve opens the one-time explainer.
  */
 @Composable
 fun SpeedTabPanel(
     speed: Float,
     onSpeedChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
+    curve: SpeedCurve? = null,
+    playheadFraction: () -> Float = { 0f },
+    seamFractions: List<Float> = emptyList(),
+    loopDurationMs: Long = 0L,
+    hasSeenCurveIntro: Boolean = true,
+    onEnterCurveMode: () -> Unit = {},
+    onCurveChange: (SpeedCurve) -> Unit = {},
+    onFlattenCurve: () -> Unit = {},
+    onUseCurrentAsConstant: (Float) -> Unit = {},
+    onScrubToFraction: (Float?) -> Unit = {},
+    onCurveIntroSeen: () -> Unit = {},
 ) {
+    val haptics = LocalHapticFeedback.current
+    var showIntro by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -96,31 +128,150 @@ fun SpeedTabPanel(
                 .padding(horizontal = 20.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = stringResource(R.string.speed_title),
-                color = Color.White.copy(alpha = 0.9f),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(22.dp))
-            SpeedSlider(
-                speed = speed,
-                onSpeedChange = onSpeedChange,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.speed_title),
+                    color = Color.White.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                )
+                if (curve != null) {
+                    IconButton(
+                        onClick = { showIntro = true },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("speed_curve_help"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = stringResource(R.string.speed_curve_help_content_description),
+                            tint = TextSecondary,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            SpeedModeToggle(
+                curveActive = curve != null,
+                onSelectConstant = {
+                    if (curve != null) {
+                        haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
+                        onFlattenCurve()
+                    }
+                },
+                onSelectCurve = {
+                    if (curve == null) {
+                        haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                        onEnterCurveMode()
+                        if (!hasSeenCurveIntro) showIntro = true
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(Modifier.height(8.dp))
-            SpeedScaleLabels(
-                minSpeed = OpenLoopViewModel.MIN_SPEED,
-                maxSpeed = OpenLoopViewModel.MAX_SPEED,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(16.dp))
-            SpeedCurrentPill(
-                speed = speed,
-                modifier = Modifier.testTag("speed_current_pill"),
-            )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(18.dp))
+
+            if (curve == null) {
+                SpeedSlider(
+                    speed = speed,
+                    onSpeedChange = onSpeedChange,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                SpeedScaleLabels(
+                    minSpeed = OpenLoopViewModel.MIN_SPEED,
+                    maxSpeed = OpenLoopViewModel.MAX_SPEED,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(16.dp))
+                SpeedCurrentPill(
+                    speed = speed,
+                    modifier = Modifier.testTag("speed_current_pill"),
+                )
+                Spacer(Modifier.height(4.dp))
+            } else {
+                SpeedCurvePanel(
+                    curve = curve,
+                    playheadFraction = playheadFraction,
+                    seamFractions = seamFractions,
+                    loopDurationMs = loopDurationMs,
+                    onCurveChange = onCurveChange,
+                    onUseCurrentAsConstant = onUseCurrentAsConstant,
+                    onScrubToFraction = onScrubToFraction,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
+    }
+
+    if (showIntro) {
+        SpeedCurveIntroDialog(
+            onDismiss = {
+                showIntro = false
+                onCurveIntroSeen()
+            },
+        )
+    }
+}
+
+/** `[ Constant ][ Curve ]` segmented control. Selected segment is lime-filled, matching the mock. */
+@Composable
+private fun SpeedModeToggle(
+    curveActive: Boolean,
+    onSelectConstant: () -> Unit,
+    onSelectCurve: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        modifier = modifier
+            .height(40.dp)
+            .clip(shape)
+            .background(SurfaceContainerHigh)
+            .border(1.dp, OutlineVariant, shape)
+            .testTag("speed_mode_toggle"),
+    ) {
+        SpeedModeSegment(
+            label = stringResource(R.string.speed_mode_constant),
+            selected = !curveActive,
+            onClick = onSelectConstant,
+            modifier = Modifier
+                .weight(1f)
+                .testTag("speed_mode_constant"),
+        )
+        SpeedModeSegment(
+            label = stringResource(R.string.speed_mode_curve),
+            selected = curveActive,
+            onClick = onSelectCurve,
+            modifier = Modifier
+                .weight(1f)
+                .testTag("speed_mode_curve"),
+        )
+    }
+}
+
+@Composable
+private fun SpeedModeSegment(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(9.dp)
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .padding(2.dp)
+            .clip(shape)
+            .background(if (selected) ElectricLime else Color.Transparent)
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = if (selected) LimeInk else Color.White.copy(alpha = 0.85f),
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+        )
     }
 }
 

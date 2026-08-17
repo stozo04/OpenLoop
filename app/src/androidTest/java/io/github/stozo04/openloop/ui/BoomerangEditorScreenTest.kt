@@ -220,9 +220,12 @@ class BoomerangEditorScreenTest {
 
     @Test
     fun durationLabel_reflectsTheSelectedSpeed() {
-        // F→R over a 5 s trim: cycle = 10 s. At 0.5× → 20.0 s output (10 s / 0.5).
+        // F→R over a 5 s trim. The reversed clip drops its leading seam frame (Lesson 018, 33 ms at
+        // the default frame rate), so the cycle is 9.967 s — not a round 10 s. At 0.5× → 19.9 s.
+        // The label now derives from the same clip spans the render slices, so it can no longer
+        // over-promise by the seam frame the way the old independent formula did (Lesson 033).
         setContent(trimStartMs = 0L, trimEndMs = 5_000L, mode = BoomerangMode.FORWARD_THEN_REVERSE, speed = 0.5f)
-        composeTestRule.onNodeWithText("20.0s").assertIsDisplayed()
+        composeTestRule.onNodeWithText("19.9s").assertIsDisplayed()
     }
 
     // ── Looks tab (slice 05) ──

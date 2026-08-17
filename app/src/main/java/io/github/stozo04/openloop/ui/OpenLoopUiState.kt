@@ -3,6 +3,7 @@ package io.github.stozo04.openloop.ui
 import androidx.annotation.StringRes
 import io.github.stozo04.openloop.R
 import io.github.stozo04.openloop.media.BoomerangMode
+import io.github.stozo04.openloop.media.SpeedCurve
 import io.github.stozo04.openloop.media.VideoFilter
 import java.io.File
 
@@ -137,8 +138,14 @@ enum class EditorTab {
  * content panel between them.
  *
  * [speed] is the playback speed multiplier (0.25×–3.0×, default 2.0×): a player-side effect on the
- * preview (`setPlaybackSpeed`) and a per-clip render effect at save (`SpeedChangeEffect`). It is *not*
- * baked into [reversedFile], so changing speed never invalidates the cached reverse.
+ * preview (`setPlaybackSpeed`) and a per-clip `setSpeed` provider at save. It is *not* baked into
+ * [reversedFile], so changing speed never invalidates the cached reverse.
+ *
+ * [curve] is the Speed tab's mode discriminator as well as its data: **`null` means Constant mode**
+ * and [speed] is authoritative; non-null means Curve mode and [speed] is ignored until the user
+ * flattens. Modelling it this way (rather than a mode enum beside a second value) means every existing
+ * consumer of [speed] keeps working untouched, and "Flatten to Constant" is one `copy`. Like [speed]
+ * it is a pure effect — it never invalidates [reversedFile]. See `docs/PRD-speed-curves.md` D-4.
  *
  * [filter] is the color look (default [VideoFilter.ORIGINAL]): a Media3 video effect applied live in
  * the preview (`ExoPlayer.setVideoEffects`) and baked into the render. Like [speed] it's an effect, not a
@@ -156,6 +163,7 @@ enum class EditorTab {
 data class EditorTabState(
     val mode: BoomerangMode = BoomerangMode.FORWARD_THEN_REVERSE,
     val speed: Float = 2.0f,
+    val curve: SpeedCurve? = null,
     val filter: VideoFilter = VideoFilter.ORIGINAL,
     val activeTab: EditorTab = EditorTab.DIRECTION,
     val reversedFile: File? = null,

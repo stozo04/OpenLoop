@@ -4,7 +4,7 @@ import android.content.Context
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import androidx.core.net.toUri
-import androidx.media3.common.Effect
+import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.common.util.Clock
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
@@ -117,13 +117,17 @@ interface VideoProcessor {
      * Render a boomerang of [source] over `[trimStartMs, trimEndMs]` to [outputFile], returning it.
      * Suspending and cancellable; reports `0f..1f` via [onProgress]. Throws on a render failure
      * (the caller maps that to the user-facing "couldn't save" path).
+     *
+     * [curve] carries the speed for the **whole loop**, normalized `0f..1f` across the concatenated
+     * clip sequence. A constant speed is just a flat curve ([SpeedCurve.flat]) — there is deliberately
+     * only one speed path (PRD-speed-curves.md D-2).
      */
     suspend fun renderBoomerang(
         source: File,
         trimStartMs: Long,
         trimEndMs: Long,
         mode: BoomerangMode,
-        speed: Float,
+        curve: SpeedCurve,
         filter: VideoFilter = VideoFilter.ORIGINAL,
         repetitions: Int,
         outputFile: File,
@@ -161,8 +165,11 @@ interface VideoProcessor {
  * The reversed clip of a `*_REVERSE` mode is produced up front by [VideoReverser] (Media3 1.10.x has
  * no reverse effect), so every clip is just a plain forward [EditedMediaItem] — the reversed ones
  * built from the already-reversed file. [boomerangSequence] resolves the clip order and per-clip seam
- * drops; the clips are concatenated in that order into one [EditedMediaItemSequence] and exported with
- * a constant speed effect; audio is stripped.
+ * drops; the clips are concatenated in that order into one [EditedMediaItemSequence]; audio is stripped.
+ *
+ * Speed is a [SpeedCurve] over the whole loop (a constant speed is a flat one). Each clip receives the
+ * slice of that curve covering its span via `EditedMediaItem.setSpeed` — see [buildEditedMediaItem]
+ * and [loopClipSpans].
  *
  * [Context] is injected via the ViewModel `Factory` (never passed to a ViewModel method — Lesson 004).
  *
@@ -181,7 +188,7 @@ class Media3VideoProcessor(
         trimStartMs: Long,
         trimEndMs: Long,
         mode: BoomerangMode,
-        speed: Float,
+        curve: SpeedCurve,
         filter: VideoFilter,
         repetitions: Int,
         outputFile: File,
@@ -224,17 +231,35 @@ class Media3VideoProcessor(
         }
         onProgress(REVERSE_BUDGET)
 
-        // Speed (SpeedChangeEffect) + the chosen color look (RgbFilter / RgbAdjustment / HslAdjustment)
-        // + a resolution cap for large sources compose in one videoEffects list, applied identically to
-        // every clip in the sequence.
-        val clipEffects = videoEffects(speed, filter, srcShortSide)
-        val items = specs.map { spec ->
+        // The chosen color look (RgbFilter / RgbAdjustment / HslAdjustment) + a resolution cap for
+        // large sources compose in one videoEffects list, applied identically to every clip. Speed is
+        // NOT in here — it rides EditedMediaItem.setSpeed, and the two are mutually exclusive
+        // (EditedMediaItem's constructor throws if an item carries both).
+        val clipEffects = videoEffects(filter, srcShortSide)
+
+        // Lay the clips out on the loop's 1× input timeline so each one can be handed the slice of
+        // the curve that actually covers it. Spans accumulate from POST-seam-drop durations — a
+        // turning clip is one frame shorter, and using the nominal window instead would slide the
+        // curve later by a frame per turn (Lesson 018).
+        // Measure the reversed clip rather than assuming it matches the window — see loopClipSpans.
+        val reversedMs = reversedFile?.let { withContext(Dispatchers.IO) { videoDurationMsOf(it) } }
+        val spans = loopClipSpans(specs, trimEndMs - trimStartMs, seamMs, reversedMs)
+        val totalUs = spans.totalUs()
+        // One source frame is the finest step worth sampling: the shader only re-times at frame
+        // boundaries, so a finer grid costs map entries and buys nothing.
+        val stepUs = (1_000_000L / sourceFps.coerceAtLeast(1)).coerceAtLeast(1L)
+        val maxSpeed = curve.maxSpeed()
+
+        val items = specs.mapIndexed { index, spec ->
             val dropMs = if (spec.dropLeadingFrame) seamMs else 0L
+            val speedProvider = speedProviderForClip(curve, spans[index], totalUs, stepUs)
             when (spec.direction) {
                 ClipDirection.FORWARD -> forwardItem(
-                    source, trimStartMs, trimEndMs, dropMs, clipEffects, sourceFps, speed,
+                    source, trimStartMs, trimEndMs, dropMs, clipEffects, sourceFps, speedProvider, maxSpeed,
                 )
-                ClipDirection.REVERSED -> reverseItem(reversedFile!!, dropMs, clipEffects, sourceFps, speed)
+                ClipDirection.REVERSED -> reverseItem(
+                    reversedFile!!, dropMs, clipEffects, sourceFps, speedProvider, maxSpeed,
+                )
             }
         }
 
@@ -372,14 +397,15 @@ class Media3VideoProcessor(
         dropLeadingMs: Long,
         effects: Effects,
         sourceFps: Int,
-        speed: Float,
+        speedProvider: SpeedProvider,
+        maxSpeed: Float,
     ): EditedMediaItem {
         val clip = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(startMs + dropLeadingMs)
             .setEndPositionMs(endMs)
             .build()
         val item = MediaItem.Builder().setUri(source.toUri()).setClippingConfiguration(clip).build()
-        return buildEditedMediaItem(item, effects, sourceFps, speed)
+        return buildEditedMediaItem(item, effects, sourceFps, speedProvider, maxSpeed)
     }
 
     /**
@@ -391,40 +417,50 @@ class Media3VideoProcessor(
         dropLeadingMs: Long,
         effects: Effects,
         sourceFps: Int,
-        speed: Float,
+        speedProvider: SpeedProvider,
+        maxSpeed: Float,
     ): EditedMediaItem {
         val clip = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(dropLeadingMs)
             .build()
         val item = MediaItem.Builder().setUri(reversedFile.toUri()).setClippingConfiguration(clip).build()
-        return buildEditedMediaItem(item, effects, sourceFps, speed)
+        return buildEditedMediaItem(item, effects, sourceFps, speedProvider, maxSpeed)
     }
 
     /**
-     * Build an [EditedMediaItem] with optional max frame rate when [speed] > 1× (Issue #41 Tier 1C).
-     * Slow-mo (speed ≤ 1×) must not drop frames — leave frame rate unset.
+     * Build an [EditedMediaItem] carrying its slice of the speed curve.
+     *
+     * Speed rides `setSpeed(SpeedProvider)` rather than the deprecated `SpeedChangeEffect`. Transformer
+     * wraps the item's `MediaSource` in a `SpeedChangingMediaSource`, which re-stamps `buffer.timeUs`
+     * per sample **before the decoder** — track-agnostic, clipping-aware (essential: every clip here
+     * carries a `ClippingConfiguration`, seam drops included), and one GL stage cheaper than the shader
+     * it replaces. The two mechanisms are mutually exclusive: `EditedMediaItem`'s constructor throws if
+     * an item carries both, which is why [videoEffects] no longer contributes a speed effect.
+     *
+     * The frame-rate cap keys on the curve's **maximum** speed (Issue #41 Tier 1C): a curve has no
+     * single multiplier, and the fastest point is what determines peak output frame density. Slow-mo
+     * (max ≤ 1×) must not drop frames — leave frame rate unset.
      */
     private fun buildEditedMediaItem(
         mediaItem: MediaItem,
         effects: Effects,
         sourceFps: Int,
-        speed: Float,
+        speedProvider: SpeedProvider,
+        maxSpeed: Float,
     ): EditedMediaItem {
-        val builder = EditedMediaItem.Builder(mediaItem).setRemoveAudio(true).setEffects(effects)
-        if (speed > 1f) {
+        val builder = EditedMediaItem.Builder(mediaItem)
+            .setRemoveAudio(true)
+            .setEffects(effects)
+            .setSpeed(speedProvider)
+        if (maxSpeed > 1f) {
             // Media3 1.10: setFrameRate caps output fps when speed raises effective frame rate.
             // developer.android.com/reference/androidx/media3/transformer/EditedMediaItem.Builder#setFrameRate(int)
-            builder.setFrameRate((sourceFps / speed).toInt().coerceAtLeast(24))
+            builder.setFrameRate((sourceFps / maxSpeed).toInt().coerceAtLeast(24))
         }
         return builder.build()
     }
 
-    private fun videoEffects(speed: Float, filter: VideoFilter, sourceShortSide: Int): Effects {
-        // SpeedChangingVideoEffect does not exist in Media3 1.10.1; the (deprecated) float-constructor
-        // SpeedChangeEffect is the only constant-speed video effect — there is no public constant
-        // SpeedProvider factory. Verified against the 1.10.1 source tag.
-        @Suppress("DEPRECATION")
-        val speedEffect: Effect = androidx.media3.effect.SpeedChangeEffect(speed)
+    private fun videoEffects(filter: VideoFilter, sourceShortSide: Int): Effects {
         val videoEffects = buildList {
             // Resolution cap FIRST (a geometry op): downscale a 4K/8K source to ≤1080p short side so the
             // export is fast, within encoder level limits, and consistent with the already-capped
@@ -432,9 +468,8 @@ class Media3VideoProcessor(
             if (sourceShortSide > MAX_OUTPUT_SHORT_SIDE) {
                 add(Presentation.createForShortSide(MAX_OUTPUT_SHORT_SIDE))
             }
-            // Then speed, then the color look (order is cosmetic — the look is a per-pixel matrix).
-            // ORIGINAL contributes no effects, so a no-filter ≤1080p render is the prior slice-04 path.
-            add(speedEffect)
+            // Then the color look. ORIGINAL contributes no effects, so a no-filter ≤1080p render
+            // hands Transformer an empty effect list exactly as before.
             addAll(filter.toMediaEffects())
         }
         return Effects(/* audioProcessors = */ emptyList(), /* videoEffects = */ videoEffects)

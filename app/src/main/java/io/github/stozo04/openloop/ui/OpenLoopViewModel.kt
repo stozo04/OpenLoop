@@ -15,6 +15,7 @@ import io.github.stozo04.openloop.data.VideoImporter
 import io.github.stozo04.openloop.data.VideoStorageRepository
 import io.github.stozo04.openloop.BuildConfig
 import io.github.stozo04.openloop.media.BoomerangMode
+import io.github.stozo04.openloop.media.SpeedCurve
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.diagnostics.AnalyticsReporter
@@ -227,6 +228,24 @@ class OpenLoopViewModel(
             } catch (e: IOException) {
                 Log.e("OpenLoopViewModel", "Failed to persist onboarding state", e)
                 // Non-fatal: user will just see onboarding again next launch
+            }
+        }
+    }
+
+    /**
+     * Whether the speed-curve explainer has already been shown. Backed by DataStore so it survives
+     * reinstall-free app restarts; defaults to `false` (show it) if the read fails — Lesson 003.
+     */
+    val hasSeenSpeedCurveIntro: StateFlow<Boolean> = userPreferencesRepository.hasSeenSpeedCurveIntro
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /** Persist "explainer dismissed". Non-fatal on failure: worst case the sheet shows once more. */
+    fun markSpeedCurveIntroSeen() {
+        viewModelScope.launch {
+            try {
+                userPreferencesRepository.setSpeedCurveIntroSeen(true)
+            } catch (e: IOException) {
+                Log.e("OpenLoopViewModel", "Failed to persist speed-curve intro state", e)
             }
         }
     }
@@ -909,6 +928,71 @@ class OpenLoopViewModel(
     }
 
     /**
+     * Switch the Speed tab into Curve mode, seeded **flat at the current constant speed** so the
+     * preview does not jump and the first thing the user sees is their own setting drawn as a graph.
+     * No-op when already in Curve mode. See `docs/PRD-speed-curves.md` §4.1.
+     */
+    fun enterCurveMode() {
+        val current = _editorTabState.value
+        if (current.curve != null) return
+        _editorTabState.value = current.copy(curve = SpeedCurve.flat(current.speed))
+        showBriefPreviewLoading()
+    }
+
+    /**
+     * Collapse the curve to a single multiplier and return to the slider.
+     *
+     * The constant is [SpeedCurve.flatten] — the speed that plays the loop in the *same time* the curve
+     * did, so the output duration does not jump at the exact moment the user asked to simplify. No-op
+     * in Constant mode.
+     */
+    fun flattenCurveToConstant() {
+        val current = _editorTabState.value
+        val curve = current.curve ?: return
+        _editorTabState.value = current.copy(
+            curve = null,
+            speed = curve.flatten().coerceIn(MIN_SPEED, MAX_SPEED),
+        )
+        showBriefPreviewLoading()
+    }
+
+    /**
+     * Set the whole loop to [speed] as a constant — the tappable "Current: N×" label's action, which
+     * differs from [flattenCurveToConstant] in taking the value under the playhead rather than the
+     * curve's average.
+     */
+    fun setConstantSpeedFromCurve(speed: Float) {
+        val current = _editorTabState.value
+        if (current.curve == null) return
+        _editorTabState.value = current.copy(
+            curve = null,
+            speed = speed.coerceIn(MIN_SPEED, MAX_SPEED),
+        )
+        showBriefPreviewLoading()
+    }
+
+    /**
+     * Replace the working curve — the drag/add/delete path.
+     *
+     * Deliberately does **not** call [showBriefPreviewLoading]: a drag emits continuously, and flashing
+     * the "applying…" overlay on every pointer move would strobe the preview. Presets, flatten, and
+     * mode entry are discrete actions and do show it.
+     */
+    fun updateCurve(curve: SpeedCurve) {
+        val current = _editorTabState.value
+        if (current.curve == null || current.curve == curve) return
+        _editorTabState.value = current.copy(curve = curve)
+    }
+
+    /** Apply a preset shape (or Reset, which is [SpeedPreset.flatAt]) as the working curve. */
+    fun applyCurvePreset(curve: SpeedCurve) {
+        val current = _editorTabState.value
+        if (current.curve == null) return
+        _editorTabState.value = current.copy(curve = curve)
+        showBriefPreviewLoading()
+    }
+
+    /**
      * Set the color look from the editor's Looks tab (slice 05). Like [updateSpeed] it's a pure
      * effect selection — applied live in the preview via `setVideoEffects` and baked into the render;
      * it never touches the cached [EditorTabState.reversedFile] or the output duration.
@@ -1228,6 +1312,7 @@ class OpenLoopViewModel(
                     trimEndMs = editor.trimEndMs,
                     mode = mode,
                     speed = tab.speed,
+                    curve = tab.curve,
                     filter = tab.filter,
                     repetitions = DEFAULT_REPS,
                     rawId = raw.id,
@@ -1591,8 +1676,14 @@ class OpenLoopViewModel(
         const val DEFAULT_SPEED = 2.0f
         const val DEFAULT_REPS = 1
 
-        /** Playback-speed slider bounds (slice 04); [updateSpeed] clamps to this range. */
-        const val MIN_SPEED = 0.25f
+        /**
+         * Playback-speed bounds (slice 04); [updateSpeed] clamps to this range.
+         *
+         * Aliases [SpeedCurve]'s constants rather than repeating the literals, so the slider and the
+         * curve graph can never end up on different scales — which is also what lets Flatten
+         * round-trip losslessly between the two modes (PRD-speed-curves.md §8 Q1).
+         */
+        const val MIN_SPEED = SpeedCurve.MIN_SPEED
 
         /** Minimum time the speed/filter preview overlay stays visible so the caption is readable. */
         private val EFFECT_LOADING_MIN_DURATION = 400.milliseconds
@@ -1620,7 +1711,8 @@ class OpenLoopViewModel(
         internal fun reversePreviewTimeout(): Duration =
             reversePreviewTimeoutOverride ?: REVERSE_PREVIEW_TIMEOUT
 
-        const val MAX_SPEED = 3.0f
+        /** Upper playback-speed bound; aliases [SpeedCurve.MAX_SPEED] — see [MIN_SPEED]. */
+        const val MAX_SPEED = SpeedCurve.MAX_SPEED
 
         /** Max duration of an imported library clip (slice 07); same 30 s ceiling as a capture. */
         val IMPORT_MAX_DURATION = MAX_RECORDING

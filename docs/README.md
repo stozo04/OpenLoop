@@ -23,7 +23,7 @@ or `docs/diagnostics/`.
 | Path | What belongs here | Tracked in git? |
 |------|-------------------|-----------------|
 | [`PRD-mission-control.md`](PRD-mission-control.md) | Architecture, components, design tokens — read before structural changes | Yes |
-| `PRD-<feature>.md` | Per-feature PRDs, signed off before code ([capture-zoom](PRD-capture-zoom.md), [crashlytics-autotriage](PRD-crashlytics-autotriage.md), [camera-lenses](PRD-camera-lenses.md), [aso-discoverability](PRD-aso-discoverability.md)) | Yes |
+| `PRD-<feature>.md` | Per-feature PRDs, signed off before code ([capture-zoom](PRD-capture-zoom.md), [crashlytics-autotriage](PRD-crashlytics-autotriage.md), [camera-lenses](PRD-camera-lenses.md), [aso-discoverability](PRD-aso-discoverability.md), [speed-curves](PRD-speed-curves.md)) | Yes |
 | [`ANDROID_STANDARDS.md`](ANDROID_STANDARDS.md) | Google Android practices (linked specs) | Yes |
 | [`DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md) | Ready-for-PR verification gate | Yes |
 | [`STATIC_ANALYSIS.md`](STATIC_ANALYSIS.md) | Lint + Inspect Code merge policy | Yes |
