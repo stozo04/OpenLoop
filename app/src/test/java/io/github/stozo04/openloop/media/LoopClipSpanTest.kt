@@ -130,11 +130,16 @@ class LoopClipSpanTest {
                 val spans = spansFor(mode, reps)
                 val totalUs = spans.totalUs()
                 spans.forEachIndexed { index, span ->
-                    // The speed at each clip's first and last microsecond, as the slice sees it...
-                    val sliceStart = curve.speedAt(span.startUs.toFloat() / totalUs)
+                    // The speed at each clip's first and last sampled step, as the clip-local slice
+                    // sees it (the rebased provider the render is handed)...
+                    val slice = curve.sampleClip(span.startUs, span.durationUs, totalUs, stepUs = 33_000L)
+                    val sliceStart = slice.getValue(0L)
+                    val (lastLocalUs, sliceEnd) = slice.entries.last().let { it.key to it.value }
                     // ...must equal what the global curve says at the same global instant.
                     val globalStart = curve.speedAt(span.startUs.toFloat() / totalUs)
+                    val globalEnd = curve.speedAt((span.startUs + lastLocalUs).toFloat() / totalUs)
                     assertEquals("$mode x$reps clip $index start", globalStart, sliceStart, 1e-6f)
+                    assertEquals("$mode x$reps clip $index end", globalEnd, sliceEnd, 1e-6f)
 
                     if (index > 0) {
                         val previous = spans[index - 1]

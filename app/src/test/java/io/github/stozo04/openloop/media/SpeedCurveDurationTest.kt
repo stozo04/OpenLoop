@@ -3,16 +3,17 @@ package io.github.stozo04.openloop.media
 import androidx.media3.common.util.SpeedProviderUtil
 import androidx.media3.common.util.UnstableApi
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Cross-check our duration prediction against **Media3's own** duration calculation.
  *
- * The editor's duration chip is `boomerangOutputDurationMs(speed = curve.flatten())`. The encoder's
- * actual output length is whatever `SpeedProviderUtil.getDurationAfterSpeedProviderApplied` computes
- * over the providers we hand it. If those two disagree, the chip lies to the user about how long
- * their loop will be — so this test pins them together using the real library function, not a
- * re-implementation of it.
+ * The editor's duration chip is `loopOutputDurationMs(loopClipSpans(...), curve.flatten())` — the
+ * *same* spans the render slices the curve over (Lesson 033). The encoder's actual output length is
+ * whatever `SpeedProviderUtil.getDurationAfterSpeedProviderApplied` computes over the providers we
+ * hand it. If those two disagree, the chip lies to the user about how long their loop will be — so
+ * this test pins them together using the real library function, not a re-implementation of it.
  */
 @UnstableApi
 class SpeedCurveDurationTest {
@@ -21,9 +22,13 @@ class SpeedCurveDurationTest {
     private val seamMs = 33L
     private val stepUs = 1_000_000L / 30L
 
-    private fun predictedVsActual(curve: SpeedCurve, mode: BoomerangMode): Pair<Double, Double> {
+    private fun predictedVsActual(
+        curve: SpeedCurve,
+        mode: BoomerangMode,
+        reversedMs: Long? = null,
+    ): Pair<Double, Double> {
         val specs = boomerangSequence(mode, 1)
-        val spans = loopClipSpans(specs, trimMs, seamMs)
+        val spans = loopClipSpans(specs, trimMs, seamMs, reversedMs)
         val totalUs = spans.totalUs()
 
         // What Media3 will actually produce, summed over the per-clip providers.
@@ -32,14 +37,8 @@ class SpeedCurveDurationTest {
             SpeedProviderUtil.getDurationAfterSpeedProviderApplied(provider, span.durationUs)
         }
 
-        // What the editor's chip predicts.
-        val predictedMs = boomerangOutputDurationMs(
-            mode = mode,
-            trimStartMs = 0L,
-            trimEndMs = trimMs,
-            speed = curve.flatten(),
-            repetitions = 1,
-        )
+        // What the editor's chip predicts — from the same spans, so a short artifact shortens both.
+        val predictedMs = loopOutputDurationMs(spans, curve.flatten())
         return predictedMs / 1000.0 to actualUs / 1_000_000.0
     }
 
@@ -59,6 +58,24 @@ class SpeedCurveDurationTest {
             BoomerangMode.FORWARD_THEN_REVERSE,
         )
         assertEquals("predicted=$predicted actual=$actual", predicted, actual, 0.15)
+    }
+
+    /**
+     * The Lesson 033 shape: a reversed clip that came back materially shorter than its trim window
+     * (the emulator's ~5 fps virtual camera produced one at 19 samples). The chip must shrink with
+     * the artifact, not promise the nominal window's length.
+     */
+    @Test
+    fun `a short reversed artifact shortens the prediction to match Media3`() {
+        val curve = SpeedCurve(listOf(SpeedKey(0f, 0.5f), SpeedKey(1f, 2f)))
+        val (nominal, _) = predictedVsActual(curve, BoomerangMode.FORWARD_THEN_REVERSE)
+        val (predicted, actual) = predictedVsActual(
+            curve,
+            BoomerangMode.FORWARD_THEN_REVERSE,
+            reversedMs = 2_400L,
+        )
+        assertEquals("predicted=$predicted actual=$actual", predicted, actual, 0.15)
+        assertTrue("short reverse must shorten the chip: $predicted vs $nominal", predicted < nominal - 1.0)
     }
 
     /** The exact on-device shape: the accelerate-into-reverse preset with its peak dragged to 0.5x. */

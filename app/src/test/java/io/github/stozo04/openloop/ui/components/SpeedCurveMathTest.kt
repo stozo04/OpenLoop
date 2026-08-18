@@ -284,6 +284,37 @@ class SpeedCurveMathTest {
         assertEquals(SpeedCurve.MIN_SPEED, geometry.speedAt(9_000f), 1e-3f)
     }
 
+    // ── Drawing ─────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * On the log axis a straight 0.5×→2× segment passes through 1× at its midpoint (the geometric
+     * mean); the encoder plays 1.25× there (the arithmetic one). The drawn line must be the latter,
+     * or the readout, the graph, and every point added on the line disagree.
+     */
+    @Test
+    fun `drawPoints follows speedAt, not a straight line on the log axis`() {
+        val curve = curveOf(0f to 0.5f, 1f to 2f)
+        val points = SpeedCurveMath.drawPoints(curve)
+        val (midT, midSpeed) = points[SpeedCurveMath.DRAW_SAMPLES_PER_SEGMENT / 2]
+        assertEquals(0.5f, midT, 1e-6f)
+        assertEquals(1.25f, midSpeed, 1e-6f)
+        // Every sample sits on the interpolation the export applies, and the keys are hit exactly.
+        points.forEach { (t, speed) -> assertEquals(curve.speedAt(t), speed, 1e-6f) }
+        assertEquals(0f to 0.5f, points.first())
+        assertEquals(1f, points.last().first, 1e-6f)
+        assertEquals(2f, points.last().second, 1e-5f)
+    }
+
+    @Test
+    fun `drawPoints passes through every key of a multi-segment curve`() {
+        val curve = curveOf(0f to 0.5f, 0.5f to 3f, 1f to 0.5f)
+        val points = SpeedCurveMath.drawPoints(curve)
+        assertEquals(1 + 2 * SpeedCurveMath.DRAW_SAMPLES_PER_SEGMENT, points.size)
+        val peak = points[SpeedCurveMath.DRAW_SAMPLES_PER_SEGMENT]
+        assertEquals(0.5f, peak.first, 1e-6f)
+        assertEquals(3f, peak.second, 1e-5f)
+    }
+
     // ── Presets ─────────────────────────────────────────────────────────────────────────────────
 
     @Test

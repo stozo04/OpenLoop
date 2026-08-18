@@ -1,9 +1,11 @@
 package io.github.stozo04.openloop.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -44,6 +46,8 @@ class SpeedTabPanelCurveTest {
         hasSeenIntro: Boolean = true,
         onFlattenOverride: (() -> Unit)? = null,
         scrubs: MutableList<Float?>? = null,
+        playheadFraction: () -> Float = { 0f },
+        lockedSpeeds: MutableList<Float>? = null,
     ): () -> SpeedCurve? {
         var curve by mutableStateOf(initialCurve)
         var speed by mutableStateOf(2.0f)
@@ -52,6 +56,7 @@ class SpeedTabPanelCurveTest {
                 speed = speed,
                 onSpeedChange = { speed = it },
                 curve = curve,
+                playheadFraction = playheadFraction,
                 loopDurationMs = 4_000L,
                 hasSeenCurveIntro = hasSeenIntro,
                 onEnterCurveMode = { curve = SpeedCurve.flat(speed) },
@@ -61,7 +66,7 @@ class SpeedTabPanelCurveTest {
                     curve?.let { speed = it.flatten() }
                     curve = null
                 },
-                onUseCurrentAsConstant = { curve = null; speed = it },
+                onUseCurrentAsConstant = { curve = null; speed = it; lockedSpeeds?.add(it) },
                 onScrubToFraction = { scrubs?.add(it) },
             )
         }
@@ -183,12 +188,44 @@ class SpeedTabPanelCurveTest {
         composeTestRule.onNodeWithTag("speed_curve_presets").performClick()
         composeTestRule.waitForIdle()
 
+        // A real click action, so TalkBack can activate a preset — not just a raw tap detector.
+        composeTestRule.onNodeWithTag("speed_preset_EASE_IN").assertHasClickAction()
         composeTestRule.onNodeWithText("Ease In").performClick()
         composeTestRule.waitForIdle()
 
         val applied = curve()
         assertNotNull(applied)
         assertTrue("a preset must actually vary", !applied!!.isFlat)
+    }
+
+    /**
+     * The "Current: N×" pill recomposes on every playhead tick of a non-flat curve. A tap handler
+     * keyed on that value (`pointerInput(current)`) re-installs itself mid-press and drops the tap,
+     * so locking the loop to the live speed mostly failed while the preview was playing (Lesson 034).
+     * This lands a tick *between* down and up — the case a plain `performClick` never exercises.
+     */
+    @Test
+    fun tappingCurrentLocksTheLiveSpeedEvenWhenThePlayheadTicksMidPress() {
+        val playhead = mutableFloatStateOf(0.25f)
+        val ramp = SpeedCurve(listOf(SpeedKey(0f, 0.5f), SpeedKey(1f, 2f)))
+        val locked = mutableListOf<Float>()
+        val curve = setContent(
+            initialCurve = ramp,
+            playheadFraction = { playhead.floatValue },
+            lockedSpeeds = locked,
+        )
+        val pill = composeTestRule.onNodeWithTag("speed_curve_current")
+        pill.assertHasClickAction()
+
+        pill.performTouchInput { down(center) }
+        playhead.floatValue = 0.75f
+        composeTestRule.waitForIdle()
+        pill.performTouchInput { up() }
+        composeTestRule.waitForIdle()
+
+        assertNull("the tap must survive the tick and leave Curve mode", curve())
+        // And it locks the speed under the playhead *now*, not the one captured at first composition.
+        assertEquals(listOf(ramp.speedAt(0.75f)), locked)
     }
 
     @Test

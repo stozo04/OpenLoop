@@ -235,9 +235,13 @@ class OpenLoopViewModel(
     /**
      * Whether the speed-curve explainer has already been shown. Backed by DataStore so it survives
      * reinstall-free app restarts; defaults to `false` (show it) if the read fails — Lesson 003.
+     *
+     * The `stateIn` seed is `false` for the same reason: seeded `true`, a first-timer who tapped
+     * Custom before the DataStore emission landed would never see the intro; seeded `false`, the worst
+     * case is a returning user seeing it once more.
      */
     val hasSeenSpeedCurveIntro: StateFlow<Boolean> = userPreferencesRepository.hasSeenSpeedCurveIntro
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** Persist "explainer dismissed". Non-fatal on failure: worst case the sheet shows once more. */
     fun markSpeedCurveIntroSeen() {
@@ -972,24 +976,18 @@ class OpenLoopViewModel(
     }
 
     /**
-     * Replace the working curve — the drag/add/delete path.
+     * Replace the working curve — every in-mode edit: drag, add/delete point, preset, reset.
      *
      * Deliberately does **not** call [showBriefPreviewLoading]: a drag emits continuously, and flashing
-     * the "applying…" overlay on every pointer move would strobe the preview. Presets, flatten, and
-     * mode entry are discrete actions and do show it.
+     * the "applying…" overlay on every pointer move would strobe the preview. Discrete edits (presets,
+     * reset) take the same path on purpose — in Curve mode the playhead poller re-aims the player's
+     * speed within one tick, so there is nothing for an overlay to cover. Only mode *transitions*
+     * ([enterCurveMode], [flattenCurveToConstant], [setConstantSpeedFromCurve]) show it.
      */
     fun updateCurve(curve: SpeedCurve) {
         val current = _editorTabState.value
         if (current.curve == null || current.curve == curve) return
         _editorTabState.value = current.copy(curve = curve)
-    }
-
-    /** Apply a preset shape (or Reset, which is [SpeedPreset.flatAt]) as the working curve. */
-    fun applyCurvePreset(curve: SpeedCurve) {
-        val current = _editorTabState.value
-        if (current.curve == null) return
-        _editorTabState.value = current.copy(curve = curve)
-        showBriefPreviewLoading()
     }
 
     /**

@@ -62,17 +62,32 @@ Every `pointerInput` in `app/src/main`, and how each stands:
 |---|---|---|
 | `SpeedCurvePanel` graph tap + drag | `sizePx` | Guarded — `latestCurve` / `latestOnCurveChange` / `latestOnScrub` |
 | `SpeedCurvePanel` action buttons | *(was `enabled`)* | **Was the bug.** Now `Modifier.clickable` |
-| `SpeedCurvePanel` readout / preset rows | `current`, `preset` | Key *is* the payload, and the callbacks are inert — safe |
+| `SpeedCurvePanel` readout / preset rows | *(was `current`, `preset`)* | **The audit called these "safe" and was wrong** — see below. Now `Modifier.clickable` |
 | `SpeedTabPanel` speed slider | `widthPx` | **Was latent.** `latestSpeed` was aliased but `onSpeedChange` was not; harmless only because the call site is `viewModel::updateSpeed`. Now aliased |
 | `TrimFilmstripControls` handle drag | `durationMs` | Already correct — the reference implementation |
 
 The slider is the instructive one: it applied the pattern **halfway**. Aliasing the state you happened
 to think about, and not the callback, leaves the same trap armed.
 
+The readout is the other instructive one, because the audit **passed it**. `pointerInput(current)`
+never freezes — the key *is* the value the lambda needs, so staleness was the only question asked, and
+the answer was "safe." Wrong question. `current` is the speed under the playhead, which on a non-flat
+curve changes on every ~50 ms poll; a key that changes **during a press** re-installs the detector and
+cancels the tap in flight, so locking the loop to the live speed mostly failed while the preview was
+playing (Cursor Bugbot, PR #136). That is the second sentence of "The fix, by case" — *don't key on
+the changing data* — applied to a tap instead of a drag. Both failure modes come from the same
+question, asked twice: **when does the key change?** "Never" freezes the lambda; "constantly" drops
+the gesture. Only a key that changes exactly when the gesture surface itself is rebuilt (a measured
+size) is safe, and only with `rememberUpdatedState` behind it. A tap should not be a `pointerInput` in
+the first place. Regression test: `SpeedTabPanelCurveTest.tappingCurrentLocksTheLiveSpeedEvenWhenThePlayheadTicksMidPress`
+— it lands a playhead tick between `down` and `up`, which a `performClick` never does.
+
 ## Detection checklist
 
-- `rg 'pointerInput\(' app/src/main` — for each hit, name the key and say when it last changes. If the
-  answer is "at first layout", every captured value needs `rememberUpdatedState`.
+- `rg 'pointerInput\(' app/src/main` — for each hit, name the key and say when it changes. If the
+  answer is "at first layout, then never", every captured value needs `rememberUpdatedState`. If the
+  answer is "whenever some live value moves", the detector re-installs mid-gesture and drops it — the
+  key must be the *surface*, not the payload.
 - `rg 'detectTapGestures' app/src/main` — a bare `detectTapGestures { onClick() }` with no long-press or
   double-tap is a `clickable` in disguise, and is silently inaccessible to TalkBack.
 - Alias **callbacks as well as state**. Half-application is the common failure.

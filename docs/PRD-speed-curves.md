@@ -322,7 +322,7 @@ curve path — and it lands on the non-deprecated API.
 | `ui/components/SpeedCurvePanel.kt` **(new)** | The `Canvas` graph + gestures + bottom row. |
 | `ui/components/SpeedTabPanel.kt` | Add the toggle; branch to slider or curve panel. |
 | `ui/OpenLoopUiState.kt` | `EditorTabState` gains `curve: SpeedCurve?` — **`null` means constant mode**. `speed: Float` is untouched. |
-| `ui/OpenLoopViewModel.kt` | `updateCurve`, `enterCurveMode` (seeds flat at `speed`), `flattenCurve`, `applyPreset`, `markSpeedCurveIntroSeen`. |
+| `ui/OpenLoopViewModel.kt` | `updateCurve` (every in-mode edit, presets and reset included — no overlay), `enterCurveMode` (seeds flat at `speed`), `flattenCurveToConstant`, `setConstantSpeedFromCurve`, `markSpeedCurveIntroSeen`. |
 | `ui/BoomerangEditorScreen.kt` | Position poller when `curve != null`; pass curve down. |
 | `data/UserPreferencesRepository.kt` | `hasSeenSpeedCurveIntro` + setter. |
 | `work/` render worker | Serialize the curve into `Data` (flat `FloatArray` of t/speed pairs). |
@@ -351,6 +351,12 @@ obvious at reps > 1. This is the single highest-risk line in the feature and it 
 The mock shows a smooth spline. v1 interpolates linearly, so v1 **draws a polyline** (rounded joins, lime,
 matching the slider gradient). Drawing a curve the encoder will not reproduce is a preview that lies.
 Cubic is a later upgrade to both halves at once.
+
+One subtlety, caught in review: the Y axis is logarithmic (R-3), so a straight key-to-key segment on
+it is a *geometric* ramp, not the arithmetic one `speedAt` and the encoder use — a 0.5×→2× line would
+cross the 1× guide at its midpoint while the loop plays 1.25× there. The polyline is therefore
+**sampled from `speedAt`** between keys (`SpeedCurveMath.drawPoints`), which bows it slightly on this
+axis and puts it exactly where the readout and every tap-added point land.
 
 ### 5.6 `setFrameRate` must key on the curve's maximum
 
@@ -456,12 +462,12 @@ Full gate per [`docs/DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md).
 | Check | Result |
 |---|---|
 | Debug + release build | `BUILD SUCCESSFUL`, exit 0, zero `e:`, zero `w:` |
-| JVM unit tests | **519 tests, 0 failures** (up from 503) |
+| JVM unit tests | **522 tests, 0 failures** (up from 503) |
 | Instrumented / Compose tests | **117 tests, 0 failures, 1 skipped** on Pixel_8 API 36 — the whole `connectedDebugAndroidTest` suite, not just the new class |
 | Android Lint (`:app:lintDebug`) | 0 errors; 24 warnings, **identical to the pre-change baseline** (all dependency-version nags) |
 | Engine 2 "Inspect Code" | **Not run** — cannot run on this machine; substituted per `STATIC_ANALYSIS.md` (lint + zero compiler warnings + Tier 3) |
 | App run on emulator | Pixel_8 API 36, full capture → trim → editor → curve → save → share flow |
-| Screenshots | [Custom mode after a drag](e2e/2026-08-17-speed-curve-editor.png), [before adding a point](e2e/2026-08-17-speed-curve-add-point.png), [one-time intro](e2e/2026-08-17-speed-curve-intro.png), [Constant mode](e2e/2026-08-17-speed-constant-mode.png) |
+| Screenshots | [Custom mode after a drag](e2e/2026-08-17-speed-curve-editor.png), [before adding a point](e2e/2026-08-17-speed-curve-add-point.png), [one-time intro](e2e/2026-08-17-speed-curve-intro.png), [Constant mode](e2e/2026-08-17-speed-constant-mode.png); post-review: [Ease In with the `speedAt`-sampled line, preview playing](e2e/2026-08-18-speed-curve-sampled-line.png) → [tapping the Current pill mid-playback locks Constant 0.8×](e2e/2026-08-18-speed-current-pill-mid-playback.png) |
 
 **Predicted vs. actual output duration** (editor chip vs. the muxed `mvhd` duration of the saved MP4):
 

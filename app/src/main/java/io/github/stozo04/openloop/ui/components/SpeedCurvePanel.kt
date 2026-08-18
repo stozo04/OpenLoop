@@ -388,13 +388,16 @@ private fun SpeedCurveGraph(
                 )
             }
 
-            // The curve itself: a polyline through the keys, matching the linear interpolation the
-            // export applies (D-7). Rounded joins keep it from looking like a chart.
+            // The curve itself: the linear-in-speed interpolation the export applies (D-7), sampled
+            // between keys because Y is logarithmic — a straight key-to-key segment on this axis
+            // would draw a geometric ramp the encoder never plays (SpeedCurveMath.drawPoints).
+            // Rounded joins keep it from looking like a chart.
             val keys = curve.keys.sortedBy { it.t }
             if (keys.size >= 2) {
+                val points = SpeedCurveMath.drawPoints(curve)
                 val path = Path().apply {
-                    moveTo(geo.xOf(keys[0].t), geo.yOf(keys[0].speed))
-                    keys.drop(1).forEach { key -> lineTo(geo.xOf(key.t), geo.yOf(key.speed)) }
+                    moveTo(geo.xOf(points[0].first), geo.yOf(points[0].second))
+                    points.drop(1).forEach { (t, speed) -> lineTo(geo.xOf(t), geo.yOf(speed)) }
                 }
                 drawPath(
                     path = path,
@@ -551,11 +554,14 @@ private fun CurrentSpeedReadout(
             .clip(shape)
             .background(OverlayScrim)
             .border(1.dp, OutlineVariant, shape)
-            .pointerInput(current) {
-                detectTapGestures {
-                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                    onUseCurrentAsConstant(current)
-                }
+            // `clickable`, not `pointerInput(current)`: `current` moves on every playhead tick of a
+            // non-flat curve, and re-keying a pointerInput mid-press re-installs the detector and
+            // cancels the tap (Lesson 034) — so locking the loop to the live speed mostly failed
+            // while the preview was playing. `clickable` reads the newest lambda on every tap and
+            // gives TalkBack a real click action.
+            .clickable(role = Role.Button) {
+                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                onUseCurrentAsConstant(current)
             }
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .semantics { contentDescription = actionLabel }
@@ -752,11 +758,11 @@ private fun SpeedPresetDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .pointerInput(preset) {
-                                detectTapGestures {
-                                    haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                                    onPick(preset)
-                                }
+                            // A plain tap is a `clickable` — the raw gesture had no click action or
+                            // Role.Button, so TalkBack could not activate a preset (Lesson 034).
+                            .clickable(role = Role.Button) {
+                                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                                onPick(preset)
                             }
                             .padding(vertical = 12.dp)
                             .testTag("speed_preset_${preset.name}"),

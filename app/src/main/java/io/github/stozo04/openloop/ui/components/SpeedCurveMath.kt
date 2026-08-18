@@ -160,6 +160,35 @@ object SpeedCurveMath {
     fun isTimeMovable(curve: SpeedCurve, index: Int): Boolean =
         index > 0 && index < curve.keys.size - 1
 
+    // ── Drawing ─────────────────────────────────────────────────────────────────────────────────
+
+    /** Points per key-to-key segment when the graph strokes the curve. */
+    const val DRAW_SAMPLES_PER_SEGMENT = 24
+
+    /**
+     * The `(t, speed)` polyline the graph strokes: every key, plus [DRAW_SAMPLES_PER_SEGMENT] points
+     * of [SpeedCurve.speedAt] between each neighbouring pair.
+     *
+     * Key-to-key straight lines would be wrong here: the Y axis is logarithmic, so a straight segment
+     * on it is a *geometric* ramp, while `speedAt` — what the readout shows and what the encoder
+     * plays — is arithmetic. A 0.5×→2× ramp's drawn midpoint would sit exactly on the 1× guide while
+     * the loop actually plays 1.25× there. Sampling the real interpolation bows the line on this
+     * axis and puts it where the readout and every added point land (D-7: the preview must not lie).
+     */
+    fun drawPoints(curve: SpeedCurve): List<Pair<Float, Float>> {
+        val keys = curve.keys.sortedBy { it.t }
+        if (keys.size < 2) return keys.map { it.t to it.speed }
+        return buildList {
+            add(keys[0].t to keys[0].speed)
+            keys.zipWithNext { a, b ->
+                for (i in 1..DRAW_SAMPLES_PER_SEGMENT) {
+                    val t = a.t + (b.t - a.t) * i / DRAW_SAMPLES_PER_SEGMENT
+                    add(t to curve.speedAt(t))
+                }
+            }
+        }
+    }
+
     private val LOG_SPAN: Float = ln(SpeedCurve.MAX_SPEED / SpeedCurve.MIN_SPEED)
 }
 

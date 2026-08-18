@@ -16,7 +16,7 @@ Built with Google's latest Android libraries. All video processing runs on your 
 
 - **Capture** — Hold the shutter for a clip (up to 30 s), or import one from your library
 - **Seamless Loops** — Forward, reverse, or either bounce, generated entirely on-device via Media3 Transformer
-- **Speed Control** — Real-time playback speed slider from 0.5x to 3.0x before you save
+- **Speed Control** — Real-time playback speed from 0.5x to 3.0x before you save: a constant slider, or a **custom speed curve** you draw over the whole loop (tap to add a point, drag to bend it, presets to start from) so a ramp can peak right on the direction turn — the preview plays the curve live and the export honours it exactly
 - **Face Lenses** — seven of them: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue and Elvis. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth
 - **Photo Mode** — Flip the shutter to stills, lenses included
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
@@ -290,11 +290,11 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 - CameraX viewfinder, capture up to 30 s, plus import from your library
 - Front/back toggle, pinch-to-zoom, and a stills photo mode
 - Loop generation — forward, reverse and both bounces — via Media3 Transformer
-- Trim, speed control (0.5x–3.0x) and Looks, all previewed before you save
+- Trim, speed control (0.5x–3.0x, constant or a custom curve) and Looks, all previewed before you save
 - Seven face lenses, tracked with ML Kit and baked into the recording
 - Gallery with delete, full-screen playback and a share sheet
 - In-app updates and a Play review prompt
-- 433 unit tests + 102 instrumented tests
+- 522 unit tests + 117 instrumented tests
 
 **What's next:**
 
