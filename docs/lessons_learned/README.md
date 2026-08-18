@@ -60,8 +60,8 @@ Each lesson follows the same shape:
 | 031 | [A `CameraEffect` is attached once per bind and switched by uniform, never re-attached (a rebind kills the recording)](./031-camera-effect-attach-once-switch-by-uniform.md) | Camera lenses |
 | 032 | [Overlay geometry: the tracker's frame is not the renderer's frame (orientation, FOV, mirroring, square space)](./032-normalized-overlay-math-needs-square-space.md) | Camera lenses |
 | 033 | [A derived timeline must measure the artifacts it spans, not assume they match their source window](./033-derived-timeline-must-measure-its-artifacts.md) | Speed curves |
-| 034 | [A `pointerInput` key that never changes freezes its lambda; prefer `clickable` for taps](./034-pointerinput-key-freezes-its-lambda.md) | Speed curves |
-| 035 | [`onDragStart` fires a touch-slop away from the finger; hit-test the down position](./035-drag-hit-test-belongs-on-the-down-position.md) | Speed curves |
+| 034 | [A `pointerInput` key that never changes freezes everything the block captured — audit every gesture surface](./034-pointerinput-key-freezes-its-lambda.md) | Speed curves |
+| 035 | [`onDragStart` fires a touch-slop away from the finger — hit-test the down position, anchor the delta](./035-drag-hit-test-belongs-on-the-down-position.md) | Speed curves |
 
 ## Adding a new lesson
 

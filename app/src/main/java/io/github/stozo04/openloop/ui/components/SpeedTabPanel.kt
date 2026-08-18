@@ -356,6 +356,11 @@ private fun SpeedSlider(
 
     var widthPx by remember { mutableFloatStateOf(0f) }
     val latestSpeed by rememberUpdatedState(speed)
+    // Both, not just the speed: `emit` is captured by `pointerInput(widthPx)`, which stops restarting
+    // once the width settles — so the callback it closes over is frozen at first composition too
+    // (Lesson 034). Harmless while the call site is `viewModel::updateSpeed`, silently broken the day
+    // it becomes a lambda closing over state.
+    val latestOnSpeedChange by rememberUpdatedState(onSpeedChange)
     // Hoisted: stringResource needs a composable scope, and the semantics {} block below is not one.
     val sliderLabel = stringResource(R.string.speed_slider_content_description)
     val sliderState = stringResource(R.string.speed_state_description, formatSpeedNumber(speed))
@@ -367,7 +372,7 @@ private fun SpeedSlider(
             if (SPEED_DETENTS.any { t -> (prev < t) != (clamped < t) }) {
                 haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
             }
-            onSpeedChange(clamped)
+            latestOnSpeedChange(clamped)
         }
     }
 

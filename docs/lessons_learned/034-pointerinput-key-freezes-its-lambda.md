@@ -1,67 +1,92 @@
-# Lesson 034 — A `pointerInput` key that never changes freezes the lambda; prefer `clickable`/`toggleable` for taps
+# Lesson 034 — A `pointerInput` key that never changes freezes everything the block captured
 
-> Origin: speed curves (`docs/PRD-speed-curves.md`), 2026-08-17. The same defect appeared **twice in one
-> feature** — once in the graph gesture handlers, once in the action buttons — and the second one
-> shipped a visible bug: ＋ Point could never take the curve past three keyframes.
+> **Applies to every gesture surface in the app, not just the speed graph.** Found there twice in one
+> feature (2026-08-17), then found latent in the constant-speed slider by auditing for it. The trim
+> handles were already immune — they are the pattern to copy.
 
-## What went wrong
+## The rule
 
-`Modifier.pointerInput(key)` restarts its block only when `key` changes. Everything the block captures
-— including `onClick` and whatever state that lambda closes over — is frozen at the composition where
-the block last started. Pick a key that never changes and you have pinned the *first* composition's
-values for the lifetime of the node.
+`Modifier.pointerInput(key)` restarts its block **only when `key` changes**. Everything the block
+captured — callbacks, parameters, and whatever those close over — is pinned to the composition where
+the block last started. Gesture keys are usually a measured size or a settled flag, so in practice
+they change once and then never again, and the block runs for the rest of the node's life holding
+first-composition values.
+
+So: **for any `pointerInput`, ask what its key is, and when that key last changes. Everything captured
+after that moment is stale for the rest of the node's life.**
+
+Two independent consequences, and both have bitten this repo:
+
+1. **A tap handler built from `pointerInput` calls a stale callback.** Which is also why a tap should
+   almost never be a `pointerInput` at all — see "taps" below.
+2. **A drag handler acts on stale state**, silently reverting edits made since the key settled.
+
+## The fix, by case
+
+**Taps — don't use `pointerInput`.** `Modifier.clickable` reads the current lambda on every tap by
+construction, and brings the ripple, the accessibility click action, and `Role.Button` that a raw
+`detectTapGestures` silently omits. Reach for `pointerInput` only for gestures `clickable` /
+`toggleable` / `draggable` genuinely cannot express.
 
 ```kotlin
-// WRONG — `enabled` stays true, so this block never restarts and `onClick` is the FIRST one forever.
-.pointerInput(enabled) {
-    if (!enabled) return@pointerInput
-    detectTapGestures { onClick() }
-}
+.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
 ```
 
-`CurveActionButton`'s `onClick` closed over the `curve` parameter. Every tap of ＋ Point therefore ran
-`insertKeyInWidestGap(<the 2-key curve from first composition>)` and produced a 3-key curve — over and
-over. The count went 2 → 3 and then stuck at 3 no matter how many times the user tapped. Reset had the
-same flaw: it would flatten to the *original* curve's average, not the current one.
+**Real gestures — read everything through `rememberUpdatedState`.** Alias each captured callback and
+each piece of mutable state, and use only the aliases inside the block:
 
-The graph's gesture handlers had the identical bug for a different reason: they are keyed on `sizePx`,
-which settles at first layout and then never changes again. That one was fixed with
-`rememberUpdatedState`; the buttons were missed because a button "obviously" doesn't have gesture state.
+```kotlin
+val curStartMs by rememberUpdatedState(startMs)      // TrimFilmstripControls.kt — the reference
+val startDrag  by rememberUpdatedState(onStartDrag)
+```
 
-A `pointerInput` tap handler also emits **no click semantics**, so both buttons were invisible to
-TalkBack as activatable targets — a second defect hiding behind the first.
+Do **not** "fix" it by keying the `pointerInput` on the changing data instead: that re-installs the
+detector mid-gesture and drops the drag.
 
-## Pattern
+## Symptom signature
 
-- **A tap is not a gesture problem.** `Modifier.clickable(enabled = …, role = Role.Button, onClick = …)`
-  reads the current lambda on every tap by construction, and brings ripple, the a11y click action, and
-  `Role.Button` along with it. Reach for `pointerInput` only for gestures `clickable` / `toggleable` /
-  `draggable` genuinely cannot express (drag, long-press-plus-drag, multi-touch).
-  ```kotlin
-  .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-  ```
-- **When `pointerInput` *is* required, treat its key as a correctness decision.** If the key is stable
-  by design (a size, a flag that only ever goes one way), every captured lambda and value must go
-  through `rememberUpdatedState` — see `SpeedCurveGraph`'s `latestCurve` / `latestOnCurveChange` /
-  `latestOnScrub`. Keying on the changing data instead re-installs the detector mid-gesture and drops it.
-- **Symptom signature:** an action that works exactly once and then no-ops, or that keeps producing the
-  same result from a growing state. "Expected 6 but was 3" is the shape — not 2 (nothing happened) and
-  not 4 (off-by-one), but *stuck at the first successful result*.
+An action that **works exactly once and then no-ops**, or that keeps producing the same result from a
+growing state. In the failure that started this, ＋ Point went 2 → 3 keys and then stuck at 3 forever,
+because every press recomputed from the same frozen 2-key curve. The give-away number is not "nothing
+happened" (2) and not off-by-one (4) — it is *stuck at the first successful result*.
+
+Nastier variant: the captured callback closes over an object that is later **recreated**. The speed
+graph's `onScrubToFraction` closes over the editor's ExoPlayer, which is rebuilt on a `playerEpoch`
+bump, so a frozen copy would seek a **released** player.
+
+## Repo audit (2026-08-17)
+
+Every `pointerInput` in `app/src/main`, and how each stands:
+
+| Site | Key | Status |
+|---|---|---|
+| `SpeedCurvePanel` graph tap + drag | `sizePx` | Guarded — `latestCurve` / `latestOnCurveChange` / `latestOnScrub` |
+| `SpeedCurvePanel` action buttons | *(was `enabled`)* | **Was the bug.** Now `Modifier.clickable` |
+| `SpeedCurvePanel` readout / preset rows | `current`, `preset` | Key *is* the payload, and the callbacks are inert — safe |
+| `SpeedTabPanel` speed slider | `widthPx` | **Was latent.** `latestSpeed` was aliased but `onSpeedChange` was not; harmless only because the call site is `viewModel::updateSpeed`. Now aliased |
+| `TrimFilmstripControls` handle drag | `durationMs` | Already correct — the reference implementation |
+
+The slider is the instructive one: it applied the pattern **halfway**. Aliasing the state you happened
+to think about, and not the callback, leaves the same trap armed.
 
 ## Detection checklist
 
-- `rg 'pointerInput\((true|Unit|enabled|[a-zA-Z]*[Ss]ize[a-zA-Z]*)\)' app/src/main` — every hit needs
-  either a `rememberUpdatedState` for each captured lambda, or a rewrite to `clickable`.
+- `rg 'pointerInput\(' app/src/main` — for each hit, name the key and say when it last changes. If the
+  answer is "at first layout", every captured value needs `rememberUpdatedState`.
 - `rg 'detectTapGestures' app/src/main` — a bare `detectTapGestures { onClick() }` with no long-press or
-  double-tap is almost always a `clickable` in disguise, and is silently inaccessible.
-- Compose test that catches it: drive the control **more than once** and assert the state *advances*.
-  A single `performClick` + assert passes happily against a frozen lambda —
-  `SpeedTabPanelCurveTest.addPointInsertsAKeyframeUpToTheCap` only caught this because it clicks to the cap.
+  double-tap is a `clickable` in disguise, and is silently inaccessible to TalkBack.
+- Alias **callbacks as well as state**. Half-application is the common failure.
+- **Test by driving the control more than once and asserting the state advances.** A single
+  `performClick` + assert passes happily against a frozen lambda —
+  `SpeedTabPanelCurveTest.addPointBecomesRemovePointAtTheCapAndBackAgain` only caught this because it
+  drives the control to the cap and back.
 
 ## Reference
 
-- `ui/components/SpeedCurvePanel.kt` (`CurveActionButton` uses `clickable`; `SpeedCurveGraph` keeps
-  `pointerInput` but reads through `rememberUpdatedState`).
+- `ui/components/TrimFilmstripControls.kt` — copy this one.
+- `ui/components/SpeedCurvePanel.kt` (`clickable` buttons; `rememberUpdatedState` in the graph),
+  `ui/components/SpeedTabPanel.kt` (`latestOnSpeedChange`).
+- Sibling trap in the same detectors: [[035-drag-hit-test-belongs-on-the-down-position]] — that one is
+  about *where* the gesture thinks the finger is, this one about *when* it was captured.
 - Related: [[016-defer-high-frequency-state-reads-into-draw-scope]] (the other "read it at the right
-  moment" Compose trap) and [[030-trim-coercein-range-guard-short-clip]] (pure math extracted so the
-  JVM can test what a gesture would otherwise hide).
+  moment" Compose trap).
