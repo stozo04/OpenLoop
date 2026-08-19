@@ -11,19 +11,26 @@ page (verified 2026-05-30).
 >
 > | Field | Live on Play | This file | Provenance |
 > |---|---|---|---|
-> | App name | **`Boomerang Video Maker`** (21 chars) | `OpenLoop: Video Loop Maker` | ✅ two `play.google.com` fetches |
+> | App name | **`Boomerang AR Loop Video Maker`** (29 chars) — submitted 2026-08-19, not yet visible on `play.google.com` when this was written; see history below | `OpenLoop: Video Loop Maker` | owner |
 > | Developer name | `OpenLoop` | — | ✅ |
-> | Short description | `Ad Free and Open Source Boomerang Loop Video Maker` | see below | ⚠️ mirror-sourced |
-> | Full description | claims **"no tracking"** — contradicts [`data-safety.md`](data-safety.md) | discloses Firebase | ⚠️ mirror-sourced |
+> | Short description | `Face lenses and boomerangs. Speed, ping-pong, looks. On your phone.` (rewritten ~Aug 11; was `Ad Free and Open Source Boomerang Loop Video Maker`) | see below | ✅ `play.google.com` fetch 2026-08-19 |
+> | Full description | rewritten ~Aug 11: no longer claims "no tracking"; says "100% on-device — footage never leaves your phone" and does **not** mention the Firebase diagnostics [`data-safety.md`](data-safety.md) declares | discloses Firebase | ✅ `play.google.com` fetch 2026-08-19 |
 >
-> **Two things are still owed before this file can claim to mirror Console:**
-> 1. Read the ⚠️ fields verbatim in Console and correct the table above (a mirror mangled the title
->    once during the research — treat every ⚠️ as indicative, not verbatim).
-> 2. Fix the live full description's "no tracking" claim. That's the half of P0 #1 that Play policy
->    actually sees; the README half is already corrected.
+> **Still owed before this file can claim to mirror Console:** the live full description no longer
+> denies tracking (P0 #1 Console half — done ~Aug 11), but it also doesn't disclose the Firebase
+> diagnostics. One sentence from the PRIVATE BY DESIGN paragraph below would close it.
 >
-> The **title decision is deliberately open** — `LoopLens` rename vs. `OpenLoop: Loops & Lenses` —
-> see the PRD §9. Copy below is written brand-neutral so either choice can drop in.
+> **Title history** (owner decisions in Console; the impressions graph follows this table — full
+> log and measured ranks in [`../PRD-aso-discoverability.md`](../PRD-aso-discoverability.md) §6.1):
+>
+> | Live from | Title |
+> |---|---|
+> | ≤ Jun 2026 → ~Aug 10 | `Boomerang Video Maker` |
+> | ~Aug 11 → Aug 19 | `OpenLoop: Boomerang Lenses` — impressions fell to ~0 (generic queries stopped matching); brand query `openloop` reached #2 |
+> | Aug 19 → | `Boomerang AR Loop Video Maker` — chosen to win the generic queries back, accepting the §3.2 trademark posture and the loss of the brand token |
+>
+> The LoopLens rename (PRD §5.2) was **not** taken. Copy below is still brand-neutral so a future
+> title can drop in.
 
 ---
 
@@ -31,8 +38,9 @@ page (verified 2026-05-30).
 
 ### App name (max 30 characters)
 
-Pending the Issue #121 title decision. Both candidates cover the whole product (loops + lenses +
-photos) and put a brand token in the field Play actually indexes:
+**Live (2026-08-19): `Boomerang AR Loop Video Maker`** (29 chars). The two candidates below were the
+PRD's brand-first proposals — kept for the record; both put a brand token in the field Play
+actually indexes, which the live title does not:
 
 ```
 LoopLens: Loops & Face Lenses
@@ -44,8 +52,9 @@ OpenLoop: Loops & Lenses
 ```
 *(24 chars — keeps the existing brand, but still fights four entities for the `openloop` query.)*
 
-> **Do not** keep `Boomerang Video Maker`: zero unique tokens, a competitor ships the identical
-> title, and it is Meta's `BOOMERANG` mark (USPTO Reg. 5030673, Class 009, incontestable) bare and
+> The research said **do not** keep a bare `Boomerang …` title — overruled by the owner on 2026-08-19
+> for impressions volume, eyes open (PRD §6.1). The reasons still hold: zero unique tokens, a
+> competitor ships a near-identical title, and it is Meta's `BOOMERANG` mark (USPTO Reg. 5030673, Class 009, incontestable) bare and
 > unmodified in first position. **Never** write "Snapchat" in any listing field — use "face lenses",
 > "AR lenses" or "face filters" (Play's [Metadata](https://support.google.com/googleplay/android-developer/answer/9898842)
 > and [Impersonation](https://support.google.com/googleplay/android-developer/answer/9888374) policies).

@@ -628,6 +628,46 @@ Re-run the §2.2 baseline **from a signed-out context** at T+2 weeks and T+6 wee
 Plus: Play Console → listing conversion (visitors, clicks, CTR by traffic source); Search Console →
 Performance (impressions on brand queries); rating count and average.
 
+### 6.1 Title change log — read this before reading the impressions graph
+
+The Console title has changed twice since the baseline. Every cliff or spike in *Reach → Device
+impressions* lines up with one of these rows, not with anything in git (there were **zero commits on
+2026-08-11**, the day the first cliff started). All ranks are signed-out `play.google.com` searches,
+same method as §2.2.
+
+| # | Live from | Title | What it did to impressions |
+|---|---|---|---|
+| 0 | ≤ 2026-06 → ~2026-08-10 | `Boomerang Video Maker` | ~500–700/day, Jul 22 → Aug 10. Almost all of it generic-query traffic on the exact-match title. Converted to **10+** installs total. |
+| 1 | ~2026-08-11 → 2026-08-19 | `OpenLoop: Boomerang Lenses` (short desc → `Face lenses and boomerangs. Speed, ping-pong, looks. On your phone.`, full desc rewritten around lenses + loops) | **Cliff to ~0 within 2 days.** The title lost `video maker` and demoted `Boomerang` to second position, so every generic query stopped matching. Brand query fixed. Install bucket rose to **100+** across this window. |
+| 2 | 2026-08-19 (submitted ~16:00 CT, ~30 min to publish) | `Boomerang AR Loop Video Maker` | Expected: generic-query impressions return (old token set + `loop` + `AR`). Expected cost: `openloop` brand query regresses to absent (no brand token in title); bare `BOOMERANG` back in first position (§3.2); near-twin of Sarafan's `Boomerang Loop Video Maker`, which ranks #1 for that query. **Re-measure once live — that is T0 for this title.** |
+
+Measured ranks per title (signed-out, top 30):
+
+| Query | #0 `Boomerang Video Maker` (2026-08-09) | #1 `OpenLoop: Boomerang Lenses` (2026-08-19) | #2 `Boomerang AR Loop Video Maker` |
+|---|---|---|---|
+| `openloop` | absent | **#2** | *measure at T0* |
+| `openloop boomerang` | #1 | #1 | |
+| `boomerang video maker` | **#7** | absent | |
+| `boomerang`, `boomerang maker`, `boomerang app`, `boomerang video`, `video loop maker`, `video loop` | — (not measured) | absent | |
+| `boomerang lenses` | — | **#1** | |
+| `boom` | absent | — | out of scope |
+
+**How to read the graph, so nobody panics or celebrates wrongly:**
+
+- Impressions ≈ how many search results you appear in. A generic, exact-match title appears in many
+  results and converts almost none of them (row 0: weeks of ~600/day → 10+ installs). A brand-first
+  title appears in few results. Neither number is the goal; installs and ratings are.
+- The row-1 cliff was the predicted trade from §7 — "title work fixes findability, it does not move
+  volume" — not a penalty. Proof: during the cliff the app ranked #1/#2 on its brand queries, so it
+  was indexed and unsuppressed. Policy, vitals and trademark takedowns were ruled out.
+- Row 2 chooses volume over brand findability and over the §3.2 trademark posture. Deliberate
+  owner decision, 2026-08-19. If brand search matters again, `OpenLoop: Boomerang Video Maker` is
+  exactly 30 chars and covers both.
+- Listing edits go through review. **Do not edit again while one is pending** — a new edit pushes the
+  submission to the back of the queue.
+- Console → Store performance → *Search terms*, split at 2026-08-11 and again at the row-2 go-live,
+  is the report that confirms all of the above from Play's side rather than from signed-out samples.
+
 ---
 
 ## 7. Expectation setting — read this before signing off
