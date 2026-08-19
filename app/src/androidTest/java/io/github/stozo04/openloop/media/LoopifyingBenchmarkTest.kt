@@ -65,7 +65,7 @@ class LoopifyingBenchmarkTest {
             trimStartMs = 0L,
             trimEndMs = durationMs,
             mode = BoomerangMode.FORWARD_THEN_REVERSE,
-            speed = 2f,
+            curve = SpeedCurve.flat(2f),
             repetitions = 1,
             outputFile = output,
         )

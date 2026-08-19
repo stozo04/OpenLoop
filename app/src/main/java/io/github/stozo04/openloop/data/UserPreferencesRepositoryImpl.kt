@@ -34,6 +34,7 @@ class UserPreferencesRepositoryImpl(
 
     private object PreferencesKeys {
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
+        val HAS_SEEN_SPEED_CURVE_INTRO = booleanPreferencesKey("has_seen_speed_curve_intro")
         val SAVED_LOOP_COUNT = intPreferencesKey("saved_loop_count")
         // Future keys:
         // val CAPTURE_DURATION_MS = longPreferencesKey("capture_duration_ms")
@@ -57,6 +58,25 @@ class UserPreferencesRepositoryImpl(
     override suspend fun setOnboardingCompleted(completed: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.HAS_COMPLETED_ONBOARDING] = completed
+        }
+    }
+
+    override val hasSeenSpeedCurveIntro: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                // Safe fallback: show the explainer again rather than crash (Lesson 003).
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PreferencesKeys.HAS_SEEN_SPEED_CURVE_INTRO] ?: false
+        }
+
+    override suspend fun setSpeedCurveIntroSeen(seen: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[PreferencesKeys.HAS_SEEN_SPEED_CURVE_INTRO] = seen
         }
     }
 

@@ -17,6 +17,7 @@ import io.github.stozo04.openloop.data.VideoImporter
 import io.github.stozo04.openloop.data.VideoStorageRepository
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.VideoFilter
+import io.github.stozo04.openloop.media.SpeedCurve
 import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.work.BoomerangRenderRequest
 import io.github.stozo04.openloop.work.BoomerangRenderScheduler
@@ -129,6 +130,8 @@ class OpenLoopNavHostTest {
     private class NoopPreferencesRepository : UserPreferencesRepository {
         override val hasCompletedOnboarding: Flow<Boolean> = MutableStateFlow(true)
         override suspend fun setOnboardingCompleted(completed: Boolean) {}
+        override val hasSeenSpeedCurveIntro: Flow<Boolean> = MutableStateFlow(true)
+        override suspend fun setSpeedCurveIntroSeen(seen: Boolean) {}
         override suspend fun incrementSavedLoopCount(): Int = 0
     }
 
@@ -159,7 +162,7 @@ class OpenLoopNavHostTest {
             trimStartMs: Long,
             trimEndMs: Long,
             mode: BoomerangMode,
-            speed: Float,
+            curve: SpeedCurve,
             filter: VideoFilter,
             repetitions: Int,
             outputFile: File,

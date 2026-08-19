@@ -53,7 +53,7 @@ class FakeBoomerangRenderScheduler(
                     trimStartMs = request.trimStartMs,
                     trimEndMs = request.trimEndMs,
                     mode = request.mode,
-                    speed = request.speed,
+                    curve = request.effectiveCurve,
                     filter = request.filter,
                     repetitions = request.repetitions,
                     outputFile = request.outputFile,

@@ -162,6 +162,55 @@
     <!-- %1$s is the multiplier, e.g. "1.5" — spoken by TalkBack as the slider's state. -->
     <string name="speed_state_description">%1$s times speed</string>
 
+    <!-- Speed tab: Constant | Custom mode toggle -->
+    <string name="speed_mode_constant">Constant</string>
+    <string name="speed_mode_curve">Custom</string>
+
+    <!-- Speed curve editor -->
+    <string name="speed_curve_presets">Presets</string>
+    <string name="speed_curve_reset">Reset</string>
+    <string name="speed_curve_add_point">Add point</string>
+    <!-- Kept to one short word: the actions row is three equal thirds, and "Remove point" wraps. -->
+    <string name="speed_curve_remove_point">Remove</string>
+    <string name="speed_curve_help_content_description">How does custom speed work?</string>
+    <string name="speed_curve_graph_content_description">Speed curve</string>
+    <!-- %1$d = number of points, %2$s / %3$s = slowest and fastest multipliers, e.g. "0.5x" -->
+    <plurals name="speed_curve_graph_state">
+        <item quantity="one">%1$d point, %2$s to %3$s</item>
+        <item quantity="other">%1$d points, %2$s to %3$s</item>
+    </plurals>
+    <!-- %1$s = the multiplier under the playhead, e.g. "1.7x" -->
+    <string name="speed_curve_current">Current: %1$s</string>
+    <!-- %1$s = multiplier. Tapping the live readout locks the whole loop to that speed. -->
+    <string name="speed_curve_use_current">Set whole loop to %1$s</string>
+    <!-- %1$d = this point's number, %2$d = total, %3$d = percent through the loop, %4$s = multiplier -->
+    <string name="speed_curve_point_state">Point %1$d of %2$d, %3$d%% through the loop, %4$s</string>
+    <string name="speed_curve_point_locked_state">End point, %1$s</string>
+    <string name="speed_curve_action_faster">Increase speed</string>
+    <string name="speed_curve_action_slower">Decrease speed</string>
+    <string name="speed_curve_action_earlier">Move earlier</string>
+    <string name="speed_curve_action_later">Move later</string>
+    <string name="speed_curve_action_delete">Delete point</string>
+    <plurals name="speed_curve_max_points_hint">
+        <item quantity="one">Up to %1$d point</item>
+        <item quantity="other">Up to %1$d points</item>
+    </plurals>
+
+    <!-- Speed curve preset names -->
+    <string name="speed_preset_ease_in">Ease In</string>
+    <string name="speed_preset_ease_out">Ease Out</string>
+    <string name="speed_preset_slow_fast_slow">Slow–Fast–Slow</string>
+    <string name="speed_preset_accelerate_into_reverse">Accelerate into Reverse</string>
+
+    <!-- Speed curve one-time explainer (shown on the first tap of "Custom") -->
+    <string name="speed_curve_intro_title">Custom speed</string>
+    <string name="speed_curve_intro_body">Instead of one speed for the whole loop, draw how it changes.</string>
+    <string name="speed_curve_intro_tap">Add a point, then drag it to bend the speed</string>
+    <string name="speed_curve_intro_drag">Higher is faster, lower is slower</string>
+    <string name="speed_curve_intro_hold">Tap Remove to go back to one speed</string>
+    <string name="speed_curve_intro_axes">The line is your loop, left to right.</string>
+    <string name="speed_curve_intro_escape">Presets gets you started. Tap Constant anytime to go back to the simple slider.</string>
+
     <!-- Looks (filter) tab. VideoFilter.label values are product names and stay untranslated. -->
     <string name="filter_title">Choose a look</string>
     <string name="looks_disabled_hint">Looks preview paused — device is low on memory. Tap a look to retry.</string>

@@ -17,6 +17,7 @@ import io.github.stozo04.openloop.data.VideoStorageRepository
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.needsReverse
 import io.github.stozo04.openloop.media.VideoFilter
+import io.github.stozo04.openloop.media.SpeedCurve
 import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.review.REVIEW_FIRST_ASK_AFTER_SAVES
 import io.github.stozo04.openloop.review.REVIEW_REASK_EVERY_SAVES
@@ -81,6 +82,18 @@ class FakeUserPreferencesRepository(
         _hasCompletedOnboarding.value = completed
     }
 
+    private val _hasSeenSpeedCurveIntro = MutableStateFlow(false)
+    override val hasSeenSpeedCurveIntro: Flow<Boolean> = _hasSeenSpeedCurveIntro
+
+    /** Tracks the last value written via [setSpeedCurveIntroSeen]. */
+    var speedCurveIntroSeenValue: Boolean = false
+        private set
+
+    override suspend fun setSpeedCurveIntroSeen(seen: Boolean) {
+        speedCurveIntroSeenValue = seen
+        _hasSeenSpeedCurveIntro.value = seen
+    }
+
     /** Lifetime saved-loop tally, as the real DataStore counter would keep it. */
     var savedLoopCount: Int = 0
         private set
@@ -96,6 +109,13 @@ class FailingWritePreferencesRepository : UserPreferencesRepository {
     override val hasCompletedOnboarding: Flow<Boolean> = _hasCompletedOnboarding
 
     override suspend fun setOnboardingCompleted(completed: Boolean) {
+        throw IOException("Simulated disk full")
+    }
+
+    private val _hasSeenSpeedCurveIntro = MutableStateFlow(false)
+    override val hasSeenSpeedCurveIntro: Flow<Boolean> = _hasSeenSpeedCurveIntro
+
+    override suspend fun setSpeedCurveIntroSeen(seen: Boolean) {
         throw IOException("Simulated disk full")
     }
 
@@ -247,8 +267,14 @@ class FakeVideoProcessor : VideoProcessor {
     var failReverse: Boolean = false
     var renderCount: Int = 0
 
-    /** The speed passed to the most recent [renderBoomerang] call, for asserting save wiring (slice 04). */
+    /**
+     * The speed passed to the most recent [renderBoomerang] call, for asserting save wiring (slice 04).
+     * Read off the curve's [SpeedCurve.flatten], which for a flat curve is exactly the constant speed.
+     */
     var lastRenderSpeed: Float = Float.NaN
+
+    /** The full curve passed to the most recent [renderBoomerang] call (speed-curve feature). */
+    var lastRenderCurve: SpeedCurve? = null
 
     /** The filter passed to the most recent [renderBoomerang] call, for asserting save wiring (slice 05). */
     var lastRenderFilter: VideoFilter? = null
@@ -281,14 +307,15 @@ class FakeVideoProcessor : VideoProcessor {
         trimStartMs: Long,
         trimEndMs: Long,
         mode: BoomerangMode,
-        speed: Float,
+        curve: SpeedCurve,
         filter: VideoFilter,
         repetitions: Int,
         outputFile: File,
         onProgress: (Float) -> Unit,
     ): File {
         renderCount++
-        lastRenderSpeed = speed
+        lastRenderCurve = curve
+        lastRenderSpeed = curve.flatten()
         lastRenderFilter = filter
         onProgress(1f)
         if (failRender) throw RuntimeException("simulated render failure")
