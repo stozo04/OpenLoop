@@ -2590,6 +2590,8 @@ class OpenLoopViewModelTest {
         runTest(mainDispatcherRule.testDispatcher) {
             val vm = boothViewModel()
             vm.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { vm.events.toList(events) }
 
             // Park the save so the first strip is genuinely in flight when the next calls land
             // (Lesson 029 — enforce the premise, don't hope the scheduler interleaves).
@@ -2597,10 +2599,15 @@ class OpenLoopViewModelTest {
             fakeVideoStorage.savePhotoGate = gate
 
             vm.captureBoothStrip(boothFrames(), monochrome = false)
-            vm.captureBoothStrip(boothFrames(), monochrome = false)
+            val dropped = boothFrames()
+            vm.captureBoothStrip(dropped, monochrome = false)
             vm.captureBoothStrip(boothFrames(), monochrome = false)
 
             assertEquals(1, fakeVideoStorage.savePhotoCallCount)
+            // A dropped strip is never silent: the snackbar fires and its frames are recycled
+            // eagerly rather than lingering until GC (PRD §8).
+            assertEquals(2, events.count { it == BoomerangEvent.PhotoCaptureFailed })
+            dropped.forEach { verify(exactly = 1) { it.recycle() } }
 
             gate.complete(Unit)
             advanceUntilIdle()
@@ -2613,18 +2620,84 @@ class OpenLoopViewModelTest {
             vm.captureBoothStrip(boothFrames(), monochrome = false)
             advanceUntilIdle()
             assertEquals(2, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
+
+            collector.cancel()
         }
 
     @Test
-    fun `captureBoothStrip is ignored when not on the viewfinder`() =
+    fun `a null-grab abort surfaces the snackbar even while a save is in flight`() =
         runTest(mainDispatcherRule.testDispatcher) {
-            viewModel.onPermissionsChecked(true)
-            viewModel.navigateToGallery()
+            val vm = boothViewModel()
+            vm.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { vm.events.toList(events) }
+            val gate = CompletableDeferred<Unit>()
+            fakeVideoStorage.savePhotoGate = gate
+
+            vm.captureBoothStrip(boothFrames(), monochrome = false) // save 1 parked in flight
+            val aborted = boothFrames(2)
+            vm.captureBoothStrip(aborted, monochrome = false) // strip 2 aborted on a null grab
+
+            // The frame-count reject is checked BEFORE the re-entrancy guard, so the promised
+            // snackbar (PRD §5.4) cannot be swallowed by the in-flight save; the partial frames
+            // are recycled, not composited.
+            assertTrue(events.contains(BoomerangEvent.PhotoCaptureFailed))
+            aborted.forEach { verify(exactly = 1) { it.recycle() } }
+
+            gate.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(1, fakeVideoStorage.savePhotoCallCount)
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `an out-of-memory composite degrades to the snackbar instead of crashing`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val vm = OpenLoopViewModel(
+                fakePreferencesRepository,
+                fakeVideoStorage,
+                fakeVideoProcessor,
+                fakeVideoImporter,
+                fakeRenderScheduler,
+                ioDispatcher = mainDispatcherRule.testDispatcher,
+                composeBoothStrip = { _, _ -> throw OutOfMemoryError("strip allocation") },
+            )
+            vm.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { vm.events.toList(events) }
+
+            val frames = boothFrames()
+            vm.captureBoothStrip(frames, monochrome = false)
             advanceUntilIdle()
 
-            viewModel.captureBoothStrip(boothFrames(), monochrome = false)
-            advanceUntilIdle()
-
+            // The ~16 MB strip allocation failing under pressure must cost a snackbar, not the
+            // process; the frames are still released eagerly.
+            assertTrue(events.contains(BoomerangEvent.PhotoCaptureFailed))
             assertEquals(0, fakeVideoStorage.savePhotoCallCount)
+            frames.forEach { verify(exactly = 1) { it.recycle() } }
+
+            // The shared guard must release so the shutter still works afterwards.
+            vm.capturePhoto(mockk(relaxed = true))
+            advanceUntilIdle()
+            assertEquals(1, fakeVideoStorage.savePhotoCallCount)
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `captureBoothStrip saves a completed strip even after navigating away`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val vm = boothViewModel()
+            vm.onPermissionsChecked(true)
+            // The gallery button stays reachable during the final 250 ms flash; a fully captured
+            // strip must survive that race instead of silently discarding ~18 s of posing.
+            vm.navigateToGallery()
+            advanceUntilIdle()
+
+            vm.captureBoothStrip(boothFrames(), monochrome = false)
+            advanceUntilIdle()
+
+            assertEquals(1, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
         }
 }

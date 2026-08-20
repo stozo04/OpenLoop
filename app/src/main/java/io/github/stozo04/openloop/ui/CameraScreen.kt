@@ -85,6 +85,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.lifecycle.Lifecycle
 import io.github.stozo04.openloop.camera.CameraManager
 import io.github.stozo04.openloop.camera.PinchZoomCallbacks
 import io.github.stozo04.openloop.camera.PinchZoomLayout
@@ -102,7 +103,9 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.ui.theme.shutterGradient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Single hosting call site for the two camera-bound states ([OpenLoopUiState.ReadyToCapture] and
@@ -257,32 +260,57 @@ fun CameraScreen(
     // Navigating away (gallery) disposes the screen, which is the same clean abort.
     LaunchedEffect(boothActive) {
         if (!boothActive) return@LaunchedEffect
+        // A cancel mid-flash freezes the Animatable mid-fade; without this reset the next run
+        // would open under a semi-opaque white veil for its entire first countdown.
+        boothFlashAlpha.snapTo(0f)
         val frames = mutableListOf<Bitmap>()
-        for (shot in 1..BOOTH_FRAME_COUNT) {
-            boothShot.intValue = shot
-            for (digit in BOOTH_COUNTDOWN_SECONDS downTo 1) {
-                boothDigit.intValue = digit
-                delay(1_000L)
+        // [OpenLoopViewModel.captureBoothStrip] takes ownership of the frames on every one of its
+        // paths, so this effect recycles only when the sequence dies before a hand-over.
+        var handedOver = false
+        try {
+            for (shot in 1..BOOTH_FRAME_COUNT) {
+                boothShot.intValue = shot
+                for (digit in BOOTH_COUNTDOWN_SECONDS downTo 1) {
+                    boothDigit.intValue = digit
+                    delay(1_000L)
+                }
+                // Grab AFTER the `1` clears. Compose overlays can never contaminate the grab
+                // (getBitmap() returns the camera preview content only), but this keeps the ritual
+                // on the overlay and the timing honest.
+                boothDigit.intValue = 0
+                // Backgrounded mid-countdown (home, lock, phone call): delay() keeps ticking on
+                // wall clock, and after started-then-stopped the COMPATIBLE-mode TextureView
+                // retains its last frame — getBitmap() would return a stale non-null grab and
+                // bake duplicate frames into the strip (Lesson 036). Treat ON_STOP like Cancel:
+                // silent discard back to idle (§5.1 accepts only activity recreation).
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                    boothActive = false
+                    return@LaunchedEffect
+                }
+                val grab = previewView.bitmap // null until the preview has ever streamed
+                if (grab == null) {
+                    // Abort the whole sequence: the ViewModel rejects the short frame set and
+                    // surfaces the capture-failed snackbar; no partial strip is ever saved.
+                    handedOver = true
+                    viewModel.captureBoothStrip(frames, currentBoothMonochrome)
+                    boothActive = false
+                    return@LaunchedEffect
+                }
+                // Crop at grab time — retains 3× ~1080² ARGB instead of 3× full-screen (§5.1).
+                // Only the getBitmap() readback must stay on main; the ~4.7 MB copy hops off so
+                // the flash animation starts on an unblocked frame.
+                frames += withContext(Dispatchers.Default) { cropToBoothSquare(grab) }
+                boothFlashAlpha.snapTo(BOOTH_FLASH_PEAK_ALPHA)
+                boothFlashAlpha.animateTo(0f, tween(BOOTH_FLASH_FADE_MS))
             }
-            // Grab AFTER the `1` clears. Compose overlays can never contaminate the grab
-            // (getBitmap() returns the camera preview content only), but this keeps the ritual
-            // on the overlay and the timing honest.
-            boothDigit.intValue = 0
-            val grab = previewView.bitmap // null until the preview streams
-            if (grab == null) {
-                // Abort the whole sequence: the ViewModel rejects the short frame set and
-                // surfaces the capture-failed snackbar; no partial strip is ever saved.
-                viewModel.captureBoothStrip(frames, currentBoothMonochrome)
-                boothActive = false
-                return@LaunchedEffect
-            }
-            // Crop at grab time — retains 3× ~1080² ARGB instead of 3× full-screen (§5.1).
-            frames += cropToBoothSquare(grab)
-            boothFlashAlpha.snapTo(BOOTH_FLASH_PEAK_ALPHA)
-            boothFlashAlpha.animateTo(0f, tween(BOOTH_FLASH_FADE_MS))
+            handedOver = true
+            viewModel.captureBoothStrip(frames, currentBoothMonochrome)
+            boothActive = false
+        } finally {
+            // Died before hand-over (Cancel, back, ON_STOP, navigation dispose): release the
+            // ~14 MB of captured frames eagerly (PRD §8), matching the ViewModel's policy.
+            if (!handedOver) frames.forEach { it.recycle() }
         }
-        viewModel.captureBoothStrip(frames, currentBoothMonochrome)
-        boothActive = false
     }
 
     Box(
@@ -429,7 +457,14 @@ fun CameraScreen(
                     BoothControls(
                         monochrome = boothMonochrome,
                         onToggleMonochrome = { boothMonochrome = it },
-                        onStart = { boothActive = true },
+                        onStart = {
+                            // Prime the overlay before it mounts: it renders one frame before the
+                            // sequence effect's first write, and a leftover "Shot 3 of 3" from the
+                            // previous run would flash — and be announced by TalkBack — in that gap.
+                            boothShot.intValue = 1
+                            boothDigit.intValue = BOOTH_COUNTDOWN_SECONDS
+                            boothActive = true
+                        },
                         modifier = Modifier.padding(bottom = 20.dp),
                     )
                 }
@@ -474,15 +509,16 @@ fun CameraScreen(
                     ShutterButton(
                         isRecording = isRecording,
                         photoMode = isPhotoMode,
+                        // Genuinely disabled mid-booth (PRD §5.1) — the sequence replaces the
+                        // shutter, and a real disable (vs. a no-op onClick) keeps TalkBack's
+                        // announcement, the confirm haptic, and the press animation honest.
+                        enabled = !boothActive,
                         progressFraction = {
                             (recordingElapsedState.value.toFloat() / OpenLoopViewModel.MAX_RECORDING.inWholeMilliseconds)
                                 .coerceIn(0f, 1f)
                         },
                         onClick = {
                             when {
-                                // Booth sequence in flight: the shutter is disabled (§5.1) —
-                                // Cancel is the only way out.
-                                boothActive -> Unit
                                 // Photo mode: grab the composited viewfinder (lens included) and
                                 // hand it straight to the ViewModel — no recording, no editor.
                                 // `bitmap` is null until the preview streams; the ViewModel
@@ -595,6 +631,22 @@ fun HomeButton(
 }
 
 /**
+ * The clear-glass pill chrome shared by [CaptureModeSelector] and the booth controls: 48.dp tall
+ * (the Material/accessibility minimum interactive target, WARNING-3), fully-rounded clip,
+ * [background] fill (the same clear glass as the gallery/lens/flip buttons — owner's call — not
+ * the darker OverlayScrim the info chips use), and the standard [OverlayWhiteBorder] hairline.
+ * One helper so a chrome tweak lands on every pill on this screen at once.
+ */
+private fun Modifier.glassPill(background: Color = OverlayWhite): Modifier = this
+    .height(48.dp)
+    .clip(RoundedCornerShape(percent = 50))
+    .background(background)
+    .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+
+/** Label style for the glass pills ([CaptureModeSegment] and the booth controls). */
+private val PillTextStyle = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp)
+
+/**
  * Top-right capture-mode selector: a two-segment CAMERA | VIDEO control that flips the shutter
  * between taking stills and recording clips.
  *
@@ -627,12 +679,7 @@ fun CaptureModeSelector(
     val haptics = LocalHapticFeedback.current
     Row(
         modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(percent = 50))
-            // Same clear-glass chrome as the gallery/lens/flip buttons (owner's call), not the
-            // darker OverlayScrim the info chips use.
-            .background(OverlayWhite)
-            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+            .glassPill()
             .padding(horizontal = 4.dp)
             .selectableGroup()
             .testTag("capture_mode_selector"),
@@ -702,7 +749,7 @@ private fun CaptureModeSegment(
             Spacer(Modifier.width(6.dp))
             Text(
                 text = label,
-                style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                style = PillTextStyle,
                 color = if (selected) LimeInk else Color.White,
             )
         }
@@ -720,6 +767,11 @@ private fun CaptureModeSegment(
  * [progressFraction] is a lambda, not a value: it is read inside the [Canvas] draw scope (REC-1) so
  * an elapsed-time tick only triggers a redraw of the ring, never a recomposition of this button or
  * the screen above it.
+ *
+ * [enabled] wires straight into `clickable(enabled = …)`, which suppresses the tap, the confirm
+ * haptic, and the press interaction, and adds the disabled semantics TalkBack announces — a booth
+ * sequence must not leave an announced-enabled shutter that silently does nothing (PRD-photo-booth
+ * §5.1; the camera-flip button gates the same way).
  */
 @Composable
 fun ShutterButton(
@@ -728,6 +780,7 @@ fun ShutterButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     photoMode: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val haptics = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -778,6 +831,7 @@ fun ShutterButton(
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
+                    enabled = enabled,
                     onClick = {
                         if (!isRecording) {
                             haptics.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -835,10 +889,7 @@ fun BoothControls(
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Row(
             modifier = Modifier
-                .height(48.dp)
-                .clip(RoundedCornerShape(percent = 50))
-                .background(OverlayWhite)
-                .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+                .glassPill()
                 .clickable(role = Role.Button, onClick = onStart)
                 .padding(horizontal = 20.dp)
                 .semantics { contentDescription = startLabel }
@@ -854,7 +905,7 @@ fun BoothControls(
             Spacer(Modifier.width(6.dp))
             Text(
                 text = stringResource(R.string.camera_booth),
-                style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                style = PillTextStyle,
                 color = ElectricLime,
             )
         }
@@ -878,10 +929,7 @@ fun BoothMonochromeChip(
     val monochromeLabel = stringResource(R.string.camera_booth_bw_toggle)
     Box(
         modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(percent = 50))
-            .background(if (monochrome) ElectricLime else OverlayWhite)
-            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+            .glassPill(background = if (monochrome) ElectricLime else OverlayWhite)
             .toggleable(
                 value = monochrome,
                 role = Role.Switch,
@@ -894,7 +942,7 @@ fun BoothMonochromeChip(
     ) {
         Text(
             text = stringResource(R.string.camera_booth_bw),
-            style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+            style = PillTextStyle,
             color = if (monochrome) LimeInk else Color.White,
         )
     }
@@ -910,10 +958,7 @@ fun BoothCancelButton(onCancel: () -> Unit, modifier: Modifier = Modifier) {
     val cancelLabel = stringResource(R.string.camera_booth_cancel)
     Box(
         modifier = modifier
-            .height(48.dp)
-            .clip(RoundedCornerShape(percent = 50))
-            .background(OverlayWhite)
-            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+            .glassPill()
             .clickable(role = Role.Button, onClick = onCancel)
             .padding(horizontal = 20.dp)
             .semantics { contentDescription = cancelLabel }
@@ -922,7 +967,7 @@ fun BoothCancelButton(onCancel: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         Text(
             text = stringResource(R.string.camera_booth_cancel_label),
-            style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+            style = PillTextStyle,
             color = Color.White,
         )
     }

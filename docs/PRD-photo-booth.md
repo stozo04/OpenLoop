@@ -115,7 +115,12 @@ button, Cancel, and Color/B&W chip all carry content descriptions. This is in th
 never-simplify-away bucket, not polish.
 
 **Accepted POC limitation:** an activity recreation mid-sequence (rotation, process death) resets
-booth to idle and discards captured frames — ~18 s of loss, not precious work.
+booth to idle and discards captured frames — ~18 s of loss, not precious work. Backgrounding
+mid-sequence (home, lock, an incoming call) aborts the same way, deliberately: after
+started-then-stopped the COMPATIBLE-mode `TextureView` keeps serving its frozen last frame, so
+`getBitmap()` grabs can no longer be trusted
+([Lesson 036](./lessons_learned/036-previewview-getbitmap-stale-after-stop.md)) — the sequence
+checks the lifecycle before each grab and silently discards, exactly like Cancel.
 
 ### 5.2 Composite — pure layout math + a thin Canvas pass
 
@@ -149,6 +154,10 @@ refresh, best-effort MediaStore publish to `Pictures/OpenLoop`, and the
 |---|---|
 | `previewView.bitmap` returns null on any snap | Abort the whole sequence → existing capture-failed snackbar; no partial strip is ever saved |
 | Cancel / back mid-sequence | Discard frames, return to idle camera; no save, no snackbar |
+| App backgrounded (ON_STOP) mid-sequence | Silent abort, same as Cancel — a stopped preview's `getBitmap()` serves the frozen last frame, so grabs can't be trusted ([Lesson 036](./lessons_learned/036-previewview-getbitmap-stale-after-stop.md)) |
+| Strip completes while a previous save is still in flight | Rejected with the capture-failed snackbar; frames recycled eagerly |
+| Gallery button tapped during the final flash | The completed strip still saves and shares — ~18 s of posing is never dropped over a 250 ms race |
+| Strip composite runs out of memory | Caught (`OutOfMemoryError` on the ~16 MB allocation) → capture-failed snackbar, frames recycled; never a process kill |
 | MediaStore publish fails | Logged and swallowed (photo-path precedent: the in-app save is the one that matters) |
 
 ## 6. Success criteria

@@ -419,11 +419,12 @@ class OpenLoopViewModel(
     private val _captureMode = MutableStateFlow(CaptureMode.VIDEO)
     val captureMode: StateFlow<CaptureMode> = _captureMode.asStateFlow()
 
-    /** Guards against repeated shutter taps while a photo save/publish is already running. */
+    /**
+     * Guards against overlapping photo saves — repeated shutter taps AND booth composites share
+     * this one flag, so a booth strip and a single photo can never run
+     * [VideoStorageRepository.savePhoto] concurrently (PRD-photo-booth §5.1).
+     */
     private var photoSaveInProgress = false
-
-    /** Guards against overlapping booth composites, mirroring [photoSaveInProgress] (PRD §5.1). */
-    private var boothSaveInProgress = false
 
     private var nudgeGalleryAfterShare = false
 
@@ -1486,29 +1487,12 @@ class OpenLoopViewModel(
         photoSaveInProgress = true
         viewModelScope.launch {
             try {
-                val photo = bitmap?.let { videoStorage.savePhoto(it) }
-                if (photo == null) {
-                    Log.w(
-                        "OpenLoopViewModel",
-                        "Photo capture produced no file (hadBitmap=${bitmap != null})",
-                    )
+                if (bitmap == null) {
+                    Log.w("OpenLoopViewModel", "Photo capture skipped: preview not streaming yet")
                     _events.send(BoomerangEvent.PhotoCaptureFailed)
-                    return@launch
+                } else {
+                    savePhotoAndShare(bitmap, what = "Photo")
                 }
-                val file = File(photo.videoPath)
-                // Best-effort public copy: the in-app save already succeeded, and a MediaStore
-                // failure must not cost the user their photo (PRD §5.5 — a deliberate deviation
-                // from the render worker, where the same failure fails the whole loop).
-                try {
-                    publishPhotoToLibrary(file)
-                } catch (e: CancellationException) {
-                    throw e // never swallow cancellation (Lesson 013)
-                } catch (e: Exception) {
-                    Log.e("OpenLoopViewModel", "Publishing photo to the device library failed", e)
-                }
-                loadRecordedVideos()
-                nudgeGalleryAfterShare = true
-                _events.send(BoomerangEvent.Share(file))
             } finally {
                 photoSaveInProgress = false
             }
@@ -1516,55 +1500,95 @@ class OpenLoopViewModel(
     }
 
     /**
+     * The shared tail of [capturePhoto] and [captureBoothStrip]: persist [bitmap] through
+     * [VideoStorageRepository.savePhoto], best-effort MediaStore publish, gallery refresh, then
+     * the share sheet ([BoomerangEvent.Share]). Emits [BoomerangEvent.PhotoCaptureFailed] when the
+     * save produces no file. [what] labels the log lines ("Photo" / "Booth strip").
+     */
+    private suspend fun savePhotoAndShare(bitmap: Bitmap, what: String) {
+        val photo = videoStorage.savePhoto(bitmap)
+        if (photo == null) {
+            Log.w("OpenLoopViewModel", "$what could not be saved")
+            _events.send(BoomerangEvent.PhotoCaptureFailed)
+            return
+        }
+        val file = File(photo.videoPath)
+        // Best-effort public copy: the in-app save already succeeded, and a MediaStore failure
+        // must not cost the user the picture (PRD-photo-capture §5.5 — a deliberate deviation
+        // from the render worker, where the same failure fails the whole loop).
+        try {
+            publishPhotoToLibrary(file)
+        } catch (e: CancellationException) {
+            throw e // never swallow cancellation (Lesson 013)
+        } catch (e: Exception) {
+            Log.e("OpenLoopViewModel", "Publishing $what to the device library failed", e)
+        }
+        loadRecordedVideos()
+        nudgeGalleryAfterShare = true
+        _events.send(BoomerangEvent.Share(file))
+    }
+
+    /**
      * Booth-sequence completion: composite the (already square-cropped) [frames] into one strip —
-     * in [monochrome] when the B&W chip was on — and push it down the **existing** photo path:
-     * save, best-effort MediaStore publish, gallery refresh, share sheet (docs/PRD-photo-booth.md
-     * §5.2–5.3).
+     * in [monochrome] when the B&W chip was on — and push it down the **existing** photo path via
+     * [savePhotoAndShare] (docs/PRD-photo-booth.md §5.2–5.3).
+     *
+     * Takes ownership of [frames] on **every** path — composited, rejected, or dropped, they are
+     * recycled here (PRD §8 eager release) — so the sequence effect never has to guess whether a
+     * hand-over happened.
      *
      * A [frames] list that is not exactly [BOOTH_FRAME_COUNT] long means a null viewfinder grab
      * aborted the sequence upstream — surface the capture-failed snackbar and never composite a
-     * partial strip (PRD §5.4).
+     * partial strip (PRD §5.4). Checked FIRST, so that snackbar cannot be swallowed by the
+     * re-entrancy guard while a previous strip's save is still in flight.
+     *
+     * Deliberately no [OpenLoopUiState.ReadyToCapture] guard: the sequence only runs on the
+     * viewfinder, and the one way state can change before this call lands is the gallery button
+     * during the final flash — dropping a fully captured strip over that 250 ms race would throw
+     * away ~18 s of the user's posing.
      */
     fun captureBoothStrip(frames: List<Bitmap>, monochrome: Boolean) {
-        if (_uiState.value != OpenLoopUiState.ReadyToCapture) return
-        if (boothSaveInProgress) return
         if (frames.size != BOOTH_FRAME_COUNT) {
             Log.w(
                 "OpenLoopViewModel",
                 "Booth sequence aborted with ${frames.size}/$BOOTH_FRAME_COUNT frames",
             )
+            frames.forEach { it.recycle() }
             viewModelScope.launch { _events.send(BoomerangEvent.PhotoCaptureFailed) }
             return
         }
-        boothSaveInProgress = true
+        if (photoSaveInProgress) {
+            Log.w("OpenLoopViewModel", "Booth strip dropped: a photo save is already in flight")
+            frames.forEach { it.recycle() }
+            viewModelScope.launch { _events.send(BoomerangEvent.PhotoCaptureFailed) }
+            return
+        }
+        photoSaveInProgress = true
         viewModelScope.launch {
             try {
-                val strip = composeBoothStrip(frames, monochrome)
-                // ~14 MB of retained frames are dead the moment the strip exists — release them
-                // now rather than at the GC's leisure (PRD §8 memory-spike mitigation).
-                frames.forEach { if (it !== strip) it.recycle() }
-                val photo = videoStorage.savePhoto(strip)
-                strip.recycle()
-                if (photo == null) {
-                    Log.w("OpenLoopViewModel", "Booth strip could not be saved")
+                val strip = try {
+                    composeBoothStrip(frames, monochrome)
+                } catch (e: OutOfMemoryError) {
+                    // The ~16 MB strip allocation is the one genuinely-throwing step on this path;
+                    // under real pressure it must degrade to the snackbar, not kill the process
+                    // the user just spent ~18 s posing for.
+                    Log.e("OpenLoopViewModel", "Booth strip composite ran out of memory", e)
+                    frames.forEach { it.recycle() }
                     _events.send(BoomerangEvent.PhotoCaptureFailed)
                     return@launch
                 }
-                val file = File(photo.videoPath)
-                // Best-effort public copy — same deliberate deviation as [capturePhoto]: losing
-                // the MediaStore copy must not cost the user the strip.
+                // ~14 MB of retained frames are dead the moment the strip exists — release them
+                // now rather than at the GC's leisure (PRD §8 memory-spike mitigation). The
+                // identity guard is the injectable-composer seam's contract: a substitute that
+                // returns one of the frames as the strip must not have it recycled underneath.
+                frames.forEach { if (it !== strip) it.recycle() }
                 try {
-                    publishPhotoToLibrary(file)
-                } catch (e: CancellationException) {
-                    throw e // never swallow cancellation (Lesson 013)
-                } catch (e: Exception) {
-                    Log.e("OpenLoopViewModel", "Publishing booth strip to the device library failed", e)
+                    savePhotoAndShare(strip, what = "Booth strip")
+                } finally {
+                    strip.recycle()
                 }
-                loadRecordedVideos()
-                nudgeGalleryAfterShare = true
-                _events.send(BoomerangEvent.Share(file))
             } finally {
-                boothSaveInProgress = false
+                photoSaveInProgress = false
             }
         }
     }
