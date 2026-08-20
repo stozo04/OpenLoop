@@ -108,6 +108,7 @@ io.github.stozo04.openloop/
 │   ├── VideoProcessor.kt        # Media3 Transformer: Composition + SpeedChangeEffect; ensureReversed() (shared reverse cache)
 │   ├── VideoReverser.kt         # Two-pass MediaCodec reverse (Media3 has no reverse effect)
 │   ├── Reverse*.kt              # Encoder selection, output validation, scratch janitor, logging
+│   ├── BoothStrip*.kt           # Photo-booth strip: pure layout math (JVM-tested) + thin Canvas composer — docs/PRD-photo-booth.md
 │   └── …Sequence/Filter/Format  # BoomerangSequence, VideoFilter, MediaFormatUtils — pure, JVM-tested
 ├── ui/
 │   ├── OpenLoopUiState.kt       # Sealed state machine + TrimState / EditorTabState

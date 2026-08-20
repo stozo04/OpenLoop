@@ -1,6 +1,7 @@
 package io.github.stozo04.openloop.ui
 
 import androidx.activity.compose.BackHandler
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -70,8 +72,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,6 +90,8 @@ import io.github.stozo04.openloop.camera.PinchZoomCallbacks
 import io.github.stozo04.openloop.camera.PinchZoomLayout
 import io.github.stozo04.openloop.camera.formatZoomRatioForChip
 import io.github.stozo04.openloop.camera.lens.Lens
+import io.github.stozo04.openloop.media.BOOTH_FRAME_COUNT
+import io.github.stozo04.openloop.media.cropToBoothSquare
 import io.github.stozo04.openloop.ui.components.LensCarousel
 import io.github.stozo04.openloop.ui.components.PrimaryButtonPressedScale
 import io.github.stozo04.openloop.ui.theme.CoralRed
@@ -155,6 +161,22 @@ fun CameraScreen(
     // below, so only the consumers (progress ring in the draw phase, countdown chip) react to ticks.
     val recordingElapsedState = viewModel.recordingElapsedMs.collectAsStateWithLifecycle()
 
+    // ── Photo booth (docs/PRD-photo-booth.md) ───────────────────────────────────────────────
+    // Booth bypasses CaptureMode and the state machine entirely (§5.1): the sequence is ephemeral
+    // UI state here, uiState stays ReadyToCapture throughout, and the ViewModel only hears about
+    // it when the finished frame set is handed over. An activity recreation mid-sequence resets
+    // to idle and discards the frames — the accepted POC limitation.
+    var boothActive by remember { mutableStateOf(false) }
+    var boothMonochrome by remember { mutableStateOf(false) }
+    // Written once per second by the sequence effect; read ONLY inside [BoothCountdownOverlay]'s
+    // own scope (REC-1 / Lesson 016), so a countdown tick never recomposes the viewfinder tree.
+    val boothShot = remember { mutableIntStateOf(0) }
+    val boothDigit = remember { mutableIntStateOf(0) }
+    val boothFlashAlpha = remember { Animatable(0f) }
+    // The sequence effect below is keyed on boothActive, so everything it captures is pinned at
+    // launch (Lesson 034). The alias keeps the D4 Color/B&W choice live when toggled mid-countdown.
+    val currentBoothMonochrome by rememberUpdatedState(boothMonochrome)
+
     // Predictive back is default-on at targetSdk 36, so a mid-record back gesture would otherwise
     // finish the Activity → onDestroy → shutdown(), silently discarding the in-flight clip. Route it
     // through the state machine instead: while recording, backstops & finalizes (same as the stop
@@ -162,11 +184,13 @@ fun CameraScreen(
     // screen normally (WARNING-2).
     //
     // The tray takes priority when both are true: back dismisses transient UI first, and a second
-    // back then stops the recording. One handler rather than two so that ordering is explicit
-    // instead of depending on Compose's registration order.
-    BackHandler(enabled = isRecording || lensTrayOpen) {
+    // back then aborts the booth sequence or stops the recording. One handler rather than two so
+    // that ordering is explicit instead of depending on Compose's registration order. A booth
+    // abort discards the captured frames — no save, no snackbar (PRD-photo-booth §5.4).
+    BackHandler(enabled = isRecording || lensTrayOpen || boothActive) {
         when {
             lensTrayOpen -> viewModel.setLensTrayOpen(false)
+            boothActive -> boothActive = false
             else -> viewModel.stopBurstCapture(cameraManager)
         }
     }
@@ -225,6 +249,40 @@ fun CameraScreen(
         onDispose {
             cameraManager.releaseCamera()
         }
+    }
+
+    // The self-driving booth capture sequence: 5-4-3-2-1 → grab + flash, ×3, auto-advancing.
+    // Cancel (button or predictive back) flips [boothActive] off, which cancels this effect at its
+    // next suspension point and discards the captured frames — no save, no snackbar (PRD §5.4).
+    // Navigating away (gallery) disposes the screen, which is the same clean abort.
+    LaunchedEffect(boothActive) {
+        if (!boothActive) return@LaunchedEffect
+        val frames = mutableListOf<Bitmap>()
+        for (shot in 1..BOOTH_FRAME_COUNT) {
+            boothShot.intValue = shot
+            for (digit in BOOTH_COUNTDOWN_SECONDS downTo 1) {
+                boothDigit.intValue = digit
+                delay(1_000L)
+            }
+            // Grab AFTER the `1` clears. Compose overlays can never contaminate the grab
+            // (getBitmap() returns the camera preview content only), but this keeps the ritual
+            // on the overlay and the timing honest.
+            boothDigit.intValue = 0
+            val grab = previewView.bitmap // null until the preview streams
+            if (grab == null) {
+                // Abort the whole sequence: the ViewModel rejects the short frame set and
+                // surfaces the capture-failed snackbar; no partial strip is ever saved.
+                viewModel.captureBoothStrip(frames, currentBoothMonochrome)
+                boothActive = false
+                return@LaunchedEffect
+            }
+            // Crop at grab time — retains 3× ~1080² ARGB instead of 3× full-screen (§5.1).
+            frames += cropToBoothSquare(grab)
+            boothFlashAlpha.snapTo(BOOTH_FLASH_PEAK_ALPHA)
+            boothFlashAlpha.animateTo(0f, tween(BOOTH_FLASH_FADE_MS))
+        }
+        viewModel.captureBoothStrip(frames, currentBoothMonochrome)
+        boothActive = false
     }
 
     Box(
@@ -299,8 +357,9 @@ fun CameraScreen(
 
             // Capture-mode selector — top-right. Hidden while recording: mid-capture the shutter
             // means "stop", so offering to turn it into a photo button would strand the clip
-            // (the ViewModel refuses the switch too — belt and braces).
-            if (!isRecording) {
+            // (the ViewModel refuses the switch too — belt and braces). Hidden mid-booth as well:
+            // the sequence replaces the shutter, so mode is meaningless until it finishes (§5.1).
+            if (!isRecording && !boothActive) {
                 CaptureModeSelector(
                     photoMode = isPhotoMode,
                     onSelect = viewModel::setCaptureMode,
@@ -344,6 +403,23 @@ fun CameraScreen(
                             viewModel.selectLens(null)
                             viewModel.setLensTrayOpen(false)
                         },
+                        modifier = Modifier.padding(bottom = 20.dp),
+                    )
+                }
+
+                // Booth row (docs/PRD-photo-booth.md D2 — placement provisional): idle shows the
+                // Booth trigger + Color/B&W chip; mid-sequence they yield to Cancel. The lens
+                // tray above stays interactive throughout — the countdown IS the swap window (D5).
+                if (boothActive) {
+                    BoothCancelButton(
+                        onCancel = { boothActive = false },
+                        modifier = Modifier.padding(bottom = 20.dp),
+                    )
+                } else if (!isRecording) {
+                    BoothControls(
+                        monochrome = boothMonochrome,
+                        onToggleMonochrome = { boothMonochrome = it },
+                        onStart = { boothActive = true },
                         modifier = Modifier.padding(bottom = 20.dp),
                     )
                 }
@@ -394,6 +470,9 @@ fun CameraScreen(
                         },
                         onClick = {
                             when {
+                                // Booth sequence in flight: the shutter is disabled (§5.1) —
+                                // Cancel is the only way out.
+                                boothActive -> Unit
                                 // Photo mode: grab the composited viewfinder (lens included) and
                                 // hand it straight to the ViewModel — no recording, no editor.
                                 // `bitmap` is null until the preview streams; the ViewModel
@@ -413,7 +492,10 @@ fun CameraScreen(
                             .clip(CircleShape)
                             .background(OverlayWhite)
                             .border(1.dp, OverlayWhiteBorder, CircleShape)
-                            .clickable {
+                            // Disabled mid-booth (PRD-photo-booth §5.1): a camera flip rebinds,
+                            // blanking the preview mid-ritual; lens swaps are the sanctioned
+                            // between-frames trick, camera flips are not.
+                            .clickable(enabled = !boothActive) {
                                 cameraManager.toggleCamera(lifecycleOwner, previewView)
                             },
                         contentAlignment = Alignment.Center
@@ -429,6 +511,23 @@ fun CameraScreen(
                     }
                 }
             }
+        }
+
+        // Booth countdown overlay + per-shot flash, above everything else. The flash Box carries
+        // no click handling, so the lens tray and Cancel stay usable underneath it; its alpha is
+        // read in the graphicsLayer block, so the fade animates without recomposing this screen.
+        if (boothActive) {
+            BoothCountdownOverlay(
+                digit = { boothDigit.intValue },
+                shot = { boothShot.intValue },
+                modifier = Modifier.align(Alignment.Center)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = boothFlashAlpha.value }
+                    .background(Color.White)
+            )
         }
     }
 }
@@ -707,6 +806,146 @@ fun ShutterButton(
         }
     }
 }
+
+/**
+ * Idle-viewfinder booth controls (docs/PRD-photo-booth.md D2): the Booth trigger and the D4
+ * Color/B&W chip. Placement and styling are explicitly provisional — the strip is the product
+ * surface, this row is not — but the content descriptions and the chip's switch semantics are
+ * not provisional (§5.1 accessibility). Stateless and hoisted (mirrors [HomeButton]) so it is
+ * testable without binding the camera.
+ */
+@Composable
+fun BoothControls(
+    monochrome: Boolean,
+    onToggleMonochrome: (Boolean) -> Unit,
+    onStart: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val startLabel = stringResource(R.string.camera_booth_start)
+    val monochromeLabel = stringResource(R.string.camera_booth_bw_toggle)
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .height(48.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(OverlayWhite)
+                .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+                .clickable(role = Role.Button, onClick = onStart)
+                .padding(horizontal = 20.dp)
+                .semantics { contentDescription = startLabel }
+                .testTag("booth_button"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.PhotoCamera,
+                contentDescription = null,
+                tint = ElectricLime,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.camera_booth),
+                style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                color = ElectricLime,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .height(48.dp)
+                .clip(RoundedCornerShape(percent = 50))
+                .background(if (monochrome) ElectricLime else OverlayWhite)
+                .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+                .toggleable(
+                    value = monochrome,
+                    role = Role.Switch,
+                    onValueChange = onToggleMonochrome,
+                )
+                .padding(horizontal = 16.dp)
+                .semantics { contentDescription = monochromeLabel }
+                .testTag("booth_bw_chip"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(R.string.camera_booth_bw),
+                style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                color = if (monochrome) LimeInk else Color.White,
+            )
+        }
+    }
+}
+
+/**
+ * The only interactive way out of a running booth sequence besides predictive back: discard the
+ * captured frames and return to the idle viewfinder (docs/PRD-photo-booth.md §5.4 — no save, no
+ * snackbar). Stateless and hoisted so the abort wiring is testable without the camera.
+ */
+@Composable
+fun BoothCancelButton(onCancel: () -> Unit, modifier: Modifier = Modifier) {
+    val cancelLabel = stringResource(R.string.camera_booth_cancel)
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(OverlayWhite)
+            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+            .clickable(role = Role.Button, onClick = onCancel)
+            .padding(horizontal = 20.dp)
+            .semantics { contentDescription = cancelLabel }
+            .testTag("booth_cancel_button"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.camera_booth_cancel_label),
+            style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+            color = Color.White,
+        )
+    }
+}
+
+/**
+ * Center-viewfinder countdown for the booth sequence: the 5-4-3-2-1 digit and "Shot n of 3".
+ *
+ * [digit] and [shot] are lambdas so the once-per-second reads happen inside this overlay's own
+ * scope (REC-1 / Lesson 016) — a tick recomposes the overlay, never the camera screen above it.
+ * Both texts are polite live regions, so TalkBack announces the ticks and each shot advance: a
+ * timed, visual-only countdown would exclude non-sighted users, and this is in the
+ * never-simplify-away bucket (docs/PRD-photo-booth.md §5.1). The digit node stays mounted (empty
+ * text during the grab beat) so the live region persists across the whole sequence.
+ */
+@Composable
+fun BoothCountdownOverlay(
+    digit: () -> Int,
+    shot: () -> Int,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        val currentDigit = digit()
+        Text(
+            text = if (currentDigit > 0) "$currentDigit" else "",
+            style = TimerTextStyle.copy(fontSize = 96.sp, lineHeight = 104.sp),
+            color = Color.White,
+            modifier = Modifier
+                .semantics { liveRegion = LiveRegionMode.Polite }
+                .testTag("booth_countdown_digit"),
+        )
+        Text(
+            text = stringResource(R.string.camera_booth_shot_progress, shot(), BOOTH_FRAME_COUNT),
+            style = TimerTextStyle,
+            color = Color.White,
+            modifier = Modifier
+                .semantics { liveRegion = LiveRegionMode.Polite }
+                .testTag("booth_shot_progress"),
+        )
+    }
+}
+
+/** Seconds counted down before each booth shot (PRD-photo-booth D5 — room to swap lenses). */
+internal const val BOOTH_COUNTDOWN_SECONDS = 5
+
+/** Booth flash flicker: snap to this alpha on the grab, then fade out over the fade duration. */
+private const val BOOTH_FLASH_PEAK_ALPHA = 0.9f
+private const val BOOTH_FLASH_FADE_MS = 250
 
 /** Log tag for pinch gesture delivery diagnostics (distinct from [CameraManager]'s tag). */
 private const val PINCH_LOG_TAG = "OpenLoopPinchZoom"

@@ -22,6 +22,16 @@
     <string name="camera_mode_camera">Camera</string>
     <string name="camera_mode_video">Video</string>
     <string name="snackbar_photo_capture_failed">Couldn\'t take that photo. Try again.</string>
+
+    <!-- Photo booth (docs/PRD-photo-booth.md — the Booth button/chip placement is provisional
+         under D2; the strip itself is the product surface). -->
+    <string name="camera_booth">Booth</string>
+    <string name="camera_booth_start">Start photo booth</string>
+    <string name="camera_booth_cancel">Cancel photo booth</string>
+    <string name="camera_booth_cancel_label">Cancel</string>
+    <string name="camera_booth_bw">B&amp;W</string>
+    <string name="camera_booth_bw_toggle">Black and white strip</string>
+    <string name="camera_booth_shot_progress">Shot %1$d of %2$d</string>
     <string name="gallery_close_photo">Close photo</string>
     <string name="gallery_photo_preview">Captured photo</string>
 

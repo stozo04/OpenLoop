@@ -339,4 +339,61 @@ class CameraScreenTest {
         composeTestRule.onNodeWithContentDescription("Start recording").assertDoesNotExist()
         composeTestRule.onNodeWithTag("progress_ring").assertDoesNotExist()
     }
+
+    // ── Photo booth (docs/PRD-photo-booth.md — hoisted controls, no camera bind needed) ──
+
+    @Test
+    fun boothButton_hasA11yLabel_andTapShowsCountdownOverlay() {
+        // Mirrors the CameraScreen wiring: Booth idle-row → tap → countdown overlay. The digits
+        // and shot progress are what a sighted user sees; their live-region announcements are
+        // asserted implicitly by the nodes existing with the spoken text.
+        composeTestRule.setContent {
+            var boothActive by remember { mutableStateOf(false) }
+            if (boothActive) {
+                BoothCountdownOverlay(digit = { 5 }, shot = { 1 })
+            } else {
+                BoothControls(monochrome = false, onToggleMonochrome = {}, onStart = { boothActive = true })
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").performClick()
+
+        composeTestRule.onNodeWithTag("booth_countdown_digit").assertIsDisplayed()
+        composeTestRule.onNodeWithText("5").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Shot 1 of 3").assertIsDisplayed()
+    }
+
+    @Test
+    fun boothBwChip_togglesBothWays_withSwitchSemantics() {
+        // D4: color is the default; the chip flips to B&W and back. Driving it twice guards
+        // against the frozen-lambda trap (Lesson 034 — one tap can pass against a stale callback).
+        val toggles = mutableListOf<Boolean>()
+        composeTestRule.setContent {
+            var monochrome by remember { mutableStateOf(false) }
+            BoothControls(
+                monochrome = monochrome,
+                onToggleMonochrome = {
+                    toggles += it
+                    monochrome = it
+                },
+                onStart = {},
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription("Black and white strip").performClick()
+        composeTestRule.onNodeWithContentDescription("Black and white strip").performClick()
+        composeTestRule.runOnIdle { assertEquals(listOf(true, false), toggles) }
+    }
+
+    @Test
+    fun boothCancelButton_invokesTheAbort() {
+        var cancels = 0
+        composeTestRule.setContent {
+            BoothCancelButton(onCancel = { cancels++ })
+        }
+
+        composeTestRule.onNodeWithContentDescription("Cancel photo booth").performClick()
+        composeTestRule.runOnIdle { assertEquals(1, cancels) }
+    }
 }

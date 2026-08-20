@@ -2489,4 +2489,142 @@ class OpenLoopViewModelTest {
 
             assertEquals(0, fakeVideoStorage.savePhotoCallCount)
         }
+
+    // ── Photo booth (docs/PRD-photo-booth.md §5.1–5.4) ──
+
+    /**
+     * Builds a ViewModel whose booth composer is a recording fake: `android.graphics.Canvas` does
+     * not exist on the JVM, and a test substitute also stays on the shared TestDispatcher instead
+     * of hopping to the production `Dispatchers.Default` that virtual time cannot wait for
+     * (Lesson 029).
+     */
+    private fun boothViewModel(
+        published: MutableList<File> = mutableListOf(),
+        composited: MutableList<Pair<Int, Boolean>> = mutableListOf(),
+        stripBitmap: Bitmap = mockk(relaxed = true),
+    ) = OpenLoopViewModel(
+        fakePreferencesRepository,
+        fakeVideoStorage,
+        fakeVideoProcessor,
+        fakeVideoImporter,
+        fakeRenderScheduler,
+        isLowMemoryNow = { lowMemoryNow },
+        ioDispatcher = mainDispatcherRule.testDispatcher,
+        publishPhotoToLibrary = { file -> published.add(file) },
+        composeBoothStrip = { frames, monochrome ->
+            composited.add(frames.size to monochrome)
+            stripBitmap
+        },
+    )
+
+    private fun boothFrames(count: Int = 3): List<Bitmap> = List(count) { mockk(relaxed = true) }
+
+    @Test
+    fun `captureBoothStrip composites, saves, publishes, and emits Share`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val published = mutableListOf<File>()
+            val composited = mutableListOf<Pair<Int, Boolean>>()
+            val vm = boothViewModel(published, composited)
+            vm.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { vm.events.toList(events) }
+
+            vm.captureBoothStrip(boothFrames(), monochrome = true)
+            advanceUntilIdle()
+
+            // The B&W chip's choice reaches the composer; the strip rides the existing photo path.
+            assertEquals(listOf(3 to true), composited)
+            val photo = fakeVideoStorage.saved.single { it.kind == VideoKind.PHOTO }
+            assertTrue("strip must be a .jpg", photo.videoPath.endsWith(".jpg"))
+            assertEquals(listOf(File(photo.videoPath)), published)
+            val share = events.filterIsInstance<BoomerangEvent.Share>().single()
+            assertEquals(photo.videoPath, share.file.absolutePath)
+
+            // Booth never enters the boomerang pipeline or leaves ReadyToCapture (§5.1).
+            assertNull(vm.editorState.value)
+            assertEquals(0, fakeVideoProcessor.renderCount)
+            assertEquals(OpenLoopUiState.ReadyToCapture, vm.uiState.value)
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `captureBoothStrip rejects an incomplete frame set without saving`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { viewModel.events.toList(events) }
+
+            // A null viewfinder grab aborts the sequence upstream with only 2 frames captured.
+            viewModel.captureBoothStrip(boothFrames(2), monochrome = false)
+            advanceUntilIdle()
+
+            // §5.4: no partial strip is ever composited or saved; the friendly snackbar fires.
+            assertEquals(0, fakeVideoStorage.savePhotoCallCount)
+            assertTrue(events.contains(BoomerangEvent.PhotoCaptureFailed))
+            assertTrue(events.filterIsInstance<BoomerangEvent.Share>().isEmpty())
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `captureBoothStrip reports failure when the strip write fails`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val vm = boothViewModel()
+            vm.onPermissionsChecked(true)
+            fakeVideoStorage.failSavePhoto = true
+            val events = mutableListOf<BoomerangEvent>()
+            val collector = launch { vm.events.toList(events) }
+
+            vm.captureBoothStrip(boothFrames(), monochrome = false)
+            advanceUntilIdle()
+
+            assertTrue(events.contains(BoomerangEvent.PhotoCaptureFailed))
+            assertTrue(events.filterIsInstance<BoomerangEvent.Share>().isEmpty())
+
+            collector.cancel()
+        }
+
+    @Test
+    fun `overlapping captureBoothStrip calls save only one strip`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            val vm = boothViewModel()
+            vm.onPermissionsChecked(true)
+
+            // Park the save so the first strip is genuinely in flight when the next calls land
+            // (Lesson 029 — enforce the premise, don't hope the scheduler interleaves).
+            val gate = CompletableDeferred<Unit>()
+            fakeVideoStorage.savePhotoGate = gate
+
+            vm.captureBoothStrip(boothFrames(), monochrome = false)
+            vm.captureBoothStrip(boothFrames(), monochrome = false)
+            vm.captureBoothStrip(boothFrames(), monochrome = false)
+
+            assertEquals(1, fakeVideoStorage.savePhotoCallCount)
+
+            gate.complete(Unit)
+            advanceUntilIdle()
+
+            assertEquals(1, fakeVideoStorage.savePhotoCallCount)
+            assertEquals(1, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
+
+            // The guard releases afterwards — a later sequence must still work.
+            fakeVideoStorage.savePhotoGate = null
+            vm.captureBoothStrip(boothFrames(), monochrome = false)
+            advanceUntilIdle()
+            assertEquals(2, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
+        }
+
+    @Test
+    fun `captureBoothStrip is ignored when not on the viewfinder`() =
+        runTest(mainDispatcherRule.testDispatcher) {
+            viewModel.onPermissionsChecked(true)
+            viewModel.navigateToGallery()
+            advanceUntilIdle()
+
+            viewModel.captureBoothStrip(boothFrames(), monochrome = false)
+            advanceUntilIdle()
+
+            assertEquals(0, fakeVideoStorage.savePhotoCallCount)
+        }
 }

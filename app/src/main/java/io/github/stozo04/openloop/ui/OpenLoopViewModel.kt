@@ -14,8 +14,11 @@ import io.github.stozo04.openloop.data.UserPreferencesRepository
 import io.github.stozo04.openloop.data.VideoImporter
 import io.github.stozo04.openloop.data.VideoStorageRepository
 import io.github.stozo04.openloop.BuildConfig
+import io.github.stozo04.openloop.media.BOOTH_FRAME_COUNT
 import io.github.stozo04.openloop.media.BoomerangMode
 import io.github.stozo04.openloop.media.SpeedCurve
+import io.github.stozo04.openloop.media.boothFooterText
+import io.github.stozo04.openloop.media.renderBoothStrip
 import io.github.stozo04.openloop.media.VideoFilter
 import io.github.stozo04.openloop.media.VideoProcessor
 import io.github.stozo04.openloop.diagnostics.AnalyticsReporter
@@ -53,6 +56,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.time.LocalDate
 import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -190,6 +194,20 @@ class OpenLoopViewModel(
      * Defaults to a no-op so existing test call sites keep compiling.
      */
     private val publishPhotoToLibrary: suspend (File) -> Unit = {},
+    /**
+     * Composites the booth frames into the printed strip (docs/PRD-photo-booth.md §5.2;
+     * production: [renderBoothStrip] on [Dispatchers.Default] — pure-CPU Canvas work, not I/O).
+     * Injected as a suspending lambda, the same Context-free seam as [publishPhotoToLibrary],
+     * because `android.graphics.Canvas` does not exist in JVM tests; a test substitute also stays
+     * on the TestDispatcher instead of hopping to a real pool that virtual time cannot wait for
+     * (Lesson 029).
+     */
+    private val composeBoothStrip: suspend (frames: List<Bitmap>, monochrome: Boolean) -> Bitmap =
+        { frames, monochrome ->
+            withContext(Dispatchers.Default) {
+                renderBoothStrip(frames, monochrome, boothFooterText(LocalDate.now()))
+            }
+        },
 ) : ViewModel() {
 
     // Start in Initializing — DataStore read decides Onboarding vs CheckingPermissions
@@ -403,6 +421,9 @@ class OpenLoopViewModel(
 
     /** Guards against repeated shutter taps while a photo save/publish is already running. */
     private var photoSaveInProgress = false
+
+    /** Guards against overlapping booth composites, mirroring [photoSaveInProgress] (PRD §5.1). */
+    private var boothSaveInProgress = false
 
     private var nudgeGalleryAfterShare = false
 
@@ -1490,6 +1511,60 @@ class OpenLoopViewModel(
                 _events.send(BoomerangEvent.Share(file))
             } finally {
                 photoSaveInProgress = false
+            }
+        }
+    }
+
+    /**
+     * Booth-sequence completion: composite the (already square-cropped) [frames] into one strip —
+     * in [monochrome] when the B&W chip was on — and push it down the **existing** photo path:
+     * save, best-effort MediaStore publish, gallery refresh, share sheet (docs/PRD-photo-booth.md
+     * §5.2–5.3).
+     *
+     * A [frames] list that is not exactly [BOOTH_FRAME_COUNT] long means a null viewfinder grab
+     * aborted the sequence upstream — surface the capture-failed snackbar and never composite a
+     * partial strip (PRD §5.4).
+     */
+    fun captureBoothStrip(frames: List<Bitmap>, monochrome: Boolean) {
+        if (_uiState.value != OpenLoopUiState.ReadyToCapture) return
+        if (boothSaveInProgress) return
+        if (frames.size != BOOTH_FRAME_COUNT) {
+            Log.w(
+                "OpenLoopViewModel",
+                "Booth sequence aborted with ${frames.size}/$BOOTH_FRAME_COUNT frames",
+            )
+            viewModelScope.launch { _events.send(BoomerangEvent.PhotoCaptureFailed) }
+            return
+        }
+        boothSaveInProgress = true
+        viewModelScope.launch {
+            try {
+                val strip = composeBoothStrip(frames, monochrome)
+                // ~14 MB of retained frames are dead the moment the strip exists — release them
+                // now rather than at the GC's leisure (PRD §8 memory-spike mitigation).
+                frames.forEach { if (it !== strip) it.recycle() }
+                val photo = videoStorage.savePhoto(strip)
+                strip.recycle()
+                if (photo == null) {
+                    Log.w("OpenLoopViewModel", "Booth strip could not be saved")
+                    _events.send(BoomerangEvent.PhotoCaptureFailed)
+                    return@launch
+                }
+                val file = File(photo.videoPath)
+                // Best-effort public copy — same deliberate deviation as [capturePhoto]: losing
+                // the MediaStore copy must not cost the user the strip.
+                try {
+                    publishPhotoToLibrary(file)
+                } catch (e: CancellationException) {
+                    throw e // never swallow cancellation (Lesson 013)
+                } catch (e: Exception) {
+                    Log.e("OpenLoopViewModel", "Publishing booth strip to the device library failed", e)
+                }
+                loadRecordedVideos()
+                nudgeGalleryAfterShare = true
+                _events.send(BoomerangEvent.Share(file))
+            } finally {
+                boothSaveInProgress = false
             }
         }
     }
