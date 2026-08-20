@@ -2,7 +2,7 @@
 
 ## Owner
 
-Steven Gates · gates.steven@gmail.com · GitHub: [stozo04](https://github.com/stozo04/OpenLoop)
+Steven Gates · <gates.steven@gmail.com> · GitHub: [stozo04](https://github.com/stozo04/OpenLoop)
 Solo developer. Android/Kotlin. Comfortable making architecture decisions, reviewing code, and shipping production-quality UI.
 
 Tools: Android Studio, Git/GitHub, Supabase, Google services (Gmail, Calendar, Drive).
@@ -91,7 +91,7 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 
 ### Source Layout
 
-```
+```text
 io.github.stozo04.openloop/
 ├── camera/
 │   ├── CameraManager.kt         # CameraX bind/unbind, recording, lens toggle, pinch-zoom control
@@ -131,7 +131,7 @@ io.github.stozo04.openloop/
 
 ### State Machine
 
-```
+```text
 Initializing → Onboarding → CheckingPermissions → ReadyToCapture ↔ Recording
    (returning user ↗)         (PermissionRationale / PermissionDenied)   │ finalize
                                                                           ▼
