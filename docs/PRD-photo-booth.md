@@ -19,7 +19,7 @@ black-and-white grade is a classic-booth costume, not the hook, and already exis
 
 A **Booth** button on the camera screen. Tapping it runs a self-driving capture sequence:
 
-```
+```text
 5-4-3-2-1 → flash + snap  (×3, auto-advancing)
    └─ each countdown is the window to change pose or swap lenses
 → composite the 3 shots into one vertical strip
@@ -64,6 +64,7 @@ of those grabs on a timer:
 ## 4. Scope
 
 ### In scope
+
 - Booth button (provisional placement) + Color/B&W chip on the camera screen (color is the default)
 - 5-second countdown overlay with per-shot flash flicker, auto-advancing across 3 shots
 - Lens tray remains usable during the countdown (the swap window is the point)
@@ -73,6 +74,7 @@ of those grabs on a timer:
 - Cancel (button or predictive back) aborts the sequence and discards captured frames
 
 ### Out of scope (deliberately)
+
 - Final UI/placement polish for the **button and chip** (owner: later pass). Not the strip.
 - 4-frame strips, frame-count settings, retakes of individual frames
 - An animated "strip of loops" (3 boomerangs tiled via Media3 `VideoCompositorSettings` — real,
