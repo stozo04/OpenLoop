@@ -1543,9 +1543,10 @@ class OpenLoopViewModel(
      * re-entrancy guard while a previous strip's save is still in flight.
      *
      * Deliberately no [OpenLoopUiState.ReadyToCapture] guard: the sequence only runs on the
-     * viewfinder, and the one way state can change before this call lands is the gallery button
-     * during the final flash — dropping a fully captured strip over that 250 ms race would throw
-     * away ~18 s of the user's posing.
+     * viewfinder, and it hands over at the LAST GRAB (before the cosmetic final flash), so the
+     * only way state can differ here is a gallery tap landing in the sliver between that grab's
+     * off-main crop and this call. Dropping a fully captured strip over any such race would
+     * throw away ~18 s of the user's posing.
      */
     fun captureBoothStrip(frames: List<Bitmap>, monochrome: Boolean) {
         if (frames.size != BOOTH_FRAME_COUNT) {

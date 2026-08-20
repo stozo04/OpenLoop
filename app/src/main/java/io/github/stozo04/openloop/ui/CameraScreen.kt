@@ -257,7 +257,9 @@ fun CameraScreen(
     // The self-driving booth capture sequence: 5-4-3-2-1 → grab + flash, ×3, auto-advancing.
     // Cancel (button or predictive back) flips [boothActive] off, which cancels this effect at its
     // next suspension point and discards the captured frames — no save, no snackbar (PRD §5.4).
-    // Navigating away (gallery) disposes the screen, which is the same clean abort.
+    // Navigating away (gallery) disposes the screen, which is the same clean abort. All of that
+    // holds only UP TO the last grab: the finished frame set is handed over before the final
+    // flash, after which nothing in that 250 ms can discard the strip (§5.4).
     LaunchedEffect(boothActive) {
         if (!boothActive) return@LaunchedEffect
         // A cancel mid-flash freezes the Animatable mid-fade; without this reset the next run
@@ -300,11 +302,19 @@ fun CameraScreen(
                 // Only the getBitmap() readback must stay on main; the ~4.7 MB copy hops off so
                 // the flash animation starts on an unblocked frame.
                 frames += withContext(Dispatchers.Default) { cropToBoothSquare(grab) }
+                if (shot == BOOTH_FRAME_COUNT) {
+                    // Point of no return: hand the strip over BEFORE the cosmetic final flash.
+                    // A gallery tap (or Cancel/back/ON_STOP) during that 250 ms would otherwise
+                    // cancel this effect at animateTo and recycle all three captured frames —
+                    // ~18 s of posing lost to a race with an animation (Cursor, PR #138). After
+                    // the last grab the strip is committed and the flash is just theater; this
+                    // is also exactly D4's promise — the B&W chip applies "until the last grab".
+                    handedOver = true
+                    viewModel.captureBoothStrip(frames, currentBoothMonochrome)
+                }
                 boothFlashAlpha.snapTo(BOOTH_FLASH_PEAK_ALPHA)
                 boothFlashAlpha.animateTo(0f, tween(BOOTH_FLASH_FADE_MS))
             }
-            handedOver = true
-            viewModel.captureBoothStrip(frames, currentBoothMonochrome)
             boothActive = false
         } finally {
             // Died before hand-over (Cancel, back, ON_STOP, navigation dispose): release the

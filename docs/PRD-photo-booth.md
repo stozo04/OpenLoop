@@ -71,7 +71,8 @@ of those grabs on a timer:
 - Square **top-biased** crop at grab time, strip composite (white borders + footer + optional B&W)
 - Save via the existing `savePhoto` path: JPEG → `filesDir/videos/photo_<ts>.jpg` → gallery
   refresh → MediaStore publish → share sheet
-- Cancel (button or predictive back) aborts the sequence and discards captured frames
+- Cancel (button or predictive back) aborts the sequence and discards captured frames — up to
+  the last grab, after which the strip is committed (§5.4)
 
 ### Out of scope (deliberately)
 
@@ -104,7 +105,8 @@ reads `previewView.bitmap` on the main thread and hands it to the ViewModel):
 - Re-entrancy guarded by a `boothSaveInProgress` flag, mirroring `photoSaveInProgress`.
 
 During the sequence: shutter, mode toggle, and camera-flip are disabled; the **lens tray stays
-interactive** (D5's swap window). Predictive back aborts the sequence — the booth-active flag
+interactive** (D5's swap window). Predictive back aborts the sequence (until the last grab —
+§5.4) — the booth-active flag
 joins the existing `BackHandler` gate
 ([Lesson 015](./lessons_learned/015-predictive-back-state-routed-backhandler.md)).
 
@@ -153,10 +155,10 @@ refresh, best-effort MediaStore publish to `Pictures/OpenLoop`, and the
 | Failure | Handling |
 |---|---|
 | `previewView.bitmap` returns null on any snap | Abort the whole sequence → existing capture-failed snackbar; no partial strip is ever saved |
-| Cancel / back mid-sequence | Discard frames, return to idle camera; no save, no snackbar |
-| App backgrounded (ON_STOP) mid-sequence | Silent abort, same as Cancel — a stopped preview's `getBitmap()` serves the frozen last frame, so grabs can't be trusted ([Lesson 036](./lessons_learned/036-previewview-getbitmap-stale-after-stop.md)) |
+| Cancel / back before the last grab | Discard frames, return to idle camera; no save, no snackbar |
+| App backgrounded (ON_STOP) before the last grab | Silent abort, same as Cancel — a stopped preview's `getBitmap()` serves the frozen last frame, so grabs can't be trusted ([Lesson 036](./lessons_learned/036-previewview-getbitmap-stale-after-stop.md)) |
 | Strip completes while a previous save is still in flight | Rejected with the capture-failed snackbar; frames recycled eagerly |
-| Gallery button tapped during the final flash | The completed strip still saves and shares — ~18 s of posing is never dropped over a 250 ms race |
+| Cancel / back / gallery / ON_STOP during the **final** flash | Nothing — the strip is already committed: hand-over happens at the third grab, *before* the cosmetic flash, so no input in that 250 ms can discard ~18 s of posing (this is also D4's "B&W applies until the last grab" boundary) |
 | Strip composite runs out of memory | Caught (`OutOfMemoryError` on the ~16 MB allocation) → capture-failed snackbar, frames recycled; never a process kill |
 | MediaStore publish fails | Logged and swallowed (photo-path precedent: the in-app save is the one that matters) |
 
@@ -171,7 +173,8 @@ refresh, best-effort MediaStore publish to `Pictures/OpenLoop`, and the
 5. The strip appears in the in-app gallery **and** the device Photos app, and the share sheet
    opens on save — all via the unmodified photo path.
 6. Swapping lenses during a countdown bakes different lenses into different frames, in color.
-7. Cancel/back aborts cleanly; a null grab aborts with the friendly snackbar; no partial strips.
+7. Cancel/back aborts cleanly (before the last grab — after it the strip is committed, §5.4); a
+   null grab aborts with the friendly snackbar; no partial strips.
 8. Video recording and single-photo capture are behaviourally unchanged.
 
 ## 7. Test plan

@@ -19,6 +19,7 @@ Built with Google's latest Android libraries. All video processing runs on your 
 - **Speed Control** — Real-time playback speed from 0.5x to 3.0x before you save: a constant slider, or a **custom speed curve** you draw over the whole loop (tap to add a point, drag to bend it, presets to start from) so a ramp can peak right on the direction turn — the preview plays the curve live and the export honours it exactly
 - **Face Lenses** — seven of them: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue and Elvis. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth
 - **Photo Mode** — Flip the shutter to stills, lenses included
+- **Photo Booth** — a self-driving 5-4-3-2-1 countdown ×3 composited into a classic vertical strip (white borders, OpenLoop + date footer, color or B&W) — the countdown is your window to swap lenses between shots
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
 - **Private by design** — Your videos are processed 100% on-device and are never uploaded. No accounts, no ads, no advertising ID. The app does send limited, pseudonymous crash and usage diagnostics (Firebase Crashlytics + Analytics) — see the [privacy policy](docs/play-store/privacy-policy.md)
 
@@ -45,7 +46,7 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 | **Testing**     | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
 | **Performance** | Baseline Profiles                 | Pre-compiles "hot" code paths to eliminate Compose jank and speed up startup       |
 
-**SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 36` · `targetSdk 36` — upgraded to **API 36 (Android 16)** for Google Play readiness, tracked in [Issue #7](https://github.com/stozo04/OpenLoop/issues/7). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) §11. Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
+**SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 37` · `targetSdk 36` — targeting **API 36 (Android 16)** for Google Play readiness, tracked in [Issue #7](https://github.com/stozo04/OpenLoop/issues/7). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) §11. Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
 ### State Machine
 
@@ -192,8 +193,8 @@ npx --yes cspell --no-progress $FILES                               # typos (pro
 for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done  # broken links
 ```
 
-(detekt for Kotlin is deferred — stable detekt doesn't support Kotlin 2.3.x yet; see
-[`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).)
+(detekt for Kotlin is deferred — stable detekt doesn't support this project's Kotlin version
+(2.4.x) yet; see [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).)
 
 ## Performance (Baseline Profiles)
 
@@ -289,12 +290,13 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 - 3-page onboarding (with DataStore persistence — you only see it once)
 - CameraX viewfinder, capture up to 30 s, plus import from your library
 - Front/back toggle, pinch-to-zoom, and a stills photo mode
+- Photo-booth strip: 5-4-3-2-1 ×3 capture composited into a printed strip (color or B&W)
 - Loop generation — forward, reverse and both bounces — via Media3 Transformer
 - Trim, speed control (0.5x–3.0x, constant or a custom curve) and Looks, all previewed before you save
 - Seven face lenses, tracked with ML Kit and baked into the recording
 - Gallery with delete, full-screen playback and a share sheet
 - In-app updates and a Play review prompt
-- 522 unit tests + 117 instrumented tests
+- 536 unit tests + 122 instrumented tests
 
 **What's next:**
 

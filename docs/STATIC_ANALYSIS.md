@@ -4,7 +4,7 @@ This is OpenLoop's plan and runbook for running the same checks Android Studio's
 Inspect Code** produces, headlessly, and folding them into the PR-merge gate alongside the
 [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) standards review.
 
-Last verified: 2026-08-17 · AGP 9.2.1 · Android Studio at `C:\Program Files\Android\Android Studio`
+Last verified: 2026-08-20 · AGP 9.3.1 · Android Studio at `C:\Program Files\Android\Android Studio`
 
 ---
 
@@ -210,9 +210,9 @@ npx --yes markdownlint-cli2 "**/*.md"
 ### Why detekt was deferred (not in this tier yet)
 
 [Issue #21](https://github.com/stozo04/OpenLoop/issues/21) originally proposed **detekt** for the
-Kotlin-redundancy class. DD finding: **stable detekt (1.23.x) does not support Kotlin 2.3.x** —
+Kotlin-redundancy class. DD finding: **stable detekt (1.23.x) does not support Kotlin 2.3+** —
 only [detekt 2.0.0-alpha](https://detekt.dev/docs/introduction/compatibility/) does, and this
-project is on Kotlin 2.3.21. Taking an *alpha* static-analysis dependency into the build for a
+project is on Kotlin 2.4.10. Taking an *alpha* static-analysis dependency into the build for a
 merge gate isn't worth the instability today, so detekt is deferred until detekt 2.0 is stable.
 Until then the Kotlin-redundancy class stays covered by **Tier 2** (`inspect.bat`) when run
 locally. Re-evaluate when detekt 2.0 ships stable; tracked in #21.
