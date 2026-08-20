@@ -408,13 +408,23 @@ fun CameraScreen(
                 }
 
                 // Booth row (docs/PRD-photo-booth.md D2 — placement provisional): idle shows the
-                // Booth trigger + Color/B&W chip; mid-sequence they yield to Cancel. The lens
-                // tray above stays interactive throughout — the countdown IS the swap window (D5).
+                // Booth trigger + Color/B&W chip; mid-sequence the trigger yields to Cancel but
+                // the chip STAYS — the D4 choice applies at composite time, so it is toggleable
+                // until the last grab (which is what the sequence effect's rememberUpdatedState
+                // alias exists for). The lens tray above stays interactive throughout — the
+                // countdown IS the swap window (D5).
                 if (boothActive) {
-                    BoothCancelButton(
-                        onCancel = { boothActive = false },
+                    Row(
                         modifier = Modifier.padding(bottom = 20.dp),
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        BoothCancelButton(onCancel = { boothActive = false })
+                        Spacer(Modifier.width(12.dp))
+                        BoothMonochromeChip(
+                            monochrome = boothMonochrome,
+                            onToggleMonochrome = { boothMonochrome = it },
+                        )
+                    }
                 } else if (!isRecording) {
                     BoothControls(
                         monochrome = boothMonochrome,
@@ -822,7 +832,6 @@ fun BoothControls(
     modifier: Modifier = Modifier,
 ) {
     val startLabel = stringResource(R.string.camera_booth_start)
-    val monochromeLabel = stringResource(R.string.camera_booth_bw_toggle)
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Row(
             modifier = Modifier
@@ -850,28 +859,44 @@ fun BoothControls(
             )
         }
         Spacer(Modifier.width(12.dp))
-        Box(
-            modifier = Modifier
-                .height(48.dp)
-                .clip(RoundedCornerShape(percent = 50))
-                .background(if (monochrome) ElectricLime else OverlayWhite)
-                .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
-                .toggleable(
-                    value = monochrome,
-                    role = Role.Switch,
-                    onValueChange = onToggleMonochrome,
-                )
-                .padding(horizontal = 16.dp)
-                .semantics { contentDescription = monochromeLabel }
-                .testTag("booth_bw_chip"),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = stringResource(R.string.camera_booth_bw),
-                style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
-                color = if (monochrome) LimeInk else Color.White,
+        BoothMonochromeChip(monochrome = monochrome, onToggleMonochrome = onToggleMonochrome)
+    }
+}
+
+/**
+ * The D4 Color/B&W chip. Rendered both in the idle [BoothControls] row and beside
+ * [BoothCancelButton] while a sequence runs — the choice applies at composite time, so it stays
+ * toggleable through the whole countdown ritual (which is why the sequence effect reads it via
+ * `rememberUpdatedState`, Lesson 034).
+ */
+@Composable
+fun BoothMonochromeChip(
+    monochrome: Boolean,
+    onToggleMonochrome: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val monochromeLabel = stringResource(R.string.camera_booth_bw_toggle)
+    Box(
+        modifier = modifier
+            .height(48.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(if (monochrome) ElectricLime else OverlayWhite)
+            .border(1.dp, OverlayWhiteBorder, RoundedCornerShape(percent = 50))
+            .toggleable(
+                value = monochrome,
+                role = Role.Switch,
+                onValueChange = onToggleMonochrome,
             )
-        }
+            .padding(horizontal = 16.dp)
+            .semantics { contentDescription = monochromeLabel }
+            .testTag("booth_bw_chip"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(R.string.camera_booth_bw),
+            style = TimerTextStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
+            color = if (monochrome) LimeInk else Color.White,
+        )
     }
 }
 
