@@ -22,6 +22,7 @@ import androidx.camera.core.SurfaceOutput
 import androidx.camera.core.SurfaceProcessor
 import androidx.camera.core.SurfaceRequest
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.createBitmap
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -622,7 +623,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             ?: return 0
         val width = drawable.intrinsicWidth.coerceAtLeast(1).coerceAtMost(MAX_ART_PX)
         val height = drawable.intrinsicHeight.coerceAtLeast(1).coerceAtMost(MAX_ART_PX)
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(width, height) // core-ktx; defaults to ARGB_8888
         drawable.setBounds(0, 0, width, height)
         drawable.draw(Canvas(bitmap))
 

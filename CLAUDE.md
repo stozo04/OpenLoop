@@ -79,13 +79,13 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 
 | Layer | Technology | Version |
 |-------|-----------|--------|
-| Language | Kotlin | 2.3.21 |
-| UI | Jetpack Compose | BOM 2026.05.01 |
+| Language | Kotlin | 2.4.10 |
+| UI | Jetpack Compose | BOM 2026.08.00 |
 | Camera | AndroidX CameraX | 1.6.1 |
-| Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.10.1 |
+| Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.11.0 |
 | Preferences | Jetpack DataStore (Preferences) | 1.2.1 |
-| Build | Gradle 9.5.0, AGP 9.2.1 | — |
-| Target | compileSdk 36, minSdk 26, targetSdk 36 | — |
+| Build | Gradle 9.5.0, AGP 9.3.1 | — |
+| Target | compileSdk 37, minSdk 26, targetSdk 36 | — |
 
 > **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26 — clearing Google Play's target-API floor (currently API 35). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and `ANDROID_STANDARDS.md` §11. Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 

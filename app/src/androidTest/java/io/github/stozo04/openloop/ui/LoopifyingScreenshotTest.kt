@@ -30,6 +30,9 @@ import java.io.FileOutputStream
 @RunWith(AndroidJUnit4::class)
 class LoopifyingScreenshotTest {
 
+    // v1 rule kept deliberately (matches the rest of the suite); the v2 variant flips the test
+    // dispatcher and is a separate migration (see OpenLoopNavHostTest).
+    @Suppress("DEPRECATION")
     @get:Rule
     val composeTestRule = createComposeRule()
 
