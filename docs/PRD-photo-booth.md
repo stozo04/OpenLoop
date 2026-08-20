@@ -38,7 +38,7 @@ surface (same bar as Elvis art) and ship in this pass.
 | # | Question | Decision |
 |---|----------|----------|
 | D1 | Frame count | **3** (proof of concept; classic 4-frame strip can come later) |
-| D2 | Where the feature lives | **A provisional Booth button** on the camera screen. Button UI cleanup is a later pass. The strip graphic is in scope. Booth does **not** become a `CaptureMode` entry — see §5.1 |
+| D2 | Where the feature lives | ~~A provisional Booth button~~ **Decided (owner, 2026-08-20, design canvas "Photo Booth Controls" Option E):** booth lives in the **lens drawer**. The bottom-left button opens a two-tab drawer — a `Photo Booth \| Lenses` slider (Lenses default) above the tab's content; the Photo Booth tab swaps the carousel for a `Color \| Black & White` radio pair (Color default, D4) and **arms** the booth: the **shutter** starts the strip while armed. Armed state survives closing the drawer (the lens button goes lime, as with an active lens); the booth tab's ✕ is also the sequence's **Cancel** — it aborts a running countdown, disarms, and closes (the lens tab's ✕ contract; predictive back is the buttonless abort; there is no separate mid-sequence Cancel/B&W row — the drawer is the control surface); picking Camera/Video in the top-right selector disarms. Mid-sequence, flipping the slider to Lenses (D5's swap window) disarms *after* the running sequence — it keys on its own active flag — so a second strip needs re-arming. Booth still does **not** become a `CaptureMode` entry — this is UI presentation only; §5.1 stands |
 | D3 | Frame crop | **Square, top-biased** (not geometric center). Strip ≈ 1100×3500 px. Full-height 9:19.5 stacks would be ≈ 1080×7000 — a sliver in share previews. A center square on a tall selfie clips the crown and kills lenses that sit above the eyes (Elvis pompadour at anatomy +1.25, broccoli, etc.). A mall booth is already square; our preview is tall. Crop the long axis with origin toward the **top** of the frame (or the face box if landmarks are available). Change the origin, not the square. |
 | D4 | Color | **Color by default, toggleable to B&W** before the composite. The hook is Broccoli in frame 1 and Elvis in frame 3; grayscale mutes photoreal lenses. B&W is the classic-booth toggle, not the default. |
 | D5 | Countdown | **5-4-3-2-1 per frame**, auto-advancing (~18 s per strip) — roomy enough to open the lens tray and swap lenses between frames. Do not shrink until a swap is missed. |
@@ -76,7 +76,7 @@ of those grabs on a timer:
 
 ### Out of scope (deliberately)
 
-- Final UI/placement polish for the **button and chip** (owner: later pass). Not the strip.
+- ~~Final UI/placement polish for the **button and chip** (owner: later pass).~~ Shipped 2026-08-20 — see the amended D2 (drawer + armed shutter). Not the strip.
 - 4-frame strips, frame-count settings, retakes of individual frames
 - An animated "strip of loops" (3 boomerangs tiled via Media3 `VideoCompositorSettings` — real,
   docs-confirmed, but a v2 with full media-pipeline exposure; tracked separately if wanted)
@@ -198,5 +198,6 @@ refresh, best-effort MediaStore publish to `Pictures/OpenLoop`, and the
 
 ## 9. Open questions
 
-None blocking. Button placement is deliberately provisional under D2. Crop origin and color default
-are locked.
+None blocking. Button placement, provisional in the first pass, was settled 2026-08-20 — see the
+amended D2 (lens-drawer tabs, shutter-as-trigger while armed). Crop origin and color default are
+locked.

@@ -371,67 +371,68 @@ class CameraScreenTest {
     // ── Photo booth (docs/PRD-photo-booth.md — hoisted controls, no camera bind needed) ──
 
     @Test
-    fun boothButton_hasA11yLabel_andTapShowsCountdownOverlay() {
-        // Mirrors the CameraScreen wiring: Booth idle-row → tap → countdown overlay. The digits
-        // and shot progress are what a sighted user sees; their live-region announcements are
-        // asserted implicitly by the nodes existing with the spoken text.
+    fun boothLensToggle_flipsTabs_withRadioSemantics() {
+        // D2 (decided 2026-08-20): the drawer's slider arms/disarms booth. Lenses is the default
+        // tab; driving the flip in BOTH directions guards the frozen-lambda trap (Lesson 034 —
+        // one tap can pass against a stale callback).
         composeTestRule.setContent {
-            var boothActive by remember { mutableStateOf(false) }
-            if (boothActive) {
-                BoothCountdownOverlay(digit = { 5 }, shot = { 1 })
-            } else {
-                BoothControls(monochrome = false, onToggleMonochrome = {}, onStart = { boothActive = true })
-            }
+            var armed by remember { mutableStateOf(false) }
+            BoothLensToggle(boothSelected = armed, onSelect = { armed = it })
         }
 
-        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsDisplayed()
-        composeTestRule.onNodeWithContentDescription("Start photo booth").performClick()
+        composeTestRule.onNodeWithText("Lenses").assertIsSelected()
+        composeTestRule.onNodeWithText("Photo Booth").assertIsNotSelected()
 
-        composeTestRule.onNodeWithTag("booth_countdown_digit").assertIsDisplayed()
-        composeTestRule.onNodeWithText("5").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Shot 1 of 3").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Photo Booth").performClick()
+        composeTestRule.onNodeWithText("Photo Booth").assertIsSelected()
+        composeTestRule.onNodeWithText("Lenses").assertIsNotSelected()
+
+        composeTestRule.onNodeWithText("Lenses").performClick()
+        composeTestRule.onNodeWithText("Lenses").assertIsSelected()
+        composeTestRule.onNodeWithText("Photo Booth").assertIsNotSelected()
     }
 
     @Test
-    fun boothBwChip_togglesBothWays_withSwitchSemantics() {
-        // D4: color is the default; the chip flips to B&W and back. Driving it twice guards
-        // against the frozen-lambda trap (Lesson 034 — one tap can pass against a stale callback).
-        val toggles = mutableListOf<Boolean>()
+    fun boothColorRow_selectsBothWays_andCloseInvokesTheClear() {
+        // D4: Colored is the default; the radio pair flips to Black & White and back (both
+        // directions — Lesson 034). The ✕ carries the "clear + close" contract, so it must
+        // invoke onClose exactly once per tap.
+        val selections = mutableListOf<Boolean>()
+        var closes = 0
         composeTestRule.setContent {
             var monochrome by remember { mutableStateOf(false) }
-            BoothControls(
+            BoothColorRow(
                 monochrome = monochrome,
-                onToggleMonochrome = {
-                    toggles += it
+                onSelectMonochrome = {
+                    selections += it
                     monochrome = it
                 },
-                onStart = {},
+                onClose = { closes++ },
             )
         }
 
-        composeTestRule.onNodeWithContentDescription("Black and white strip").performClick()
-        composeTestRule.onNodeWithContentDescription("Black and white strip").performClick()
-        composeTestRule.runOnIdle { assertEquals(listOf(true, false), toggles) }
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        composeTestRule.onNodeWithTag("booth_choice_bw").assertIsNotSelected()
+
+        composeTestRule.onNodeWithTag("booth_choice_bw").performClick()
+        composeTestRule.onNodeWithTag("booth_choice_bw").assertIsSelected()
+        composeTestRule.onNodeWithTag("booth_choice_colored").performClick()
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        // Tapping the already-selected option is inert — no phantom re-selection.
+        composeTestRule.onNodeWithTag("booth_choice_colored").performClick()
+        composeTestRule.runOnIdle { assertEquals(listOf(true, false), selections) }
+
+        composeTestRule.onNodeWithContentDescription("Turn off photo booth").performClick()
+        composeTestRule.runOnIdle { assertEquals(1, closes) }
     }
 
-    @Test
-    fun boothCancelButton_invokesTheAbort() {
-        var cancels = 0
-        composeTestRule.setContent {
-            BoothCancelButton(onCancel = { cancels++ })
-        }
-
-        composeTestRule.onNodeWithContentDescription("Cancel photo booth").performClick()
-        composeTestRule.runOnIdle { assertEquals(1, cancels) }
-    }
-
-    // ── The REAL screen's booth wiring (PRD test plan: "Camera screen renders the Booth button;
-    // countdown overlay appears on tap"). The hoisted-composable tests above stay green even if
-    // CameraScreen's own wiring is deleted — this one mounts CameraScreen itself, so the
-    // tap-Booth → sequence → §5.1 gating path is what is under test. ──
+    // ── The REAL screen's booth wiring (PRD test plan; D2 decided 2026-08-20). The hoisted-
+    // composable tests above stay green even if CameraScreen's own wiring is deleted — this one
+    // mounts CameraScreen itself, so drawer → arm → armed-shutter → sequence → §5.1 gating is
+    // what is under test. ──
 
     @Test
-    fun cameraScreen_tapBooth_showsCountdown_andGatesTheControls() {
+    fun cameraScreen_armBoothInDrawer_shutterRunsSequence_andGatesTheControls() {
         composeTestRule.setContent {
             CameraScreen(
                 viewModel = OpenLoopViewModel(
@@ -445,27 +446,60 @@ class CameraScreenTest {
             )
         }
 
-        // Idle: mode selector present, shutter enabled, booth trigger offered.
+        // Idle: mode selector present, shutter is the plain video trigger, no drawer, no banner.
         composeTestRule.onNodeWithTag("capture_mode_selector").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Start recording").assertIsEnabled()
+        composeTestRule.onNodeWithTag("booth_lens_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("booth_swap_hint").assertDoesNotExist()
 
-        composeTestRule.onNodeWithTag("booth_button").performClick()
+        // Open the drawer: Lenses tab by default, carousel showing.
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithText("Lenses").assertIsSelected()
+        composeTestRule.onNodeWithTag("lens_carousel").assertIsDisplayed()
 
-        // Sequence running: overlay is primed to shot 1 / digit 5 before the first tick, so these
-        // are stable immediately after the tap — no clock games needed.
+        // Arm booth: carousel yields to the color choice, shutter re-announces itself.
+        composeTestRule.onNodeWithText("Photo Booth").performClick()
+        composeTestRule.onNodeWithTag("lens_carousel").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsEnabled()
+
+        // Armed state survives closing the drawer (the lime lens button carries the cue).
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithTag("booth_lens_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsEnabled()
+
+        // The shutter starts the sequence. Overlay is primed to shot 1 / digit 5 before the
+        // first tick, so these are stable immediately after the tap — no clock games needed.
+        composeTestRule.onNodeWithContentDescription("Start photo booth").performClick()
         composeTestRule.onNodeWithTag("booth_countdown_digit").assertIsDisplayed()
         composeTestRule.onNodeWithText("Shot 1 of 3").assertIsDisplayed()
         // §5.1 gates on the real screen: shutter genuinely disabled (announced, not a silent
         // no-op), mode selector hidden, Cancel + the still-live B&W chip in the booth row.
-        composeTestRule.onNodeWithContentDescription("Start recording").assertIsNotEnabled()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsNotEnabled()
         composeTestRule.onNodeWithTag("capture_mode_selector").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("booth_cancel_button").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("booth_bw_chip").assertIsDisplayed()
+        // D5 banner: the countdown is the lens-swap window, and the top of the screen says so.
+        composeTestRule.onNodeWithTag("booth_swap_hint").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Swap lenses between shots").assertIsDisplayed()
 
-        // Cancel restores the idle controls.
-        composeTestRule.onNodeWithTag("booth_cancel_button").performClick()
-        composeTestRule.onNodeWithTag("booth_button").assertIsDisplayed()
+        // The drawer is the mid-sequence control surface (owner, 2026-08-20): reopen it — it
+        // lands on the armed Photo Booth tab — and its ✕ is the Cancel: aborts the sequence,
+        // disarms, and closes the drawer. The banner leaves with the sequence.
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        composeTestRule.onNodeWithTag("booth_tab_close").performClick()
+        composeTestRule.onNodeWithTag("booth_swap_hint").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("booth_lens_toggle").assertDoesNotExist()
         composeTestRule.onNodeWithContentDescription("Start recording").assertIsEnabled()
+        composeTestRule.onNodeWithTag("capture_mode_selector").assertIsDisplayed()
+
+        // Re-arm, then pick a capture mode: an explicit "back to normal" disarms the booth.
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithText("Photo Booth").performClick()
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsEnabled()
+        composeTestRule.onNodeWithText("Camera").performClick()
+        composeTestRule.onNodeWithContentDescription("Take photo").assertIsEnabled()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertDoesNotExist()
     }
 
     // ── Minimal fakes (androidTest can't see the JVM-unit fakes or mockk — Lesson 017; kept

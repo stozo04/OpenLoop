@@ -32,7 +32,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -171,6 +170,13 @@ fun CameraScreen(
     // to idle and discards the frames — the accepted POC limitation.
     var boothActive by remember { mutableStateOf(false) }
     var boothMonochrome by remember { mutableStateOf(false) }
+    // D2 (decided 2026-08-20): booth is ARMED from the drawer's Photo Booth tab, and the shutter
+    // starts the strip while armed. The tab selection IS the armed state, so it survives closing
+    // the drawer (the lime lens button carries the cue) and resets only with the screen — the
+    // same activity-recreation limitation §5.1 already accepts. Flipping the slider back to
+    // Lenses (any time, mid-sequence included) disarms; the running sequence keys on
+    // [boothActive] alone, so a mid-sequence disarm just means the next strip needs re-arming.
+    var boothArmed by remember { mutableStateOf(false) }
     // Written once per second by the sequence effect; read ONLY inside [BoothCountdownOverlay]'s
     // own scope (REC-1 / Lesson 016), so a countdown tick never recomposes the viewfinder tree.
     val boothShot = remember { mutableIntStateOf(0) }
@@ -393,6 +399,19 @@ fun CameraScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // D5 banner — top-center while the sequence runs (the slot the selector vacates):
+            // tells the user what the countdown is FOR. The drawer below stays interactive the
+            // whole ritual, so this is an invitation, not decoration. Same vertical geometry as
+            // [HomeButton] (4.dp nudge + a 48.dp row, chip centered in it) so the banner and the
+            // corner button share a center line instead of hanging at slightly different heights.
+            BoothSwapHintChip(
+                visible = boothActive,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+                    .height(48.dp)
+            )
+
             // Capture-mode selector — top-right. Hidden while recording: mid-capture the shutter
             // means "stop", so offering to turn it into a photo button would strand the clip
             // (the ViewModel refuses the switch too — belt and braces). Hidden mid-booth as well:
@@ -400,7 +419,14 @@ fun CameraScreen(
             if (!isRecording && !boothActive) {
                 CaptureModeSelector(
                     photoMode = isPhotoMode,
-                    onSelect = viewModel::setCaptureMode,
+                    onSelect = {
+                        // Choosing a capture mode is an explicit "back to normal capture":
+                        // disarm the booth so the selector's answer to "what does the shutter
+                        // do" stays honest. Only fires on an actual change — tapping the
+                        // already-selected segment is inert.
+                        boothArmed = false
+                        viewModel.setCaptureMode(it)
+                    },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(end = 16.dp, top = 4.dp)
@@ -428,56 +454,58 @@ fun CameraScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 // Lens rail sits above the control row and pushes nothing — the shutter stays
                 // reachable while browsing lenses, matching Snapchat and the reference UI.
+                // The drawer (docs/PRD-photo-booth.md D2, decided 2026-08-20): one surface behind
+                // the lens button holding TWO tabs — Photo Booth | Lenses, Lenses selected by
+                // default since the thumbnails are what shows. Flipping to Photo Booth swaps the
+                // carousel for the D4 Colored / Black & White choice and arms the shutter. The
+                // drawer stays interactive mid-sequence — the countdown IS the swap window (D5).
                 AnimatedVisibility(
                     visible = lensTrayOpen,
                     enter = fadeIn(),
                     exit = fadeOut(),
                 ) {
-                    LensCarousel(
-                        lenses = Lens.entries,
-                        activeLens = activeLens,
-                        onSelect = viewModel::selectLens,
-                        onClose = {
-                            viewModel.selectLens(null)
-                            viewModel.setLensTrayOpen(false)
-                        },
+                    Column(
                         modifier = Modifier.padding(bottom = 20.dp),
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        BoothLensToggle(
+                            boothSelected = boothArmed,
+                            onSelect = { boothArmed = it },
+                            modifier = Modifier.padding(bottom = 12.dp),
+                        )
+                        if (boothArmed) {
+                            BoothColorRow(
+                                monochrome = boothMonochrome,
+                                onSelectMonochrome = { boothMonochrome = it },
+                                onClose = {
+                                    // Same contract as the lens tab's ✕ (clear this tab's
+                                    // effect, then close): abort a running sequence — this IS
+                                    // the booth's Cancel button (owner, 2026-08-20; predictive
+                                    // back is the other way out) — disarm, and shut the drawer.
+                                    boothActive = false
+                                    boothArmed = false
+                                    viewModel.setLensTrayOpen(false)
+                                },
+                            )
+                        } else {
+                            LensCarousel(
+                                lenses = Lens.entries,
+                                activeLens = activeLens,
+                                onSelect = viewModel::selectLens,
+                                onClose = {
+                                    viewModel.selectLens(null)
+                                    viewModel.setLensTrayOpen(false)
+                                },
+                            )
+                        }
+                    }
                 }
 
-                // Booth row (docs/PRD-photo-booth.md D2 — placement provisional): idle shows the
-                // Booth trigger + Color/B&W chip; mid-sequence the trigger yields to Cancel but
-                // the chip STAYS — the D4 choice applies at composite time, so it is toggleable
-                // until the last grab (which is what the sequence effect's rememberUpdatedState
-                // alias exists for). The lens tray above stays interactive throughout — the
-                // countdown IS the swap window (D5).
-                if (boothActive) {
-                    Row(
-                        modifier = Modifier.padding(bottom = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        BoothCancelButton(onCancel = { boothActive = false })
-                        Spacer(Modifier.width(12.dp))
-                        BoothMonochromeChip(
-                            monochrome = boothMonochrome,
-                            onToggleMonochrome = { boothMonochrome = it },
-                        )
-                    }
-                } else if (!isRecording) {
-                    BoothControls(
-                        monochrome = boothMonochrome,
-                        onToggleMonochrome = { boothMonochrome = it },
-                        onStart = {
-                            // Prime the overlay before it mounts: it renders one frame before the
-                            // sequence effect's first write, and a leftover "Shot 3 of 3" from the
-                            // previous run would flash — and be announced by TalkBack — in that gap.
-                            boothShot.intValue = 1
-                            boothDigit.intValue = BOOTH_COUNTDOWN_SECONDS
-                            boothActive = true
-                        },
-                        modifier = Modifier.padding(bottom = 20.dp),
-                    )
-                }
+                // No separate mid-sequence control row (owner, 2026-08-20): the drawer above IS
+                // the booth's control surface — its ✕ cancels + disarms, and the Color / B&W
+                // pair stays live until the last grab (D4, via the sequence effect's
+                // rememberUpdatedState alias). Predictive back remains the buttonless abort
+                // when the drawer is closed.
 
                 // Shutter stays centered; the flip toggle pins to the right edge and the lens
                 // button mirrors it on the left. Width-capped so the controls stay
@@ -488,13 +516,17 @@ fun CameraScreen(
                         .widthIn(max = 520.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Lenses button — present in BOTH camera-bound states, recording included.
+                    // Drawer button — present in BOTH camera-bound states, recording included.
+                    // Lime-filled while a lens is active OR booth is armed: the button is the
+                    // one persistent cue that something behind the drawer is switched on.
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .size(54.dp)
                             .clip(CircleShape)
-                            .background(if (activeLens != null) ElectricLime else OverlayWhite)
+                            .background(
+                                if (activeLens != null || boothArmed) ElectricLime else OverlayWhite
+                            )
                             .border(1.dp, OverlayWhiteBorder, CircleShape)
                             .clickable { viewModel.setLensTrayOpen(!lensTrayOpen) }
                             .testTag("lens_button"),
@@ -503,13 +535,13 @@ fun CameraScreen(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lenses),
                             contentDescription = stringResource(
-                                if (lensTrayOpen) R.string.camera_hide_lenses else R.string.camera_lenses
+                                if (lensTrayOpen) R.string.camera_drawer_hide else R.string.camera_drawer_open
                             ),
                             modifier = Modifier.size(28.dp),
                             // Owner's call (2026-08-12): lime icon on glass for consistency with
-                            // the gallery button and mode selector. The active-lens state keeps
+                            // the gallery button and mode selector. The active state keeps
                             // the inverse scheme (lime fill + ink icon) so it still reads as "on".
-                            tint = if (activeLens != null) LimeInk else ElectricLime
+                            tint = if (activeLens != null || boothArmed) LimeInk else ElectricLime
                         )
                     }
 
@@ -519,6 +551,7 @@ fun CameraScreen(
                     ShutterButton(
                         isRecording = isRecording,
                         photoMode = isPhotoMode,
+                        boothArmed = boothArmed,
                         // Genuinely disabled mid-booth (PRD §5.1) — the sequence replaces the
                         // shutter, and a real disable (vs. a no-op onClick) keeps TalkBack's
                         // announcement, the confirm haptic, and the press animation honest.
@@ -529,12 +562,24 @@ fun CameraScreen(
                         },
                         onClick = {
                             when {
+                                // Stop always wins: arming booth mid-recording must never turn
+                                // the stop button into a booth trigger and strand the clip.
+                                isRecording -> viewModel.stopBurstCapture(cameraManager)
+                                // Armed booth replaces both capture modes (§5.1 — booth bypasses
+                                // CaptureMode). Prime the overlay before it mounts: it renders one
+                                // frame before the sequence effect's first write, and a leftover
+                                // "Shot 3 of 3" from the previous run would flash — and be
+                                // announced by TalkBack — in that gap.
+                                boothArmed -> {
+                                    boothShot.intValue = 1
+                                    boothDigit.intValue = BOOTH_COUNTDOWN_SECONDS
+                                    boothActive = true
+                                }
                                 // Photo mode: grab the composited viewfinder (lens included) and
                                 // hand it straight to the ViewModel — no recording, no editor.
                                 // `bitmap` is null until the preview streams; the ViewModel
                                 // null-guards and surfaces a snackbar.
                                 isPhotoMode -> viewModel.capturePhoto(previewView.bitmap)
-                                isRecording -> viewModel.stopBurstCapture(cameraManager)
                                 else -> viewModel.startBurstCapture(cameraManager)
                             }
                         }
@@ -790,6 +835,7 @@ fun ShutterButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     photoMode: Boolean = false,
+    boothArmed: Boolean = false,
     enabled: Boolean = true,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -803,6 +849,7 @@ fun ShutterButton(
     val photoLabel = stringResource(R.string.camera_take_photo)
     val stopLabel = stringResource(R.string.camera_stop_recording)
     val startLabel = stringResource(R.string.camera_start_recording)
+    val boothLabel = stringResource(R.string.camera_booth_start)
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // Progress ring — drawn just outside the 86.dp button, recording only.
@@ -850,8 +897,11 @@ fun ShutterButton(
                     },
                 )
                 .semantics {
+                    // Same precedence as the onClick `when` in [CameraScreen]: stop first, then
+                    // the armed booth (it overrides both capture modes), then photo/video.
                     contentDescription = when {
                         isRecording -> stopLabel
+                        boothArmed -> boothLabel
                         photoMode -> photoLabel
                         else -> startLabel
                     }
@@ -882,103 +932,167 @@ fun ShutterButton(
 }
 
 /**
- * Idle-viewfinder booth controls (docs/PRD-photo-booth.md D2): the Booth trigger and the D4
- * Color/B&W chip. Placement and styling are explicitly provisional — the strip is the product
- * surface, this row is not — but the content descriptions and the chip's switch semantics are
- * not provisional (§5.1 accessibility). Stateless and hoisted (mirrors [HomeButton]) so it is
- * testable without binding the camera.
+ * The drawer's two-tab slider: Photo Booth | Lenses (docs/PRD-photo-booth.md D2, decided
+ * 2026-08-20). Same anatomy as [CaptureModeSelector] — 48.dp glass container (the WARNING-3
+ * accessibility floor), inset lime pill, radio-button semantics, haptic tick on change — so the
+ * two segmented controls on this screen read as one species. Selecting Photo Booth is what ARMS
+ * the booth (the caller's state); Lenses is the default tab. Stateless and hoisted (mirrors
+ * [HomeButton]) so it is testable without binding the camera.
  */
 @Composable
-fun BoothControls(
-    monochrome: Boolean,
-    onToggleMonochrome: (Boolean) -> Unit,
-    onStart: () -> Unit,
+fun BoothLensToggle(
+    boothSelected: Boolean,
+    onSelect: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val startLabel = stringResource(R.string.camera_booth_start)
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        Row(
-            modifier = Modifier
-                .glassPill()
-                .clickable(role = Role.Button, onClick = onStart)
-                .padding(horizontal = 20.dp)
-                .semantics { contentDescription = startLabel }
-                .testTag("booth_button"),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.PhotoCamera,
-                contentDescription = null,
-                tint = ElectricLime,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = stringResource(R.string.camera_booth),
-                style = PillTextStyle,
-                color = ElectricLime,
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        BoothMonochromeChip(monochrome = monochrome, onToggleMonochrome = onToggleMonochrome)
-    }
-}
-
-/**
- * The D4 Color/B&W chip. Rendered both in the idle [BoothControls] row and beside
- * [BoothCancelButton] while a sequence runs — the choice applies at composite time, so it stays
- * toggleable through the whole countdown ritual (which is why the sequence effect reads it via
- * `rememberUpdatedState`, Lesson 034).
- */
-@Composable
-fun BoothMonochromeChip(
-    monochrome: Boolean,
-    onToggleMonochrome: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val monochromeLabel = stringResource(R.string.camera_booth_bw_toggle)
-    Box(
+    val haptics = LocalHapticFeedback.current
+    Row(
         modifier = modifier
-            .glassPill(background = if (monochrome) ElectricLime else OverlayWhite)
-            .toggleable(
-                value = monochrome,
-                role = Role.Switch,
-                onValueChange = onToggleMonochrome,
-            )
-            .padding(horizontal = 16.dp)
-            .semantics { contentDescription = monochromeLabel }
-            .testTag("booth_bw_chip"),
-        contentAlignment = Alignment.Center,
+            .glassPill()
+            .padding(horizontal = 4.dp)
+            .selectableGroup()
+            .testTag("booth_lens_toggle"),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = stringResource(R.string.camera_booth_bw),
-            style = PillTextStyle,
-            color = if (monochrome) LimeInk else Color.White,
+        BoothLensSegment(
+            label = stringResource(R.string.camera_booth_tab),
+            selected = boothSelected,
+            onClick = {
+                if (!boothSelected) {
+                    haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+                    onSelect(true)
+                }
+            },
+        )
+        BoothLensSegment(
+            label = stringResource(R.string.camera_lenses),
+            selected = !boothSelected,
+            onClick = {
+                if (boothSelected) {
+                    haptics.performHapticFeedback(HapticFeedbackType.ToggleOff)
+                    onSelect(false)
+                }
+            },
         )
     }
 }
 
 /**
- * The only interactive way out of a running booth sequence besides predictive back: discard the
- * captured frames and return to the idle viewfinder (docs/PRD-photo-booth.md §5.4 — no save, no
- * snackbar). Stateless and hoisted so the abort wiring is testable without the camera.
+ * One text-only segment of [BoothLensToggle] — [CaptureModeSegment] minus the icon (the tab
+ * names carry the meaning; the drawer content below is the picture). Full-height touch target
+ * with the visible pill drawn inset, same as the capture-mode selector.
  */
 @Composable
-fun BoothCancelButton(onCancel: () -> Unit, modifier: Modifier = Modifier) {
-    val cancelLabel = stringResource(R.string.camera_booth_cancel)
+private fun BoothLensSegment(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = modifier
-            .glassPill()
-            .clickable(role = Role.Button, onClick = onCancel)
-            .padding(horizontal = 20.dp)
-            .semantics { contentDescription = cancelLabel }
-            .testTag("booth_cancel_button"),
+        modifier = Modifier
+            .fillMaxHeight()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(percent = 50))
+                .background(if (selected) ElectricLime else Color.Transparent)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+        ) {
+            Text(
+                text = label,
+                style = PillTextStyle,
+                color = if (selected) LimeInk else Color.White,
+            )
+        }
+    }
+}
+
+/**
+ * The drawer's Photo Booth tab: clear-and-close plus the D4 color choice as a two-option radio
+ * pair (Color is the default — D4). Mirrors the [LensCarousel] row silhouette (leading ✕, then
+ * the content) so the drawer's two tabs feel like one surface. The ✕ follows the lens tab's
+ * "clear this tab's effect, then close" contract — the caller wires it to cancel a running
+ * sequence, disarm, and shut the drawer, making it the booth's Cancel button (predictive back
+ * is the buttonless abort). The radio pair stays live mid-sequence: the D4 choice applies at
+ * composite time, until the last grab. Stateless and hoisted for camera-free tests.
+ */
+@Composable
+fun BoothColorRow(
+    monochrome: Boolean,
+    onSelectMonochrome: (Boolean) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val closeLabel = stringResource(R.string.camera_booth_close)
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(OverlayWhite)
+                .border(1.dp, OverlayWhiteBorder, CircleShape)
+                .clickable(onClick = onClose)
+                .semantics { contentDescription = closeLabel }
+                .testTag("booth_tab_close"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lens_close),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = Color.White,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Row(
+            modifier = Modifier.selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BoothColorChip(
+                label = stringResource(R.string.camera_booth_colored),
+                selected = !monochrome,
+                onSelect = { onSelectMonochrome(false) },
+                testTag = "booth_choice_colored",
+            )
+            Spacer(Modifier.width(12.dp))
+            BoothColorChip(
+                label = stringResource(R.string.camera_booth_black_white),
+                selected = monochrome,
+                onSelect = { onSelectMonochrome(true) },
+                testTag = "booth_choice_bw",
+            )
+        }
+    }
+}
+
+/** One option of [BoothColorRow]'s radio pair: lime when selected, glass otherwise. */
+@Composable
+private fun BoothColorChip(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    testTag: String,
+) {
+    Box(
+        modifier = Modifier
+            .glassPill(background = if (selected) ElectricLime else OverlayWhite)
+            .selectable(
+                selected = selected,
+                role = Role.RadioButton,
+                // Tapping the already-selected option is inert, like the mode selector's segments.
+                onClick = { if (!selected) onSelect() },
+            )
+            .padding(horizontal = 16.dp)
+            .testTag(testTag),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = stringResource(R.string.camera_booth_cancel_label),
+            text = label,
             style = PillTextStyle,
-            color = Color.White,
+            color = if (selected) LimeInk else Color.White,
         )
     }
 }
@@ -1097,6 +1211,48 @@ fun ZoomRatioChip(
             Text(
                 text = text(),
                 style = TimerTextStyle,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/**
+ * Top-center banner while a booth sequence runs (docs/PRD-photo-booth.md D5): the countdown is
+ * the window to swap lenses, and this chip is the one place on screen that says so. Same glass
+ * chip chrome as [RecordingCountdownChip] (the two are never visible together — booth and
+ * recording are mutually exclusive). Informational only — never a touch target. Renders nothing
+ * when [visible] is false, so the visibility rule itself is testable.
+ */
+@Composable
+fun BoothSwapHintChip(
+    visible: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (!visible) return
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(percent = 50))
+                .background(OverlayWhite)
+                .background(OverlayScrim)
+                // Owner's call (2026-08-20): a light lime trim instead of the usual white
+                // hairline — the banner is the one booth element in the top half, and the
+                // lime ties it to the armed lens button below without shouting.
+                .border(
+                    1.dp,
+                    ElectricLime.copy(alpha = 0.55f),
+                    RoundedCornerShape(percent = 50)
+                )
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .testTag("booth_swap_hint")
+        ) {
+            // PillTextStyle (12sp), not the 14sp TimerTextStyle: the copy must clear the
+            // 48.dp corner buttons on a 360dp-class screen instead of underlapping them.
+            Text(
+                text = stringResource(R.string.camera_booth_swap_hint),
+                style = PillTextStyle,
                 color = Color.White,
                 textAlign = TextAlign.Center
             )

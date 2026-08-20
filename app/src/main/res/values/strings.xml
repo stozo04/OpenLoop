@@ -23,15 +23,18 @@
     <string name="camera_mode_video">Video</string>
     <string name="snackbar_photo_capture_failed">Couldn\'t take that photo. Try again.</string>
 
-    <!-- Photo booth (docs/PRD-photo-booth.md — the Booth button/chip placement is provisional
-         under D2; the strip itself is the product surface). -->
-    <string name="camera_booth">Booth</string>
+    <!-- Photo booth (docs/PRD-photo-booth.md — D2 placement decided 2026-08-20: booth lives in
+         the lens drawer's Photo Booth tab; the shutter starts the strip while the tab is armed). -->
+    <string name="camera_booth_tab">Photo Booth</string>
+    <string name="camera_booth_colored">Color</string>
+    <string name="camera_booth_black_white">Black &amp; White</string>
+    <!-- The booth tab's ✕ is also the sequence's Cancel (owner, 2026-08-20): it aborts a
+         running countdown, disarms, and closes the drawer. Predictive back is the other abort. -->
+    <string name="camera_booth_close">Turn off photo booth</string>
     <string name="camera_booth_start">Start photo booth</string>
-    <string name="camera_booth_cancel">Cancel photo booth</string>
-    <string name="camera_booth_cancel_label">Cancel</string>
-    <string name="camera_booth_bw">B&amp;W</string>
-    <string name="camera_booth_bw_toggle">Black and white strip</string>
     <string name="camera_booth_shot_progress">Shot %1$d of %2$d</string>
+    <!-- D5 banner shown while the sequence runs: the countdown is the lens-swap window. -->
+    <string name="camera_booth_swap_hint">Swap lenses between shots</string>
     <string name="gallery_close_photo">Close photo</string>
     <string name="gallery_photo_preview">Captured photo</string>
 
@@ -112,7 +115,10 @@
 
     <!-- Camera screen -->
     <string name="camera_lenses">Lenses</string>
-    <string name="camera_hide_lenses">Hide lenses</string>
+    <!-- The bottom-left button opens the drawer holding BOTH tabs (lenses + photo booth), so its
+         spoken label names both; camera_lenses stays the drawer's Lenses tab label. -->
+    <string name="camera_drawer_open">Lenses and Photo Booth</string>
+    <string name="camera_drawer_hide">Hide lenses and Photo Booth</string>
     <string name="camera_flip">Flip Camera</string>
     <string name="camera_gallery">Gallery</string>
     <string name="camera_start_recording">Start recording</string>
