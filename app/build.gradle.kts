@@ -33,8 +33,8 @@ android {
         // move; re-evaluate then. OldTargetApi suppressed at the source per STATIC_ANALYSIS.md.
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 44
-        versionName = "1.0.44"
+        versionCode = 45
+        versionName = "1.0.45"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
