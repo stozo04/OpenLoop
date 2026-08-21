@@ -66,3 +66,6 @@ twisted-tounge/**
 !twisted-tounge/*.md
 !twisted-tounge/images/
 !twisted-tounge/images/**
+
+# play-policy-insights audit scratch (regenerated per run — see docs/PRD-android-skills.md)
+.scratch/
