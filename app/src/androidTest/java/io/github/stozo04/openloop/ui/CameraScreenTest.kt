@@ -1,5 +1,7 @@
 package io.github.stozo04.openloop.ui
 
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
@@ -16,6 +18,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertWidthIsAtLeast
@@ -26,7 +30,26 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.stozo04.openloop.camera.CameraManager
+import io.github.stozo04.openloop.data.RecordedVideo
+import io.github.stozo04.openloop.data.ScratchCapture
+import io.github.stozo04.openloop.data.UserPreferencesRepository
+import io.github.stozo04.openloop.data.VideoImporter
+import io.github.stozo04.openloop.data.VideoStorageRepository
+import io.github.stozo04.openloop.media.BoomerangMode
+import io.github.stozo04.openloop.media.ReverseScratchJanitor
+import io.github.stozo04.openloop.media.SpeedCurve
+import io.github.stozo04.openloop.media.VideoFilter
+import io.github.stozo04.openloop.media.VideoProcessor
+import io.github.stozo04.openloop.work.BoomerangRenderRequest
+import io.github.stozo04.openloop.work.BoomerangRenderScheduler
+import io.github.stozo04.openloop.work.BoomerangRenderWorkResult
+import java.io.File
+import java.util.UUID
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -42,6 +65,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class CameraScreenTest {
 
+    // The v1 factory is the API the suite is built on; the v2 variant flips the test dispatcher
+    // (Standard vs Unconfined), which changes effect-execution timing across the whole class —
+    // that migration is a separate, codebase-wide change, so the deprecation is deliberately
+    // suppressed here (same call as OpenLoopNavHostTest).
+    @Suppress("DEPRECATION")
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -338,5 +366,205 @@ class CameraScreenTest {
         composeTestRule.onNodeWithContentDescription("Take photo").assertIsDisplayed()
         composeTestRule.onNodeWithContentDescription("Start recording").assertDoesNotExist()
         composeTestRule.onNodeWithTag("progress_ring").assertDoesNotExist()
+    }
+
+    // ── Photo booth (docs/PRD-photo-booth.md — hoisted controls, no camera bind needed) ──
+
+    @Test
+    fun boothLensToggle_flipsTabs_withRadioSemantics() {
+        // D2 (decided 2026-08-20): the drawer's slider arms/disarms booth. Lenses is the default
+        // tab; driving the flip in BOTH directions guards the frozen-lambda trap (Lesson 034 —
+        // one tap can pass against a stale callback).
+        composeTestRule.setContent {
+            var armed by remember { mutableStateOf(false) }
+            BoothLensToggle(boothSelected = armed, onSelect = { armed = it })
+        }
+
+        composeTestRule.onNodeWithText("Lenses").assertIsSelected()
+        composeTestRule.onNodeWithText("Photo Booth").assertIsNotSelected()
+
+        composeTestRule.onNodeWithText("Photo Booth").performClick()
+        composeTestRule.onNodeWithText("Photo Booth").assertIsSelected()
+        composeTestRule.onNodeWithText("Lenses").assertIsNotSelected()
+
+        composeTestRule.onNodeWithText("Lenses").performClick()
+        composeTestRule.onNodeWithText("Lenses").assertIsSelected()
+        composeTestRule.onNodeWithText("Photo Booth").assertIsNotSelected()
+    }
+
+    @Test
+    fun boothColorRow_selectsBothWays_andCloseInvokesTheClear() {
+        // D4: Colored is the default; the radio pair flips to Black & White and back (both
+        // directions — Lesson 034). The ✕ carries the "clear + close" contract, so it must
+        // invoke onClose exactly once per tap.
+        val selections = mutableListOf<Boolean>()
+        var closes = 0
+        composeTestRule.setContent {
+            var monochrome by remember { mutableStateOf(false) }
+            BoothColorRow(
+                monochrome = monochrome,
+                onSelectMonochrome = {
+                    selections += it
+                    monochrome = it
+                },
+                onClose = { closes++ },
+            )
+        }
+
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        composeTestRule.onNodeWithTag("booth_choice_bw").assertIsNotSelected()
+
+        composeTestRule.onNodeWithTag("booth_choice_bw").performClick()
+        composeTestRule.onNodeWithTag("booth_choice_bw").assertIsSelected()
+        composeTestRule.onNodeWithTag("booth_choice_colored").performClick()
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        // Tapping the already-selected option is inert — no phantom re-selection.
+        composeTestRule.onNodeWithTag("booth_choice_colored").performClick()
+        composeTestRule.runOnIdle { assertEquals(listOf(true, false), selections) }
+
+        composeTestRule.onNodeWithContentDescription("Turn off photo booth").performClick()
+        composeTestRule.runOnIdle { assertEquals(1, closes) }
+    }
+
+    // ── The REAL screen's booth wiring (PRD test plan; D2 decided 2026-08-20). The hoisted-
+    // composable tests above stay green even if CameraScreen's own wiring is deleted — this one
+    // mounts CameraScreen itself, so drawer → arm → armed-shutter → sequence → §5.1 gating is
+    // what is under test. ──
+
+    @Test
+    fun cameraScreen_armBoothInDrawer_shutterRunsSequence_andGatesTheControls() {
+        composeTestRule.setContent {
+            CameraScreen(
+                viewModel = OpenLoopViewModel(
+                    NoopPreferencesRepository(),
+                    NoopVideoStorageRepository(),
+                    NoopVideoProcessor(),
+                    NoopVideoImporter(),
+                    NoopBoomerangRenderScheduler(),
+                ),
+                cameraManager = CameraManager(ApplicationProvider.getApplicationContext()),
+            )
+        }
+
+        // Idle: mode selector present, shutter is the plain video trigger, no drawer, no banner.
+        composeTestRule.onNodeWithTag("capture_mode_selector").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Start recording").assertIsEnabled()
+        composeTestRule.onNodeWithTag("booth_lens_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("booth_swap_hint").assertDoesNotExist()
+
+        // Open the drawer: Lenses tab by default, carousel showing.
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithText("Lenses").assertIsSelected()
+        composeTestRule.onNodeWithTag("lens_carousel").assertIsDisplayed()
+
+        // Arm booth: carousel yields to the color choice, shutter re-announces itself.
+        composeTestRule.onNodeWithText("Photo Booth").performClick()
+        composeTestRule.onNodeWithTag("lens_carousel").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsEnabled()
+
+        // Armed state survives closing the drawer (the lime lens button carries the cue).
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithTag("booth_lens_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsEnabled()
+
+        // The shutter starts the sequence. Overlay is primed to shot 1 / digit 5 before the
+        // first tick, so these are stable immediately after the tap — no clock games needed.
+        composeTestRule.onNodeWithContentDescription("Start photo booth").performClick()
+        composeTestRule.onNodeWithTag("booth_countdown_digit").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Shot 1 of 3").assertIsDisplayed()
+        // §5.1 gates on the real screen: shutter genuinely disabled (announced, not a silent
+        // no-op), mode selector hidden, Cancel + the still-live B&W chip in the booth row.
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("capture_mode_selector").assertDoesNotExist()
+        // D5 banner: the countdown is the lens-swap window, and the top of the screen says so.
+        composeTestRule.onNodeWithTag("booth_swap_hint").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Swap lenses between shots").assertIsDisplayed()
+
+        // The drawer is the mid-sequence control surface (owner, 2026-08-20): reopen it — it
+        // lands on the armed Photo Booth tab — and its ✕ is the Cancel: aborts the sequence,
+        // disarms, and closes the drawer. The banner leaves with the sequence.
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithTag("booth_choice_colored").assertIsSelected()
+        composeTestRule.onNodeWithTag("booth_tab_close").performClick()
+        composeTestRule.onNodeWithTag("booth_swap_hint").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("booth_lens_toggle").assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription("Start recording").assertIsEnabled()
+        composeTestRule.onNodeWithTag("capture_mode_selector").assertIsDisplayed()
+
+        // Re-arm, then pick a capture mode: an explicit "back to normal" disarms the booth.
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithText("Photo Booth").performClick()
+        composeTestRule.onNodeWithTag("lens_button").performClick()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertIsEnabled()
+        composeTestRule.onNodeWithText("Camera").performClick()
+        composeTestRule.onNodeWithContentDescription("Take photo").assertIsEnabled()
+        composeTestRule.onNodeWithContentDescription("Start photo booth").assertDoesNotExist()
+    }
+
+    // ── Minimal fakes (androidTest can't see the JVM-unit fakes or mockk — Lesson 017; kept
+    // inline per that lesson rather than shared with OpenLoopNavHostTest's private copies). ──
+
+    private class NoopPreferencesRepository : UserPreferencesRepository {
+        override val hasCompletedOnboarding: Flow<Boolean> = MutableStateFlow(true)
+        override suspend fun setOnboardingCompleted(completed: Boolean) {}
+        override val hasSeenSpeedCurveIntro: Flow<Boolean> = MutableStateFlow(true)
+        override suspend fun setSpeedCurveIntroSeen(seen: Boolean) {}
+        override suspend fun incrementSavedLoopCount(): Int = 0
+    }
+
+    private class NoopVideoStorageRepository : VideoStorageRepository {
+        override fun createScratchCapture(): ScratchCapture =
+            ScratchCapture("noop", File.createTempFile("camerascreen_scratch", ".mp4"))
+        override suspend fun promoteScratchToRaw(scratch: ScratchCapture): RecordedVideo? = null
+        override fun discardScratch(scratch: ScratchCapture) {}
+        override fun allocateBoomerangFile(sourceRawId: Long): File =
+            File.createTempFile("camerascreen_boom", ".mp4")
+        override suspend fun registerBoomerang(file: File, sourceRawId: Long): RecordedVideo? = null
+        override suspend fun durationOf(file: File): Long = 0L
+        override suspend fun loadRecordedVideos(): List<RecordedVideo> = emptyList()
+        override suspend fun savePhoto(bitmap: Bitmap): RecordedVideo? = null
+        override suspend fun deleteVideo(video: RecordedVideo) {}
+        override suspend fun deleteRawVideo(id: Long) {}
+        override suspend fun pruneStaleScratch(olderThanMs: Long): Int = 0
+    }
+
+    private class NoopVideoImporter : VideoImporter {
+        override suspend fun probeDurationMs(source: Uri): Long = 0L
+        override suspend fun importToFile(source: Uri, dest: File): Boolean = false
+    }
+
+    private class NoopVideoProcessor : VideoProcessor {
+        override suspend fun renderBoomerang(
+            source: File,
+            trimStartMs: Long,
+            trimEndMs: Long,
+            mode: BoomerangMode,
+            curve: SpeedCurve,
+            filter: VideoFilter,
+            repetitions: Int,
+            outputFile: File,
+            onProgress: (Float) -> Unit,
+        ): File = outputFile
+
+        override suspend fun ensureReversed(
+            source: File,
+            trimStartMs: Long,
+            trimEndMs: Long,
+            onProgress: (Float) -> Unit,
+            maxReverseShortSide: Int?,
+        ): File = source
+
+        override fun cleanupReverseIntermediates() =
+            ReverseScratchJanitor.CleanupResult(0, 0L)
+    }
+
+    private class NoopBoomerangRenderScheduler : BoomerangRenderScheduler {
+        override fun enqueue(request: BoomerangRenderRequest): UUID = UUID.randomUUID()
+        override fun observeProgress(workId: UUID): Flow<Float> = MutableStateFlow(0f)
+        override fun observeResult(workId: UUID): Flow<BoomerangRenderWorkResult> = MutableStateFlow(
+            BoomerangRenderWorkResult.Failure(),
+        )
+        override fun cancelRenderWork(scratchUuid: String) = Unit
     }
 }

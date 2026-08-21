@@ -2,7 +2,7 @@
 
 ## Owner
 
-Steven Gates · gates.steven@gmail.com · GitHub: [stozo04](https://github.com/stozo04/OpenLoop)
+Steven Gates · <gates.steven@gmail.com> · GitHub: [stozo04](https://github.com/stozo04/OpenLoop)
 Solo developer. Android/Kotlin. Comfortable making architecture decisions, reviewing code, and shipping production-quality UI.
 
 Tools: Android Studio, Git/GitHub, Supabase, Google services (Gmail, Calendar, Drive).
@@ -25,7 +25,7 @@ Order of operations at session start:
 
 1. Read this `CLAUDE.md` (already in context).
 2. Read `docs/lessons_learned/README.md` — it explains the two tiers and carries the index.
-3. Read **every core lesson in full: 008 and 011–035.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
+3. Read **every core lesson in full: 008 and 011–036.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
 4. **Skim the index rows for the baseline lessons (001–007, 009, 010)** — generic Android/Compose hygiene now largely held by Lint, CI, and IDE inspections. Open one only when the work actually touches that area.
 5. Proceed with the user's request.
 
@@ -79,19 +79,19 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 
 | Layer | Technology | Version |
 |-------|-----------|--------|
-| Language | Kotlin | 2.3.21 |
-| UI | Jetpack Compose | BOM 2026.05.01 |
+| Language | Kotlin | 2.4.10 |
+| UI | Jetpack Compose | BOM 2026.08.00 |
 | Camera | AndroidX CameraX | 1.6.1 |
-| Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.10.1 |
+| Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.11.0 |
 | Preferences | Jetpack DataStore (Preferences) | 1.2.1 |
-| Build | Gradle 9.5.0, AGP 9.2.1 | — |
-| Target | compileSdk 36, minSdk 26, targetSdk 36 | — |
+| Build | Gradle 9.5.0, AGP 9.3.1 | — |
+| Target | compileSdk 37, minSdk 26, targetSdk 36 | — |
 
 > **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26 — clearing Google Play's target-API floor (currently API 35). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and `ANDROID_STANDARDS.md` §11. Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
 ### Source Layout
 
-```
+```text
 io.github.stozo04.openloop/
 ├── camera/
 │   ├── CameraManager.kt         # CameraX bind/unbind, recording, lens toggle, pinch-zoom control
@@ -108,6 +108,7 @@ io.github.stozo04.openloop/
 │   ├── VideoProcessor.kt        # Media3 Transformer: Composition + SpeedChangeEffect; ensureReversed() (shared reverse cache)
 │   ├── VideoReverser.kt         # Two-pass MediaCodec reverse (Media3 has no reverse effect)
 │   ├── Reverse*.kt              # Encoder selection, output validation, scratch janitor, logging
+│   ├── BoothStrip*.kt           # Photo-booth strip: pure layout math (JVM-tested) + thin Canvas composer — docs/PRD-photo-booth.md
 │   └── …Sequence/Filter/Format  # BoomerangSequence, VideoFilter, MediaFormatUtils — pure, JVM-tested
 ├── ui/
 │   ├── OpenLoopUiState.kt       # Sealed state machine + TrimState / EditorTabState
@@ -130,7 +131,7 @@ io.github.stozo04.openloop/
 
 ### State Machine
 
-```
+```text
 Initializing → Onboarding → CheckingPermissions → ReadyToCapture ↔ Recording
    (returning user ↗)         (PermissionRationale / PermissionDenied)   │ finalize
                                                                           ▼

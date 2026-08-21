@@ -22,14 +22,19 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "io.github.stozo04.openloop"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
+        // Deliberately one behind the latest (37): each target bump is its own reviewed project —
+        // behavior changes studied, OEM lanes run (Issue #7 precedent, ANDROID_STANDARDS §11) —
+        // never a drive-by lint fix. Play's floor is API 35, so 36 clears it until the next floor
+        // move; re-evaluate then. OldTargetApi suppressed at the source per STATIC_ANALYSIS.md.
+        //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 43
-        versionName = "1.0.43"
+        versionCode = 44
+        versionName = "1.0.44"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

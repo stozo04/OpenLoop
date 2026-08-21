@@ -5,7 +5,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-@OptIn(UnstableApi::class)
+// Propagation (matches KeyframeSpeedProviderTest / SpeedCurveDurationTest) rather than @OptIn:
+// kotlin @OptIn warns "has no effect" against media3's Java-declared opt-in marker.
+@UnstableApi
 class VideoFilterTest {
 
     @Test

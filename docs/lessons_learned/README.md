@@ -8,7 +8,7 @@ Not every lesson costs the same to relearn, so they are tiered:
 
 | Tier | Which | How to read |
 |---|---|---|
-| **Core — always read in full** | **008, 011–035** | Hard-won, device- and repo-specific. Samsung/Exynos encoder ordering, green corruption from a mismatched encoder Surface, zero-sample muxes that exit "cleanly", FGS constants added in 35 not 34, the `mockk<File>` NPE. **None of this is in any model's training data and each one cost a real bug.** |
+| **Core — always read in full** | **008, 011–036** | Hard-won, device- and repo-specific. Samsung/Exynos encoder ordering, green corruption from a mismatched encoder Surface, zero-sample muxes that exit "cleanly", FGS constants added in 35 not 34, the `mockk<File>` NPE. **None of this is in any model's training data and each one cost a real bug.** |
 | **Baseline — skim the index rows** | 001–007, 009, 010 | Generic Android/Compose hygiene now largely held by Android Lint, the Tier 3 CI checks, and IDE inspections. Open the file only when touching that exact area. Note 005 is historical — it argues for API 35; the app already targets 36. |
 
 Skimming the baseline rows instead of reading all ten files saves ~700 lines per session with no
@@ -62,6 +62,7 @@ Each lesson follows the same shape:
 | 033 | [A derived timeline must measure the artifacts it spans, not assume they match their source window](./033-derived-timeline-must-measure-its-artifacts.md) | Speed curves |
 | 034 | [A `pointerInput` key that never changes freezes everything the block captured — audit every gesture surface](./034-pointerinput-key-freezes-its-lambda.md) | Speed curves |
 | 035 | [`onDragStart` fires a touch-slop away from the finger — hit-test the down position, anchor the delta](./035-drag-hit-test-belongs-on-the-down-position.md) | Speed curves |
+| 036 | [`PreviewView.getBitmap()` serves a frozen frame after started-then-stopped — gate timed grabs on the lifecycle](./036-previewview-getbitmap-stale-after-stop.md) | PR #138 review |
 
 ## Adding a new lesson
 
