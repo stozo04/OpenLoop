@@ -150,7 +150,16 @@ started:
 
 1. **`android` CLI**: adopt as a tool (and eventually refactor e2e emulator handling onto it),
    or stay with the proven hand-rolled workflows? Leaning: stay, revisit when the CLI matures on Windows.
-2. **play-policy-insights pilot**: does its report add anything over the existing
-   `docs/play-store/` data-safety docs + `pr-reviewer` gate?
+2. **play-policy-insights pilot**: ~~does its report add anything over the existing
+   `docs/play-store/` data-safety docs + `pr-reviewer` gate?~~ **Resolved 2026-08-21 — yes,
+   keep it.** The pilot (8 worker agents + critic pass over the full app) surfaced findings
+   the existing docs missed, each with line-verified evidence: (1) the `source_label`
+   Crashlytics key can carry a user-picked file name on the legacy import fallback,
+   contradicting the drafted Data Safety form's "Files — NOT collected"; (2) & (3) Firebase
+   Analytics/Crashlytics upload with no in-app disclosure while onboarding claims "100% on
+   your phone"; (4) the Play Console FGS declaration is needed for both `mediaProcessing`
+   and `dataSync`. Verdict: run it before each Play submission with material telemetry,
+   permission, or FGS changes. One Windows note: run its scripts with `PYTHONUTF8=1` (the
+   report writer emits emoji that cp1252 can't encode).
 3. **Update cadence**: is "refresh when working in the domain" enough, or do we want a
    quarterly upstream diff?
