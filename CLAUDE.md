@@ -33,6 +33,14 @@ When a lesson graduates from "hard-won" to "the tooling catches this now," move 
 
 When a PR review surfaces a new pattern worth preserving, add it to `docs/lessons_learned/` using the convention in that folder's README. Commit the lesson alongside the fix it documents.
 
+## Google Android Skills — Precedence
+
+The official [`android/skills`](https://github.com/android/skills) plugin is enabled for this repo — all 21 skills, deliberately uncurated (owner decision, `docs/PRD-android-skills.md`). Skills auto-trigger by task relevance. **Where a Google skill conflicts with this repo's documented decisions, the repo wins**: `CLAUDE.md`, `docs/lessons_learned/`, and the PRDs override skill guidance. Known collision points:
+
+- `navigation-3` recommends the Navigation library. OpenLoop deliberately uses the sealed `OpenLoopUiState` machine + exhaustive `OpenLoopNavHost` `when` (Lesson 014, `PRD-mission-control.md`). Do not migrate navigation because a skill suggested it.
+- `camerax` prefers `MlKitAnalyzer`. `FaceTracker` is a deliberate manual `ImageAnalysis.Analyzer` on the ML Kit stable API. Keep it. (Its `SurfaceProcessor` guidance is compatible with `LensSurfaceProcessor` — that one is fine to follow.)
+- `agp-9-upgrade` / lint may suggest newer AGP. The ceiling is the installed Android Studio pairing, not Maven-newest.
+
 ## How to Work With Me
 
 ### PRD-first — always
