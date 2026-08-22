@@ -103,5 +103,5 @@ the first place. Regression test: `SpeedTabPanelCurveTest.tappingCurrentLocksThe
   `ui/components/SpeedTabPanel.kt` (`latestOnSpeedChange`).
 - Sibling trap in the same detectors: [[035-drag-hit-test-belongs-on-the-down-position]] — that one is
   about *where* the gesture thinks the finger is, this one about *when* it was captured.
-- Related: [[016-defer-high-frequency-state-reads-into-draw-scope]] (the other "read it at the right
+- Related: [[016-compose-defer-high-frequency-state-reads]] (the other "read it at the right
   moment" Compose trap).

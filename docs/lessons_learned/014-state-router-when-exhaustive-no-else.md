@@ -35,6 +35,7 @@ Two compounding harms:
 - **Extract the router into a stateless `@Composable` so it's unit-testable** (mirrors the
   project's `OnboardingNavigation` extract-for-testability pattern). Pass Activity-bound effects
   (permission launch, open-settings) in as lambdas so the composable holds no `ComponentActivity`:
+
   ```kotlin
   @Composable
   fun OpenLoopNavHost(
@@ -53,6 +54,7 @@ Two compounding harms:
       }
   }
   ```
+
 - **A not-yet-built state still needs a real branch.** Route it to a safe placeholder (here the
   neutral loader) with a `// TODO(slice-NN)` — never let it ride an `else`.
 
@@ -63,7 +65,7 @@ Two compounding harms:
 
 ## Detection checklist
 
-- Grep the router for a catch-all: `grep -n "else ->" MainActivity.kt` (and any `*NavHost*`) → expect **none**.
+- Grep the router for a catch-all: `grep -n "else ->" MainActivity.kt` → every hit must be **outside** `OpenLoopNavHost` (today the only one is the permissions `when`); inside the router expect **none**.
 - Lesson 012 check still holds: `grep -n "CameraScreen(" MainActivity.kt` → exactly **1**.
 - After adding a state to `OpenLoopUiState`, a clean build must error with a non-exhaustive-`when`
   message until you route it. (Kotlin 2.x enforces exhaustiveness for `when` over a sealed type

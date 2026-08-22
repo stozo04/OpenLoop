@@ -97,7 +97,7 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 | Build | Gradle 9.5.0, AGP 9.3.1 | — |
 | Target | compileSdk 37, minSdk 26, targetSdk 36 | — |
 
-> **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `compileSdk`/`targetSdk` 36, `minSdk` stays 26 — clearing Google Play's target-API floor (currently API 35). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and `ANDROID_STANDARDS.md` §11. Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
+> **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `targetSdk` 36, `compileSdk` 37, `minSdk` stays 26 — which is Google Play's target-API floor for new apps and updates from 2026-08-31 (`ANDROID_STANDARDS.md` §8 carries the dated citation). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and `ANDROID_STANDARDS.md` §11. Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
 ### Source Layout
 

@@ -36,14 +36,16 @@ when {
 }
 ```
 
-For OpenLoop specifically, the existing `PermissionDeniedScreen` composable can be lifted into the rationale slot — same content (icon, explanation, "Grant Permissions" button), just shown *before* the system dialog the second time.
+For OpenLoop specifically, the existing denial composable (now `PermissionExplanationScreen` in `MainActivity.kt`, shared by both variants) can be lifted into the rationale slot — same content (icon, explanation, "Grant Permissions" button), just shown *before* the system dialog the second time.
 
 ## Detection checklist
 
 - Every `requestPermissionLauncher.launch(...)` must be preceded by either a granted-check or a rationale UI.
-  ```
+
+  ```text
   grep -rn "requestPermissionLauncher.launch\|registerForActivityResult" app/src --include="*.kt"
   ```
+
 - Test the flow manually:
   1. Fresh install → grant prompt appears (no rationale needed).
   2. Deny once → next attempt should show the rationale UI before the system prompt.

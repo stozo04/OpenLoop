@@ -63,7 +63,7 @@ the PRD treats it as such rather than claiming a doc page that does not exist.
 A signature existing is not the same as Transformer honouring it for **video**. Traced end to end
 through the 1.10.1 sources:
 
-```
+```text
 Transformer.start(composition)
   → DefaultAssetLoaderFactory.createAssetLoader()        // OpenLoop wires this explicitly
   → ExoPlayerAssetLoader.createMediaSourceForEditedMediaItem()
@@ -155,7 +155,7 @@ trivial for a `TreeMap` lookup, and the shader only queries at frame boundaries 
 A two-segment control directly above the existing slider area, inside the current `SurfaceContainer`
 card, using `ElectricLime` for the selected segment (matching the mock and the SAVE pill):
 
-```
+```text
 ┌──────────────────────────────────────┐
 │  [  Constant  ][     Curve      ]    │   ← Curve selected = lime fill, dark text
 └──────────────────────────────────────┘
@@ -170,7 +170,7 @@ explanation of what the graph means.
 
 ### 4.2 Curve editor
 
-```
+```text
  2x ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
                     ╷        ╭──────●
                     ╷    ╭───╯
@@ -315,7 +315,7 @@ curve path — and it lands on the non-deprecated API.
 
 | File | Change |
 |---|---|
-| `media/SpeedCurve.kt` **(new)** | `SpeedKey(t, speed)`, `SpeedCurve(keys)`. Pure: `speedAt(t)` (linear interp), `flatten()` (duration-weighted average), `sample(durationUs, stepUs)` → `SortedMap<Long, Float>`, `sliceFor(startUs, endUs)` → per-clip provider. **No Android imports.** |
+| `media/SpeedCurve.kt` **(new)** | `SpeedKey(t, speed)`, `SpeedCurve(keys)`. Pure: `speedAt(t)` (linear interp), `flatten()` (duration-weighted average), `maxSpeed()` (frame-rate cap input), `sampleClip(…)` → the per-clip sampled speed provider (the draft's `sample`/`sliceFor` names were renamed at implementation). **No Android imports.** |
 | `media/KeyframeSpeedProvider.kt` **(new)** | ~20 lines implementing `SpeedProvider` over a `TreeMap`, mirroring `SegmentSpeedProvider`'s `floorEntry`/`higherKey` shape (it is package-private in Media3, so mirror — do not try to reuse). |
 | `media/VideoProcessor.kt` | `renderBoomerang` takes `curve: SpeedCurve` instead of `speed: Float`. `videoEffects()` drops `SpeedChangeEffect`. `buildEditedMediaItem` calls `.setSpeed(provider)`. Fix the stale §2.1 comment. |
 | `ui/components/SpeedCurveMath.kt` **(new)** | Drag/clamp/hit-test/px↔value math, pure, JVM-tested (`TrimHandleMath` precedent — Lesson 030). |
@@ -336,7 +336,7 @@ value: every existing consumer of `tab.speed` keeps working unchanged, and Flatt
 The sequence is N clips; `setSpeed` is per-`EditedMediaItem`. So each clip gets the slice of the global
 curve spanning it, rebased to clip-local time:
 
-```
+```text
 clip i covers [startUs_i, endUs_i) of the global 1× timeline
 provider_i(t) = curve.speedAt((startUs_i + t) / totalUs)
 ```
@@ -372,7 +372,7 @@ no single `speed`. Change to `curve.maxSpeed()`, preserving the existing formula
 
 A `LaunchedEffect` polling every ~50 ms while `curve != null`:
 
-```
+```text
 globalFraction = (sum of durations of items before currentMediaItemIndex + currentPosition) / totalMs
 targetSpeed = curve.speedAt(globalFraction)
 if (abs(targetSpeed - lastApplied) > 0.02f) exoPlayer.setPlaybackSpeed(targetSpeed)
@@ -525,7 +525,7 @@ exists for. Horizontal drags kept ~17 dp of margin and worked, which is exactly 
 recording the true down position in the tap detector's `onPress` and hit-testing that. Written up as
 **Lesson 035**; verified on device — pulling the Slow–Fast–Slow peak from 2× down to ~0.55× reshaped the
 curve and moved the duration chip 7.8 s → 10.4 s live
-([screenshot](e2e/2026-08-17-speed-curve-drag.png)).
+(that drag screenshot was never committed — the #136 proof pack is the record).
 
 `BoomerangEditorScreenTest.durationLabel_reflectsTheSelectedSpeed` also needed its expectation moved
 from `20.0s` to `19.9s`. That is not a test being bent to fit: F→R over a 5 s trim drops the reversed
@@ -534,6 +534,7 @@ clip spans the render slices (Lesson 033). The old `20.0s` was the independent f
 exactly the seam frame.
 
 **Not verified — needs real hardware:**
+
 - The variable-frame-rate risk in §6. The emulator's virtual camera records ~5–11 fps under
   `swiftshader`, which is not a fair test of encoder rate-control. Needs the Fold and a Samsung.
 - Reverse-preview generation repeatedly hit the 2-minute `REVERSE_PREVIEW_TIMEOUT` on longer emulator

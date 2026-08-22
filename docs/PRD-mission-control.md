@@ -4,13 +4,23 @@
 **Owner:** Steven Gates
 **Last updated from build session:** 2026-05-27
 
+> ⚠️ **Read this first (2026-08-22 docs audit).** §1–§5, §7 and §9 below describe the **2026-05 build**
+> (1.5 s bursts, a `PreviewScreen` / `LoopingPreview` state, phases 3–5 "planned"). The app has moved
+> well past that: the current state machine and package map are the **Architecture Snapshot in
+> `CLAUDE.md`**, and every feature shipped since lives in its own `PRD-<feature>.md` (capture-zoom,
+> camera-lenses, photo-capture, speed-curves, photo-booth, aso-discoverability, crashlytics-autotriage).
+> What is still authoritative here: the **Design System Tokens** (§3), the **Data Layer** file layout
+> (§6), and the **Decision Log** (§8) — decisions don't expire. A full realignment of this document was
+> proposed, not done, in [#143](https://github.com/stozo04/OpenLoop/issues/143)'s PR (a rewrite of the
+> authoritative architecture spec needs owner sign-off, per the PRD-first rule).
+
 ---
 
 ## 1. Executive Summary
 
 OpenLoop is an open-source Android camera app for creating custom, speed-controlled video loops. The system captures 1.5-second video bursts, generates seamless forward-backward loops via Media3 Transformer, and gives users real-time speed control (0.5x–3.0x) before exporting. All processing is 100% on-device.
 
-The architecture follows MVVM with Jetpack Compose, a sealed-interface state machine, and a local file-based storage pipeline for videos and thumbnails. The app is designed to be device-agnostic (CameraX) and privacy-first (zero network requirements).
+The architecture follows MVVM with Jetpack Compose, a sealed-interface state machine, and a local file-based storage pipeline for videos and thumbnails. The app is designed to be device-agnostic (CameraX) and privacy-first: media never leaves the device; the only network traffic is the Firebase Crashlytics/Analytics telemetry declared in [`play-store/data-safety.md`](play-store/data-safety.md).
 
 ### Current build state
 
@@ -29,6 +39,7 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 - Persistent local gallery with thumbnail caching for performant browsing
 - Beautiful, polished UI matching the glassmorphic vaporwave aesthetic
 - 100% unit test coverage for ViewModel logic; UI regression tests for layout-critical composables
+
 ### Non-Goals (this build window)
 
 - Cloud storage or sync — all data stays on-device
@@ -44,7 +55,7 @@ Phases 1–2 are complete (camera viewfinder, burst capture, gallery, onboarding
 
 ### Three Layers
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │  UI Layer (Jetpack Compose)                     │
 │  CameraScreen · OnboardingScreen · PreviewScreen│
@@ -133,11 +144,13 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Purpose:** Live camera viewfinder with recording controls.
 
 **Layout (top to bottom):**
+
 1. Full-screen CameraX `PreviewView` (AndroidView, `FILL_CENTER`)
 2. Top gradient bar: home button (top-left, neon gradient, 44dp) + recording indicator
 3. Bottom gradient bar: 1.5s badge (glass, 54dp) | shutter button (86dp, dual-ring glow) | flip camera (glass, 54dp)
 
 **Interactions:**
+
 - Shutter: `viewModel.startBurstCapture(cameraManager)` (disabled while recording)
 - Home: `viewModel.navigateToGallery()`
 - Flip: `cameraManager.toggleCamera()`
@@ -147,6 +160,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Purpose:** 3-page horizontal carousel introducing the app.
 
 **Architecture:**
+
 - Page data modeled as `OnboardingPage(title, drawableRes, glowColor, videoRawRes?)` data class with a list of 3 instances. `videoRawRes` is optional: when set, the card autoplays a muted, looping `res/raw` clip via an ExoPlayer-in-`AndroidView` (`OnboardingVideoCard`) instead of the static `drawableRes`; `drawableRes` remains the inspection-mode (`@Preview`) fallback. See `OnboardingVideoCard` in `OnboardingScreen.kt`.
 - Navigation extracted into `OnboardingNavigation` (internal composable) — **MUST remain extracted to avoid ColumnScope.AnimatedVisibility bug** (see decision log)
 - Dot indicators use `animateFloatAsState` for smooth size transitions
@@ -156,6 +170,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Private color palette:** `DeepIndigo`, `DarkPlum`, `VoidBlack`, `FrostedGlass`, `FrostedGlassBorder`
 
 **Pages:**
+
 1. "No Subscriptions & No Ads" — autoplaying looping boomerang video (coral glow). There is no still-image `@Preview` fallback: an ExoPlayer can't render under `LocalInspectionMode`, so the preview shows the scrimmed gradient and the drawable that used to stand in was deleted (it shipped 649 KB to every user for a design-time nicety)
 2. "Built by Everyone, For Everyone" — bubbles visual, purple glow
 3. "Just Point, Tap & Loop!" — confetti visual, cyan glow
@@ -174,6 +189,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Purpose:** Grid display of all recorded bursts with playback and deletion.
 
 **Layout:**
+
 - Header: back button (64dp, glass + NeonPurple border, ArrowLeftIcon) + "YOUR BURSTS" title
 - Empty state: "NO BURSTS YET" message
 - Grid: `LazyVerticalGrid(GridCells.Adaptive(minSize = 110.dp))`, 9:16 aspect ratio cards (Decision Log #14)
@@ -206,6 +222,7 @@ Gradients: `NeonCoral → NeonPurple` horizontal for primary actions. Theme: `da
 **Implementation:** `VideoStorageRepositoryImpl(cacheDir: File, filesDir: File)` holds only raw `File` handles — never a `Context`. Constructed in `MainActivity` from `applicationContext.cacheDir` / `applicationContext.filesDir`.
 
 **Data class** (lives in the data layer, consumed by the UI):
+
 ```kotlin
 data class RecordedVideo(
     val id: Long,             // epoch millis parsed from filename
@@ -223,12 +240,14 @@ data class RecordedVideo(
 **Purpose:** Media3 Transformer pipeline for loop generation.
 
 **Pipeline:**
+
 1. Input: `raw_capture.mp4` (1.5s forward clip)
 2. Reversal: Transformer with reversed frame timestamps → `reversed_capture.mp4`
 3. Concatenation: `Composition` / `EditedMediaItem` joining forward + reversed → `openloop_output.mp4`
 4. Output: seamless loop file ready for preview
 
 **Constraints:**
+
 - Processing must complete in <1 second on mid-range devices
 - `Processing` UI state shown during transform
 - Error handling falls back to `ReadyToCapture` with a log
@@ -257,7 +276,7 @@ data class RecordedVideo(
 
 ### File Structure
 
-```
+```text
 context.filesDir/
 ├── videos/
 │   ├── clip_1716825600000.mp4
@@ -275,6 +294,7 @@ context.cacheDir/
 ### Schemas
 
 **RecordedVideo (in-memory):**
+
 ```kotlin
 data class RecordedVideo(
     val id: Long,              // e.g. 1716825600000 (epoch millis from filename)
@@ -417,4 +437,4 @@ Real-filesystem tests via JUnit `TemporaryFolder` (lesson 008); the Android-only
 | Filters/effects (color grading, vignette) | Requires shader pipeline; not core to loop concept | Large |
 | Share-to-platform flow | Export to gallery is sufficient; direct share is distribution polish | Medium |
 | ~~Onboarding persistence (DataStore)~~ | **Implemented** — Jetpack DataStore with `Initializing` state, repository pattern, and ViewModel factory injection | ~~Small~~ Done |
-| Light mode / dynamic theming | Dark-only matches aesthetic; accessibility concern for later |
+| Light mode / dynamic theming | Dark-only matches aesthetic; accessibility concern for later | — |

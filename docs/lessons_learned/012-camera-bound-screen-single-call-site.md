@@ -8,7 +8,7 @@
 On the **Pixel 10 Pro Fold** (real hardware), every recording self-terminated ~1 s after
 the shutter tap. Logcat told the story:
 
-```
+```text
 t+0ms    OpenLoopViewModel: Video burst recording started.
 t+25ms   Detaching [Preview, VideoCapture] from UseCaseManager   ← unbindAll()
 t+25ms   Recorder: RECORDING --> STOPPING                         ← source went away
@@ -66,9 +66,11 @@ back into per-state branches.** More generally: any composable that binds the ca
 ## Detection checklist
 
 - There must be exactly **one** `CameraScreen(` call site reachable during capture:
-  ```
+
+  ```text
   grep -n "CameraScreen(" app/src/main/java/io/github/stozo04/openloop/MainActivity.kt
   ```
+
   Capture states (`ReadyToCapture`, `Recording`, and any future capture-time state) must funnel
   through the single `CameraScreenHost` branch — never their own branches.
 - Keep the regression test green:
@@ -89,6 +91,8 @@ back into per-state branches.** More generally: any composable that binds the ca
 ---
 
 ## Hand-off notes to my future self-starting slice 02
+
+> *Dated hand-off (2026-06), kept for the pitfalls it lists. Slice 02 has long since shipped: `PreviewScreen` / `LoopingPreview` no longer exist (finalize auto-routes to `Trim`), the slice working docs were deleted, and the cap constant is now `OpenLoopViewModel.MAX_RECORDING`. The rule above is the lesson; treat the names below as history.*
 
 Slice 02 (`02-auto-route-trim-and-default-save.md`) **rewires the exact routing that caused the
 bug above**: `Finalize(success)` will go to `Trim(ScratchClip)` instead of `LoopingPreview`, and

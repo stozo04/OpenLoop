@@ -15,7 +15,7 @@ supports pinch-to-zoom on the viewfinder, including while a recording is running
 boomerang app, mid-record zoom is also a creative tool (push-in loops).
 
 Under the hood the gap is structural: `CameraManager.startCamera()` **discards the `Camera`
-handle** returned by `bindToLifecycle()` (`camera/CameraManager.kt:58`), so the app holds no
+handle** returned by `bindToLifecycle()` (`camera/CameraManager.kt`, pre-#100), so the app holds no
 `CameraControl` / `CameraInfo` — the only interfaces through which CameraX zoom is set and
 observed. There is no touch handling on the `PreviewView` and no zoom UI in `CameraScreen.kt`.
 

@@ -40,8 +40,6 @@ One GL trap on the way: `discard` plus an elliptical `smoothstep` falloff is wha
 melt into the art. A hard-edged quad reads as a rectangle of skin pasted on top no matter how well
 it is positioned.
 
-
-
 **Origin:** Camera lenses (`docs/PRD-camera-lenses.md`), 2026-08-08
 **Applies to:** `camera/lens/LensAnchor.kt`, `camera/lens/LensSurfaceProcessor.kt` (shader)
 
@@ -51,9 +49,9 @@ Anything drawn over a camera frame — a sticker, a face box, a warp radius — 
 in **normalized coordinates**, `0f..1f` on each axis. That space is *not* isotropic: on a 1280×720
 frame, `0.1` along x is 128 px and `0.1` along y is 72 px. So in normalized units:
 
-- a "circle" is an ellipse,
-- a square sticker renders squashed,
-- rotating an offset changes its length.
+* a "circle" is an ellipse,
+* a square sticker renders squashed,
+* rotating an offset changes its length.
 
 `LensAnchor` had the conversion helpers, and they were **inverted**:
 
@@ -91,11 +89,11 @@ Rules:
 
 ## Detection checklist
 
-- `grep -n "frameAspect\|uFrameAspect\|aspect" app/src/main/java app/src/main/res` — every `*` or
+* `grep -n "frameAspect\|uFrameAspect\|aspect" app/src/main/java app/src/main/res` — every `*` or
   `/` by an aspect ratio should sit inside the helper pair or a line that names it.
-- A test asserting only `f(g(x)) == x` for a conversion pair proves nothing about direction. Pair it
+* A test asserting only `f(g(x)) == x` for a conversion pair proves nothing about direction. Pair it
   with a concrete expectation (`halfHeight / halfWidth == artAspect * frameAspect`).
-- Symptom on device: art correct on a square-ish preview but visibly squashed or stretched on 16:9;
+* Symptom on device: art correct on a square-ish preview but visibly squashed or stretched on 16:9;
   a radial effect that is an ellipse.
 
 ## The bigger trap: two different streams
@@ -104,7 +102,7 @@ Square space is only half of it. When you detect on `ImageAnalysis` and draw in 
 **those are two different streams off the same sensor, and normalized coordinates do not transfer
 between them.** Measured on a Pixel 8 emulator with a single one-line-per-bind log:
 
-```
+```text
 OpenLoopFaceTracker: Analysis buffer=1280x720 rotation=90 upright=720x1280
 OpenLoopLens:        Lens output targets=3 size=1280x960 inputDet=-1.0 outputDet=-1.0
 ```
@@ -146,8 +144,8 @@ all three mismatches above findable on an emulator that cannot even show the det
 
 ## Reference
 
-- Regression guards: `LensAnchorTest` — `sticker_keepsArtProportions_onANonSquareFrame`,
-  `sticker_offsetOrbitIsCircularInPixels_notNormalizedUnits`, `squareSpaceConversion_roundTrips`,
+* Regression guards: `LensAnchorTest` — `sticker_keepsArtProportions_onANonSquareFrame`,
+  `sticker_offsetOrbitsWithTheHead_keepingItsDistance`, `squareSpaceConversion_roundTrips`,
   `uprightToBuffer_*`, `reframe_*`.
-- [`SurfaceOutput.updateTransformMatrix`](https://developer.android.com/reference/androidx/camera/core/SurfaceOutput)
-- [ML Kit face detection — rotation](https://developers.google.com/ml-kit/vision/face-detection/android)
+* [`SurfaceOutput.updateTransformMatrix`](https://developer.android.com/reference/androidx/camera/core/SurfaceOutput)
+* [ML Kit face detection — rotation](https://developers.google.com/ml-kit/vision/face-detection/android)

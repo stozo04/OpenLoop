@@ -41,12 +41,14 @@ Google recommends a pyramid-shaped distribution: many small fast tests at the ba
 Fast, isolated, deterministic. Test one class or function at a time with dependencies replaced by fakes or mocks.
 
 **What to test:**
+
 - ViewModels — every state transition, every edge case
 - Repositories — read/write behavior, error handling, fallbacks
 - Utility classes — string manipulation, data transforms, math
 - Domain logic — any business rules or data processing
 
 **What NOT to test here:**
+
 - Activities or Fragments — they contain mostly framework code
 - Compose layouts — rendering requires the real Compose engine
 - DI configuration — tested implicitly by integration tests
@@ -176,7 +178,7 @@ class MainDispatcherRule(
 | `UnconfinedTestDispatcher` | Runs coroutines **eagerly** (blocking). Simpler test code. | Default choice. Most tests. |
 | `StandardTestDispatcher` | Queues coroutines. You control execution with `advanceUntilIdle()`, `advanceTimeBy()`. | Testing timing, delays, concurrency, or observing intermediate states. |
 
-OpenLoop defaults to `UnconfinedTestDispatcher` for simplicity. The `startBurstCapture` test uses `advanceTimeBy(1500)` to simulate the auto-stop timer.
+OpenLoop defaults to `UnconfinedTestDispatcher` for simplicity. The `startBurstCapture … auto-caps at 30 seconds` test drives the 30 s cap with virtual time (`advanceUntilIdle()` over a bounded loop — Lesson 008); the reverse-preview timeout tests use `advanceTimeBy(…)`.
 
 **Source:** [Testing Kotlin Coroutines on Android](https://developer.android.com/kotlin/coroutines/test)
 
@@ -187,6 +189,7 @@ OpenLoop defaults to `UnconfinedTestDispatcher` for simplicity. The `startBurstC
 Compose tests use a `ComposeTestRule` to set content, find nodes via the semantics tree, and assert their state.
 
 **Key APIs:**
+
 - `createComposeRule()` — creates a test rule without needing an Activity
 - `setContent { }` — sets the Compose UI under test
 - `onNodeWithText("text")` — finds a node by displayed text
@@ -218,6 +221,8 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 | `BoomerangRenderWorkerRobolectricTest` | Worker guard paths: invalid input, `getForegroundInfo`, FGS denied + partial cleanup |
 | `RenderCancellationRobolectricTest` | Real WorkManager `CANCELLED` → scheduler emits `BoomerangRenderWorkResult.Cancelled` (no Crashlytics beacon / no `SaveFailed`) |
 | `SamsungReversePreviewRegressionTest` | Samsung encoder ranking (RTL-derived, explicit `isSamsung=true`) |
+| `AppUpdateFlowRobolectricTest` | Play in-app update FLEXIBLE flow on `FakeAppUpdateManager`: stale build → dialog → download → restart prompt → install; a download finished while backgrounded is re-surfaced on resume |
+| `InAppReviewRobolectricTest` | `launchInAppReview` shows the card only while the user is still idle, and swallows a non-`ReviewException` failure instead of killing the collector |
 
 **Core ViewModel / storage (representative rows):**
 
@@ -237,16 +242,19 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 | `rationale flow ending in denial reaches PermissionDenied` | Permissions | Full rationale → denial path (Issue #11) |
 | `resetToCapture transitions state back to ReadyToCapture` | State | State reset works from any state |
 | `startBurstCapture when not ready does not transition or call camera` | Guard | Guard clause prevents recording from wrong state |
-| `startBurstCapture successfully starts recording and delays automatic stop` | Capture | Full capture lifecycle with 1500ms time advance |
-| `startBurstCapture failures fallback state gracefully` | Error | Camera error → graceful fallback to ReadyToCapture |
+| `startBurstCapture starts recording and auto-caps at 30 seconds` | Capture | Full capture lifecycle; the 30 s cap fires under virtual time |
+| `startBurstCapture reverts to ReadyToCapture when recording cannot start` | Error | Camera error → graceful fallback to ReadyToCapture |
 | `stopBurstCapture cancels coroutine job and stops recording` | Capture | Clean shutdown of recording |
-| `video record event finalize transitions to LoopingPreview on success` | Capture | Successful recording → preview screen |
-| `video record event finalize transitions back to ReadyToCapture on error` | Error | Failed recording → graceful fallback |
+| `finalize success auto-routes to Trim with a ScratchClip and initialized editorState` | Capture | Successful recording → Trim (no preview landing pad) |
+| `finalize error discards the scratch and returns to ReadyToCapture` | Error | Failed recording → graceful fallback |
 | `navigateToGallery transitions state to Gallery` | Navigation | Gallery navigation works |
 | `navigateBackFromGallery transitions state to ReadyToCapture` | Navigation | Back from gallery works |
-| `loadRecordedVideos with missing directory returns empty list` | Storage | Empty state handled correctly |
-| `deleteVideo removes files and reloads empty list` | Storage | Deletion flow works |
+| `loadRecordedVideos with empty storage returns empty list` | Storage | Empty state handled correctly |
+| `commitPendingDeletion deletes each file from storage and reloads` | Storage | Deletion flow works |
 | `recordedVideos flow starts as empty list` | State | Initial state is clean |
+
+**Other JVM suites (class names only — the live inventory is `./gradlew :app:testDebugUnitTest`):**
+`media/` — `BoomerangSequenceTest`, `BoothStripLayoutTest`, `DeviceMediaHintsTest`, `KeyframeSpeedProviderTest`, `LoopClipSpanTest`, `MediaCodecLifecycleTest`, `MediaDimensionsTest`, `MediaFormatUtilsTest`, `Pass1SampleActionTest`, `ReverseNormalizeTest`, `ReverseOutputValidatorTest`, `ReverseScratchJanitorTest`, `SpeedCurveDurationTest`, `SpeedCurveTest`, `ThumbnailDecoderTest`, `VideoFilterTest` · `ui/` — `EditorEffectsPreviewTest`, `EditorLoadingKindTest`, `EditorPlaylistBindTest`, `MemoryPressureTest`; `ui/components/` — `SpeedCurveMathTest`, `TrimHandleMathTest`, `TrimRulerMathTest` · `camera/` — `ZoomMathTest`; `camera/lens/` — `LensAnchorTest`, `LensPhysicsTest` · `data/` — `VideoStorageRepositoryImplTest` · `work/` — `BoomerangRenderWorkerInputTest`, `BoomerangRenderWorkerInputCurveTest`, `RenderWorkResultMappingTest` · `update/` — `AppUpdateControllerTest`, `AppUpdateGateTest` · `review/` — `ReviewCadenceTest` · root — `ShareMimeTypeTest`.
 
 ### Instrumented Tests (`app/src/androidTest/`)
 
@@ -257,17 +265,23 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` | LG 47233ad7 — `start failed` → software codec retry (fault injection) |
 | `VideoReverserTest` (Samsung-only cases) | Skip on emulator; run on Samsung RTL hardware |
 
-**Onboarding UI (Compose):**
-| `page0_nextButton_isDisplayedAndCentered` | Button centering regression (page 1) |
-| `page1_backAndNextButtons_areDisplayedAndCentered` | Button centering regression (page 2) |
-| `page2_ctaButton_isDisplayedAndFillsWidth` | CTA layout regression (page 3) |
-| `page0_doesNotShowPage1OrPage2Controls` | Mutual exclusivity of page controls |
-| `page1_doesNotShowPage0OrPage2Controls` | Mutual exclusivity of page controls |
-| `page2_doesNotShowPage0OrPage1Controls` | Mutual exclusivity of page controls |
+**Onboarding UI (Compose) — `OnboardingScreenTest`:**
+
+| Test | What it guards |
+|------|----------------|
+| `getStartedButton_isDisplayedAndClickable` | The single CTA renders and is enabled |
+| `getStartedButton_invokesCallbackOnClick` | CTA fires `onOnboardingCompleted` |
+
+**Permission explanation UI (Compose) — `PermissionExplanationScreenTest`:**
+
+| Test | What it guards |
+|------|----------------|
 | `rationaleVariant_showsGrantAndCancel_hidesSettings` | Rationale screen shows "Grant"/"Not now", hides Settings (Issue #11) |
 | `denialVariant_showsTryAgainAndSettings` | Denial screen shows "Try Again"/"Open Device Settings" (Issue #11) |
 | `noSecondaryAction_rendersPrimaryOnly` | Omitting the secondary action hides the second button (Issue #11) |
 | `primaryAndSecondaryClicks_invokeTheirCallbacks` | Both buttons fire their callbacks (Issue #11) |
+
+**Other instrumented suites (class names):** `ui/` — `CameraScreenTest`, `CameraBackHandlerTest`, `GalleryScreenTest`, `TrimScreenTest`, `BoomerangEditorScreenTest`, `SpeedTabPanelCurveTest`, `LoopifyingScreenshotTest`; `ui/components/` — `EditorBottomToolbarTest`, `LensCarouselTest`; `media/` — `VideoProcessorPreScaleTest`, `ReverseOutputValidatorAndroidTest`, `LoopifyingBenchmarkTest`; `camera/lens/` — `FaceTrackerNormalizationTest`; root — `OpenLoopNavHostTest`, `ShareBoomerangTest`.
 
 ---
 
@@ -280,10 +294,11 @@ These are areas that need tests but don't have them yet:
 | Samsung vendor codec on emulator | **Impossible** — use Samsung RTL sweep ([`oem-regression-testing.md`](guides/oem-regression-testing.md)) | N/A (use RTL) |
 | LG on literal LM-X540 hardware | No LG RTL; instrumented injection covers logic only | Low |
 | `CameraManager` | Hardware-dependent, hard to unit test | Low (manual testing) |
-| Accessibility (contrast, touch targets) | Needs automated accessibility checks | High |
-| Screen UI tests beyond onboarding | Gallery, Camera, Preview screens untested | Medium |
+| Accessibility — colour contrast | Touch-target and screen-reader asserts exist (`homeButton_meetsMinimumTouchTarget`, `everyKeyframeIsReachableByScreenReader`, `TrimScreenTest`); there is no automated contrast check | Medium |
 | Error recovery flows | Corrupted DataStore, permission revocation mid-use | Medium |
 | Robolectric Compose (Tier 3) | No JVM Compose harness yet; onboarding interaction tests stay on device | Low |
+
+**Closed gaps (screen UI):** every screen now has a Compose suite under `androidTest/.../ui/` — `CameraScreenTest`, `CameraBackHandlerTest`, `GalleryScreenTest`, `TrimScreenTest`, `BoomerangEditorScreenTest`, `SpeedTabPanelCurveTest`, `OnboardingScreenTest`, `PermissionExplanationScreenTest`, plus `OpenLoopNavHostTest` for the router.
 
 **Closed gaps (Robolectric):** real DataStore implementation (`UserPreferencesRepositoryImplRobolectricTest`), import stream copy (`VideoImporterImportRobolectricTest`), FGS/ForegroundInfo (`BoomerangRender*`), worker guards (`BoomerangRenderWorkerRobolectricTest`), render cancellation → editor (`RenderCancellationRobolectricTest`).
 
