@@ -66,3 +66,8 @@ twisted-tounge/**
 !twisted-tounge/*.md
 !twisted-tounge/images/
 !twisted-tounge/images/**
+
+# android-skills scratch output, regenerated per run — see docs/guides/android-skills.md
+# .scratch/ = play-policy-insights workspace; tmp/ = r8-analyzer (tmp/r8analysis, tmp/keepradius)
+.scratch/
+tmp/
