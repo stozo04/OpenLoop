@@ -12,6 +12,7 @@ General Android/Kotlin/library concepts are **not** mirrored here — web-search
 | [`robolectric-testing-explained.md`](robolectric-testing-explained.md) | When to use Robolectric, run commands, and **what must never move to it** (the media pipeline) |
 | [`samsung-rtl-steps.md`](samsung-rtl-steps.md) | One-time Samsung Remote Test Lab setup (RDB, adb PATH, manual smoke) |
 | [`reverse-video-research.md`](reverse-video-research.md) | Locked two-pass MediaCodec reverse algorithm — cited in `VideoReverser.kt` |
+| [`android-skills.md`](android-skills.md) | **Google's `android/skills` plugin** — how the 21 skills reach Claude, forcing one (`/android-skills:camerax`), project-only scoping, the r8-analyzer / Play-policy flows, updates |
 | [`localization.md`](localization.md) | **Why every user-facing string must live in `strings.xml`** — Play's free Gemini app-strings translation reads only that file. Read before adding any UI copy |
 
 Testing strategy and inventory: [`../TEST_COVERAGE.md`](../TEST_COVERAGE.md).

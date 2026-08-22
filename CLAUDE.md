@@ -41,6 +41,8 @@ The official [`android/skills`](https://github.com/android/skills) plugin is ena
 - `camerax` prefers `MlKitAnalyzer`. `FaceTracker` is a deliberate manual `ImageAnalysis.Analyzer` on the ML Kit stable API. Keep it. (Its `SurfaceProcessor` guidance is compatible with `LensSurfaceProcessor` — that one is fine to follow.)
 - `agp-9-upgrade` / lint may suggest newer AGP. The ceiling is the installed Android Studio pairing, not Maven-newest.
 
+How to invoke one explicitly (`/android-skills:<name>`), keep the plugin scoped to this repo, and update it: [`docs/guides/android-skills.md`](docs/guides/android-skills.md).
+
 ## How to Work With Me
 
 ### PRD-first — always

@@ -37,17 +37,29 @@ table, the official Claude Code plugin is the strictly better mechanism — one 
 entry, Google maintains updates, nothing vendored to drift:
 
 ```json
-// .claude/settings.json (checked in)
+// .claude/settings.json (checked in) — written by:
+//   claude plugin install android-skills@android-skills --scope project
 {
   "extraKnownMarketplaces": {
     "android-skills": { "source": { "source": "github", "repo": "android/skills" } }
   },
-  "enabledPlugins": ["android-skills@android-skills"]
+  "enabledPlugins": { "android-skills@android-skills": true }
 }
 ```
 
-Notes: a session restart activates it; first launch after the change shows the standard
-folder-trust prompt once. Updates ride the marketplace — no provenance bookkeeping needed.
+`enabledPlugins` is an object map (`{"name@marketplace": true}`), not an array — the array form in
+the first draft of this PRD was wrong. Notes: a session restart activates it; first launch after
+the change shows the standard folder-trust prompt once (a project-level `extraKnownMarketplaces`
+applies only after the folder is trusted). Updates ride the marketplace — no provenance
+bookkeeping needed.
+
+**Scope: project only, never user.** Every turn, Claude Code injects each enabled skill's name +
+description into the prompt — the 21 android-skills descriptions measure ~8 kB (≈2 k tokens) per
+turn. Enabled at user scope that tax lands in every project on the machine, and the precedence
+guard (which lives in *this* repo's `CLAUDE.md`) protects none of them. As of 2026-08-22 the plugin
+is enabled at **user** scope (`~/.claude/settings.json`) — drift from this plan; the migration is
+step 2 of the implementation plan. How to invoke, scope, and update the skills:
+[`guides/android-skills.md`](guides/android-skills.md).
 
 **Mitigation for the overruled concern — precedence guard in `CLAUDE.md`:** since plugin
 skills can't be edited, the guard lives in `CLAUDE.md` ("Google Android Skills —
@@ -67,7 +79,7 @@ AGP-version suggestions vs the installed-Studio ceiling).
 | Skill | Why (verified against the skill body, not just its description) |
 |---|---|
 | `camera/camerax` | Core domain. Body read in full: recording-lifecycle pitfalls (`prepareRecording().withAudioEnabled()` immutability — we record video), `Camera2Interop` blueprints for manual controls, and references for **foldables** (our Fold lanes), **thermals** (long recordings), **ML Kit spatial** (coordinate mapping + mirrored lens — `LensAnchor`'s exact problem), and **testing** (fakes over mocks — matches `TEST_COVERAGE.md`). Current: last-updated 2026-08-06, CameraX-1.6-era APIs. |
-| `performance/r8-analyzer` | Body read in full. AGP 9.3.1 unlocks its quantitative Path A: `./gradlew :app:analyzeReleaseR8Config` → Python analysis → scored keep-rule report. Direct lever on the 31 MB bundle; becomes a release-cadence step. |
+| `performance/r8-analyzer` | Body read in full. AGP 9.3.1 unlocks its quantitative Path A: `./gradlew :app:analyzeReleaseR8Config` → Python analysis → scored keep-rule report in `tmp/keepradius/` (gitignored, like play-policy-insights' `.scratch/`). Direct lever on the 31 MB bundle; becomes a release-cadence step. |
 
 ### Pilot first (run once before trusting its output — pilot approved 2026-08-21)
 
@@ -89,6 +101,7 @@ AGP-version suggestions vs the installed-Studio ceiling).
 | `jetpack-compose/adaptive` | First real tablet/Fold-posture layout work. Caution: its references embed Navigation 3 recipes — use the layout guidance, ignore the nav recipes. |
 | `profilers/android-profiler` | First perf investigation that needs Perfetto (encoder churn, jank in the media pipeline). |
 | `security/android-intent-security` | Next feature touching share/import intents (`VideoImporter`, share sheet, MediaStore publish) — run as an audit then. |
+| `jetpack-compose/theming/styles` | Next design-system pass over `ui/theme/` + `ui/components/`. Its description is a migration recipe (dependency bump, component themes, `Modifier.styleable`) — adopt deliberately, not mid-feature. Triaged on frontmatter only; read the body at adoption time. |
 
 ### Evaluate separately (its own decision, not this PRD)
 
@@ -128,14 +141,21 @@ started:
 ## Implementation plan (approved, sized S)
 
 1. Branch `feature/android-skills`. ✅
-2. Add the plugin marketplace + enablement to `.claude/settings.json` (snippet in Decision).
-   ⚠️ Harness-gated: the agent cannot write settings files in auto mode — the owner applies
-   this one file (or runs `/plugin marketplace add android/skills` + install interactively).
+2. Enable the plugin at **project** scope (snippet in Decision). Owner, 2026-08-22: (a) removed
+   `"android-skills@android-skills": true` from `enabledPlugins` in `~/.claude/settings.json`
+   (the 2026-08-21 install had landed at user scope) ✅; (b) `claude plugin install
+   android-skills@android-skills --scope project` from the repo root ✅ — note it writes only
+   `enabledPlugins`, so the `extraKnownMarketplaces` entry was added to `.claude/settings.json`
+   by hand to make the checked-in file self-contained on a fresh clone; (c) restart ☐;
+   (d) verify from another folder that the `android-skills:*` entries are gone ☐.
 3. Add the "Google Android Skills — Precedence" section to `CLAUDE.md`. ✅
-4. Add new terms to `cspell.json` if the gate flags them (Perfetto, keepradius, …).
+4. Add new terms to `cspell.json` if the gate flags them. ✅ 2026-08-22 — local `cspell` on the
+   PR files flagged six (`appfunctions`, `frontmatter`, `keepradius`, `mlkit`, `PYTHONUTF`,
+   `uncurated`); CI stayed green only because the Tier 3 Markdown job is soft (`|| true`).
 5. Run the play-policy-insights pilot; record verdict in this PRD (Open Questions → resolved).
-6. Validation after restart: confirm skills appear in the session skill list and `camerax`
-   triggers on camera-domain work.
+6. Validation after restart: confirm skills appear in the session skill list ✅ (all 21 listed as
+   `android-skills:<name>`, session of 2026-08-22) and `camerax` triggers on camera-domain work
+   ☐ (pending the first camera-domain task).
 7. Close #139 with a pointer here.
 
 ## Constraints
@@ -162,4 +182,6 @@ started:
    permission, or FGS changes. One Windows note: run its scripts with `PYTHONUTF8=1` (the
    report writer emits emoji that cp1252 can't encode).
 3. **Update cadence**: is "refresh when working in the domain" enough, or do we want a
-   quarterly upstream diff?
+   quarterly upstream diff? Mechanism: third-party marketplaces don't auto-update by default —
+   refresh is a manual `/plugin marketplace update android-skills` + restart; bump the `Upstream`
+   commit in this header when you do, and re-check the precedence collisions against the new bodies.
