@@ -56,9 +56,9 @@ bookkeeping needed.
 **Scope: project only, never user.** Every turn, Claude Code injects each enabled skill's name +
 description into the prompt — the 21 android-skills descriptions measure ~8 kB (≈2 k tokens) per
 turn. Enabled at user scope that tax lands in every project on the machine, and the precedence
-guard (which lives in *this* repo's `CLAUDE.md`) protects none of them. As of 2026-08-22 the plugin
-is enabled at **user** scope (`~/.claude/settings.json`) — drift from this plan; the migration is
-step 2 of the implementation plan. How to invoke, scope, and update the skills:
+guard (which lives in *this* repo's `CLAUDE.md`) protects none of them. The 2026-08-21 install had
+landed at **user** scope (`~/.claude/settings.json`); it was migrated to project scope on 2026-08-22
+— plan step 2 records the evidence. How to invoke, scope, and update the skills:
 [`guides/android-skills.md`](guides/android-skills.md).
 
 **Mitigation for the overruled concern — precedence guard in `CLAUDE.md`:** since plugin
@@ -146,8 +146,14 @@ started:
    (the 2026-08-21 install had landed at user scope) ✅; (b) `claude plugin install
    android-skills@android-skills --scope project` from the repo root ✅ — note it writes only
    `enabledPlugins`, so the `extraKnownMarketplaces` entry was added to `.claude/settings.json`
-   by hand to make the checked-in file self-contained on a fresh clone; (c) restart ☐;
-   (d) verify from another folder that the `android-skills:*` entries are gone ☐.
+   by hand to make the checked-in file self-contained on a fresh clone; (c) restart ✅ 2026-08-22 —
+   a fresh session in the repo listed all 21 `android-skills:<name>` skills while
+   `grep -n android-skills ~/.claude/settings.json` hit only line 39, under `extraKnownMarketplaces`
+   (the user-level `enabledPlugins` map has no android-skills entry); (d) verify from another
+   folder that the `android-skills:*` entries are gone ✅ 2026-08-22 — from a non-repo folder
+   (`%LOCALAPPDATA%\Temp\claude\…\scratchpad`; `git rev-parse` → "not a git repository"),
+   `claude -p "Reply with only the count of skills in your list whose name starts with
+   android-skills:"` answered `0`.
 3. Add the "Google Android Skills — Precedence" section to `CLAUDE.md`. ✅
 4. Add new terms to `cspell.json` if the gate flags them. ✅ 2026-08-22 — local `cspell` on the
    PR files flagged six (`appfunctions`, `frontmatter`, `keepradius`, `mlkit`, `PYTHONUTF`,
