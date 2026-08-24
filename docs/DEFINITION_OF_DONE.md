@@ -125,6 +125,7 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
 - [ ] Static analysis: Android Lint 0 new errors (lintDebug); IDE Inspect Code run locally + findings addressed
 - [ ] Play-facing docs aligned (owner rule, 2026-08-24): permission/telemetry/storage changes → data-safety.md + privacy policy (md + html, new effective date); lens/feature changes → store-listing.md (+ docs/index.html, root README.md)
+- [ ] Agent memory aligned (owner rule, 2026-08-24, Claude sessions): the project memory (`MEMORY.md` index + entries) reflects what this PR changed — new durable facts captured, entries this PR made stale corrected or deleted. Memory is never left stale.
 - [ ] Unit tests: 0 failures (count: __)
 - [ ] Instrumented tests: 0 failures (count: __)
 - [ ] App installed + launched on an emulator; no FATAL in logcat
