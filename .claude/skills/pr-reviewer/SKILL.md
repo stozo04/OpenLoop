@@ -79,6 +79,7 @@ Use GitHub tools to find the PR to review:
 5. The user can also provide a PR number directly — use that if given
 
 Once you have the PR:
+
 - Read the PR description and metadata (`pull_request_read` with method `get`)
 - Get the full diff (`get_diff`)
 - Get the list of changed files (`get_files`)
