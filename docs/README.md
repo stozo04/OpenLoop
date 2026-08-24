@@ -22,7 +22,7 @@ or `docs/diagnostics/`.
 
 | Path | What belongs here | Tracked in git? |
 |------|-------------------|-----------------|
-| [`PRD-mission-control.md`](PRD-mission-control.md) | Architecture, components, design tokens — read before structural changes | Yes |
+| [`PRD-mission-control.md`](PRD-mission-control.md) | Durable design record: design tokens, storage layout, decision log (the architecture snapshot lives in `CLAUDE.md`) | Yes |
 | `PRD-<feature>.md` | Per-feature PRDs, signed off before code ([capture-zoom](PRD-capture-zoom.md), [crashlytics-autotriage](PRD-crashlytics-autotriage.md), [camera-lenses](PRD-camera-lenses.md), [photo-capture](PRD-photo-capture.md), [aso-discoverability](PRD-aso-discoverability.md), [speed-curves](PRD-speed-curves.md), [photo-booth](PRD-photo-booth.md), [android-skills](PRD-android-skills.md)) | Yes |
 | [`ANDROID_STANDARDS.md`](ANDROID_STANDARDS.md) | **OpenLoop-specific** Android rules + the Google links that justify them. Generic Google guidance is **not** mirrored here — it lives in the `android/skills` plugin ([`guides/android-skills.md`](guides/android-skills.md)) or on `developer.android.com` (layering rule, [#143](https://github.com/stozo04/OpenLoop/issues/143)) | Yes |
 | [`DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md) | Ready-for-PR verification gate | Yes |

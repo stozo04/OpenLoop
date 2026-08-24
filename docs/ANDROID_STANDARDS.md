@@ -233,9 +233,9 @@ These conventions apply specifically to OpenLoop and are consistent with the Goo
 
 **Repository pattern for all data access.** Every external data source (DataStore, filesystem, future network) gets a repository interface + implementation. ViewModels depend on interfaces only.
 
-**Dark-only theme.** Design system uses `darkColorScheme` exclusively. Glassmorphic vaporwave aesthetic with NeonCoral/NeonPurple palette.
+**Dark-only theme.** Design system uses `darkColorScheme` exclusively. One saturated accent — **Electric Lime** primary, **CoralRed** semantic-only (recording/destructive), **Aqua** rare tertiary — on a neutral near-black surface ramp; tokens in `ui/theme/Color.kt` ([`PRD-mission-control.md`](PRD-mission-control.md) §1, Decision 15).
 
-**File-based video storage.** Videos persist in `filesDir/videos/`, thumbnails in `filesDir/thumbnails/`, and completed boomerangs are also published to `MediaStore` under `Movies/OpenLoop` for the device Photos/Gallery app. No Room database unless relational queries become necessary.
+**File-based video storage.** Videos persist in `filesDir/videos/` (`clip_`/`boom_`/`photo_` prefixes), thumbnails in `filesDir/thumbnails/`, and saved boomerangs/photos are also published to `MediaStore` (`Movies/OpenLoop` / `Pictures/OpenLoop`) for the device Photos/Gallery app. No Room database unless relational queries become necessary.
 
 **Test naming.** Use backtick-delimited descriptive names: `` `returning user resolves to CheckingPermissions after init` ``.
 

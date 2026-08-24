@@ -49,7 +49,7 @@ How to invoke one explicitly (`/android-skills:<name>`), keep the plugin scoped 
 
 Before building anything non-trivial: write a PRD covering problem statement, success criteria, scope, constraints, implementation plan, and open questions. Get sign-off before writing code. Check what already exists before proposing custom work.
 
-**Always reference `docs/PRD-mission-control.md` at the project root for the authoritative architecture and component specs before making structural changes.**
+**The Architecture Snapshot below (tech stack, source layout, state machine) is the authoritative structural reference. `docs/PRD-mission-control.md` is the durable design record — design tokens, storage layout, decision log; check its decision log before making structural changes.**
 
 ### Pushback — required
 
@@ -159,7 +159,7 @@ States are modeled as a sealed interface (`OpenLoopUiState`) and driven by `Muta
 
 ### Design System, Storage, Testing & Engineering Decisions
 
-All design tokens, storage patterns, testing strategy, and engineering decisions are documented in `docs/PRD-mission-control.md`. All implementation patterns must comply with `docs/ANDROID_STANDARDS.md` — that document is the single source of truth for Google best practices across architecture, Compose, coroutines, DataStore, CameraX, testing, accessibility, Play Store readiness, and performance.
+Design tokens, storage layout, and the engineering decision log live in `docs/PRD-mission-control.md`; testing strategy lives in `docs/TEST_COVERAGE.md`. All implementation patterns must comply with `docs/ANDROID_STANDARDS.md` — that document is the single source of truth for Google best practices across architecture, Compose, coroutines, DataStore, CameraX, testing, accessibility, Play Store readiness, and performance.
 
 ## Reference Documents
 
@@ -168,7 +168,7 @@ All design tokens, storage patterns, testing strategy, and engineering decisions
 | [`docs/README.md`](docs/README.md) | **Documentation layout** — where every `.md` and doc image belongs; enforcement rules |
 | `docs/DEFINITION_OF_DONE.md` | **The "Ready for PR" verification gate** — build + test + *run the app + screenshot* before anything is called done. Non-negotiable for non-trivial changes. |
 | `docs/lessons_learned/` | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.** |
-| `docs/PRD-mission-control.md` | **Authoritative architecture and component specs.** Read before any structural change. |
+| `docs/PRD-mission-control.md` | **Durable design record** — design tokens, storage layout, decision log. Check the decision log before structural changes; the Architecture Snapshot above is the structural map. |
 | `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. **OEM lanes:** [`docs/guides/oem-regression-testing.md`](docs/guides/oem-regression-testing.md). |
 | `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
 | `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the no-baseline policy, and severity mapping. |

@@ -32,8 +32,9 @@ needed a mid-run fix doesn't count; the next iteration must confirm).
 
 ## Session bootstrap (context does not persist between sessions)
 
-1. Read `CLAUDE.md` + skim `docs/PRD-mission-control.md` media-pipeline sections and
-   `docs/guides/oem-regression-testing.md` (media-pipeline / codec lanes).
+1. Read `CLAUDE.md` (the `media/` package map is the pipeline overview) + skim
+   `docs/guides/reverse-video-research.md` and `docs/guides/oem-regression-testing.md`
+   (media-pipeline / codec lanes).
 2. Read `.claude/skills/run-e2e-pixel-sweep/SKILL.md` — **it IS the mechanics** (the
    scripted prep/drive/gate phases, validated 2026-06-04). Its parent `run-e2e` skill supplies
    `scan-logcat.ps1` + the signature catalog and the honesty rules; both apply verbatim.
