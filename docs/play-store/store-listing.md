@@ -42,14 +42,16 @@ page (verified 2026-05-30).
 PRD's brand-first proposals — kept for the record; both put a brand token in the field Play
 actually indexes, which the live title does not:
 
-```
+```text
 LoopLens: Loops & Face Lenses
 ```
+
 *(29 chars — `"loop lens"` returns no results on Play, so the brand query is uncontested.)*
 
-```
+```text
 OpenLoop: Loops & Lenses
 ```
+
 *(24 chars — keeps the existing brand, but still fights four entities for the `openloop` query.)*
 
 > The research said **do not** keep a bare `Boomerang …` title — overruled by the owner on 2026-08-19
@@ -60,28 +62,32 @@ OpenLoop: Loops & Lenses
 > and [Impersonation](https://support.google.com/googleplay/android-developer/answer/9888374) policies).
 
 ### Short description (max 80 characters)
-```
+
+```text
 Speed-controlled video loops, live face lenses, and photos. All on your device.
 ```
+
 *(78 chars. Drops the live listing's `Ad Free` opener — Play discourages promotional terms here, and
 the first 80 characters are prime keyword real estate.)*
 
 ### Full description (max 4000 characters)
-```
+
+```text
 OpenLoop turns a quick clip into a smooth, speed-controlled video loop — a "boomerang" that plays forward and back. Add a live face lens, or flip the shutter to take a photo instead. All editing happens right on your phone. No account, no ads, no subscriptions, and your videos are never uploaded.
 
 WHAT YOU CAN DO
 • Capture a clip with the built-in camera, or import one you already have.
-• Add a live face lens — Broccoli, Shades or Elvis — that follows your face as you record.
+• Add a live face lens — Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue or Elvis — they track your face as you record, and some react to you.
 • Take photos too, lenses included, with the same shutter.
+• Run the Photo Booth: a 5-4-3-2-1 countdown ×3, printed into a classic vertical strip — color or black & white.
 • Trim to the exact moment with a simple two-handle bar.
 • Pick a direction: forward, reverse, forward-then-reverse, or reverse-then-forward.
-• Set the playback speed from slow motion up to fast, with a live preview.
+• Set the playback speed from slow motion up to fast — or draw a custom speed curve over the whole loop — with a live preview.
 • Apply a color look, then save a seamless loop to your device.
 • Share your loop anywhere using your phone's normal share sheet.
 
 PRIVATE BY DESIGN
-OpenLoop does 100% of its video editing on your device. Your clips and the boomerangs you make are never uploaded — they stay in the app until you delete them or uninstall. There are no accounts, no ads, and no subscriptions, and the app does not use an advertising ID. To keep OpenLoop stable and to understand which features are used, the app includes Google Analytics for Firebase and Firebase Crashlytics, which collect limited usage and crash-diagnostic data that doesn't personally identify you. There's no advertising ID and we don't sell your data. See our privacy policy for the details.
+OpenLoop does 100% of its video editing on your device. Your clips and the boomerangs you make are never uploaded — they stay on your device until you delete them. There are no accounts, no ads, and no subscriptions, and the app does not use an advertising ID. To keep OpenLoop stable and to understand which features are used, the app includes Google Analytics for Firebase and Firebase Crashlytics, which collect limited usage and crash-diagnostic data that doesn't personally identify you. There's no advertising ID and we don't sell your data. See our privacy policy for the details.
 
 IMPORT WITHOUT GIVING UP YOUR LIBRARY
 Importing uses Android's Photo Picker, so you choose one video to bring in without granting access to your whole gallery — and with no storage permission.
@@ -94,15 +100,17 @@ PERMISSIONS
 
 Made for people who just want to point, tap, and loop.
 ```
-*(~1,600 chars — well under the 4,000 limit. Face detection is on-device ML Kit with a bundled
+
+*(~1,900 chars — well under the 4,000 limit. Face detection is on-device ML Kit with a bundled
 model: no extra permission, no network call, no new data-safety declaration.)*
 
 ### Other listing fields
+
 | Field | Value |
 |---|---|
 | App category | **Video Players & Editors** (alt: Photography) |
 | Tags | **all 5 slots must be filled** — pick the closest from Console's fixed picklist (the taxonomy isn't published anywhere, so this can only be done in Console). Aim at: boomerang / video loop / slow motion / video editor / camera |
-| Contact email | gates.steven@gmail.com |
+| Contact email | <gates.steven@gmail.com> |
 | Privacy policy URL | `https://stozo04.github.io/OpenLoop/privacy-policy.html` |
 | Website | `https://stozo04.github.io/OpenLoop/` — the landing page, **not** the GitHub repo. Added Issue #121; it carries the brand token, a meta description and `SoftwareApplication` JSON-LD, and links on to both Play and GitHub |
 
@@ -149,6 +157,7 @@ demo clips with OpenLoop's own camera.
 ---
 
 ## Categorization & pricing (Console → store settings)
+
 - **App or game:** App
 - **Free or paid:** Free
 - **Contains ads:** No

@@ -25,7 +25,7 @@
 <body>
   <h1>OpenLoop — Privacy Policy</h1>
   <p class="meta">
-    Effective date: 8 August 2026 · App: OpenLoop (<code>io.github.stozo04.openloop</code>)<br>
+    Effective date: 24 August 2026 · App: OpenLoop (<code>io.github.stozo04.openloop</code>)<br>
     Developer: Steven Gates · <a href="mailto:gates.steven@gmail.com">gates.steven@gmail.com</a><br>
     Source code: <a href="https://github.com/stozo04/OpenLoop">github.com/stozo04/OpenLoop</a> (open source, Apache License 2.0)
   </p>
@@ -71,11 +71,19 @@
 
   <h2>Permissions</h2>
   <ul>
-    <li><strong>Camera</strong> (<code>CAMERA</code>) &mdash; to record video in the app&rsquo;s viewfinder.
-    Video is written only to the app&rsquo;s private storage on your device. Exported boomerang loops are
-    silent (video only).</li>
+    <li><strong>Camera</strong> (<code>CAMERA</code>) &mdash; to record video and take photos in the
+    app&rsquo;s viewfinder. Captures are written to the app&rsquo;s private storage on your device; only the
+    finished loops and photos you choose to save are added to your device&rsquo;s media library (see
+    &ldquo;Files OpenLoop stores&rdquo; below). Exported boomerang loops are silent (video only).</li>
     <li><strong>Internet</strong> (<code>INTERNET</code>) &mdash; used only to send the usage and crash
     diagnostics described above. It is not used to transmit your videos.</li>
+    <li><strong>Foreground service</strong> (<code>FOREGROUND_SERVICE</code>,
+    <code>FOREGROUND_SERVICE_MEDIA_PROCESSING</code>, <code>FOREGROUND_SERVICE_DATA_SYNC</code>) &mdash;
+    lets a loop finish rendering if you leave the app mid-save. Nothing is transmitted; Android may show
+    its own system indicator while this runs.</li>
+    <li><strong>Storage</strong> (<code>WRITE_EXTERNAL_STORAGE</code>, requested only on Android 9 or
+    lower) &mdash; to save your finished loops and photos to the device&rsquo;s media library on those
+    older Android versions. On Android 10+ no storage permission is used or requested.</li>
   </ul>
   <p>OpenLoop does <strong>not</strong> request notification permission and does <strong>not</strong> send
   push or tray notifications. While a loop is being created, progress is shown inside the app. Android may
@@ -89,9 +97,14 @@
   private workspace so it can be edited; it cannot see any of your other media.</p>
 
   <h2>Files OpenLoop stores</h2>
-  <p>OpenLoop saves the clips and boomerangs you create in the app&rsquo;s <strong>private, app-specific
-  storage</strong> on your device (not visible to other apps). You can delete any of them at any time from
-  the in-app gallery. Uninstalling the app removes all of them.</p>
+  <p>OpenLoop keeps your raw clips and works-in-progress in the app&rsquo;s <strong>private, app-specific
+  storage</strong> on your device (not visible to other apps); you can delete any of them at any time from
+  the in-app gallery, and uninstalling the app removes all of them.</p>
+  <p><strong>The finished loops and photos you save are also added to your device&rsquo;s media
+  library</strong> (<code>Movies/OpenLoop</code> and <code>Pictures/OpenLoop</code>) so your Gallery/Photos
+  app can show them. Those saved copies behave like any other photo or video on your device: apps you have
+  granted media access can see them, and <strong>they remain on your device after you uninstall
+  OpenLoop</strong> until you delete them in your Gallery app.</p>
 
   <h2>Sharing</h2>
   <p>When you tap <strong>Share</strong>, Android&rsquo;s system share sheet opens and <strong>you</strong>
@@ -105,7 +118,8 @@
   to identify or build profiles of individual users.</p>
 
   <h2>Data retention and deletion</h2>
-  <p>Your on-device videos remain until you delete them in the app or uninstall OpenLoop. The usage and crash
+  <p>Your in-app videos remain until you delete them in the app or uninstall OpenLoop; loops and photos you
+  saved to the device&rsquo;s media library remain until you delete them there. The usage and crash
   diagnostics are retained by Firebase for a limited period under Google&rsquo;s standard retention settings
   and then deleted automatically.</p>
   <p>The diagnostics are pseudonymous and are not linked to your name, email, or any account, so we have no

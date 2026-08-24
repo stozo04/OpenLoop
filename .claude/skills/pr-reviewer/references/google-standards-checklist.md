@@ -9,7 +9,7 @@ standards.
 
 ## 1. Architecture
 
-**Source:** https://developer.android.com/topic/architecture
+**Source:** <https://developer.android.com/topic/architecture>
 
 - [ ] Unidirectional data flow: state flows down (ViewModel → UI), events flow up (UI → ViewModel)
 - [ ] Single source of truth for each piece of data
@@ -20,13 +20,13 @@ standards.
 - [ ] Separation of concerns across layers (UI / Domain / Data / Platform)
 - [ ] Sealed interface/class for UI state with exhaustive `when` matching
 
-**Source:** https://developer.android.com/topic/architecture/recommendations
+**Source:** <https://developer.android.com/topic/architecture/recommendations>
 
 ---
 
 ## 2. Jetpack DataStore
 
-**Source:** https://developer.android.com/topic/libraries/architecture/datastore
+**Source:** <https://developer.android.com/topic/libraries/architecture/datastore>
 
 - [ ] Exactly one `DataStore<Preferences>` instance per file (top-level `Context.dataStore` delegate)
 - [ ] Repository interface wrapping DataStore — ViewModel never accesses DataStore directly
@@ -40,8 +40,8 @@ standards.
 
 ## 3. Runtime Permissions
 
-**Source:** https://developer.android.com/training/permissions/requesting
-**Source:** https://developer.android.com/training/permissions/usage-notes
+**Source:** <https://developer.android.com/training/permissions/requesting>
+**Source:** <https://developer.android.com/training/permissions/usage-notes>
 
 - [ ] `ContextCompat.checkSelfPermission()` called before every permission-gated action
 - [ ] `shouldShowRequestPermissionRationale()` used to decide when to show educational UI
@@ -55,7 +55,7 @@ standards.
 
 ## 4. Jetpack Compose
 
-**Source:** https://developer.android.com/develop/ui/compose/performance/bestpractices
+**Source:** <https://developer.android.com/develop/ui/compose/performance/bestpractices>
 
 - [ ] `remember` used to cache expensive calculations in composables
 - [ ] Stable keys provided to `LazyColumn`/`LazyVerticalGrid` items via `key` parameter
@@ -65,27 +65,24 @@ standards.
 - [ ] Material 3 components used where applicable (built-in accessibility semantics)
 - [ ] `collectAsStateWithLifecycle()` preferred for collecting Flows in composables
 
-**Source:** https://developer.android.com/develop/ui/compose/performance/stability
+**Source:** <https://developer.android.com/develop/ui/compose/performance/stability>
 
 ---
 
 ## 5. CameraX
 
-**Source:** https://developer.android.com/media/camera/camerax
+**Source:** <https://developer.android.com/media/camera/camerax>
 
-- [ ] Lifecycle-bound via `cameraProvider.bindToLifecycle()`, not manual start/stop
-- [ ] `PreviewView` used for camera preview (handles rotation, aspect ratio, scale)
-- [ ] No duplicate use cases created (one Preview, one VideoCapture, etc.)
-- [ ] Executor properly shut down in `onDestroy()` or equivalent lifecycle callback
-- [ ] Configuration via `CameraXConfig` if custom settings needed
+- [ ] Generic CameraX review done via the `android-skills:camerax` skill (`/android-skills:camerax`) — apply its guidance **except** its `MlKitAnalyzer` preference (`FaceTracker` is a deliberate manual analyzer; `CLAUDE.md` precedence). If the plugin is unavailable (e.g. a cloud runner), fall back to the two Google links in this section.
+- [ ] Repo CameraX rules hold (`ANDROID_STANDARDS.md` §5): single camera-bound call site (Lesson 012) · CameraX released when `PreviewView` leaves composition (022) · pinch via parent `onInterceptTouchEvent` (025) · `CameraEffect` attached once per bind, switched by uniform (031) · no timed `PreviewView.getBitmap()` after stop (036)
 
-**Source:** https://developer.android.com/media/camera/camerax/architecture
+**Source:** <https://developer.android.com/media/camera/camerax/architecture>
 
 ---
 
 ## 6. Media & Audio (ExoPlayer / Media3)
 
-**Source:** https://developer.android.com/media/media3/exoplayer
+**Source:** <https://developer.android.com/media/media3/exoplayer>
 
 - [ ] ExoPlayer instance released in `onDestroy()` or `DisposableEffect` (prevents memory leaks)
 - [ ] `REPEAT_MODE_ALL` used correctly for looping playback
@@ -95,13 +92,13 @@ standards.
 - [ ] Media3 Transformer operations run off the main thread
 - [ ] Temporary media files cleaned up after processing (cacheDir not accumulating)
 
-**Source:** https://developer.android.com/media/media3
+**Source:** <https://developer.android.com/media/media3>
 
 ---
 
 ## 7. Kotlin Coroutines & Flow
 
-**Source:** https://developer.android.com/kotlin/coroutines/coroutines-best-practices
+**Source:** <https://developer.android.com/kotlin/coroutines/coroutines-best-practices>
 
 - [ ] `viewModelScope` used for all ViewModel coroutines (auto-cancels on teardown)
 - [ ] `suspend` functions for one-shot operations, `Flow<T>` for observable data
@@ -110,13 +107,13 @@ standards.
 - [ ] No raw `CoroutineScope()` instances in ViewModels or Activities
 - [ ] `lifecycleScope` used in Activities/Fragments (if applicable)
 
-**Source:** https://developer.android.com/kotlin/flow
+**Source:** <https://developer.android.com/kotlin/flow>
 
 ---
 
 ## 8. Testing
 
-**Source:** https://developer.android.com/training/testing/fundamentals
+**Source:** <https://developer.android.com/training/testing/fundamentals>
 
 - [ ] Unit tests exist for every file with business logic (ViewModel, Repository, processors)
 - [ ] Fakes preferred over mocks for Flow-based interfaces (more readable, more maintainable)
@@ -126,14 +123,14 @@ standards.
 - [ ] No unit tests for Activities, Compose layouts directly, or DI configuration
 - [ ] Tests cover error paths and edge cases, not just happy paths
 
-**Source:** https://developer.android.com/training/testing/fundamentals/strategies
-**Source:** https://developer.android.com/develop/ui/compose/testing
+**Source:** <https://developer.android.com/training/testing/fundamentals/strategies>
+**Source:** <https://developer.android.com/develop/ui/compose/testing>
 
 ---
 
 ## 9. Accessibility
 
-**Source:** https://developer.android.com/guide/topics/ui/accessibility
+**Source:** <https://developer.android.com/guide/topics/ui/accessibility>
 
 - [ ] Touch targets >= 48dp x 48dp on all interactive elements
 - [ ] Color contrast >= 4.5:1 for text < 18sp (or bold < 14sp)
@@ -144,30 +141,32 @@ standards.
 - [ ] Information not conveyed by color alone (shapes, text, patterns, haptics as backup)
 - [ ] TalkBack navigation tested manually before shipping
 
-**Source:** https://developer.android.com/guide/topics/ui/accessibility/principles
+**Source:** <https://developer.android.com/guide/topics/ui/accessibility/principles>
 
 ---
 
 ## 10. Google Play Store Readiness
 
-**Source:** https://developer.android.com/google/play/requirements/target-sdk
+**Source:** <https://developer.android.com/google/play/requirements/target-sdk>
 
 - [ ] `targetSdk` meets current Play Store minimum (web-search for the latest deadline)
 - [ ] `compileSdk` >= `targetSdk`
 - [ ] 64-bit native libraries included if any native code is present
 - [ ] No unnecessary permissions declared in AndroidManifest.xml
 - [ ] User data policies met (no undisclosed data collection or transmission)
+- [ ] **Play-facing docs aligned — privacy** (owner rule, 2026-08-24): if the diff touches permissions, the manifest, Firebase/telemetry, foreground-service types, or where files are written → `docs/play-store/data-safety.md` **and** the privacy policy (`docs/play-store/privacy-policy.md` + `docs/privacy-policy.html`, kept content-identical, new effective date) are updated in the same PR
+- [ ] **Play-facing docs aligned — listing** (owner rule, 2026-08-24): if the diff adds or removes a lens or a user-facing feature → `docs/play-store/store-listing.md` and the feature lists in `docs/index.html` + root `README.md` reflect it in the same PR
 - [ ] App handles exceptions gracefully (no unhandled crashes — affects vitals score)
 - [ ] Main thread never blocked (ANR risk — affects vitals score)
 
-**Source:** https://developer.android.com/docs/quality-guidelines/core-app-quality
-**Source:** https://developer.android.com/distribute/play-policies
+**Source:** <https://developer.android.com/docs/quality-guidelines/core-app-quality>
+**Source:** <https://developer.android.com/distribute/play-policies>
 
 ---
 
 ## 11. Latest Android Version Behavior Changes
 
-**Source:** https://developer.android.com/about/versions (check latest stable)
+**Source:** <https://developer.android.com/about/versions> (check latest stable)
 
 - [ ] Review behavior changes for apps targeting the latest API level
 - [ ] No deprecated APIs used that are removed in the target SDK
