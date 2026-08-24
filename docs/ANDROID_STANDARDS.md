@@ -4,7 +4,9 @@
 
 This document codifies the Android development best practices that govern all OpenLoop code. Every standard here links back to official Google documentation. When in doubt, the Google source wins.
 
-Last reviewed: 2026-05-28
+**Layering rule.** Generic Google guidance lives in the official `android/skills` plugin ([`guides/android-skills.md`](guides/android-skills.md)) or on `developer.android.com`; this file holds OpenLoop-specific rules, pointers, and the Google links that justify them. Skills supersede only the parts of our docs that paraphrase Google — never a decision, a lesson, or a procedure. When a session touches a section here that a skill now covers, shrink that section to pointer + repo rules (as §5 was).
+
+Last reviewed: 2026-08-22
 
 ---
 
@@ -26,7 +28,7 @@ Last reviewed: 2026-05-28
 
 ### Layered Architecture
 
-```
+```text
 UI Layer          →  Compose screens, state collection
 Domain Layer      →  (optional) Use cases if business logic grows complex
 Data Layer        →  Repositories, DataStore, filesystem access
@@ -117,19 +119,17 @@ Platform Layer    →  CameraX, Media3, system APIs
 
 ## 5. CameraX
 
-**Google Guide:** [CameraX Overview](https://developer.android.com/media/camera/camerax)
+**Google Guide:** [CameraX Overview](https://developer.android.com/media/camera/camerax) · [CameraX Architecture](https://developer.android.com/media/camera/camerax/architecture) · [Getting Started with CameraX (Codelab)](https://developer.android.com/codelabs/camerax-getting-started)
 
-### Rules
+Generic CameraX guidance (CameraX over Camera2, lifecycle binding, `PreviewView`, use-case limits, recording lifecycles) comes from the `android-skills:camerax` skill — force it with `/android-skills:camerax` ([`guides/android-skills.md`](guides/android-skills.md)) — and the Google links above. **Precedence caveat** (`CLAUDE.md`): the skill prefers `MlKitAnalyzer`; `FaceTracker` is a deliberate manual `ImageAnalysis.Analyzer` on the stable ML Kit API — keep it.
 
-**Use CameraX, not Camera2.** CameraX provides device-agnostic compatibility, automatic lifecycle management, and consistent behavior across 1000+ Android devices. Camera2 is lower-level and only justified for features CameraX doesn't support.
+**OpenLoop-specific CameraX rules** — the ones no skill can know:
 
-**Bind to lifecycle, don't manage start/stop manually.** Use `cameraProvider.bindToLifecycle()` instead of placing start/stop calls in `onResume()`/`onPause()`. CameraX handles lifecycle transitions automatically.
-
-**Use `PreviewView` for camera preview.** It handles display rotation, aspect ratio, and scale type automatically. Embed via Compose's `AndroidView`.
-
-**Respect use case limits.** CameraX supports one instance each of Preview, VideoCapture, ImageAnalysis, and ImageCapture simultaneously. Don't create duplicate use cases.
-
-**Google Reference:** [CameraX Architecture](https://developer.android.com/media/camera/camerax/architecture) · [Getting Started with CameraX (Codelab)](https://developer.android.com/codelabs/camerax-getting-started)
+- A camera-bound screen stays on **one** composable call site across state transitions — [Lesson 012](lessons_learned/012-camera-bound-screen-single-call-site.md).
+- Release CameraX when the `PreviewView` leaves composition, not only when the Activity stops — [Lesson 022](lessons_learned/022-release-camera-when-preview-leaves-composition.md).
+- Pinch over a `PreviewView` needs a parent `onInterceptTouchEvent`, not a Compose overlay — [Lesson 025](lessons_learned/025-previewview-pinch-needs-parent-intercept.md).
+- A `CameraEffect` is attached once per bind and switched by uniform, never re-attached (a rebind kills the recording) — [Lesson 031](lessons_learned/031-camera-effect-attach-once-switch-by-uniform.md).
+- `PreviewView.getBitmap()` serves a frozen frame after started-then-stopped — gate timed grabs on the lifecycle — [Lesson 036](lessons_learned/036-previewview-getbitmap-stale-after-stop.md).
 
 ---
 
@@ -189,15 +189,15 @@ Platform Layer    →  CameraX, Media3, system APIs
 
 **Google Guide:** [Core App Quality](https://developer.android.com/docs/quality-guidelines/core-app-quality)
 
-### Current Requirements (verified 2026-05-28)
+### Current Requirements (verified 2026-08-22 against the live page)
 
-**Target API level.** New apps and app updates submitted to Google Play must currently target at least **API 35 (Android 15)** — in force since **August 31, 2025** (the extension window closed November 1, 2025). The floor is expected to rise to **API 36 (Android 16)** around **August 2026** on Google's annual cadence, but as of this review the [requirements page](https://developer.android.com/google/play/requirements/target-sdk) had **not** published an exact date for the API 36 requirement — re-verify before release rather than trusting this line. (Wear OS, Android Automotive, and Android TV trail by one level — not relevant to OpenLoop.)
+**Target API level.** Per the [Target API level requirements page](https://developer.android.com/google/play/requirements/target-sdk) (page stamped *last updated 2026-08-14*, read **2026-08-22**): **from August 31, 2026, new apps and app updates must target API 36 (Android 16) or higher**; an extension to **November 1, 2026** can be requested in Play Console. Existing apps must target at least **API 35** to remain available to new users on newer devices. (Wear OS and Automotive stay at 35, TV and XR at 34 — not relevant to OpenLoop.) This paragraph is a dated snapshot — re-read the page before each release rather than trusting it.
 
-> **OpenLoop status — satisfied ([Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36** (`app/build.gradle.kts`: `compileSdk`/`targetSdk` 36, `minSdk` 26), clearing the current Play floor of API 35 — going straight to 36 to avoid a second bump when the floor rises. Native libraries are 16 KB page-aligned (CameraX/Media3 upgraded, uncompressed packaging). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and §11 below.
+> **OpenLoop status — satisfied ([Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36** (`app/build.gradle.kts`: `targetSdk` 36, `compileSdk` 37, `minSdk` 26) — already at the floor that takes effect 2026-08-31, so no bump is due. Native libraries are 16 KB page-aligned (CameraX/Media3 upgraded, uncompressed packaging). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and §11 below.
 
 **64-bit support.** All apps must include 64-bit native libraries if they include any native code.
 
-**User data policies.** Apps must comply with Google Play's User Data policies. OpenLoop is privacy-first (zero network, zero tracking), which simplifies compliance.
+**User data policies.** Apps must comply with Google Play's User Data policies. OpenLoop processes all media on-device and never uploads video, but it **does** ship Firebase Crashlytics + Google Analytics for Firebase (`diagnostics/`, [`FIREBASE.md`](FIREBASE.md)) — that telemetry is declared in [`play-store/data-safety.md`](play-store/data-safety.md) and the [privacy policy](play-store/privacy-policy.md). Keep those, the live `privacy-policy.html`, the merged manifest, and the Firebase SDKs in step before each release; the `play-policy-insights` skill is the pre-submission check ([`guides/android-skills.md`](guides/android-skills.md)).
 
 **App quality signals.** Google monitors user-perceived crash rate, ANR rate, and user loss rate. Keep crash rate below thresholds by handling exceptions gracefully, never blocking the main thread, and testing on a variety of devices.
 
@@ -233,9 +233,9 @@ These conventions apply specifically to OpenLoop and are consistent with the Goo
 
 **Repository pattern for all data access.** Every external data source (DataStore, filesystem, future network) gets a repository interface + implementation. ViewModels depend on interfaces only.
 
-**Dark-only theme.** Design system uses `darkColorScheme` exclusively. Glassmorphic vaporwave aesthetic with NeonCoral/NeonPurple palette.
+**Dark-only theme.** Design system uses `darkColorScheme` exclusively. One saturated accent — **Electric Lime** primary, **CoralRed** semantic-only (recording/destructive), **Aqua** rare tertiary — on a neutral near-black surface ramp; tokens in `ui/theme/Color.kt` ([`PRD-mission-control.md`](PRD-mission-control.md) §1, Decision 15).
 
-**File-based video storage.** Videos persist in `filesDir/videos/`, thumbnails in `filesDir/thumbnails/`, and completed boomerangs are also published to `MediaStore` under `Movies/OpenLoop` for the device Photos/Gallery app. No Room database unless relational queries become necessary.
+**File-based video storage.** Videos persist in `filesDir/videos/` (`clip_`/`boom_`/`photo_` prefixes), thumbnails in `filesDir/thumbnails/`, and saved boomerangs/photos are also published to `MediaStore` (`Movies/OpenLoop` / `Pictures/OpenLoop`) for the device Photos/Gallery app. No Room database unless relational queries become necessary.
 
 **Test naming.** Use backtick-delimited descriptive names: `` `returning user resolves to CheckingPermissions after init` ``.
 
@@ -248,12 +248,12 @@ These conventions apply specifically to OpenLoop and are consistent with the Goo
 These rules are **in force** — OpenLoop targets **API 36** (see §8). Each was carried as `Status: pending — Issue #7` during the docs-prep phase and flipped to satisfied when the [Issue #7 upgrade](https://github.com/stozo04/OpenLoop/issues/7) landed, keeping this doc honest rather than aspirational ([Lesson 007](lessons_learned/007-standards-doc-must-match-code.md)).
 
 **Target the current Play floor.** `compileSdk` and `targetSdk` track Google Play's required level (see §8). Bump in a dedicated upgrade, never bundled with feature work ([Lesson 005](lessons_learned/005-play-store-target-api-level.md)).
-`Status: satisfied (Issue #7)` — `compileSdk`/`targetSdk` = 36 in `app/build.gradle.kts`.
+`Status: satisfied (Issue #7)` — `targetSdk` = 36 (`compileSdk` 37) in `app/build.gradle.kts`.
 
-**Edge-to-edge is mandatory at target 36.** The `windowOptOutEdgeToEdgeEnforcement` opt-out is removed, so every screen must consume `WindowInsets` — no interactive element (shutter, home, gallery delete, onboarding arrows) may sit under the status/navigation bars or display cutout. `MainActivity` calls `enableEdgeToEdge()`, and every screen consumes insets (`safeDrawingPadding` on onboarding; `statusBarsPadding`/`navigationBarsPadding` on camera, gallery, and preview). The permission and loading screens are centered content that never reaches the bars.
+**Edge-to-edge is mandatory at target 36.** The `windowOptOutEdgeToEdgeEnforcement` opt-out is removed, so every screen must consume `WindowInsets` — no interactive element (shutter, home, gallery delete, onboarding arrows) may sit under the status/navigation bars or display cutout. `MainActivity` calls `enableEdgeToEdge()`, and every screen consumes insets (`safeDrawingPadding` on onboarding; `statusBarsPadding`/`navigationBarsPadding` on camera, gallery, trim, and the boomerang editor). The permission and loading screens are centered content that never reaches the bars.
 `Status: satisfied (Issue #7)`.
 
-**Predictive back is default-on at target 36.** `android:enableOnBackInvokedCallback` defaults to `true`, and `onBackPressed` / `KEYCODE_BACK` stop being dispatched. Back must route through the `OpenLoopUiState` state machine using supported back-navigation APIs — never an ad-hoc back flag (see §10 — all navigation goes through the sealed-interface state machine). Implemented with Compose `BackHandler` in `GalleryScreen` and `PreviewScreen` (each calls the ViewModel's navigation method); `enableOnBackInvokedCallback="true"` is set on `<application>` in the manifest.
+**Predictive back is default-on at target 36.** `android:enableOnBackInvokedCallback` defaults to `true`, and `onBackPressed` / `KEYCODE_BACK` stop being dispatched. Back must route through the `OpenLoopUiState` state machine using supported back-navigation APIs — never an ad-hoc back flag (see §10 — all navigation goes through the sealed-interface state machine). Implemented with Compose `BackHandler` in `CameraScreen`, `GalleryScreen`, `TrimScreen`, and `ProcessingScreen` — each either routes through the ViewModel or deliberately consumes back while work is in flight ([Lesson 015](lessons_learned/015-predictive-back-state-routed-backhandler.md)); `enableOnBackInvokedCallback="true"` is set on `<application>` in the manifest.
 `Status: satisfied (Issue #7)`.
 
 **UI must be adaptive on large screens.** At target 36, orientation / resizability / aspect-ratio restrictions are ignored on displays ≥ `sw600dp`. The camera viewfinder and gallery must survive landscape and resize rather than assuming fixed portrait. A temporary opt-out (`PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY`) exists but is explicitly transitional — we made the UI adaptive instead (no opt-out, no fixed `screenOrientation`). Gallery uses an adaptive grid (`GridCells.Adaptive`); the camera and preview control rows are width-capped and centered so they don't stretch to the display edges.
@@ -265,17 +265,17 @@ These rules are **in force** — OpenLoop targets **API 36** (see §8). Each was
 
 | Topic | Google Documentation |
 |-------|---------------------|
-| Architecture Guide | https://developer.android.com/topic/architecture |
-| Architecture Recommendations | https://developer.android.com/topic/architecture/recommendations |
-| Jetpack Compose Performance | https://developer.android.com/develop/ui/compose/performance/bestpractices |
-| Coroutines Best Practices | https://developer.android.com/kotlin/coroutines/coroutines-best-practices |
-| DataStore | https://developer.android.com/topic/libraries/architecture/datastore |
-| CameraX Overview | https://developer.android.com/media/camera/camerax |
-| Testing Fundamentals | https://developer.android.com/training/testing/fundamentals |
-| Accessibility | https://developer.android.com/guide/topics/ui/accessibility |
-| Core App Quality | https://developer.android.com/docs/quality-guidelines/core-app-quality |
-| Play Store Target SDK | https://developer.android.com/google/play/requirements/target-sdk |
-| Android 16 Behavior Changes (targeting) | https://developer.android.com/about/versions/16/behavior-changes-16 |
-| Android 16 Behavior Changes (all apps) | https://developer.android.com/about/versions/16/behavior-changes-all |
-| Kotlin Flows | https://developer.android.com/kotlin/flow |
-| ViewModel | https://developer.android.com/topic/libraries/architecture/viewmodel |
+| Architecture Guide | <https://developer.android.com/topic/architecture> |
+| Architecture Recommendations | <https://developer.android.com/topic/architecture/recommendations> |
+| Jetpack Compose Performance | <https://developer.android.com/develop/ui/compose/performance/bestpractices> |
+| Coroutines Best Practices | <https://developer.android.com/kotlin/coroutines/coroutines-best-practices> |
+| DataStore | <https://developer.android.com/topic/libraries/architecture/datastore> |
+| CameraX Overview | <https://developer.android.com/media/camera/camerax> |
+| Testing Fundamentals | <https://developer.android.com/training/testing/fundamentals> |
+| Accessibility | <https://developer.android.com/guide/topics/ui/accessibility> |
+| Core App Quality | <https://developer.android.com/docs/quality-guidelines/core-app-quality> |
+| Play Store Target SDK | <https://developer.android.com/google/play/requirements/target-sdk> |
+| Android 16 Behavior Changes (targeting) | <https://developer.android.com/about/versions/16/behavior-changes-16> |
+| Android 16 Behavior Changes (all apps) | <https://developer.android.com/about/versions/16/behavior-changes-all> |
+| Kotlin Flows | <https://developer.android.com/kotlin/flow> |
+| ViewModel | <https://developer.android.com/topic/libraries/architecture/viewmodel> |

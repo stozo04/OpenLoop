@@ -40,6 +40,7 @@ convert elvis-pompadour-hq.png \
 ```
 
 **Critical:**
+
 - `-fuzz 5%` handles green fringe/antialiasing
 - `-trim +repage` crops to opaque bounds, removes transparent padding
 - Keep hair wisps and fine details
@@ -70,6 +71,7 @@ Target: < 200 KB per asset while maintaining photoreal quality on device.
 ### 4. Android Placement
 
 Place in:
+
 - `app/src/main/res/drawable-nodpi/` (density-independent, exact pixels)
 - OR `app/src/main/res/drawable-xxhdpi/` (if sized for ~420dpi baseline)
 
@@ -78,6 +80,7 @@ Use WebP if available, fallback to PNG if WebP isn't supported (API 14+ for loss
 ## Quality Gates
 
 Before committing assets:
+
 1. No green fringe/halo on edges
 2. Hair wisps preserved (not destroyed by over-aggressive keying)
 3. Metallic sheen visible on gold frames
@@ -88,6 +91,7 @@ Before committing assets:
 ## Code Integration
 
 `Lens.kt` updated to reference bitmaps via `R.drawable`:
+
 - `R.drawable.lens_elvis_pompadour_art` (hair with sideburns)
 - `R.drawable.lens_elvis_shades_art` (gold aviators)
 

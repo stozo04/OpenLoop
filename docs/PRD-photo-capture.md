@@ -1,7 +1,7 @@
 # PRD — Photo Capture Mode
 
 **Branch:** `feature/photo-capture` (off `feature/camera-lenses` @ `6dd2419`)
-**Owner:** Steven Gates · **Status:** Awaiting sign-off · **Date:** 2026-08-09
+**Owner:** Steven Gates · **Status:** Shipped — [PR #120](https://github.com/stozo04/OpenLoop/pull/120) → [#123](https://github.com/stozo04/OpenLoop/pull/123) (v1.0.37) · **Date:** 2026-08-09
 
 ---
 
@@ -61,12 +61,14 @@ photo mode or waiting on a guaranteed 4-way combination.
 ## 4. Scope
 
 ### In scope
+
 - `CaptureMode` toggle (Video ↔ Photo) on the camera screen
 - Photo capture → JPEG → app library + MediaStore → share sheet
 - Photos in the gallery grid, with a still-image preview overlay and a working Send
 - Lenses, pinch-zoom and camera-flip functional in photo mode
 
 ### Out of scope (deliberately — not requested)
+
 - Flash, timer, grid lines, aspect-ratio picker, HDR
 - A photo review / edit screen before saving
 - Photo-specific filters or the Looks tab
@@ -103,7 +105,7 @@ Icons come from `material-icons-extended`, already on the classpath. No new vect
 
 ### 5.3 Capture path
 
-```
+```text
 ShutterButton.onClick (PHOTO)
   └─ viewModel.capturePhoto(previewView.bitmap)      // main-thread view read
        ├─ null bitmap  → CaptureFailed snackbar, no state change
@@ -179,7 +181,7 @@ long-press multi-select and delete all work unchanged.
 |---|---|
 | JVM unit | `capturePhoto` saves + emits `Share`; null bitmap → no save, no crash; double-tap guarded; mode toggle ignored while `Recording`; `shareMimeType` per extension; repository `savePhoto` round-trip via `TemporaryFolder` ([Lesson 008](./lessons_learned/008-jvm-test-file-and-dispatcher-pitfalls.md)) |
 | Instrumented | Camera screen renders the toggle; shutter a11y label swaps with mode |
-| Manual (emulator) | Full capture → share → gallery → Photos loop. Photo mode **is** emulator-verifiable, unlike lenses ([memory: emulator virtual scene has no face](#)) — so the DoD screenshot is achievable |
+| Manual (emulator) | Full capture → share → gallery → Photos loop. Photo mode **is** emulator-verifiable, unlike lenses (session memory: the emulator virtual scene has no face) — so the DoD screenshot is achievable |
 
 ## 8. Risks
 

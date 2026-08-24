@@ -158,7 +158,7 @@ Attaching or removing one means a **rebind** — and a rebind mid-recording tear
 under the in-flight capture and finalizes it with `ERROR_SOURCE_INACTIVE`. That is exactly the
 Lesson 012 / Issue #36 failure class this repo has already been bitten by twice.
 
-So: `LensEffect` is attached on every bind, holds a `@Volatile var activeLens: Lens?`, and draws
+So: `LensSurfaceProcessor` (the one `CameraEffect`) is attached on every bind, holds a `@Volatile var activeLens: Lens?`, and draws
 nothing when it is `null`. Switching lenses — including **while recording** — is a field write, not
 a rebind.
 
@@ -184,8 +184,8 @@ Matches the owner's reference screenshot and the existing camera-screen tokens.
 ### 6.1 Lens button
 
 Mirror of the flip button, at `Alignment.CenterStart` of the same width-capped `Box` in
-`CameraScreen.kt:281`: 54.dp circle, `OverlayWhite` fill, 1.dp `OverlayWhiteBorder`, 28.dp white
-icon. Visible in `ReadyToCapture` **and** `Recording`. `contentDescription = "Lenses"`.
+`CameraScreen.kt`: 54.dp circle, `OverlayWhite` fill, 1.dp `OverlayWhiteBorder`, 28.dp white
+icon. Visible in `ReadyToCapture` **and** `Recording`. `contentDescription` = `camera_drawer_open` ("Lenses and Photo Booth" since the drawer gained the booth tab — [PRD-photo-booth D2](PRD-photo-booth.md)).
 
 ### 6.2 Lens tray
 
@@ -195,10 +195,10 @@ screenshot shows capture remains reachable):
 * Horizontal `LazyRow` of circular thumbnails, center-snapped, active item scaled up with a ring.
 * Leading `✕` clears the lens and closes the tray.
 * Tapping a thumbnail sets the lens immediately — the preview updates live.
-* **No category tab row in v1.** The reference shows one, but with 1–3 lenses it's chrome around
+* **No category tab row in v1** *(superseded 2026-08-20 — the drawer now carries a `Photo Booth | Lenses` tab slider, [PRD-photo-booth D2](PRD-photo-booth.md))*. The reference shows one, but with 1–3 lenses it's chrome around
   an empty room. Add it when there are enough lenses to need grouping.
 * 48.dp minimum touch target (accessibility floor — see the `HomeButton` note at
-  `CameraScreen.kt:337`), each thumbnail carrying the lens name as `contentDescription`.
+  `CameraScreen.kt`), each thumbnail carrying the lens name as `contentDescription`.
 
 ### 6.3 State
 
@@ -208,7 +208,7 @@ entries**; the tray is an overlay on the camera-bound states, not a route (Lesso
 `when` stays untouched).
 
 `BackHandler` while the tray is open closes the tray; the existing recording backstop
-(`CameraScreen.kt:131`) keeps priority.
+(`CameraScreen.kt`) keeps priority.
 
 ---
 

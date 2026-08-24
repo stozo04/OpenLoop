@@ -49,6 +49,17 @@ The plugin belongs at **project** scope (`.claude/settings.json`, checked in), n
 user scope loads the 21 descriptions into every project on the machine, and the precedence guard
 in this repo's `CLAUDE.md` protects none of them.
 
+**Fresh clone / new machine — the skills do not load by themselves.** The checked-in
+`extraKnownMarketplaces` entry makes the marketplace name resolve without a `/plugin marketplace add`,
+but since Claude Code v2.1.195 a plugin that only the project's `.claude/settings.json` enables, and
+that comes from an external source such as a GitHub repository, **does not load until you install it
+once** — until then Claude Code reports it as not installed and prints the install command
+([Configure team marketplaces](https://code.claude.com/docs/en/discover-plugins#configure-team-marketplaces),
+read 2026-08-22). Run it with the scope flag — **`claude plugin install android-skills@android-skills
+--scope project`** — because without `--scope project` the CLI installs to **user** scope, which is
+exactly the drift the migration below undoes. Then restart (or `/reload-plugins`) and confirm the
+`android-skills:*` entries appear in this repo and *only* this repo.
+
 One-time migration if it was installed at user scope:
 
 1. Remove `"android-skills@android-skills": true` from `enabledPlugins` in

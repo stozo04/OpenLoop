@@ -46,7 +46,7 @@ results disproved. Treat every ⚠️ row below as *indicative, not verbatim*.
 | Developer name | — | **`OpenLoop`** | ✅ |
 | Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.` | **`Ad Free and Open Source Boomerang Loop Video Maker`** | ⚠️ |
 | Full description | Discloses Firebase Analytics/Crashlytics | **Claims "no tracking"** | ⚠️ |
-| Version | `main` **1.0.37** (post-[#123](https://github.com/stozo04/OpenLoop/pull/123)) | ~~1.0.25 (Jun 23, 2026)~~ **superseded — a release has since shipped; re-read in Console** | ⚠️ |
+| Version | `main` **1.0.47** (2026-08-22; was 1.0.37 post-[#123](https://github.com/stozo04/OpenLoop/pull/123) when measured) | ~~1.0.25 (Jun 23, 2026)~~ **superseded — a release has since shipped; re-read in Console** | ⚠️ |
 | Installs | — | **10+** | ⚠️ |
 | Ratings | — | **None** | ⚠️ |
 
@@ -80,8 +80,8 @@ Two conclusions follow directly:
 ### 3.1 The live listing contradicts the app's own data-safety declaration
 
 The live full description says *"No cloud uploads, no accounts, **no tracking**"* — ⚠️ **mirror-sourced,
-verify verbatim in Console.** `README.md` says *"**Zero network calls. Zero tracking.**"* — ✅ **verified
-in this repo**, and false on both counts.
+verify verbatim in Console.** `README.md` *said* *"**Zero network calls. Zero tracking.**"* — false on both counts; **fixed** (task 5
+below ✅ — the README now discloses Firebase Crashlytics + Analytics).
 
 > The repo half of this contradiction is confirmed regardless of what the live listing says, so this
 > finding stands on its own. Confirming the Console wording only determines whether **one** surface
@@ -356,6 +356,9 @@ intent. That is niche capture, not category capture.
 
 ### 4.6 Off-Play: the landing page is the biggest free win in the repo
 
+> **Shipped since (#124):** `docs/index.html` is now the landing page specced in §5.3 tasks 1–2 (unique title,
+> meta description, `SoftwareApplication` JSON-LD without `aggregateRating`). The paragraph below is the pre-#124 state.
+
 **`docs/index.html` is 11 lines — a `<meta http-equiv="refresh">` to the privacy policy.** The
 canonical project URL, `https://stozo04.github.io/OpenLoop/`, currently bounces to a legal document.
 There is no landing page, no sitemap, no robots.txt.
@@ -444,7 +447,7 @@ via the existing `UserPreferencesRepository` DataStore alongside the onboarding 
 **F-Droid is blocked, IzzyOnDroid is not.** The
 [F-Droid Inclusion Policy](https://f-droid.org/docs/Inclusion_Policy/) bars "Google Play Services and
 Firebase and Crashlytics" by name. Current blockers: `diagnostics/` (Crashlytics + Analytics),
-`update/` (Play Core), `camera/lens/FaceTracker.kt` (ML Kit), and In-App Review would be a fourth.
+`update/` (Play Core), `camera/lens/FaceTracker.kt` (ML Kit), and In-App Review (`review/InAppReview.kt`, shipped in #124) is a fourth.
 Entry requires a **separate FOSS product flavor** stripping all four — a multi-day project with its own
 test matrix. **[IzzyOnDroid](https://apt.izzysoft.de/fdroid/index/info) is the realistic play**: it
 hosts official developer binaries from GitHub releases and documents analytics as *antifeatures*
@@ -479,7 +482,7 @@ Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-que
 > **Scope correction (2026-08-09, from the owner).** The product is **loops + face lenses + photos**,
 > not loops alone. Verified:
 >
-> - **Three lenses ship** — Broccoli, Shades, Big Mouth (`camera/lens/Lens.kt`).
+> - **Seven lenses ship** — Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue, Elvis (`camera/lens/Lens.kt`; Big Mouth and Bug Eyes were removed in #134).
 > - **Photo capture is built** — [PR #120, `feat(camera): photo capture mode (v1.0.37)`](https://github.com/stozo04/OpenLoop/pull/120),
 >   merged 2026-08-09, adding a photo mode across `CameraScreen`, `OpenLoopUiState`,
 >   `VideoStorageRepository` and `MediaStoreVideoPublisher`, with its own
@@ -493,7 +496,7 @@ Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-que
 | Where | Version | Lenses + photo mode? |
 |---|---|---|
 | **Google Play (what users get)** | ~~1.0.25 (Jun 23, 2026)~~ — **stale, a release shipped after this was measured** | ✅ shipped since |
-| **`main`** | **1.0.37** | ✅ Both — #123 merged `feature/camera-lenses` |
+| **`main`** | **1.0.47** (2026-08-22) | ✅ Both — #123 merged `feature/camera-lenses`; ten releases since |
 
 `feature/camera-lenses` carried five commits with no PR targeting `main` for several days; #123 landed
 them. **Only one step now stands between the code and users: cut a release.** Until that ships, every
@@ -577,12 +580,12 @@ review, no native A/B test, two-week read window.
 
 | # | Task | Effort | Files |
 |---|---|---|---|
-| 1 | **Replace `docs/index.html`** with a real landing page: unique `<title>`, meta description, canonical link, Open Graph tags, visible Play + GitHub links, screenshots | 1–2 h | `docs/index.html` |
-| 2 | **Add `SoftwareApplication` JSON-LD** (no `aggregateRating` until real ratings exist) | 30 m | `docs/index.html` |
-| 3 | **Integrate the In-App Review API** — trigger on `Processing → ReadyToCapture` success, gated on ≥3 cumulative saves via DataStore | 2–3 h | `app/build.gradle.kts`, `OpenLoopViewModel.kt`, `UserPreferencesRepository` |
-| 4 | **One JVM test** with `FakeReviewManager`: asserts the trigger fires only after N successful saves and **never** on the failure path | 30 m | `app/src/test/...` |
-| 5 | **Reconcile README accuracy** — "Zero network calls. Zero tracking." is false (§3.1) | 15 m | `README.md` |
-| 6 | **Sync `docs/play-store/store-listing.md`** to whatever goes live, or annotate the drift | 20 m | `docs/play-store/store-listing.md` |
+| 1 | ✅ (#124) **Replace `docs/index.html`** with a real landing page: unique `<title>`, meta description, canonical link, Open Graph tags, visible Play + GitHub links, screenshots | 1–2 h | `docs/index.html` |
+| 2 | ✅ (#124) **Add `SoftwareApplication` JSON-LD** (no `aggregateRating` until real ratings exist) | 30 m | `docs/index.html` |
+| 3 | ✅ (#124, `review/InAppReview.kt`) **Integrate the In-App Review API** — trigger on `Processing → ReadyToCapture` success, gated on ≥3 cumulative saves via DataStore | 2–3 h | `app/build.gradle.kts`, `OpenLoopViewModel.kt`, `UserPreferencesRepository` |
+| 4 | ✅ (`ReviewCadenceTest`, `InAppReviewRobolectricTest`) **One JVM test** with `FakeReviewManager`: asserts the trigger fires only after N successful saves and **never** on the failure path | 30 m | `app/src/test/...` |
+| 5 | ✅ **Reconcile README accuracy** — "Zero network calls. Zero tracking." is false (§3.1) | 15 m | `README.md` |
+| 6 | ✅ (store-listing.md records the live title + drift) **Sync `docs/play-store/store-listing.md`** to whatever goes live, or annotate the drift | 20 m | `docs/play-store/store-listing.md` |
 | 7 | **Repo as SEO asset** — Play badge in README, About→website field, topics (`android`, `kotlin`, `boomerang`, `video-editor`, `camerax`, `media3`, `open-source`), cut GitHub Releases with APKs | 15 m | `README.md`, repo settings |
 | 8 | *Optional:* move Pages publishing off `docs/` so engineering markdown isn't served | 15 m | repo settings |
 

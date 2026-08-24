@@ -22,13 +22,14 @@ or `docs/diagnostics/`.
 
 | Path | What belongs here | Tracked in git? |
 |------|-------------------|-----------------|
-| [`PRD-mission-control.md`](PRD-mission-control.md) | Architecture, components, design tokens — read before structural changes | Yes |
-| `PRD-<feature>.md` | Per-feature PRDs, signed off before code ([capture-zoom](PRD-capture-zoom.md), [crashlytics-autotriage](PRD-crashlytics-autotriage.md), [camera-lenses](PRD-camera-lenses.md), [aso-discoverability](PRD-aso-discoverability.md), [speed-curves](PRD-speed-curves.md)) | Yes |
-| [`ANDROID_STANDARDS.md`](ANDROID_STANDARDS.md) | Google Android practices (linked specs) | Yes |
+| [`PRD-mission-control.md`](PRD-mission-control.md) | Durable design record: design tokens, storage layout, decision log (the architecture snapshot lives in `CLAUDE.md`) | Yes |
+| `PRD-<feature>.md` | Per-feature PRDs, signed off before code ([capture-zoom](PRD-capture-zoom.md), [crashlytics-autotriage](PRD-crashlytics-autotriage.md), [camera-lenses](PRD-camera-lenses.md), [photo-capture](PRD-photo-capture.md), [aso-discoverability](PRD-aso-discoverability.md), [speed-curves](PRD-speed-curves.md), [photo-booth](PRD-photo-booth.md), [android-skills](PRD-android-skills.md)) | Yes |
+| [`ANDROID_STANDARDS.md`](ANDROID_STANDARDS.md) | **OpenLoop-specific** Android rules + the Google links that justify them. Generic Google guidance is **not** mirrored here — it lives in the `android/skills` plugin ([`guides/android-skills.md`](guides/android-skills.md)) or on `developer.android.com` (layering rule, [#143](https://github.com/stozo04/OpenLoop/issues/143)) | Yes |
 | [`DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md) | Ready-for-PR verification gate | Yes |
 | [`STATIC_ANALYSIS.md`](STATIC_ANALYSIS.md) | Lint + Inspect Code merge policy | Yes |
 | [`TEST_COVERAGE.md`](TEST_COVERAGE.md) | Testing pyramid, inventory, frameworks | Yes |
-| [`guides/`](guides/README.md) | Durable reference: reverse algorithm, Robolectric boundaries, OEM/RTL lanes | Yes |
+| [`FIREBASE.md`](FIREBASE.md) | Crashlytics auto-triage **runbook** (token renewal, function deploy, break-glass). Stays at the root — `.github/workflows/crashlytics-autotriage.yml` and `PRD-crashlytics-autotriage.md` link to this path | Yes |
+| [`guides/`](guides/README.md) | Durable reference: reverse algorithm, Robolectric boundaries, OEM/RTL lanes, localization, lens-art asset workflow, the `android/skills` plugin | Yes |
 | [`play-store/`](play-store/README.md) | Play Console paste text + **store upload graphics** | Yes |
 | [`lessons_learned/`](lessons_learned/README.md) | Distilled rules from past PR reviews — **core tier read every session** | Yes |
 | [`e2e/`](e2e/) | Agent/human E2E run reports + proof screenshots (timestamped `.md` + PNG) — **see retention rule below** | Yes |
@@ -42,8 +43,9 @@ or `docs/diagnostics/`.
 > is simply: don't put anything in `docs/` you wouldn't publish (`docs/local/` is gitignored for that).
 
 **Do not create:** `docs/active/`, `docs/completed/`, `docs/diagnostics/`, `docs/android-16/`,
-`docs/prompts/`, or loose `.md` files outside the folders above (except the five root-level
-standards files).
+`docs/prompts/`, or loose `.md` files outside the folders above (except the six root-level
+files in the map: `ANDROID_STANDARDS.md`, `DEFINITION_OF_DONE.md`, `STATIC_ANALYSIS.md`, `TEST_COVERAGE.md`,
+`FIREBASE.md`, and `PRD-mission-control.md` — plus the `PRD-<feature>.md` set).
 
 **E2E proof retention:** `docs/e2e/` grows one report + screenshots per verified PR and is already
 the second-largest folder in the repo (screenshots run ~1.4 MB each). **Keep the newest proof per
@@ -82,7 +84,6 @@ In-app launcher assets live only under `app/src/main/res/` (see root [`README.md
 ## Quick links
 
 - Play Store submission pack: [`play-store/README.md`](play-store/README.md)
-- Play Store beginner walkthrough (private): `docs/local/play-store-beginner-guide.md` on your machine
 - Testing guides index: [`guides/README.md`](guides/README.md)
 - Reverse algorithm reference: [`guides/reverse-video-research.md`](guides/reverse-video-research.md)
 - Porting a third-party AR effect (DeepAR → a native lens): [`twisted-tounge/GUIDE.md`](../twisted-tounge/GUIDE.md)

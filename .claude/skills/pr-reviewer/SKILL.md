@@ -32,7 +32,7 @@ explain *why* something matters — not just what's wrong.
 Read these files from the repo root. They are your ground truth and override any assumptions:
 
 1. **`CLAUDE.md`** — Architecture snapshot, tech stack, state machine, reference doc pointers
-2. **`PRD-mission-control.md`** — Authoritative component specs, data layer schemas, decision
+2. **`PRD-mission-control.md`** — The durable design record: design tokens, storage layout, decision
    log (check this before flagging something as "wrong" — it may be intentional)
 3. **`docs/ANDROID_STANDARDS.md`** — Project-specific standards with links to Google Docs
 4. **`TEST_COVERAGE.md`** — Testing strategy, test directory structure (`test/` vs `androidTest/`),
@@ -79,6 +79,7 @@ Use GitHub tools to find the PR to review:
 5. The user can also provide a PR number directly — use that if given
 
 Once you have the PR:
+
 - Read the PR description and metadata (`pull_request_read` with method `get`)
 - Get the full diff (`get_diff`)
 - Get the list of changed files (`get_files`)

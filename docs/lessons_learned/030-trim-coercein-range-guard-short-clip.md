@@ -42,7 +42,7 @@ handle), none of them reachable by a JVM test while inline in a composable lambd
 
    On a sub-400 ms clip both handles pin (start at 0, end at `durationMs`) — correct UX, since the
    NEXT button and all editor-advance actions are already disabled by `trimValid` in
-   `TrimScreen.kt`, and `OpenLoopViewModel.updateTrimWindow` ignores sub-minimum windows anyway.
+   `TrimScreen.kt`, and `OpenLoopViewModel.updateTrim` ignores sub-minimum windows anyway.
 
 2. **Extract that math into a pure, import-free file** (`ui/components/TrimHandleMath.kt`) instead
    of fixing it inline in each lambda — the same pure-logic split as `media/BoomerangSequence.kt`.
@@ -63,5 +63,5 @@ handle), none of them reachable by a JVM test while inline in a composable lambd
 
 ## Reference
 
-- Kotlin stdlib `coerceIn` (throws on empty ranges): https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.ranges/coerce-in.html
+- Kotlin stdlib `coerceIn` (throws on empty ranges): <https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.ranges/coerce-in.html>
 - Originating crash: Crashlytics `7169b499fee6554684dba69b1ae1a8f0`, GitHub issue #95

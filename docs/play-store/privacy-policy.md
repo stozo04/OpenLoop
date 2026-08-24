@@ -1,9 +1,9 @@
 # OpenLoop — Privacy Policy
 
-**Effective date:** 2026-08-08
+**Effective date:** 2026-08-24
 **App:** OpenLoop (package `io.github.stozo04.openloop`)
-**Developer:** Steven Gates · gates.steven@gmail.com
-**Source code:** https://github.com/stozo04/OpenLoop (open source, Apache License 2.0)
+**Developer:** Steven Gates · <gates.steven@gmail.com>
+**Source code:** <https://github.com/stozo04/OpenLoop> (open source, Apache License 2.0)
 
 ---
 
@@ -50,10 +50,18 @@ is used only for the usage and crash reporting described here — never to uploa
 
 ## Permissions
 
-- **Camera (`CAMERA`)** — to record video in the app's viewfinder. Video is written only to the app's
-  private storage on your device. Exported boomerang loops are silent (video only).
+- **Camera (`CAMERA`)** — to record video and take photos in the app's viewfinder. Captures are
+  written to the app's private storage on your device; only the finished loops and photos you choose to
+  save are added to your device's media library (see "Files OpenLoop stores" below). Exported boomerang
+  loops are silent (video only).
 - **Internet (`INTERNET`)** — used only to send the usage and crash diagnostics described above. It is
   not used to transmit your videos.
+- **Foreground service (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PROCESSING`,
+  `FOREGROUND_SERVICE_DATA_SYNC`)** — lets a loop finish rendering if you leave the app mid-save.
+  Nothing is transmitted; Android may show its own system indicator while this runs.
+- **Storage (`WRITE_EXTERNAL_STORAGE`, requested only on Android 9 or lower)** — to save your finished
+  loops and photos to the device's media library on those older Android versions. On Android 10+ no
+  storage permission is used or requested.
 
 OpenLoop does **not** request notification permission and does **not** send push or tray notifications.
 While a loop is being created, progress is shown inside the app. Android may briefly show a system
@@ -69,9 +77,15 @@ be edited; it cannot see any of your other media.
 
 ## Files OpenLoop stores
 
-OpenLoop saves the clips and boomerangs you create in the app's **private, app-specific storage** on
-your device (not visible to other apps). You can delete any of them at any time from the in-app
-gallery. Uninstalling the app removes all of them.
+OpenLoop keeps your raw clips and works-in-progress in the app's **private, app-specific storage** on
+your device (not visible to other apps); you can delete any of them at any time from the in-app
+gallery, and uninstalling the app removes all of them.
+
+**The finished loops and photos you save are also added to your device's media library**
+(`Movies/OpenLoop` and `Pictures/OpenLoop`) so your Gallery/Photos app can show them. Those saved
+copies behave like any other photo or video on your device: apps you have granted media access can
+see them, and **they remain on your device after you uninstall OpenLoop** until you delete them in
+your Gallery app.
 
 ## Sharing
 
@@ -88,7 +102,8 @@ and are not used to identify or build profiles of individual users.
 
 ## Data retention and deletion
 
-Your on-device videos remain until you delete them in the app or uninstall OpenLoop. The usage and
+Your in-app videos remain until you delete them in the app or uninstall OpenLoop; loops and photos
+you saved to the device's media library remain until you delete them there. The usage and
 crash diagnostics are retained by Firebase for a limited period under Google's standard retention
 settings and then deleted automatically.
 
@@ -108,12 +123,12 @@ date.
 
 ## Contact
 
-Questions about this policy: **gates.steven@gmail.com**
+Questions about this policy: **<gates.steven@gmail.com>**
 
 ---
 
 > **Live URL (paste this into the Play Console):**
-> **https://stozo04.github.io/OpenLoop/privacy-policy.html**
+> **<https://stozo04.github.io/OpenLoop/privacy-policy.html>**
 >
 > This Markdown file is the readable source; the page actually served to users is the self-contained
 > `docs/privacy-policy.html`, published via **GitHub Pages** (main branch, `/docs` folder). Keep the two

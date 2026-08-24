@@ -69,10 +69,11 @@ local checks, not for upload).
 
 ## Notes
 
-- **`versionCode` must increase every upload** (`app/build.gradle.kts` → `defaultConfig.versionCode`,
-  currently `1`). Bump it for each new build you upload; `versionName` (`1.0.0`) is the
-  human-facing string.
-- The app already meets Play's technical bars: `targetSdk 36` (≥ the API-35 floor), 16 KB-aligned
-  native libs, minimal permissions (`CAMERA` only).
+- **`versionCode` must increase every upload** (`app/build.gradle.kts` → `defaultConfig.versionCode`;
+  read the current value there rather than from this doc). Bump it for each new build you upload;
+  `versionName` is the human-facing string.
+- The app already meets Play's technical bars: `targetSdk 36` (the floor from 2026-08-31), 16 KB-aligned
+  native libs, minimal permissions (`CAMERA`, the three `FOREGROUND_SERVICE*` entries for the render
+  worker, legacy `WRITE_EXTERNAL_STORAGE` ≤ API 28 for the MediaStore publish; `INTERNET` is merged by Firebase).
 - R8 minification + resource shrinking are on for release; if a future dependency needs keep rules,
   add them to `app/proguard-rules.pro`.

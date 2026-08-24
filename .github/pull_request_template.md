@@ -28,4 +28,5 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] 🔍 I have performed a self-review of my own code.
 - [ ] ✍️ I have commented my code, particularly in hard-to-understand areas.
 - [ ] 📖 My changes generate no new compile warnings or errors.
+- [ ] 🏪 **Play-facing docs aligned**: if this PR changes permissions, data collection, file storage, or user-facing features/lenses — privacy policy (md + html), data safety, and store listing updated to match (`docs/DEFINITION_OF_DONE.md`).
 - [ ] 🧹 The git branch is clean and references to obsolete branches have been pruned.

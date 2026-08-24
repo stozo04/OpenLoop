@@ -65,7 +65,7 @@ of those grabs on a timer:
 
 ### In scope
 
-- Booth button (provisional placement) + Color/B&W chip on the camera screen (color is the default)
+- ~~Booth button (provisional placement)~~ Photo Booth tab in the lens drawer (D2) + Color/B&W chip on the camera screen (color is the default)
 - 5-second countdown overlay with per-shot flash flicker, auto-advancing across 3 shots
 - Lens tray remains usable during the countdown (the swap window is the point)
 - Square **top-biased** crop at grab time, strip composite (white borders + footer + optional B&W)
@@ -102,7 +102,7 @@ reads `previewView.bitmap` on the main thread and hands it to the ViewModel):
 - On completion the UI calls `viewModel.captureBoothStrip(frames, monochrome)`; the ViewModel
   composites off the main thread and saves. Bitmaps are plain data objects, so this stays clean of
   [Lesson 004](./lessons_learned/004-viewmodel-no-context-parameters.md) (no `Context` in the VM).
-- Re-entrancy guarded by a `boothSaveInProgress` flag, mirroring `photoSaveInProgress`.
+- Re-entrancy guarded by the existing `photoSaveInProgress` flag (shared with photo capture — `captureBoothStrip` checks it directly).
 
 During the sequence: shutter, mode toggle, and camera-flip are disabled; the **lens tray stays
 interactive** (D5's swap window). Predictive back aborts the sequence (until the last grab —

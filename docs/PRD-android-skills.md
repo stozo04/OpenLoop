@@ -51,7 +51,12 @@ entry, Google maintains updates, nothing vendored to drift:
 the first draft of this PRD was wrong. Notes: a session restart activates it; first launch after
 the change shows the standard folder-trust prompt once (a project-level `extraKnownMarketplaces`
 applies only after the folder is trusted). Updates ride the marketplace — no provenance
-bookkeeping needed.
+bookkeeping needed. **"Self-contained on a fresh clone" means the marketplace *name resolves*, not
+that the skills *load*:** since Claude Code v2.1.195 an externally-sourced plugin enabled only by the
+project file doesn't load until `claude plugin install android-skills@android-skills --scope project`
+has been run once on that machine (omit `--scope project` and it lands at user scope — the drift
+plan step 2 undid). Procedure and citation: [`guides/android-skills.md`](guides/android-skills.md) →
+"Scope: this project only".
 
 **Scope: project only, never user.** Every turn, Claude Code injects each enabled skill's name +
 description into the prompt — the 21 android-skills descriptions measure ~8 kB (≈2 k tokens) per

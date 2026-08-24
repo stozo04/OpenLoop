@@ -16,6 +16,7 @@ up-to-30 s in-flight clip** with no save and no prompt.
   machine** — never let back fall through to "finish the Activity" while work is in flight.
 - **Gate it on the condition, don't always-intercept.** A disabled `BackHandler` passes the event
   through, so back still behaves normally when there's nothing to protect:
+
   ```kotlin
   // CameraScreen: while recording, back == tapping stop (stop & finalize → preview). Owner
   // decision D1 — finalize, don't discard (no silent data loss). Disabled when idle so back
@@ -24,7 +25,8 @@ up-to-30 s in-flight clip** with no save and no prompt.
       viewModel.stopBurstCapture(cameraManager)
   }
   ```
-  `PreviewScreen.kt` already uses the unconditional form (`BackHandler { onBackToCaptureClick() }`)
+
+  `TrimScreen.kt` already uses the unconditional form (`BackHandler { showDiscardDialog = true }`)
   — match the surrounding pattern; gate only when "do nothing extra" is a valid back outcome.
 - **Decide finalize-vs-discard explicitly with the owner** before coding (this is a UX/data
   choice, not a default). D1 here was *finalized*.
@@ -40,6 +42,7 @@ up-to-30 s in-flight clip** with no save and no prompt.
 - **Dispatch and assert synchronously on the UI thread**, because `onBackPressed()` runs callbacks
   synchronously and its *fallback* (no enabled callback) finishes the Activity — assert before
   teardown:
+
   ```kotlin
   composeTestRule.runOnUiThread {
       composeTestRule.activity.onBackPressedDispatcher.onBackPressed()

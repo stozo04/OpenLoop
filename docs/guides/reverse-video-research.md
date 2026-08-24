@@ -132,7 +132,7 @@ approach.
 
 ### The naive single-pass algorithm (and why it fails)
 
-```
+```text
 seek MediaExtractor to end of file
 while there are previous sync samples:
     seekTo(prev_sync_sample, SEEK_TO_CLOSEST_SYNC)
@@ -224,19 +224,23 @@ works and the output plays smoothly.
 ## 4. Alternatives considered (and rejected)
 
 ### In-memory frame buffer reversal
+
 Decode the entire clip into a `ByteBuffer` ring, reverse the order in memory,
 re-encode. **Math:** 1920 × 1080 × 4 bytes/pixel × 30 fps × 3 s = ~700 MB of
 raw frames. For our max-trim case (30 s) that's 7 GB. Wildly OOM. Rejected
 on memory cost alone.
 
 ### OpenGL shader reversal
+
 GL shaders are per-frame; they can't reorder frames. Useful for visual effects
 *during* the decode/encode loop (color tweaks, overlays) but does not solve
 the reverse problem. Rejected on capability.
 
 ### Building FFmpeg from source (custom, not FFmpegKit)
+
 Doable — the FFmpeg `reverse` filter is mature (`-filter_complex "reverse"`).
 But requires:
+
 - Per-architecture native build pipeline (arm64-v8a, x86_64, armeabi-v7a, x86).
 - 16 KB linker flags on each.
 - License selection (LGPL vs GPL) and the corresponding source-distribution
@@ -249,11 +253,13 @@ only if v1.5 adds multiple filter-heavy features (vignette / film grain / 3D
 LUTs / etc.) where FFmpeg's filter graph would pay for itself many times over.
 
 ### Media3 `Composition` with a "negative speed" trick
+
 Speculative; no API support. `SpeedChangeEffect` takes a positive float
 and is documented as such. There's no `setReverse(true)` on `MediaItem` or
 `EditedMediaItem` in 1.10.x. Rejected on absence.
 
 ### Third-party video SDKs (Cloudinary, Mux, Banuba, etc.)
+
 - Cloudinary / Mux: cloud-based; would break OpenLoop's "100% on-device"
   principle. Rejected on architecture.
 - Banuba / similar commercial SDKs: closed-source, paid licensing,
@@ -307,7 +313,7 @@ orphan scratch captures in `filesDir/scratch/` (parent doc D-8).
 - **`VideoReverser`** body: ~250 lines of Kotlin, very close to the sisik.eu
   reference. Add unit tests with a small fixture MP4 — assert duration
   matches input within ±1 frame and frame sequence is reversed (sample first
-  + last frames, compare via histogram).
+  - last frames, compare via histogram).
 - **Wiring into `VideoProcessor`:** ~30 lines (cache lookup, fallback to
   generation, pass result to Composition).
 - **Wiring into the editor preview:** ~50 lines (loading shimmer state,
@@ -317,8 +323,7 @@ orphan scratch captures in `filesDir/scratch/` (parent doc D-8).
 
 ### Performance expectations
 
-Targeted at the Pixel 10 Pro Fold (the reference device per
-`HEY_CLAUDE_ITS_ME.md`):
+Targeted at the Pixel 10 Pro Fold (the owner's reference device):
 
 - 3 s clip → ~1 s first reverse generation. Sub-shimmer-acceptable.
 - 10 s clip → ~3 s. Visible shimmer; user testing will tell us if it feels
@@ -334,6 +339,8 @@ slice 03 QA and update this doc.
 ---
 
 ## 6. What this changes in the slice docs
+
+> *Historical note (2026-08-22): the slice working docs named below were deleted once the slices shipped (git history has them); the changes they describe landed in `media/VideoProcessor.kt` and `media/VideoReverser.kt`.*
 
 - **Slice 02** (`02-auto-route-trim-and-default-save.md`) §"Technical deltas"
   → `media/VideoProcessor.kt`: replace the "Open question — verify
