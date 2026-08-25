@@ -75,7 +75,23 @@ data class FaceSnapshot(
      * untouched instead of transforming it.
      */
     val mouthOpenness: Float = 0f,
-)
+    /**
+     * Which person this is — ML Kit's tracking id, stable for as long as the detector can follow
+     * the face across frames. Every piece of per-face state downstream (the roster slot in
+     * [FaceTracker], the wobble springs and eased mouth in [LensMotion]) hangs off this key, so a
+     * lens follows *its* subject when two people share the frame instead of averaging them.
+     *
+     * An identity, not a coordinate: [LensAnchor.uprightToBuffer] and [LensAnchor.reframe] carry
+     * it through untouched, exactly like [mouthOpenness]. Defaults to [NO_TRACKING_ID] for the
+     * solo-face callers and tests that never needed one.
+     */
+    val trackingId: Int = NO_TRACKING_ID,
+) {
+    companion object {
+        /** The id of a face nobody is tracking — ML Kit ids are non-negative. */
+        const val NO_TRACKING_ID = -1
+    }
+}
 
 /**
  * The face's own coordinate frame, in square space. [right] and [up] are unit vectors; [unit] is
@@ -532,6 +548,8 @@ object LensAnchor {
         sourceAspect = if (quarterTurn) 1f / sourceAspect else sourceAspect,
         // A ratio of two distances on the face — a quarter turn does not change it.
         mouthOpenness = mouthOpenness,
+        // Who this is does not change either.
+        trackingId = trackingId,
     )
 
     /**
