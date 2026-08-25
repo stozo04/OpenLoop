@@ -116,6 +116,9 @@ class CameraManager(private val context: Context) {
                     .build()
                     .also { it.setAnalyzer(cameraExecutor, faceTracker) }
 
+                // A lens flip lands here without releaseCamera(); the roster must not carry the
+                // other sensor's faces into this bind (see FaceTracker.reset).
+                faceTracker.reset()
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
                 camera = bindWithLensEffect(
@@ -412,8 +415,10 @@ class CameraManager(private val context: Context) {
         }
         try {
             detachZoomObserver()
-            // unbindAll() stops the analysis stream; the ImageAnalysis instance is rebuilt on the
-            // next startCamera(), and faceTracker outlives both, so there is nothing to clear.
+            // unbindAll() stops the analysis stream and the ImageAnalysis instance is rebuilt on
+            // the next startCamera(), but faceTracker outlives both and holds the last faces for
+            // 350 ms — drop them so the next bind starts with a clean viewfinder.
+            faceTracker.reset()
             cameraProvider?.unbindAll()
             videoCapture = null
             camera = null

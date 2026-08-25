@@ -28,11 +28,24 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
 
     private var loggedGeometry = false
 
-    /** Slot assignment and the per-face hold. Touched only on the detector's callback thread. */
+    /**
+     * Slot assignment and the per-face hold. Touched only on the detector's callback thread — the
+     * main thread, since ML Kit's `Task` listeners below are registered without an executor — which
+     * is also the thread [reset] is called on.
+     */
     private val roster = FaceRoster(maxFaces = MAX_TRACKED_FACES, holdMs = HOLD_MS)
 
     /** This frame's detections, reused across frames. */
     private val sightings = ArrayList<FaceRoster.Sighting>(MAX_TRACKED_FACES * 2)
+
+    /**
+     * Bumped by [reset]. A detection that was in flight when the camera was unbound completes on
+     * the callback thread afterwards; comparing its epoch drops it instead of letting it re-seed
+     * the roster with faces from the previous bind. Written on the main thread, read on the
+     * analyzer's executor, hence volatile.
+     */
+    @Volatile
+    private var epoch = 0
 
     private val detector = FaceDetection.getClient(
         FaceDetectorOptions.Builder()
@@ -67,8 +80,10 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
         val uprightHeight = (if (quarterTurned) imageProxy.width else imageProxy.height).toFloat()
         logGeometryOnce(imageProxy.width, imageProxy.height, rotationDegrees, uprightWidth, uprightHeight)
 
+        val startedIn = epoch
         detector.process(InputImage.fromMediaImage(mediaImage, rotationDegrees))
             .addOnSuccessListener { faces ->
+                if (startedIn != epoch) return@addOnSuccessListener
                 sightings.clear()
                 for (face in faces) {
                     // Without a tracking id there is nothing to key a slot or a spring on. ML Kit
@@ -87,6 +102,7 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
             }
             .addOnFailureListener { error ->
                 Log.w(TAG, "Face detection failed", error)
+                if (startedIn != epoch) return@addOnFailureListener
                 sightings.clear()
                 publish()
             }
@@ -96,6 +112,20 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
     /** Folds [sightings] into the roster and hands the slot holders to the renderer. */
     private fun publish() {
         onFaces(roster.update(sightings, SystemClock.elapsedRealtime()))
+    }
+
+    /**
+     * Forgets every tracked face and publishes an empty roster. Call whenever the camera is
+     * unbound — a lens flip, leaving the camera screen. The hold would otherwise carry the last
+     * faces, with their geometry from the *previous* sensor, into the next bind's first frames;
+     * and a detection still in flight from the old bind is discarded rather than resurrecting
+     * them. Main thread, like the callbacks that feed [roster].
+     */
+    fun reset() {
+        epoch++
+        roster.clear()
+        sightings.clear()
+        onFaces(emptyList())
     }
 
     /** Releases the detector. Call when the analyzer is unbound. */
