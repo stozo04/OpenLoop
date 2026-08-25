@@ -77,7 +77,7 @@ OpenLoop turns a quick clip into a smooth, speed-controlled video loop — a "bo
 
 WHAT YOU CAN DO
 • Capture a clip with the built-in camera, or import one you already have.
-• Add a live face lens — Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue or Elvis — they track your face as you record, and some react to you.
+• Add a live face lens — Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue or Elvis — they track your face as you record, and some react to you. Two of you in the shot? You both get the lens.
 • Take photos too, lenses included, with the same shutter.
 • Run the Photo Booth: a 5-4-3-2-1 countdown ×3, printed into a classic vertical strip — color or black & white.
 • Trim to the exact moment with a simple two-handle bar.
