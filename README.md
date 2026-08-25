@@ -17,7 +17,7 @@ Built with Google's latest Android libraries. All video processing runs on your 
 - **Capture** — Hold the shutter for a clip (up to 30 s), or import one from your library
 - **Seamless Loops** — Forward, reverse, or either bounce, generated entirely on-device via Media3 Transformer
 - **Speed Control** — Real-time playback speed from 0.5x to 3.0x before you save: a constant slider, or a **custom speed curve** you draw over the whole loop (tap to add a point, drag to bend it, presets to start from) so a ramp can peak right on the direction turn — the preview plays the curve live and the export honours it exactly
-- **Face Lenses** — seven of them: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue and Elvis. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth
+- **Face Lenses** — seven of them: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue and Elvis. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth. Two people in the shot? Both get the lens
 - **Photo Mode** — Flip the shutter to stills, lenses included
 - **Photo Booth** — a self-driving 5-4-3-2-1 countdown ×3 composited into a classic vertical strip (white borders, OpenLoop + date footer, color or B&W) — the countdown is your window to swap lenses between shots
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
@@ -293,10 +293,10 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 - Photo-booth strip: 5-4-3-2-1 ×3 capture composited into a printed strip (color or B&W)
 - Loop generation — forward, reverse and both bounces — via Media3 Transformer
 - Trim, speed control (0.5x–3.0x, constant or a custom curve) and Looks, all previewed before you save
-- Seven face lenses, tracked with ML Kit and baked into the recording
+- Seven face lenses, tracked with ML Kit and baked into the recording — on up to two faces at once
 - Gallery with delete, full-screen playback and a share sheet
 - In-app updates and a Play review prompt
-- 536 unit tests + 122 instrumented tests
+- 570 unit tests + 122 instrumented tests
 
 **What's next:**
 
