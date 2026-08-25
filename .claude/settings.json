@@ -9,5 +9,18 @@
   },
   "enabledPlugins": {
     "android-skills@android-skills": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__.*create_pull_request",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hooks/require-sweep.mjs"
+          }
+        ]
+      }
+    ]
   }
 }

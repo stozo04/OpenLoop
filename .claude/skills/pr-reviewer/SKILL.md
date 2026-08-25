@@ -50,18 +50,18 @@ If any of these files don't exist or have moved, say so — don't guess at the c
 Training data goes stale. Before reviewing any code, web-search `developer.android.com` for
 the **latest** guidance on each of these topics:
 
-| Topic | Why It Matters |
-|-------|---------------|
-| App architecture (MVVM, UDF) | Structural correctness |
-| Jetpack Compose performance | Recomposition bugs, jank |
-| Kotlin coroutines best practices | Leaks, crashes, threading |
-| Jetpack DataStore | Data corruption, main-thread blocking |
-| CameraX | Device compatibility, lifecycle crashes |
-| Runtime permissions | User trust, Play Store rejection |
-| Testing strategy | Regression prevention |
-| Accessibility | Legal compliance, user reach |
-| Play Store target API requirements | Submission rejection deadlines |
-| Latest Android version behavior changes | Breaking changes on new devices |
+| Topic                                   | Why It Matters                          |
+| --------------------------------------- | --------------------------------------- |
+| App architecture (MVVM, UDF)            | Structural correctness                  |
+| Jetpack Compose performance             | Recomposition bugs, jank                |
+| Kotlin coroutines best practices        | Leaks, crashes, threading               |
+| Jetpack DataStore                       | Data corruption, main-thread blocking   |
+| CameraX                                 | Device compatibility, lifecycle crashes |
+| Runtime permissions                     | User trust, Play Store rejection        |
+| Testing strategy                        | Regression prevention                   |
+| Accessibility                           | Legal compliance, user reach            |
+| Play Store target API requirements      | Submission rejection deadlines          |
+| Latest Android version behavior changes | Breaking changes on new devices         |
 
 Save the URLs you find. You will cite them in your review — every FAIL and WARNING must
 link to the specific Google doc that defines the standard being violated.
@@ -89,6 +89,11 @@ Once you have the PR:
 ---
 
 ## Phase 3.5: Run Static Analysis — the two "Inspect Code" engines
+
+**First, the receipt.** Every PR must come from a green `scripts/pre-pr-sweep.ps1` run on its final
+commit (`docs/DEFINITION_OF_DONE.md`). The PR description states whether Inspect Code (Engine 2) and
+the instrumented tests were run or skipped. If the description says nothing about the sweep, that
+is a **WARNING** ("Testing" category) — ask for it; don't infer a pass.
 
 Android Studio's **Inspect Code** is two engines stacked. Reproduce them headlessly and fold
 the results into the same report. Full design + rationale: **`docs/STATIC_ANALYSIS.md`** (read
@@ -123,7 +128,7 @@ Lint is fully headless and deterministic. Run it and parse the XML:
 - If `./gradlew` can't run in this environment (no JDK / sandbox), **say so explicitly** in the
   report ("Engine 1 — Lint: not run, environment lacks a JDK") rather than implying it passed.
 
-### Engine 2 — IntelliJ IDE inspections + Grazie proofreading (faithful, local-only)
+### Engine 2 — IntelliJ-platform inspections + Grazie proofreading (faithful, local-only)
 
 This is the only faithful reproduction of the Kotlin-redundancy / Markdown / **proofreading**
 findings (grammar, typos, unresolved file references, the "Annotator" Markdown errors). It
@@ -137,22 +142,23 @@ automated gate — it is a documented pre-merge command the author runs locally 
 - If not, **state plainly that Engine 2 was not run and must be run locally before merge** —
   don't let its absence read as a pass.
 
-### Tier 3 — OSS fallback when Engine 2 was NOT run (no Android Studio here)
+### Tier 3 — the headless text gates (hard, whole repo)
 
-If Engine 2 couldn't run (cloud/CI environment with no `inspect.bat`), run the Node-based Tier 3
-tools to recover the high-value subset. They're **advisory** — fold findings in at **RECOMMENDATION**
-severity, labeled `Tier 3`, scoped to the PR's **changed Markdown files** (there's no baseline):
+Tier 3 is no longer advisory: the tracked tree is at **zero** and there is no baseline, so any finding is
+one the PR introduced → **FAIL** ("Static Analysis" category). Run them over the whole tree, exactly as
+the sweep's gates 6–8 and CI do:
 
 ```bash
-FILES=$(git diff --name-only --diff-filter=d origin/<base>...HEAD -- '*.md')   # or the PR's changed .md list
-npx --yes markdownlint-cli2 $FILES                                  # tables, list numbering, structure
-npx --yes cspell --no-progress $FILES                               # typos (dictionary: cspell.json)
-for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done  # broken file refs
+npx --yes markdownlint-cli2 $(git ls-files '*.md')                  # list numbering, spacing, fence languages
+python scripts/md-table-align.py                                    # IDE-faithful table alignment
+for f in $(git ls-files '*.md'); do npx --yes markdown-link-check --config .markdown-link-check.json -q "$f"; done
+git ls-files '*.md' '*.kt' '*.kts' '*.xml' '*.yml' '*.ps1' '*.py' '*.mjs' '*.json' '*.html' | npx --yes cspell --no-progress --file-list stdin
+python scripts/sync-ide-dictionary.py --check
 ```
 
-- Configs are committed: `.markdownlint-cli2.jsonc`, `cspell.json`, `.markdown-link-check.json`.
-- A *modified* doc surfaces its pre-existing issues too (file-level scoping, no line baseline) — say so
-  rather than blaming the PR for legacy hits.
+- Configs are committed: `.markdownlint-cli2.jsonc`, `cspell.json` (the single project dictionary —
+  legit terms go there, never a disabled check), `.markdown-link-check.json`.
+- Grazie grammar/dialect has no headless equivalent; that stays with the Inspect Code export (Engine 2).
 - detekt (Kotlin redundancy) is **deferred** — stable detekt doesn't support Kotlin 2.3.x yet
   (`docs/STATIC_ANALYSIS.md` → Tier 3). Don't try to add it.
 - If Node isn't available either, say Tier 3 couldn't run — same honesty rule.
