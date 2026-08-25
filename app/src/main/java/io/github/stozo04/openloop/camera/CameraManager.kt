@@ -53,7 +53,7 @@ class CameraManager(private val context: Context) {
      * an absent effect.
      */
     private val lensProcessor = LensSurfaceProcessor(context)
-    private val faceTracker = FaceTracker(lensProcessor::setFace)
+    private val faceTracker = FaceTracker(lensProcessor::setFaces)
     private var zoomStateObserver: Observer<ZoomState>? = null
     private var observedZoomState: LiveData<ZoomState>? = null
     /** Per-pinch anchor ratio — avoids stale [ZoomState] reads during a fast scale stream. */
@@ -194,7 +194,7 @@ class CameraManager(private val context: Context) {
         } catch (exc: IllegalArgumentException) {
             Log.w(TAG, "Face analysis not supported alongside preview + video; lenses disabled", exc)
             analysis.clearAnalyzer()
-            lensProcessor.setFace(null)
+            lensProcessor.setFaces(emptyList())
             provider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
