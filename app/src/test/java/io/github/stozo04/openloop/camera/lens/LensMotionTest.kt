@@ -226,4 +226,41 @@ class LensMotionTest {
         assertNull(motion.forFace(1))
         assertNull(motion.forFace(2))
     }
+
+    // ---------------------------------------------------------------- through the roster
+
+    @Test
+    fun aFaceRelabelledByTheDetector_keepsItsSpringsAndMouth_throughTheRoster() {
+        // Review finding on PR #145 (Lesson 037): the roster recognised a relabelled face as the
+        // same person but published it under the NEW id, so this class started that person's
+        // springs and mouth from rest on every blink — a solo-selfie regression, in the recording.
+        // This drives the real FaceRoster → LensMotion boundary rather than a hand-built roster.
+        val roster = FaceRoster(maxFaces = 2, holdMs = 350L)
+        val motion = LensMotion()
+        var stamp = frameNs
+        var nowMs = 0L
+        fun frame(sightings: List<FaceRoster.Sighting>) {
+            motion.step(tongue, roster.update(sightings, nowMs), stamp)
+            stamp += frameNs
+            nowMs += 33
+        }
+
+        // A moving, talking person under id 1.
+        repeat(12) { i ->
+            frame(listOf(FaceRoster.Sighting(face(1, centerX = 0.3f + i * 0.02f, openness = 1f), 10f)))
+        }
+        assertTrue(motion.swingOf(1) != 0f)
+        assertTrue(motion.forFace(1)!!.openFraction > 0.9f)
+
+        // The detector drops a frame, then finds the same person one step further along — under
+        // id 7.
+        frame(emptyList())
+        frame(listOf(FaceRoster.Sighting(face(7, centerX = 0.3f + 13 * 0.02f, openness = 1f), 10f)))
+
+        val after = motion.forFace(1)
+        assertNotNull("the relabelled person is still keyed by the original id", after)
+        assertNull("no state was started for the detector's new id", motion.forFace(7))
+        assertTrue("the mouth did not restart from shut", after!!.openFraction > 0.9f)
+        assertTrue("the spring carried on rather than resetting to rest", motion.swingOf(1) != 0f)
+    }
 }

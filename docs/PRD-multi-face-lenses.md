@@ -108,9 +108,16 @@ exactly as today, per face.
 under a *new* tracking id. The old id is still held, so naively the same person would wear two
 lenses for up to `HOLD_MS` — and with both slots full the new id would be locked out until the
 hold expired. The single-face tracker never had this problem because a fresh detection always won
-outright. So: a fresh face with no slot that appears within one face-unit (eye-to-mouth distance,
-square space) of a held-but-unseen slot holder is the same person and inherits the slot, old id
-evicted. A third person entering anywhere else during someone's blink still cannot take a slot.
+outright. So: the **nearest** fresh face with no slot within one face-unit (eye-to-mouth distance,
+square space) of a held-but-unseen slot holder is the same person. A third person entering
+anywhere else during someone's blink still cannot take a slot.
+
+**And it is published under the original id (second review finding, PR #145).** The first fix
+handed the slot to the new id, which put one lens on the face but reset that person's `LensMotion`
+state — springs and eased mouth are keyed by `trackingId` — on every relabel. So `FaceRoster`
+re-keys the adopted snapshot to the holder's id and keeps an alias (new → original) that folds
+every later sighting of the new id onto the same entry, until the holder expires. Nothing
+downstream ever sees the label change. Lesson 037 patterns 2–3 and 5.
 
 ### 4.3 `LensSurfaceProcessor` draws per face
 
@@ -159,10 +166,14 @@ order as the one snapshot per frame it always allocated.
   a larger newcomer does not evict a locked face; cap respected; empty input frees every slot;
   ordering is stable frame to frame. Stateful: a blink is held per face; a held face without a
   slot cannot take one; a third person cannot take a slot during someone's blink; an id-churned
-  face inherits its own slot (solo and two-face); the hold expires.
+  face keeps its slot **and its original id** (solo and two-face), the new id stays folded onto it
+  on later frames, the alias dies with the face, adoption takes the nearest candidate; the hold
+  expires.
 - `LensMotionTest` — two faces step independent springs (moving face A never swings B); a face
   that leaves is evicted and a returning id starts from rest; mouth easing per face; lens change
-  resets springs and keeps the mouth; a timestamp gap is clamped so no spring can blow up.
+  resets springs and keeps the mouth; a timestamp gap is clamped so no spring can blow up; **and
+  one test through the real `FaceRoster` → `LensMotion` boundary**: a detector relabel keeps the
+  person's springs and mouth continuous.
 - `FaceSnapshotTest` — `uprightToBuffer` and `reframe` carry `trackingId` through, the way
   `LensAnchorTest` already guards `mouthOpenness`.
 

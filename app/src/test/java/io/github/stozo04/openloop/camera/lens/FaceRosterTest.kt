@@ -202,30 +202,77 @@ class FaceRosterTest {
     // ---------------------------------------------------------------- id churn
 
     @Test
-    fun aFaceRedetectedUnderANewId_inheritsItsOwnSlot_soloCase() {
+    fun aFaceRedetectedUnderANewId_keepsItsSlotAndItsOriginalId_soloCase() {
         // The regression a review caught: one person, the detector drops a frame and comes back
         // with a new id. Old code: the fresh detection won outright. This must not draw two lenses
-        // on one face for 350 ms, and must not lock the new id out.
+        // on one face for 350 ms, and must not lock the new id out — and the person must keep the
+        // id every downstream per-face state (springs, eased mouth) is keyed on. Only the geometry
+        // is the new detection's.
         val roster = FaceRoster(two, holdMs)
         roster.update(listOf(seen(1, 0.5f)), nowMs = 0)
         roster.update(emptyList(), nowMs = 33)
 
         val back = roster.update(listOf(seen(7, 0.52f)), nowMs = 66)
 
-        assertEquals(listOf(7), back.ids())
+        assertEquals(listOf(1), back.ids())
         assertEquals(0.52f - 0.08f, back.single().leftEyeX, 1e-6f)
     }
 
     @Test
-    fun aFaceRedetectedUnderANewId_inheritsItsOwnSlot_withTheOtherFacePresent() {
+    fun aFaceRedetectedUnderANewId_keepsItsSlotAndItsOriginalId_withTheOtherFacePresent() {
         val roster = FaceRoster(two, holdMs)
         roster.update(listOf(seen(1, 0.3f), seen(2, 0.7f)), nowMs = 0)
         roster.update(listOf(seen(2, 0.7f)), nowMs = 33)
 
         val back = roster.update(listOf(seen(2, 0.7f), seen(7, 0.31f)), nowMs = 66)
 
-        // Slot ORDER is kept too: 7 takes 1's slot, 2 stays where it was.
-        assertEquals(listOf(7, 2), back.ids())
+        // Slot ORDER and ids are kept: 7 is 1 come back, 2 stays where it was.
+        assertEquals(listOf(1, 2), back.ids())
+        assertEquals(0.31f - 0.08f, back.first().leftEyeX, 1e-6f)
+    }
+
+    @Test
+    fun theNewId_staysFoldedOntoTheOriginal_onEveryLaterFrame() {
+        // ML Kit keeps reporting the relabelled person under the new id for as long as it tracks
+        // them; every one of those sightings must land on the original entry, not fork a second
+        // face next to it.
+        val roster = FaceRoster(two, holdMs)
+        roster.update(listOf(seen(1, 0.5f)), nowMs = 0)
+        roster.update(emptyList(), nowMs = 33)
+        roster.update(listOf(seen(7, 0.52f)), nowMs = 66)
+
+        val later = roster.update(listOf(seen(7, 0.54f)), nowMs = 99)
+
+        assertEquals(listOf(1), later.ids())
+        assertEquals(0.54f - 0.08f, later.single().leftEyeX, 1e-6f)
+    }
+
+    @Test
+    fun anAlias_diesWithTheFaceItPointedAt() {
+        // Once the person is gone for longer than the hold, a detector id that used to mean them
+        // means whoever the detector says it does — a new arrival is not silently renamed.
+        val roster = FaceRoster(two, holdMs)
+        roster.update(listOf(seen(1, 0.5f)), nowMs = 0)
+        roster.update(emptyList(), nowMs = 33)
+        roster.update(listOf(seen(7, 0.52f)), nowMs = 66)
+
+        roster.update(emptyList(), nowMs = 66 + holdMs)
+        val fresh = roster.update(listOf(seen(7, 0.52f)), nowMs = 66 + holdMs + 33)
+
+        assertEquals(listOf(7), fresh.ids())
+    }
+
+    @Test
+    fun adoption_picksTheNearestCandidate_notTheFirstReported() {
+        // Two fresh faces both inside the radius, reported farthest-first. The nearer one is the
+        // person come back; the other is a newcomer who takes the free slot on its own id.
+        val roster = FaceRoster(two, holdMs)
+        roster.update(listOf(seen(1, 0.5f)), nowMs = 0)
+
+        val next = roster.update(listOf(seen(8, 0.65f), seen(7, 0.55f)), nowMs = 33)
+
+        assertEquals(listOf(1, 8), next.ids())
+        assertEquals(0.55f - 0.08f, next.first().leftEyeX, 1e-6f)
     }
 
     @Test
@@ -245,7 +292,7 @@ class FaceRosterTest {
         // Eye-to-mouth is 0.2 here. Just inside adopts; just outside does not.
         val inside = FaceRoster(two, holdMs)
         inside.update(listOf(seen(1, 0.5f)), nowMs = 0)
-        assertEquals(listOf(7), inside.update(listOf(seen(7, 0.5f + 0.19f)), nowMs = 33).ids())
+        assertEquals(listOf(1), inside.update(listOf(seen(7, 0.5f + 0.19f)), nowMs = 33).ids())
 
         val outside = FaceRoster(two, holdMs)
         outside.update(listOf(seen(1, 0.5f)), nowMs = 0)

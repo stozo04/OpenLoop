@@ -31,11 +31,17 @@ import kotlin.math.hypot
  *
  * When ML Kit loses a face for a frame or two it often re-detects it under a **new** tracking id.
  * The old id is still being held, so without care the same person would wear two lenses for up to
- * [holdMs] — and, with the slots full, the new id would be locked out until the hold expired. So a
- * fresh face that has no slot and appears within [SAME_FACE_RADIUS_UNITS] of a held-but-unseen
- * slot holder is taken to be that person and **inherits the slot**, old id evicted. A different
- * person cannot land on the exact same spot inside a third of a second, and a third person entering
- * anywhere else during someone's blink still cannot steal a slot.
+ * [holdMs] — and, with the slots full, the new id would be locked out until the hold expired. So
+ * the nearest fresh face that has no slot and stands within [SAME_FACE_RADIUS_UNITS] of a
+ * held-but-unseen slot holder is taken to be that person. A different person cannot land on the
+ * exact same spot inside a third of a second, and a third person entering anywhere else during
+ * someone's blink still cannot steal a slot.
+ *
+ * The adopted face is **published under the original id**, not the detector's new one (Lesson
+ * 037). Every per-face consumer downstream — the wobble springs and eased mouth in [LensMotion],
+ * anything added later — keys its state on [FaceSnapshot.trackingId], so a label change that
+ * leaked through would reset all of it mid-blink. The new id is recorded as an alias and folded
+ * back onto the original on every later sighting, for as long as that person is held.
  */
 class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
 
@@ -45,11 +51,18 @@ class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
     /** One detection, reduced to what [assign] needs: who, and how big. */
     data class Candidate(val trackingId: Int, val area: Float)
 
-    /** Every face seen within the last [holdMs], keyed by tracking id, in first-seen order. */
+    /** Every face seen within the last [holdMs], keyed by (canonical) tracking id, first-seen order. */
     private val held = LinkedHashMap<Int, HeldFace>()
 
     /** The faces holding a lens slot, in slot order. */
     private var slots: List<Int> = emptyList()
+
+    /**
+     * Detector ids folded into the id they were adopted under (new → original). A relabelled
+     * person keeps reporting under the new id for as long as the detector tracks them, and every
+     * one of those sightings must land on the original entry. Pruned when the original expires.
+     */
+    private val aliases = HashMap<Int, Int>()
 
     /** Scratch for the frame's candidates, reused. */
     private val candidates = ArrayList<Candidate>()
@@ -64,14 +77,21 @@ class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
      */
     fun update(sightings: List<Sighting>, nowMs: Long): List<FaceSnapshot> {
         for (sighting in sightings) {
-            held[sighting.snapshot.trackingId] =
-                HeldFace(sighting.snapshot, seenAtMs = nowMs, area = sighting.area, fresh = true)
+            val snapshot = sighting.snapshot.rekeyed(aliases[sighting.snapshot.trackingId])
+            held[snapshot.trackingId] =
+                HeldFace(snapshot, seenAtMs = nowMs, area = sighting.area, fresh = true)
         }
 
-        // Expire first, so a stale slot holder cannot be "the same person" as a newcomer.
+        // Expire first, so a stale slot holder cannot be "the same person" as a newcomer. An
+        // expired face takes its aliases with it: the next time one of those detector ids shows
+        // up it is whoever the detector says it is.
         val expired = held.entries.iterator()
         while (expired.hasNext()) {
-            if (nowMs - expired.next().value.seenAtMs >= holdMs) expired.remove()
+            val entry = expired.next()
+            if (nowMs - entry.value.seenAtMs >= holdMs) {
+                expired.remove()
+                aliases.entries.removeAll { it.value == entry.key }
+            }
         }
 
         adoptRedetectedFaces()
@@ -96,48 +116,62 @@ class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
     /** Forgets every face. */
     fun clear() {
         held.clear()
+        aliases.clear()
         slots = emptyList()
     }
 
     /**
-     * Hands a held-but-unseen slot holder's slot to a fresh, slot-less face standing where it was —
-     * the same person back under a new tracking id (see the class doc).
+     * Re-keys a held-but-unseen slot holder onto the fresh, slot-less face standing where it was —
+     * the same person back under a new tracking id (see the class doc). The slot, its index, and
+     * the id every downstream consumer knows this person by are all unchanged.
      */
     private fun adoptRedetectedFaces() {
-        if (slots.isEmpty()) return
-        var next: MutableList<Int>? = null
-        for ((index, id) in slots.withIndex()) {
+        for (id in slots) {
             val holder = held[id] ?: continue
             if (holder.fresh) continue
-            val successor = findSuccessor(holder.snapshot, alreadyAdopted = next) ?: continue
-            val list = next ?: slots.toMutableList()
-            next = list
-            list[index] = successor
-            held.remove(id)
+            val successorId = findSuccessor(holder.snapshot) ?: continue
+            val successor = held.remove(successorId) ?: continue
+            held[id] = HeldFace(
+                successor.snapshot.copy(trackingId = id),
+                seenAtMs = successor.seenAtMs,
+                area = successor.area,
+                fresh = true,
+            )
+            aliases[successorId] = id
+            // Belt and braces: anything that already pointed at the successor follows it.
+            for (alias in aliases.entries) if (alias.value == successorId) alias.setValue(id)
         }
-        next?.let { slots = it }
     }
 
-    /** A fresh, slot-less face standing where [holder] was, or `null`. */
-    private fun findSuccessor(holder: FaceSnapshot, alreadyAdopted: List<Int>?): Int? {
+    /**
+     * The **nearest** fresh, slot-less face within [SAME_FACE_RADIUS_UNITS] of [holder], or
+     * `null`. Nearest, not first-reported: two people cheek to cheek can both be relabelled in the
+     * same frame, and first-match would let their identities cross.
+     */
+    private fun findSuccessor(holder: FaceSnapshot): Int? {
+        val aspect = holder.sourceAspect
+        val holderFrame = LensAnchor.faceFrame(holder, aspect) ?: return null
+        val radius = SAME_FACE_RADIUS_UNITS * holderFrame.unit
+        var best: Int? = null
+        var bestDistance = Float.MAX_VALUE
         for ((id, face) in held) {
             if (!face.fresh || id in slots) continue
-            if (alreadyAdopted != null && id in alreadyAdopted) continue
-            if (isSamePerson(holder, face.snapshot)) return id
+            val frame = LensAnchor.faceFrame(face.snapshot, face.snapshot.sourceAspect) ?: continue
+            // Distance between eye midpoints in square space, in units of the held face (Lesson
+            // 032: measure in square space, in the snapshot's own frame).
+            val dx = frame.originX - holderFrame.originX
+            val dy = LensAnchor.toSquareY(frame.originY - holderFrame.originY, aspect)
+            val distance = hypot(dx, dy)
+            if (distance <= radius && distance < bestDistance) {
+                best = id
+                bestDistance = distance
+            }
         }
-        return null
+        return best
     }
 
-    private fun isSamePerson(held: FaceSnapshot, fresh: FaceSnapshot): Boolean {
-        val aspect = held.sourceAspect
-        val heldFrame = LensAnchor.faceFrame(held, aspect) ?: return false
-        val freshFrame = LensAnchor.faceFrame(fresh, fresh.sourceAspect) ?: return false
-        // Distance between eye midpoints in square space, in units of the held face (Lesson 032:
-        // measure in square space, in the snapshot's own frame).
-        val dx = freshFrame.originX - heldFrame.originX
-        val dy = LensAnchor.toSquareY(freshFrame.originY - heldFrame.originY, aspect)
-        return hypot(dx, dy) <= SAME_FACE_RADIUS_UNITS * heldFrame.unit
-    }
+    private fun FaceSnapshot.rekeyed(canonicalId: Int?): FaceSnapshot =
+        if (canonicalId == null || canonicalId == trackingId) this else copy(trackingId = canonicalId)
 
     /** One face's last good snapshot, when it was seen, and whether *this* frame saw it. */
     private class HeldFace(
