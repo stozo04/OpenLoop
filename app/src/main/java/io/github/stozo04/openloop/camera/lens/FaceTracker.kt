@@ -19,18 +19,20 @@ import kotlin.math.hypot
  * the eyes and mouth corners the face frame is built from, at a fraction of the cost of 468 mesh
  * points, and it carries an SLA. See `docs/PRD-camera-lenses.md` §5.1 for the comparison.
  *
- * Only the most prominent face is tracked. Lenses are a selfie feature; picking the largest face
- * keeps a bystander in the background from stealing the broccoli.
+ * Up to [MAX_TRACKED_FACES] faces are followed at once, so two people in a selfie both get the
+ * lens (`docs/PRD-multi-face-lenses.md`). Which faces hold a slot, and how a face rides out a
+ * dropped frame, is [FaceRoster]'s decision — this class is the ML Kit glue in front of it.
+ * [onFaces] receives the roster in slot order, empty when nobody is in frame.
  */
-class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.Analyzer {
+class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnalysis.Analyzer {
 
     private var loggedGeometry = false
 
-    /** The face we are following, so the lens does not hop between people. */
-    private var lockedTrackingId: Int? = null
+    /** Slot assignment and the per-face hold. Touched only on the detector's callback thread. */
+    private val roster = FaceRoster(maxFaces = MAX_TRACKED_FACES, holdMs = HOLD_MS)
 
-    /** When a face was last seen, for the drop-out hold in [publish]. */
-    private var lastFaceAtMs = 0L
+    /** This frame's detections, reused across frames. */
+    private val sightings = ArrayList<FaceRoster.Sighting>(MAX_TRACKED_FACES * 2)
 
     private val detector = FaceDetection.getClient(
         FaceDetectorOptions.Builder()
@@ -42,6 +44,8 @@ class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.A
             .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
             .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
             .setMinFaceSize(MIN_FACE_SIZE)
+            // Tracking ids are what let a slot follow a person across frames, and what keys every
+            // per-face state downstream (FaceSnapshot.trackingId).
             .enableTracking()
             .build(),
     )
@@ -65,54 +69,33 @@ class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.A
 
         detector.process(InputImage.fromMediaImage(mediaImage, rotationDegrees))
             .addOnSuccessListener { faces ->
-                val snapshot = pickTrackedFace(faces)
-                    ?.toSnapshot(uprightWidth, uprightHeight)
-                    // ML Kit answers in the upright image; the renderer draws in the camera
-                    // buffer's own orientation. Undo the rotation here so exactly one place in
-                    // the app knows about the quarter turn.
-                    ?.let { LensAnchor.uprightToBuffer(it, rotationDegrees) }
-                publish(snapshot)
+                sightings.clear()
+                for (face in faces) {
+                    // Without a tracking id there is nothing to key a slot or a spring on. ML Kit
+                    // always assigns one with tracking enabled; this is belt and braces.
+                    val id = face.trackingId ?: continue
+                    val snapshot = face.toSnapshot(uprightWidth, uprightHeight, id)
+                        // ML Kit answers in the upright image; the renderer draws in the camera
+                        // buffer's own orientation. Undo the rotation here so exactly one place in
+                        // the app knows about the quarter turn.
+                        ?.let { LensAnchor.uprightToBuffer(it, rotationDegrees) }
+                        ?: continue
+                    val area = face.boundingBox.width().toFloat() * face.boundingBox.height()
+                    sightings.add(FaceRoster.Sighting(snapshot, area))
+                }
+                publish()
             }
             .addOnFailureListener { error ->
                 Log.w(TAG, "Face detection failed", error)
-                publish(null)
+                sightings.clear()
+                publish()
             }
             .addOnCompleteListener { imageProxy.close() }
     }
 
-    /**
-     * Keeps the lens on **one** subject instead of re-choosing every frame.
-     *
-     * ML Kit's tracking id follows a face across frames, so once a face is locked it stays locked
-     * even if someone larger walks past. The lock is only re-taken when the tracked id genuinely
-     * disappears, at which point the most prominent face wins.
-     */
-    private fun pickTrackedFace(faces: List<Face>): Face? {
-        if (faces.isEmpty()) return null
-        val stillHere = lockedTrackingId?.let { locked -> faces.firstOrNull { it.trackingId == locked } }
-        val chosen = stillHere ?: faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
-        lockedTrackingId = chosen?.trackingId
-        return chosen
-    }
-
-    /**
-     * Publishes a snapshot, holding the previous one briefly when detection drops out.
-     *
-     * A detector at `PERFORMANCE_MODE_FAST` misses the odd frame — on a blink, a fast turn, or a
-     * motion-blurred frame. Publishing `null` for those makes the lens blink off and back on, which
-     * reads as broken. Holding the last good face for [HOLD_MS] rides through the gap without
-     * adding any latency while the face IS being found, because a fresh detection always wins.
-     */
-    private fun publish(snapshot: FaceSnapshot?) {
-        val now = SystemClock.elapsedRealtime()
-        if (snapshot != null) {
-            lastFaceAtMs = now
-            onFace(snapshot)
-            return
-        }
-        if (now - lastFaceAtMs < HOLD_MS) return // keep showing the last face
-        lockedTrackingId = null
-        onFace(null)
+    /** Folds [sightings] into the roster and hands the slot holders to the renderer. */
+    private fun publish() {
+        onFaces(roster.update(sightings, SystemClock.elapsedRealtime()))
     }
 
     /** Releases the detector. Call when the analyzer is unbound. */
@@ -150,9 +133,9 @@ class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.A
      * position, orientation and scale at once — see [LensAnchor].
      *
      * Returns `null` if any landmark is missing (steep angles, profile views), so the renderer
-     * shows a clean pass-through instead of a lens guessing at where a face might be.
+     * shows a clean pass-through for that face instead of a lens guessing at where it might be.
      */
-    private fun Face.toSnapshot(frameWidth: Float, frameHeight: Float): FaceSnapshot? {
+    private fun Face.toSnapshot(frameWidth: Float, frameHeight: Float, trackingId: Int): FaceSnapshot? {
         if (frameWidth <= 0f || frameHeight <= 0f) return null
         val leftEye = getLandmark(FaceLandmark.LEFT_EYE)?.position ?: return null
         val rightEye = getLandmark(FaceLandmark.RIGHT_EYE)?.position ?: return null
@@ -192,20 +175,29 @@ class FaceTracker(private val onFace: (FaceSnapshot?) -> Unit) : ImageAnalysis.A
             mouthRightY = mouthRight.y / frameHeight,
             sourceAspect = frameWidth / frameHeight,
             mouthOpenness = openness,
+            trackingId = trackingId,
         )
     }
 
-    private companion object {
-        const val TAG = "OpenLoopFaceTracker"
-
-        /** Ignore faces smaller than this fraction of the frame — background bystanders. */
-        const val MIN_FACE_SIZE = 0.15f
+    companion object {
+        private const val TAG = "OpenLoopFaceTracker"
 
         /**
-         * How long to keep showing the last face after detection drops out. Long enough to ride
-         * through a blink or a blurred frame, short enough that walking out of shot clears the
-         * lens without a visible lag.
+         * How many people can wear the lens at once — `docs/PRD-multi-face-lenses.md` D1. Two is a
+         * selfie with a kid or a friend; three is a group photo. Everything downstream is keyed by
+         * face, so raising this is a one-line change, but each extra face is one more landmark
+         * pass per frame and a full set of sticker/feature draws per output.
          */
-        const val HOLD_MS = 350L
+        const val MAX_TRACKED_FACES = 2
+
+        /** Ignore faces smaller than this fraction of the frame — background bystanders. */
+        private const val MIN_FACE_SIZE = 0.15f
+
+        /**
+         * How long to keep showing the last snapshot of a face after its detection drops out. Long
+         * enough to ride through a blink or a blurred frame, short enough that walking out of shot
+         * clears the lens without a visible lag. See [FaceRoster] for how the hold plays out.
+         */
+        private const val HOLD_MS = 350L
     }
 }
