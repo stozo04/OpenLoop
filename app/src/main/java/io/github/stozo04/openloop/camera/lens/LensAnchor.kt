@@ -31,7 +31,7 @@ import kotlin.math.sin
  *
  * That is deliberately the only mechanism here. The earlier version anchored to the bounding box
  * with per-lens offsets plus a roll angle plus a mirror flag; three error sources stacked on magic
- * numbers, and it did not generalise.
+ * numbers, and it did not generalize.
  *
  * ## The one coordinate space
  *
@@ -128,8 +128,8 @@ enum class LensAnchorPoint { FACE, LEFT_EYE, RIGHT_EYE, MOUTH }
  *
  * @param widthInUnits sticker width as a multiple of the eye-to-mouth distance.
  * @param artAspect the art's own height / width, so it never renders squashed.
- * @param upInUnits how far above [anchor] the sticker's centre sits (negative = below).
- * @param rightInUnits how far along the face's `right` axis the centre sits (negative = left).
+ * @param upInUnits how far above [anchor] the sticker's center sits (negative = below).
+ * @param rightInUnits how far along the face's `right` axis the center sits (negative = left).
  * @param anchor the point [upInUnits] / [rightInUnits] are measured from.
  * @param wobble non-null makes this layer swing about [anchor] when the head moves — see
  *   [LensPhysics]. Null is rigid, which is every lens that does not hang off the face.
@@ -166,7 +166,7 @@ data class MouthOpenSpec(val restFraction: Float)
  * the frame itself follows the head — the broccoli defines the silhouette, the human supplies only
  * the expression.
  *
- * @param eyeSpacingInUnits distance of each eye from the centre line.
+ * @param eyeSpacingInUnits distance of each eye from the center line.
  * @param eyeUpInUnits height of the eye line on the character (0 = the subject's own eye line).
  * @param eyeWidthInUnits how wide each eye is drawn — larger than life reads as a cartoon.
  * @param mouthUpInUnits height of the mouth; negative is below the eye line.
@@ -259,7 +259,7 @@ object LensAnchor {
      * Places [placement]'s art on [frame]. Position, size and rotation all come from the frame, so
      * a tilted, distant, or mirrored face needs no special case.
      *
-     * [wobbleRadians] turns the art **about its anchor** rather than about its own centre: the
+     * [wobbleRadians] turns the art **about its anchor** rather than about its own center: the
      * offset vector and the art rotate by the same angle, which is what makes a hanging part swing
      * from where it is attached instead of pivoting in place. Zero reproduces the rigid placement
      * exactly, so every non-wobbling lens is bit-identical to before this parameter existed.
@@ -282,8 +282,8 @@ object LensAnchor {
         if (eyeToMouth <= 0f || !eyeToMouth.isFinite() || !mouthToBottom.isFinite()) return 0f
         val ratio = mouthToBottom / eyeToMouth
         // Measured against a relaxed and a wide-open jaw: the lower lip sits ~0.20 units below the
-        // corner line at rest and passes ~0.62 wide open. Below CLOSED is shut, above OPEN is as
-        // open as it gets; between them it is linear.
+        // corner line at rest and passes ~0.62 wide open. Below CLOSED it is shut, above OPEN it is
+        // as open as it gets, and between them it is linear.
         return ((ratio - MOUTH_CLOSED_RATIO) / (MOUTH_OPEN_RATIO - MOUTH_CLOSED_RATIO))
             .coerceIn(0f, 1f)
     }
@@ -324,7 +324,7 @@ object LensAnchor {
         val rightY = frame.rightX * sinW + frame.rightY * cosW
 
         // Scaling the OFFSET by the same factor as the size is what makes a mouth-driven layer
-        // grow out of its anchor instead of swelling around its own centre.
+        // grow out of its anchor instead of swelling around its own center.
         val openScale = mouthOpenScale(placement.mouthOpen, openFraction)
         val alongUp = placement.upInUnits * frame.unit * openScale
         val alongRight = placement.rightInUnits * frame.unit * openScale
@@ -492,7 +492,7 @@ object LensAnchor {
         )
     }
 
-    /** `+1` if a point lies on the frame's `right` side of the centre line, `-1` otherwise. */
+    /** `+1` if a point lies on the frame's `right` side of the center line, `-1` otherwise. */
     private fun sideOf(x: Float, y: Float, frame: FaceFrame, frameAspect: Float): Float {
         val dx = x - frame.originX
         val dy = toSquareY(y - frame.originY, frameAspect)
@@ -521,7 +521,7 @@ object LensAnchor {
      * those differ by a quarter turn (measured: analysis upright `720x1280`, lens output
      * `1280x960`), and drawing upright coordinates there puts every lens 90° out.
      *
-     * Only points move; the face frame is rebuilt from them afterwards, so orientation and scale
+     * Only points move; the face frame is rebuilt from them afterward, so orientation and scale
      * correct themselves.
      */
     fun uprightToBuffer(face: FaceSnapshot, rotationDegrees: Int): FaceSnapshot =
@@ -561,7 +561,7 @@ object LensAnchor {
      *
      * Model: streams cut from a common sensor **share the full width and differ only in how much
      * they keep vertically** — a 16:9 stream is a 4:3 stream with the top and bottom trimmed. So x
-     * passes through and y is rescaled about the centre by `targetAspect / sourceAspect`. One axis,
+     * passes through and y is rescaled about the center by `targetAspect / sourceAspect`. One axis,
      * one factor, and it round-trips exactly.
      */
     fun reframe(face: FaceSnapshot, targetAspect: Float): FaceSnapshot {

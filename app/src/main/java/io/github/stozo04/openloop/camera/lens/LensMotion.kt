@@ -8,10 +8,10 @@ package io.github.stozo04.openloop.camera.lens
  * ## Why per face
  *
  * With two people wearing the lens (`docs/PRD-multi-face-lenses.md` D5) the state cannot describe
- * "the subject" any more. One spring driven by two heads swings on the average of their motion;
+ * "the subject" anymore. One spring driven by two heads swings on the average of their motion;
  * one eased mouth opens both characters' mouths when either person talks. So everything here is
  * keyed by [FaceSnapshot.trackingId]: a face that leaves takes its springs with it, a face that
- * arrives starts at rest, and a solo selfie is exactly the single-subject behaviour it always was.
+ * arrives starts at rest, and a solo selfie is exactly the single-subject behavior it always was.
  *
  * ## The three rules (unchanged from the single-face version)
  *

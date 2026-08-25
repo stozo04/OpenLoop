@@ -143,7 +143,7 @@ enum class EditorTab {
  *
  * [curve] is the Speed tab's mode discriminator as well as its data: **`null` means Constant mode**
  * and [speed] is authoritative; non-null means Curve mode and [speed] is ignored until the user
- * flattens. Modelling it this way (rather than a mode enum beside a second value) means every existing
+ * flattens. Modeling it this way (rather than a mode enum beside a second value) means every existing
  * consumer of [speed] keeps working untouched, and "Flatten to Constant" is one `copy`. Like [speed]
  * it is a pure effect — it never invalidates [reversedFile]. See `docs/PRD-speed-curves.md` D-4.
  *

@@ -3,7 +3,7 @@ package io.github.stozo04.openloop.media
 import java.io.File
 
 /**
- * Deletes pass-1 `_intermediate_*.mp4` scratch files left when reverse preview is cancelled or times
+ * Deletes pass-1 `_intermediate_*.mp4` scratch files left when reverse preview is canceled or times
  * out. Does not remove trim-keyed cache outputs (`<sha1-hex>.mp4`).
  */
 object ReverseScratchJanitor {

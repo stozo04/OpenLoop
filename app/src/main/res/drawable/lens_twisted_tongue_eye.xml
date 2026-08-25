@@ -8,7 +8,7 @@
   GEOMETRY CONTRACT with Lens.TwistedTongue — keep these in sync:
 
       viewport         220 x 220   -> artAspect 1.0
-      ball             centre (110,110), r = 100, i.e. 200/220 = 0.909 of the quad
+      ball             center (110,110), r = 100, i.e. 200/220 = 0.909 of the quad
       widthInUnits     0.62 / 0.909 = 0.68, so the BALL is 0.62 face units across
 
   The 20px of viewport outside the ball is the contact shadow below it. That shadow is the only
@@ -43,7 +43,7 @@
     </aapt:attr>
   </path>
 
-  <!-- The sclera. Warm cream lit from the upper left, falling to a shadowed olive-grey at the
+  <!-- The sclera. Warm cream lit from the upper left, falling to a shadowed olive-gray at the
        lower right — that single gradient is what makes a flat disc read as a sphere. -->
   <path
       android:pathData="M10,110

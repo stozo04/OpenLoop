@@ -27,7 +27,7 @@ android {
     defaultConfig {
         applicationId = "io.github.stozo04.openloop"
         minSdk = 26
-        // Deliberately one behind the latest (37): each target bump is its own reviewed project —
+        // Deliberately one behind the latest (37): each target bump is a reviewed project of its own —
         // behavior changes studied, OEM lanes run (Issue #7 precedent, ANDROID_STANDARDS §11) —
         // never a drive-by lint fix. Play's floor is API 35, so 36 clears it until the next floor
         // move; re-evaluate then. OldTargetApi suppressed at the source per STATIC_ANALYSIS.md.
@@ -108,7 +108,8 @@ android {
         // Studio's "Inspect Code") and parses the XML at app/build/reports/lint-results-debug.xml
         // into PR findings. See docs/STATIC_ANALYSIS.md for the full design.
         //
-        //  - xmlReport / htmlReport: machine-readable (skill) + human-readable (local triage).
+        //  - XML + HTML reports are always generated on AGP 9.3+ (the old xmlReport/htmlReport
+        //    flags are deprecated no-ops): app/build/reports/lint-results-debug.{xml,html}.
         //  - checkDependencies: lint included module code too, not just :app sources.
         //  - abortOnError = false: the SKILL decides the PR verdict, not the build, so lint always
         //    emits a full report instead of failing the build on the first error.
@@ -121,8 +122,6 @@ android {
         // a casual regeneration that silently swallows fresh issues. If a genuinely un-fixable
         // finding ever appears, suppress it AT THE SOURCE with a commented `tools:ignore` /
         // `@Suppress`, where the reason lives next to the code, instead of reintroducing this file.
-        xmlReport = true
-        htmlReport = true
         checkDependencies = true
         abortOnError = false
         warningsAsErrors = false
@@ -134,6 +133,9 @@ kotlin {
     compilerOptions {
         // Must match compileOptions source/targetCompatibility above.
         jvmTarget = JvmTarget.JVM_17
+        // Pre-PR sweep gate (docs/DEFINITION_OF_DONE.md): a Kotlin compiler warning is a build
+        // failure, so `w:` lines can never accumulate silently. Baseline was 0 when this landed.
+        allWarningsAsErrors = true
     }
 }
 
@@ -166,9 +168,9 @@ fun debugViewModelCoverageClassDirectories() =
     debugUnitCoverageClassDirectories().matching {
         include("**/ui/OpenLoopViewModel*.class")
         exclude(
-            "**/OpenLoopViewModel\$Companion.class",
-            "**/OpenLoopViewModel\$Factory.class",
-            "**/OpenLoopViewModel\$WhenMappings.class",
+            $$"**/OpenLoopViewModel$Companion.class",
+            $$"**/OpenLoopViewModel$Factory.class",
+            $$"**/OpenLoopViewModel$WhenMappings.class",
         )
     }
 
@@ -237,11 +239,11 @@ tasks.named("check") {
 
 dependencies {
     constraints {
-        // AGP 9 no longer aligns the compile classpath to runtime versions
+        // AGP 9 no longer aligns the compilation classpath to runtime versions
         // (android.dependency.useConstraints now defaults to false). Without this pin the
-        // *compile* classpath resolves transitive androidx.fragment to 1.1.0 while runtime
+        // *compilation* classpath resolves transitive androidx.fragment to 1.1.0 while runtime
         // gets 1.5.4, tripping lint's InvalidFragmentVersionForActivityResult on every
-        // registerForActivityResult call site. Pin compile to the runtime-resolved version.
+        // registerForActivityResult call site. Pin the compilation classpath to the runtime-resolved version.
         // OpenLoop never uses Fragments directly — this is a constraint, not a dependency.
         implementation(libs.androidx.fragment)
     }
@@ -328,7 +330,8 @@ dependencies {
 
 // Crashlytics mapping upload + Firebase config only when the console JSON is present locally.
 // See ReverseCrashlytics.kt and app/google-services.json.README.
+// Conditional, so it cannot live in the `plugins {}` block; pluginManager is the non-legacy API.
 if (file("google-services.json").exists()) {
-    apply(plugin = "com.google.gms.google-services")
-    apply(plugin = "com.google.firebase.crashlytics")
+    pluginManager.apply("com.google.gms.google-services")
+    pluginManager.apply("com.google.firebase.crashlytics")
 }

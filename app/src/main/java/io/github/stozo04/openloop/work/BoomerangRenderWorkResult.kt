@@ -25,9 +25,9 @@ sealed interface BoomerangRenderWorkResult {
     ) : BoomerangRenderWorkResult
 
     /**
-     * The render was cancelled (WorkManager `CANCELLED`) — user intent, not an error. The observer
+     * The render was canceled (WorkManager `CANCELLED`) — user intent, not an error. The observer
      * must route back to the editor **without** filing a Crashlytics non-fatal (that would re-open
-     * the catch-all beacon issue 47233ad7 with a signal-less "cancelled" event) or surfacing a
+     * the catch-all beacon issue 47233ad7 with a signal-less "canceled" event) or surfacing a
      * user-facing SaveFailed. The scratch survives so the editor resumes where the user left off.
      */
     data object Cancelled : BoomerangRenderWorkResult

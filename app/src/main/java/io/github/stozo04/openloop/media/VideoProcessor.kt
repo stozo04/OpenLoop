@@ -32,7 +32,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
-import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -302,7 +301,7 @@ class Media3VideoProcessor(
         )
         if (isSamsungDevice()) {
             // RTL/S24: reverse start immediately after Transformer release cancels the decoder's
-            // first dequeueOutputBuffer ("Pending dequeue output buffer request cancelled").
+            // first dequeueOutputBuffer ("Pending dequeue output buffer request canceled").
             ReversePreviewLog.d("ensureReversed.settle", "delayMs=${SAMSUNG_POST_TRANSFORM_CODEC_SETTLE.inWholeMilliseconds}")
             delay(SAMSUNG_POST_TRANSFORM_CODEC_SETTLE)
         }
@@ -438,7 +437,7 @@ class Media3VideoProcessor(
      * an item carries both, which is why [videoEffects] no longer contributes a speed effect.
      *
      * The frame-rate cap keys on the curve's **maximum** speed (Issue #41 Tier 1C): a curve has no
-     * single multiplier, and the fastest point is what determines peak output frame density. Slow-mo
+     * single multiplier, and the fastest point is what determines peak output frame density. Slow motion
      * (max ≤ 1×) must not drop frames — leave frame rate unset.
      */
     private fun buildEditedMediaItem(

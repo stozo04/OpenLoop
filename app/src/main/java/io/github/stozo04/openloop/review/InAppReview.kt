@@ -25,7 +25,7 @@ const val REVIEW_REASK_EVERY_SAVES: Int = 10
  * **We re-ask because the API cannot tell us whether the user reviewed.** Google's words: *"The API
  * does not indicate whether the user reviewed or not, or even whether the review dialog was shown"*,
  * and *"do not change your app's behavior based on the completion of the review flow"*. So there is
- * no reviewed/didn't-review signal to branch on, and building one is out of the question.
+ * no reviewed-or-not signal to branch on, and building one is out of the question.
  *
  * Play arbitrates instead, and it already does both halves of what we'd want:
  * - **Reviewed already** → Play withholds the card (having no existing review is a documented

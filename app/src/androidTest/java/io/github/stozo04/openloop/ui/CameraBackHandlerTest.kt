@@ -67,7 +67,7 @@ class CameraBackHandlerTest {
         lensTrayOpen: Boolean,
         expectedStops: Int,
         expectedTrayCloses: Int,
-        expectedFallThroughs: Int,
+        expectedFallThroughCount: Int,
         message: String,
     ) {
         var stops = 0
@@ -91,7 +91,7 @@ class CameraBackHandlerTest {
 
         assertEquals("$message (stop recording)", expectedStops, stops)
         assertEquals("$message (close lens tray)", expectedTrayCloses, trayCloses)
-        assertEquals("$message (passed through)", expectedFallThroughs, fellThrough)
+        assertEquals("$message (passed through)", expectedFallThroughCount, fellThrough)
     }
 
     @Test
@@ -101,7 +101,7 @@ class CameraBackHandlerTest {
             lensTrayOpen = false,
             expectedStops = 0,
             expectedTrayCloses = 0,
-            expectedFallThroughs = 1,
+            expectedFallThroughCount = 1,
             message = "A disabled handler must NOT intercept back on an idle camera",
         )
     }
@@ -113,7 +113,7 @@ class CameraBackHandlerTest {
             lensTrayOpen = false,
             expectedStops = 1,
             expectedTrayCloses = 0,
-            expectedFallThroughs = 0,
+            expectedFallThroughCount = 0,
             message = "An enabled handler must intercept back exactly once while recording",
         )
     }
@@ -125,7 +125,7 @@ class CameraBackHandlerTest {
             lensTrayOpen = true,
             expectedStops = 0,
             expectedTrayCloses = 1,
-            expectedFallThroughs = 0,
+            expectedFallThroughCount = 0,
             message = "Back must dismiss the lens tray rather than exiting the camera",
         )
     }
@@ -139,7 +139,7 @@ class CameraBackHandlerTest {
             lensTrayOpen = true,
             expectedStops = 0,
             expectedTrayCloses = 1,
-            expectedFallThroughs = 0,
+            expectedFallThroughCount = 0,
             message = "The lens tray must take priority over the recording backstop",
         )
     }

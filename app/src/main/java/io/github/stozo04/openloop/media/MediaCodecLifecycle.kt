@@ -2,12 +2,12 @@ package io.github.stozo04.openloop.media
 
 import android.media.MediaCodec
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
-import kotlin.coroutines.coroutineContext
 
 /**
  * Maps benign [MediaCodec] teardown failures (cancel, [MediaCodec.stop]/[MediaCodec.release] in
- * [finally], or Samsung "pending dequeue cancelled" after Transformer/ExoPlayer churn) into
+ * [finally], or Samsung "pending dequeue canceled" after Transformer/ExoPlayer churn) into
  * [CancellationException] so preview reverse does not surface as a user failure or a Crashlytics
  * non-fatal (issue 3a506c4ecc5bfeff0ab2b56d58f6e1d6).
  */
@@ -32,7 +32,7 @@ internal fun isMediaCodecLifecycleFailure(error: Throwable): Boolean =
  * cancellable reverse pass; otherwise rethrows [error] unchanged.
  */
 internal suspend fun rethrowMediaCodecLifecycleAsCancellation(error: Throwable): Nothing {
-    if (isMediaCodecLifecycleFailure(error) && !coroutineContext.isActive) {
+    if (isMediaCodecLifecycleFailure(error) && !currentCoroutineContext().isActive) {
         throw CancellationException("MediaCodec torn down during reverse preview", error)
     }
     throw error

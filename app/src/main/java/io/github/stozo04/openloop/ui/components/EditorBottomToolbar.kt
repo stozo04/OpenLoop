@@ -78,7 +78,7 @@ private val ToolbarLabelStyle
         ),
     )
 
-/** Shared bottom tool bar: Trim · Speed · Loop · Filter · Delete (reference trim mock). */
+/** Shared bottom toolbar: Trim · Speed · Loop · Filter · Delete (reference trim mock). */
 @Composable
 fun EditorBottomToolbar(
     activeSlot: EditorToolbarSlot?,

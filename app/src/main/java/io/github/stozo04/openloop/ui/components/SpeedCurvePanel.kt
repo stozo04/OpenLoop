@@ -77,21 +77,21 @@ private val GRAPH_CORNER = 12.dp
 private val AXIS_LABEL_WIDTH = 34.dp
 private val TIME_AXIS_HEIGHT = 16.dp
 
-/** Half a `labelSmall` line, so a marker's baseline centres on its guide line rather than hanging below it. */
+/** Half a `labelSmall` line, so a marker's baseline centers on its guideline rather than hanging below it. */
 private val AXIS_LABEL_HALF_HEIGHT = 7.dp
 
-/** Approximate width of a `mm:ss` tick label, used to centre it on its tick. */
+/** Approximate width of a `mm:ss` tick label, used to center it on its tick. */
 private val TIME_LABEL_WIDTH = 44.dp
 
 /**
- * Speeds labelled down the Y axis. Spans the full usable range so the reader can see what the top and
+ * Speeds labeled down the Y axis. Spans the full usable range so the reader can see what the top and
  * bottom of the plot actually mean, not just the middle.
  */
 private val AXIS_LABEL_SPEEDS = listOf(0.5f, 1.0f, 2.0f, 3.0f)
 
 /**
- * Speeds that get a guide line and a haptic tick when a drag crosses them — same anchors as the
- * constant slider's detents. 3× is labelled but gets no line: it *is* the top of the plot, and the
+ * Speeds that get a guideline and a haptic tick when a drag crosses them — same anchors as the
+ * constant slider's detents. 3× is labeled but gets no line: it *is* the top of the plot, and the
  * clamp means a drag can never cross it.
  */
 private val GUIDE_SPEEDS = listOf(0.5f, 1.0f, 2.0f)
@@ -340,7 +340,7 @@ private fun SpeedCurveGraph(
                         targetSpeed = targetSpeed,
                     )
                     val newSpeed = updated.keys.getOrNull(index)?.speed ?: previousSpeed
-                    // Tick when the handle crosses a guide line — identical rule to the constant
+                    // Tick when the handle crosses a guideline — identical rule to the constant
                     // slider's detents, so both speed controls feel the same under the thumb.
                     if (GUIDE_SPEEDS.any { guide -> (previousSpeed < guide) != (newSpeed < guide) }) {
                         haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
@@ -362,7 +362,7 @@ private fun SpeedCurveGraph(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val geo = SpeedGraphGeometry(size.width, size.height, insetPx)
 
-            // Guide lines at 0.5x / 1x / 2x, brightest at 1x (the neutral reference).
+            // Guidelines at 0.5x / 1x / 2x, brightest at 1x (the neutral reference).
             GUIDE_SPEEDS.forEach { guide ->
                 val y = geo.yOf(guide)
                 drawLine(
@@ -721,7 +721,7 @@ private fun CurveActionButton(
             .clip(shape)
             .background(SurfaceContainerHigh.copy(alpha = alpha))
             .border(1.dp, OutlineVariant.copy(alpha = alpha), shape)
-            // `clickable`, not `pointerInput { detectTapGestures { … } }`: a pointerInput keyed on
+            // `clickable` rather than `pointerInput { detectTapGestures { … } }` — a pointerInput keyed on
             // `enabled` freezes its lambda for as long as `enabled` holds, so every tap would re-run
             // the FIRST composition's `onClick` against a stale curve (+ Point stuck at 3 keys).
             // It also gives TalkBack a real click action and Role.Button, which the raw gesture had not.
@@ -841,8 +841,8 @@ fun SpeedCurveIntroDialog(onDismiss: () -> Unit) {
  * Where the loop turns direction, as fractions of the loop — the dashed markers on the graph.
  *
  * Derived from the same post-seam-drop clip layout the render uses, so a marker sits exactly where
- * the encoder puts the turn rather than at a nominal half-way point (which would be wrong for every
- * mode except a single forward-then-reverse cycle).
+ * the encoder puts the turn rather than at a nominal half-way point. A nominal point would be wrong
+ * for every mode except a single forward-then-reverse cycle.
  */
 fun seamFractionsFor(clipDurationsUs: List<Long>): List<Float> {
     val total = clipDurationsUs.sum()

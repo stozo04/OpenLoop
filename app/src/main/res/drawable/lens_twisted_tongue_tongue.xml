@@ -80,7 +80,7 @@
     </aapt:attr>
   </path>
 
-  <!-- Median groove. One soft line down the centre is the whole difference between "tongue" and
+  <!-- Median groove. One soft line down the center is the whole difference between "tongue" and
        "pink strip". Stops short of the tip, as a real one does. -->
   <path
       android:fillAlpha="0.34"
@@ -103,7 +103,7 @@
                         C40,224 40,158 44,116
                         C45,104 46,97 50,96 Z" />
 
-  <!-- Tip. Rounded and a touch deeper in colour, which is where the eye lands first. -->
+  <!-- Tip. Rounded and a touch deeper in color, which is where the eye lands first. -->
   <path
       android:fillAlpha="0.30"
       android:fillColor="#FF8E4A55"

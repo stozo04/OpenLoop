@@ -9,6 +9,7 @@ import io.github.stozo04.openloop.work.BoomerangRenderWorkerKeys.PROGRESS_PERCEN
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.io.File
 import java.util.UUID
@@ -42,8 +43,7 @@ class WorkManagerBoomerangRenderScheduler(
     override fun observeResult(workId: UUID): Flow<BoomerangRenderWorkResult> =
         workManager.getWorkInfoByIdFlow(workId)
             .filterNotNull()
-            .map { info -> renderWorkResultOf(info.state, info.outputData) }
-            .filterNotNull()
+            .mapNotNull { info -> renderWorkResultOf(info.state, info.outputData) }
             .distinctUntilChanged()
 
     override fun cancelRenderWork(scratchUuid: String) {

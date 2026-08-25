@@ -1,5 +1,7 @@
 package io.github.stozo04.openloop.camera.lens
 
+import kotlin.math.pow
+
 /**
  * Secondary motion for lens parts that hang off the face — a tongue, an ear, a jowl.
  *
@@ -125,7 +127,7 @@ object LensPhysics {
         if (dt <= 0f || !target.isFinite()) return current
         if (halfLifeSeconds <= 0f) return target
         // 2^(-dt/halfLife): the fraction of the remaining distance still left after this step.
-        val remaining = Math.pow(0.5, (dt / halfLifeSeconds).toDouble()).toFloat()
+        val remaining = 0.5f.pow(dt / halfLifeSeconds)
         return target + (current - target) * remaining
     }
 

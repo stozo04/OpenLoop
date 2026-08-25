@@ -104,7 +104,7 @@ fun OnboardingScreen(
     ) {
         // Full-bleed, edge-to-edge looping demo with a baked-in scrim so the floating title/CTA stay
         // legible over any frame. Playback is lifecycle-aware (pauses when backgrounded).
-        OnboardingPageMedia(playing = true)
+        OnboardingPageMedia()
 
         // Floating bottom stack — title + trust badges + the single launch CTA — anchored over the scrim
         // and kept clear of the system bars by safeDrawingPadding (media stays edge-to-edge behind it).
@@ -150,7 +150,7 @@ internal fun GetStartedButton(onClick: () -> Unit, modifier: Modifier = Modifier
  * protects the status-bar icons; the heavier bottom scrim sits under the title/CTA.
  */
 @Composable
-private fun OnboardingPageMedia(playing: Boolean = false) {
+private fun OnboardingPageMedia() {
     Box(modifier = Modifier.fillMaxSize()) {
         // A Compose @Preview / inspection host can't run an ExoPlayer, so it simply renders no media
         // and the scrimmed gradient below shows through. There is deliberately no still-image stand-in:
@@ -159,7 +159,7 @@ private fun OnboardingPageMedia(playing: Boolean = false) {
         if (!LocalInspectionMode.current) {
             OnboardingVideoCard(
                 rawResId = onboardingPage.videoRawRes,
-                playing = playing,
+                playing = true,
                 modifier = Modifier.fillMaxSize(),
             )
         }

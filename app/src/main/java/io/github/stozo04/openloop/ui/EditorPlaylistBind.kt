@@ -23,6 +23,7 @@ object EditorPlaylistBind {
      * lifecycle guidance). The screen must bump [BoomerangEditorScreen]'s `playerEpoch` when reverse
      * loading starts so the prior instance is released before VideoReverser pass 1 opens codecs.
      */
+    @Suppress("SameReturnValue") // a documented design seam pinned by EditorPlaylistBindTest, not dead logic
     fun requiresPlayerEpochBumpForReversePreview(): Boolean = true
 
     /**

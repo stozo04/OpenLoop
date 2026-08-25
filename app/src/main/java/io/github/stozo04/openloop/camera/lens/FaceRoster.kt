@@ -27,7 +27,7 @@ import kotlin.math.hypot
  * lens off, and their slot stays theirs until the hold expires — only then does it free up. A face
  * merely being held cannot *take* a slot it did not already have; it might be gone for good.
  *
- * ## Id churn
+ * ## ID churn
  *
  * When ML Kit loses a face for a frame or two it often re-detects it under a **new** tracking id.
  * The old id is still being held, so without care the same person would wear two lenses for up to
@@ -58,7 +58,7 @@ class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
     private var slots: List<Int> = emptyList()
 
     /**
-     * Detector ids folded into the id they were adopted under (new → original). A relabelled
+     * Detector ids folded into the id they were adopted under (new → original). A relabeled
      * person keeps reporting under the new id for as long as the detector tracks them, and every
      * one of those sightings must land on the original entry. Pruned when the original expires.
      */
@@ -99,7 +99,7 @@ class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
         candidates.clear()
         for ((id, face) in held) {
             // A face seen this frame competes for a free slot on its size. A face merely being
-            // held keeps the slot it already has (assign keeps kept ids in order) but is offered
+            // held keeps the slot it already has (assign keeps retained ids in order) but is offered
             // only if it has one — a held face without a slot must not take one.
             if (face.fresh) {
                 candidates.add(Candidate(id, face.area))
@@ -145,7 +145,7 @@ class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
 
     /**
      * The **nearest** fresh, slot-less face within [SAME_FACE_RADIUS_UNITS] of [holder], or
-     * `null`. Nearest, not first-reported: two people cheek to cheek can both be relabelled in the
+     * `null`. Nearest, not first-reported: two people cheek to cheek can both be relabeled in the
      * same frame, and first-match would let their identities cross.
      */
     private fun findSuccessor(holder: FaceSnapshot): Int? {
@@ -196,7 +196,7 @@ class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
          *
          * @param slots the ids holding a slot last frame, in slot order.
          * @param candidates every face competing this frame, in any order.
-         * @param maxFaces the cap. `0` or less returns an empty roster.
+         * @param maxFaces the cap. `0` or lower returns an empty roster.
          */
         fun assign(slots: List<Int>, candidates: List<Candidate>, maxFaces: Int): List<Int> {
             if (maxFaces <= 0 || candidates.isEmpty()) return emptyList()

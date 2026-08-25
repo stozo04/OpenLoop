@@ -22,7 +22,7 @@
     android:viewportWidth="340"
     android:viewportHeight="200">
 
-  <!-- Lip ring. Deliberately a lip colour, not a skin colour: the reference effect covers this
+  <!-- Lip ring. Deliberately a lip color, not a skin color: the reference effect covers this
        region with skin-toned geometry that samples the camera for its tone, and the only reason
        this lens does not need that machinery is that nothing here has to match a complexion. -->
   <path

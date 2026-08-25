@@ -11,7 +11,7 @@ import org.junit.Test
  *
  * [LensPhysicsTest] proves one spring behaves; this file proves that with two people in frame
  * each person gets *their own* spring and eased mouth (`docs/PRD-multi-face-lenses.md` D5), that a
- * face leaving takes its state with it, and that a solo face is the single-subject behaviour it
+ * face leaving takes its state with it, and that a solo face is the single-subject behavior it
  * always was. The emulator cannot show the detector two moving heads, so it is asserted here or
  * nowhere.
  */
@@ -231,7 +231,7 @@ class LensMotionTest {
 
     @Test
     fun aFaceRelabelledByTheDetector_keepsItsSpringsAndMouth_throughTheRoster() {
-        // Review finding on PR #145 (Lesson 037): the roster recognised a relabelled face as the
+        // Review finding on PR #145 (Lesson 037): the roster recognized a relabeled face as the
         // same person but published it under the NEW id, so this class started that person's
         // springs and mouth from rest on every blink — a solo-selfie regression, in the recording.
         // This drives the real FaceRoster → LensMotion boundary rather than a hand-built roster.

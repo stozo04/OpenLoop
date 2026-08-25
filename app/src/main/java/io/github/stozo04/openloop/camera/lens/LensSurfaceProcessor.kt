@@ -1,7 +1,6 @@
 package io.github.stozo04.openloop.camera.lens
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.SurfaceTexture
 import android.opengl.EGL14
@@ -95,8 +94,8 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
     /**
      * Uploaded art, keyed by **drawable** rather than by lens. A lens can now carry several layers,
-     * and two of them can be the same file — Twisted Tongue draws one eyeball on each eye — so
-     * keying by lens would either upload the same bitmap twice or need a nested map.
+     * and two of them can be the same file (Twisted Tongue draws one eyeball on each eye). Keying
+     * by lens would therefore either upload the same bitmap twice or need a nested map.
      */
     private val stickerTextures = HashMap<Int, Int>()
 
@@ -152,7 +151,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         faces = snapshots
     }
 
-    /** Tears down the GL thread. The processor is unusable afterwards. */
+    /** Tears down the GL thread. The processor is unusable afterward. */
     fun release() {
         released = true
         glHandler.post {
@@ -554,7 +553,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         return textures[0]
     }
 
-    /** Rasterises a (vector) drawable once and uploads it as a GL texture. */
+    /** Rasterizes a (vector) drawable once and uploads it as a GL texture. */
     private fun loadTexture(drawableRes: Int): Int {
         val drawable = ResourcesCompat.getDrawable(appContext.resources, drawableRes, null)
             ?: return 0

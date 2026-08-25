@@ -11,6 +11,9 @@ class DeviceMediaHintsTest {
         assertEquals(480, SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE)
         assertEquals(500L, SAMSUNG_POST_TRANSFORM_CODEC_SETTLE.inWholeMilliseconds)
         assertTrue(PRE_REVERSE_CODEC_SETTLE.inWholeMilliseconds >= 200L)
-        assert(SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE < MAX_OUTPUT_SHORT_SIDE)
+        // Both sides are `const val`, so the compiler can fold this — the point is to fail the
+        // build-time relationship loudly if someone raises the preview cap past the export cap.
+        @Suppress("KotlinConstantConditions", "SimplifyBooleanWithConstants")
+        assertTrue(SAMSUNG_PREVIEW_REVERSE_MAX_SHORT_SIDE < MAX_OUTPUT_SHORT_SIDE)
     }
 }

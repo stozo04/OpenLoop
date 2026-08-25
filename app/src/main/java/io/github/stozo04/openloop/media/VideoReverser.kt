@@ -20,7 +20,6 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.coroutineContext
 
 /**
  * Produces a time-reversed copy of a video's trimmed window using a two-pass MediaCodec pipeline.
@@ -279,7 +278,7 @@ class VideoReverser(
             val srcHeight = inputFormat.getInteger(MediaFormat.KEY_HEIGHT)
             // Encode at the source's NATIVE size (only evened for 4:2:0). We must NOT downscale here:
             // the decoder renders its native-size frames onto the encoder's input Surface, and if that
-            // Surface is a different size the producer→consumer scale is device-/codec-dependent and on
+            // Surface is a different size, the producer→consumer scale is device-/codec-dependent and on
             // the software-codec fallback path it corrupts the reversed frames to green macroblocks
             // (camera clips never hit this — they're already ≤ the cap, so the old cappedToShortSide()
             // returned the SAME dims and there was no mismatch; a >1080p import is the first to exercise
@@ -330,7 +329,7 @@ class VideoReverser(
             decoder = pipeline.decoder
             encoder = pipeline.encoder
             inputSurface = pipeline.inputSurface
-            val pass1Encoder = requireNotNull(encoder)
+            val pass1Encoder = pipeline.encoder
 
             muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             if (rotationDegrees != 0) muxer.setOrientationHint(rotationDegrees)
@@ -590,7 +589,7 @@ class VideoReverser(
                 if (!pendingDecoderEos) {
                     while (true) {
                         val sampleUs = extractor.sampleTime
-                        if (sampleUs < 0L || sampleUs > endUs) {
+                        if (sampleUs !in 0L..endUs) {
                             pendingDecoderEos = true
                             break
                         }
@@ -611,12 +610,11 @@ class VideoReverser(
                             break
                         }
                         onFrameSkipped()
-                        val prevUs = sampleUs
                         if (!extractor.advance()) {
                             pendingDecoderEos = true
                             break
                         }
-                        if (extractor.sampleTime == prevUs) {
+                        if (extractor.sampleTime == sampleUs) {
                             pendingDecoderEos = true
                             break
                         }
@@ -702,7 +700,7 @@ class VideoReverser(
         while (true) {
             val outIndex = runMediaCodecCancellable { encoder.dequeueOutputBuffer(bufferInfo, DEQUEUE_TIMEOUT_US) }
             when {
-                // Nothing ready from the encoder this poll. Before EOS, return so the caller's loop can
+                // Nothing is ready from the encoder on this poll. Before EOS, return so the caller's loop can
                 // feed/decode more. At EOS we fall through to the explicit exit just below — the old
                 // `else { /* keep draining */ }` was a no-op; draining actually continues across the
                 // caller's outer loop, not inside this function.
@@ -728,10 +726,8 @@ class VideoReverser(
                     if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return started
                 }
             }
-            if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER && endOfStream) {
-                // No more output forthcoming at EOS.
-                return started
-            }
+            // Only reachable at EOS (the pre-EOS TRY_AGAIN case returned above): no more output forthcoming.
+            if (outIndex == MediaCodec.INFO_TRY_AGAIN_LATER) return started
         }
     }
 
@@ -781,10 +777,10 @@ class VideoReverser(
      * Many surface encoders (Samsung Exynos RTL) only signal format after the first frame is rendered;
      * pass 1 then relies on [drainToMuxer] (standard decode→surface→encode pattern).
      */
-    private fun probeEncoderOutputFormat(encoder: MediaCodec, timeoutNs: Long): MediaFormat? {
+    private fun probeEncoderOutputFormat(encoder: MediaCodec): MediaFormat? {
         readEncoderOutputFormatIfReady(encoder)?.let { return it }
         val bufferInfo = MediaCodec.BufferInfo()
-        val deadlineNs = System.nanoTime() + timeoutNs
+        val deadlineNs = System.nanoTime() + ENCODER_OUTPUT_FORMAT_PROBE_TIMEOUT_NS
         while (System.nanoTime() < deadlineNs) {
             when (val outIndex = encoder.dequeueOutputBuffer(bufferInfo, DEQUEUE_TIMEOUT_US)) {
                 MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
@@ -927,7 +923,7 @@ class VideoReverser(
                 surface = encoder.createInputSurface()
                 encoder.start()
                 val readyFormat = preStartFormat
-                    ?: probeEncoderOutputFormat(encoder, ENCODER_OUTPUT_FORMAT_PROBE_TIMEOUT_NS)
+                    ?: probeEncoderOutputFormat(encoder)
                 val formatNote = if (readyFormat != null) "output format ready" else "format deferred to pass1 drain"
                 ReversePreviewLog.i("encoder.selected", "$name ${w}x$h $formatNote")
                 Log.d(TAG, "selectAvcEncoder: $name for ${w}x$h ($formatNote)")
@@ -954,7 +950,7 @@ class VideoReverser(
             val surface = encoder.createInputSurface()
             encoder.start()
             val readyFormat = preStartFormat
-                ?: probeEncoderOutputFormat(encoder, ENCODER_OUTPUT_FORMAT_PROBE_TIMEOUT_NS)
+                ?: probeEncoderOutputFormat(encoder)
             lastSurfaceEncoderName = null
             ReversePreviewLog.i("encoder.selected", "<createEncoderByType> ${w}x$h")
             Log.d(

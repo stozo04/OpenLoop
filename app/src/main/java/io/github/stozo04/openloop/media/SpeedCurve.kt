@@ -12,13 +12,13 @@ data class SpeedKey(val t: Float, val speed: Float)
 /**
  * A playback-speed ramp across the **whole boomerang loop** — not the trim window.
  *
- * Speed between two neighbouring keys is **linearly interpolated**, and the export honours exactly
+ * Speed between two neighboring keys is **linearly interpolated**, and the export honors exactly
  * that: [sampleClip] flattens the ramp into per-frame constant steps, which is the only shape
  * Media3's piecewise-constant `SpeedProvider` can express. What the graph draws is what the encoder
  * produces (PRD-speed-curves.md D-3 / D-7).
  *
  * The domain is the whole loop, stored normalized, because that is the only way a ramp can peak *at
- * the turn* — on a trim-window domain the reversed half could only ever mirror the forward half, and
+ * the turn*. On a trim-window domain the reversed half could only ever mirror the forward half, and
  * "Accelerate into Reverse" would be inexpressible (D-1). Normalized also means a re-trim, a
  * direction change, or a repetition change re-stretches the curve instead of invalidating it.
  *
@@ -101,7 +101,7 @@ data class SpeedCurve(val keys: List<SpeedKey>) {
 
         var total = 0f
         // A curve that starts after 0f / ends before 1f holds flat there — account for those tails
-        // so the mean covers the whole loop, matching speedAt's behaviour.
+        // so the mean covers the whole loop, matching speedAt's behavior.
         val head = ordered.first().t.coerceIn(0f, 1f)
         if (head > 0f) total += head / clampSpeed(ordered.first().speed)
         val tail = 1f - ordered.last().t.coerceIn(0f, 1f)

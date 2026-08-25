@@ -84,8 +84,8 @@ private val HANDLE_VISUAL_WIDTH = 22.dp
 private val HANDLE_TOUCH_WIDTH = 48.dp
 private val RULER_HEIGHT = 30.dp
 private val SELECTION_RADIUS = 10.dp
-private val FILMSTRIP_FRAME_MIN = 6
-private val FILMSTRIP_FRAME_MAX = 14
+private const val FILMSTRIP_FRAME_MIN = 6
+private const val FILMSTRIP_FRAME_MAX = 14
 private val DIM_OUTSIDE_SELECTION = Color.Black.copy(alpha = 0.62f)
 
 private enum class TrimDragTarget { NONE, START, END }
@@ -284,7 +284,7 @@ private fun FilmstripTrimSelector(
             .roundToInt()
             .coerceIn(FILMSTRIP_FRAME_MIN, FILMSTRIP_FRAME_MAX)
 
-        val frames by produceState<List<Bitmap?>>(emptyList(), sourceFile, durationMs, frameCount) {
+        val frames by produceState(emptyList<Bitmap?>(), sourceFile, durationMs, frameCount) {
             value = withContext(Dispatchers.IO) {
                 extractTrimFilmstripFrames(sourceFile, durationMs, frameCount)
             }

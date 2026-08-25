@@ -46,7 +46,7 @@ class CameraManager(private val context: Context) {
     private var camera: Camera? = null
 
     /**
-     * The lens renderer. Created once and attached on EVERY bind, whether or not a lens is
+     * The lens renderer. Created once and attached on EVERY bind, whether a lens is
      * selected — see [LensSurfaceProcessor]'s header. Attaching or removing a [CameraEffect]
      * requires a rebind, and a rebind during capture finalizes the recording with
      * `ERROR_SOURCE_INACTIVE` (Lesson 012), so "no lens" is an identity pass-through rather than
@@ -101,7 +101,7 @@ class CameraManager(private val context: Context) {
                 // normalized position means the same thing in both and no correction is needed.
                 //
                 // A 16:9 analysis stream was tried first and put every lens visibly off sideways:
-                // 16:9 and 4:3 see different parts of the sensor, and modelling that difference is
+                // 16:9 and 4:3 see different parts of the sensor, and modeling that difference is
                 // guesswork about how the device derives one from the other. Matching the shapes
                 // removes the question instead of answering it.
                 val analysis = ImageAnalysis.Builder()
@@ -284,7 +284,7 @@ class CameraManager(private val context: Context) {
      * (near-default magnetic snap, or zoom-in-then-out multiplicative undershoot).
      */
     fun onPinchZoomEnd() {
-        val boundCamera = camera ?: run {
+        if (camera == null) {
             pinchSessionRatio = null
             pinchSessionPeakRatio = null
             return

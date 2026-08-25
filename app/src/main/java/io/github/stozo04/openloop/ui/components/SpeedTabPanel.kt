@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -177,11 +176,7 @@ fun SpeedTabPanel(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
-                SpeedScaleLabels(
-                    minSpeed = OpenLoopViewModel.MIN_SPEED,
-                    maxSpeed = OpenLoopViewModel.MAX_SPEED,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                SpeedScaleLabels(modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(16.dp))
                 SpeedCurrentPill(
                     speed = speed,
@@ -309,11 +304,9 @@ private fun SpeedCurrentPill(
 
 /** Anchor labels at 0.5×, 1×, and 2× along the same scale as the slider. */
 @Composable
-private fun SpeedScaleLabels(
-    minSpeed: Float,
-    maxSpeed: Float,
-    modifier: Modifier = Modifier,
-) {
+private fun SpeedScaleLabels(modifier: Modifier = Modifier) {
+    val minSpeed = OpenLoopViewModel.MIN_SPEED
+    val maxSpeed = OpenLoopViewModel.MAX_SPEED
     val span = maxSpeed - minSpeed
     fun fractionFor(speed: Float) = ((speed - minSpeed) / span).coerceIn(0f, 1f)
 

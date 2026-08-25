@@ -40,7 +40,7 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
 
     /**
      * Bumped by [reset]. A detection that was in flight when the camera was unbound completes on
-     * the callback thread afterwards; comparing its epoch drops it instead of letting it re-seed
+     * the callback thread afterward; comparing its epoch drops it instead of letting it re-seed
      * the roster with faces from the previous bind. Written on the main thread, read on the
      * analyzer's executor, hence volatile.
      */

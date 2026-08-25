@@ -77,7 +77,7 @@ class MediaCodecLifecycleTest {
 
     @Test
     fun `ignores benign lifecycle teardown as init failure`() {
-        // Released / cancelled / empty-message ISE are teardown noise, not a codec that can't start —
+        // Released / canceled / empty-message ISE are teardown noise, not a codec that can't start —
         // they must NOT trip the software-codec fallback (that path is the contention retry instead).
         assertFalse(isMediaCodecInitializationFailure(IllegalArgumentException("Invalid to call at Released state")))
         assertFalse(isMediaCodecInitializationFailure(IllegalStateException("Pending dequeue output buffer request cancelled")))

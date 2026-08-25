@@ -43,7 +43,7 @@ class AppUpdateFlowRobolectricTest {
 
     @Before
     fun setUp() {
-        play = FakeAppUpdateManager(ApplicationProvider.getApplicationContext<Context>())
+        play = FakeAppUpdateManager(ApplicationProvider.getApplicationContext())
         updateReadyPrompts = 0
     }
 
@@ -62,7 +62,7 @@ class AppUpdateFlowRobolectricTest {
 
     /** Play reports a newer build that has been out longer than the staleness threshold. */
     private fun playHasANewerBuild(staleDays: Int = UPDATE_STALENESS_DAYS_THRESHOLD) {
-        play.setUpdateAvailable(BuildConfigVersionCode + 1)
+        play.setUpdateAvailable(BUILD_CONFIG_VERSION_CODE + 1)
         play.setClientVersionStalenessDays(staleDays)
     }
 
@@ -176,6 +176,6 @@ class AppUpdateFlowRobolectricTest {
 
     private companion object {
         /** Any installed version — the fake only cares that the available code is higher. */
-        const val BuildConfigVersionCode = 1
+        const val BUILD_CONFIG_VERSION_CODE = 1
     }
 }

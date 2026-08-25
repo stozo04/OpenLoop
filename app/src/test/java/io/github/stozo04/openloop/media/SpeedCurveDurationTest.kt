@@ -24,10 +24,11 @@ class SpeedCurveDurationTest {
 
     private fun predictedVsActual(
         curve: SpeedCurve,
-        mode: BoomerangMode,
         reversedMs: Long? = null,
     ): Pair<Double, Double> {
-        val specs = boomerangSequence(mode, 1)
+        // FORWARD_THEN_REVERSE is the only shape with a seam AND a measured reversed artifact —
+        // the two things that can pull the chip and the encoder apart (Lesson 033).
+        val specs = boomerangSequence(BoomerangMode.FORWARD_THEN_REVERSE, 1)
         val spans = loopClipSpans(specs, trimMs, seamMs, reversedMs)
         val totalUs = spans.totalUs()
 
@@ -46,7 +47,6 @@ class SpeedCurveDurationTest {
     fun `a flat curve predicts exactly what Media3 produces`() {
         val (predicted, actual) = predictedVsActual(
             SpeedCurve.flat(2f),
-            BoomerangMode.FORWARD_THEN_REVERSE,
         )
         assertEquals("predicted=$predicted actual=$actual", predicted, actual, 0.1)
     }
@@ -55,7 +55,6 @@ class SpeedCurveDurationTest {
     fun `a ramp predicts what Media3 produces`() {
         val (predicted, actual) = predictedVsActual(
             SpeedCurve(listOf(SpeedKey(0f, 0.5f), SpeedKey(1f, 2f))),
-            BoomerangMode.FORWARD_THEN_REVERSE,
         )
         assertEquals("predicted=$predicted actual=$actual", predicted, actual, 0.15)
     }
@@ -68,10 +67,9 @@ class SpeedCurveDurationTest {
     @Test
     fun `a short reversed artifact shortens the prediction to match Media3`() {
         val curve = SpeedCurve(listOf(SpeedKey(0f, 0.5f), SpeedKey(1f, 2f)))
-        val (nominal, _) = predictedVsActual(curve, BoomerangMode.FORWARD_THEN_REVERSE)
+        val (nominal, _) = predictedVsActual(curve)
         val (predicted, actual) = predictedVsActual(
             curve,
-            BoomerangMode.FORWARD_THEN_REVERSE,
             reversedMs = 2_400L,
         )
         assertEquals("predicted=$predicted actual=$actual", predicted, actual, 0.15)
@@ -90,7 +88,7 @@ class SpeedCurveDurationTest {
                 SpeedKey(1f, 0.6f),
             ),
         )
-        val (predicted, actual) = predictedVsActual(curve, BoomerangMode.FORWARD_THEN_REVERSE)
+        val (predicted, actual) = predictedVsActual(curve)
         println("dragged-peak curve: predicted=${"%.2f".format(predicted)}s actual=${"%.2f".format(actual)}s")
         assertEquals("predicted=$predicted actual=$actual", predicted, actual, 0.2)
     }
@@ -100,7 +98,6 @@ class SpeedCurveDurationTest {
     fun `the accelerate-into-reverse preset predicts what Media3 produces`() {
         val (predicted, actual) = predictedVsActual(
             SpeedPresetKeys.ACCELERATE_INTO_REVERSE,
-            BoomerangMode.FORWARD_THEN_REVERSE,
         )
         println("preset: predicted=${"%.2f".format(predicted)}s actual=${"%.2f".format(actual)}s")
         assertEquals("predicted=$predicted actual=$actual", predicted, actual, 0.2)

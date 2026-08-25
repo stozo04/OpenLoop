@@ -145,7 +145,7 @@ sealed interface BoomerangEvent {
      *
      * **Emitted before [Saved], and that ordering is the fix, not an accident.** Play requires the
      * card to be the topmost layer, so the obvious move is to queue the ask behind the "Saved"
-     * snackbar. That was the original design and it was wrong: `showSnackbar` suspends the host's
+     * snackbar. That was the original design, and it was wrong: `showSnackbar` suspends the host's
      * event collector for the snackbar's full ~4 s, during which the user is already back on the
      * viewfinder — so the card fired on top of whatever they had started, including a live
      * recording. Emitting first inverts it. The host suspends on `launchInAppReview` for the card's
@@ -169,6 +169,7 @@ class OpenLoopViewModel(
     // options 2 (screen tracking) and 3 (custom events) populate call sites incrementally. The
     // production impl comes from FirebaseAnalyticsReporterImpl.create(applicationContext); tests and
     // CI builds without google-services.json fall back to NoOpAnalyticsReporter.
+    @Suppress("unused") // wired ahead of the call sites so the DI seam is stable (rollout options 2/3)
     private val analytics: AnalyticsReporter = NoOpAnalyticsReporter,
     /**
      * Proactive low-memory probe (production: [MemoryPressure.lowMemoryProbe] →
@@ -321,7 +322,7 @@ class OpenLoopViewModel(
     /**
      * Ids of loops marked for deletion but not yet committed to disk (Issue #35). They are hidden
      * from the gallery immediately (optimistic delete via [visibleVideos]) while the Undo snackbar is
-     * up; an Undo clears this set (the tiles reappear), a dismiss commits the real delete.
+     * up; an Undo clears this set (the tiles reappear), a dismissal commits the real delete.
      */
     private val _pendingDeletionIds = MutableStateFlow<Set<Long>>(emptySet())
     val pendingDeletionIds: StateFlow<Set<Long>> = _pendingDeletionIds.asStateFlow()
@@ -687,9 +688,9 @@ class OpenLoopViewModel(
      * Result of the Android Photo Picker (launched `VideoOnly` from the gallery). [uri] is the picked
      * video, or `null` if the user backed out. On a valid pick we probe the duration *before* copying
      * (so a >30 s clip — or one under [MIN_TRIM_DURATION], issue #95 follow-up — is rejected with a
-     * friendly dialog without ever being copied), then copy the bytes into a fresh scratch file and
-     * enter the existing [OpenLoopUiState.Trim] flow exactly as a fresh capture would — the imported
-     * clip is just "a scratch that came from the picker." Any I/O or unreadable-duration failure
+     * friendly dialog without ever being copied), then copy the bytes into a fresh scratch file. From
+     * there it enters the existing [OpenLoopUiState.Trim] flow exactly as a fresh capture would: the
+     * imported clip is just "a scratch that came from the picker." Any I/O or unreadable-duration failure
      * routes back to the gallery with a snackbar; never a crash.
      */
     fun onVideoPicked(uri: Uri?) {
@@ -738,9 +739,9 @@ class OpenLoopViewModel(
                         }
                     }
                     // Defensive: replacing activeScratch must not orphan a previous session's scratch
-                    // copy. In practice it's already null here — the import action lives only on the
+                    // copy. In practice, it's already null here: the import action lives only on the
                     // gallery, and you can't reach the gallery mid-edit (save/discard both run
-                    // clearEditorSession) — but if one ever lingered we'd otherwise leak a whole
+                    // clearEditorSession). If one ever lingered, we'd otherwise leak a whole
                     // library-video-sized file until the 24h prune. discardScratch is a no-op on a
                     // missing file, so this is safe even in the normal null case.
                     activeScratch?.let { videoStorage.discardScratch(it) }
@@ -1025,7 +1026,7 @@ class OpenLoopViewModel(
             // Android 14+ delivers no foreground onTrimMemory pressure levels (MemoryPressure),
             // so this poll is the only mid-session pressure signal on modern devices: under
             // pressure, close the gate instead of applying the look (WS-3, PR #58 review).
-            // Also the reopen path: a prior trim/lowMemory close must not permanently brick Looks
+            // Also, the reopen path: a prior trim/lowMemory close must not permanently brick Looks
             // after pressure clears (Play review: S20 FE "lots of memory" + disabled Looks).
             if (isLowMemoryNow()) {
                 // No-op when already closed: StateFlow conflates a value equal to the current one.
@@ -1110,7 +1111,7 @@ class OpenLoopViewModel(
                 // withTimeoutOrNull waits for cancellation to finish; a wedged MediaCodec/Transformer
                 // on some Samsung devices never returns, so the failure UI never appears. select +
                 // onTimeout returns immediately; do not use coroutineScope here — it would wait for
-                // the cancelled worker and can surface CancellationException without reverseFailed.
+                // the canceled worker and can surface CancellationException without reverseFailed.
                 // runCatching + Result in select so a failed async child does not cancel this
                 // launch before we can set reverseFailed (Lesson 013 still applies to the job itself).
                 val previewReverseCap = previewReverseMaxShortSideOrNull()
@@ -1401,7 +1402,7 @@ class OpenLoopViewModel(
         _renderProgress.value = 0f
         nudgeGalleryAfterShare = !result.returnToGallery
         loadRecordedVideos()
-        // Only this branch counts a save — a failed or cancelled render never reaches here. Arm
+        // Only this branch counts a save — a failed or canceled render never reaches here. Arm
         // BEFORE emitting Share: onShareSheetClosed reads the flag the moment the chooser dismisses.
         pendingReviewRequest = try {
             shouldAskForReview(userPreferencesRepository.incrementSavedLoopCount()) || forceReviewAsk
@@ -1444,7 +1445,7 @@ class OpenLoopViewModel(
         _nudgeGalleryButton.value = false
     }
 
-    /** Opens/closes the lens carousel. Selecting a lens leaves the tray open (Snapchat behaviour). */
+    /** Opens/closes the lens carousel. Selecting a lens leaves the tray open (Snapchat behavior). */
     fun setLensTrayOpen(open: Boolean) {
         _lensTrayOpen.value = open
     }
@@ -1540,7 +1541,7 @@ class OpenLoopViewModel(
      * A [frames] list that is not exactly [BOOTH_FRAME_COUNT] long means a null viewfinder grab
      * aborted the sequence upstream — surface the capture-failed snackbar and never composite a
      * partial strip (PRD §5.4). Checked FIRST, so that snackbar cannot be swallowed by the
-     * re-entrancy guard while a previous strip's save is still in flight.
+     * reentrancy guard while a previous strip's save is still in flight.
      *
      * Deliberately no [OpenLoopUiState.ReadyToCapture] guard: the sequence only runs on the
      * viewfinder, and it hands over at the LAST GRAB (before the cosmetic final flash), so the
@@ -1640,7 +1641,7 @@ class OpenLoopViewModel(
     }
 
     /**
-     * Route back to the editor after a render was cancelled ([BoomerangRenderWorkResult.Cancelled]).
+     * Route back to the editor after a render was canceled ([BoomerangRenderWorkResult.Cancelled]).
      * A cancel is user intent, not an error: unlike [failBackToEditor] it files **no** Crashlytics
      * non-fatal (that would re-open the catch-all beacon issue 47233ad7 with a signal-less event)
      * and emits **no** [BoomerangEvent.SaveFailed]. The scratch survives so the editor resumes.

@@ -121,7 +121,7 @@ class FaceRosterTest {
 
     @Test
     fun aSingleSlot_isTheOriginalSingleFaceLock() {
-        // maxFaces = 1 must reproduce the behaviour lenses shipped with: lock on the most
+        // maxFaces = 1 must reproduce the behavior lenses shipped with: lock on the most
         // prominent face, hold it against a larger newcomer, re-take only when it is gone.
         val locked = FaceRoster.assign(emptyList(), listOf(Candidate(1, 5f), Candidate(2, 3f)), 1)
         assertEquals(listOf(1), locked)
@@ -233,7 +233,7 @@ class FaceRosterTest {
 
     @Test
     fun theNewId_staysFoldedOntoTheOriginal_onEveryLaterFrame() {
-        // ML Kit keeps reporting the relabelled person under the new id for as long as it tracks
+        // ML Kit keeps reporting the relabeled person under the new id for as long as it tracks
         // them; every one of those sightings must land on the original entry, not fork a second
         // face next to it.
         val roster = FaceRoster(two, holdMs)

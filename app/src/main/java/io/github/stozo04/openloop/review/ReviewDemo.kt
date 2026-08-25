@@ -5,7 +5,7 @@ package io.github.stozo04.openloop.review
  * the read is guarded by `BuildConfig.DEBUG` in `MainActivity`, so R8 strips the branch from release.
  * Mirrors `EXTRA_DEMO_UPDATE`.
  *
- * The gate is a lifetime counter, so once an install passes the cadence there is no way to reach the
+ * The gate is a lifetime counter, so once an installation passes the cadence there is no way to reach the
  * ask again without rewriting DataStore by hand. This is that, without the hex editor:
  *
  * ```

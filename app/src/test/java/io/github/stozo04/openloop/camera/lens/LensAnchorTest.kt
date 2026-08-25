@@ -29,7 +29,7 @@ class LensAnchorTest {
          */
         const val HEAD_HALF_WIDTH_UNITS = 0.775f
 
-        /** How far an eye sits off the centre line: interpupillary is ~0.8 of eye-to-mouth. */
+        /** How far an eye sits off the center line: interpupillary is ~0.8 of eye-to-mouth. */
         const val EYE_OFFSET_UNITS = 0.40f
 
         /** Top of the head, above the eye line. */
@@ -50,7 +50,7 @@ class LensAnchorTest {
     private val frameAspect = 1280f / 960f
 
     /**
-     * An upright face: eyes level, mouth centred below. Distances are chosen so the eye-to-mouth
+     * An upright face: eyes level, mouth centered below. Distances are chosen so the eye-to-mouth
      * distance (the face unit) is a round number in square space.
      */
     private fun face(
@@ -72,7 +72,8 @@ class LensAnchorTest {
         sourceAspect = sourceAspect,
     )
 
-    /** Rotates a face about the frame centre, in square space, as a real head tilt would. */
+    /** Rotates a face about the frame center, in square space, as a real head tilt would. */
+    @Suppress("SameParameterValue") // the aspect is spelled out at each call site on purpose
     private fun FaceSnapshot.tiltedBy(degrees: Float, aspect: Float): FaceSnapshot {
         val radians = degrees * PI.toFloat() / 180f
         val cos = kotlin.math.cos(radians)
@@ -555,7 +556,7 @@ class LensAnchorTest {
                 LensAnchor.toSquareY(quad.centerY - frame.originY, frameAspect),
             ) / frame.unit
             assertTrue(
-                "a lens centred ${offsetUnits} units from the eyes is off the head",
+                "a lens centered $offsetUnits units from the eyes is off the head",
                 offsetUnits < 3f,
             )
         }
@@ -823,7 +824,7 @@ class LensAnchorTest {
     @Test
     fun twistedTongue_eyeballsCoverTheEyeButStayOnTheHead() {
         // Asserted against the catalogue NUMBERS and the anatomy table in Lens.kt's header, not
-        // against `face()` — that fixture is a convenient synthetic head with an eye span chosen to
+        // against `face()`. That fixture is a convenient synthetic head with an eye span chosen to
         // make the unit a round number, so it is not a witness to real proportions. The claim here
         // is about the shipped constants, so the constants are what the test reads.
         val halfWidthUnits = Lens.TwistedTongue.art
@@ -841,6 +842,7 @@ class LensAnchorTest {
     }
 
     /** The x of a quad's two TOP corners, in square space — where a hanging part is attached. */
+    @Suppress("SameParameterValue") // the aspect is spelled out at each call site on purpose
     private fun topCornerXs(quad: StickerQuad, aspect: Float): List<Float> {
         val cos = kotlin.math.cos(quad.rotationRadians)
         val sin = kotlin.math.sin(quad.rotationRadians)
@@ -877,7 +879,7 @@ class LensAnchorTest {
     }
 
     @Test
-    fun twistedTongue_rootStaysTuckedAboveTheTeethsLowerEdge() {
+    fun twistedTongue_rootStaysTuckedAboveTheLowerTeethEdge() {
         // The other half of the same claim: covered SIDEWAYS is not enough, the root also has to
         // start high enough to be behind the teeth rather than below them.
         val subject = face()
@@ -981,11 +983,11 @@ class LensAnchorTest {
         val bottom = shades.placement.upInUnits - halfHeight
 
         assertTrue(
-            "Elvis shades top ${top} must be above the eye line (y = 0)",
+            "Elvis shades top $top must be above the eye line (y = 0)",
             top > 0f,
         )
         assertTrue(
-            "Elvis shades bottom ${bottom} must be below the eye line (y = 0)",
+            "Elvis shades bottom $bottom must be below the eye line (y = 0)",
             bottom < 0f,
         )
         assertTrue(
@@ -1008,12 +1010,12 @@ class LensAnchorTest {
         val bottom = hair.placement.upInUnits - halfHeight
 
         assertTrue(
-            "Elvis hair top ${top} must reach well above the crown at $CROWN_UNITS",
+            "Elvis hair top $top must reach well above the crown at $CROWN_UNITS",
             top >= CROWN_UNITS + 0.5f,
         )
         // Bottom can be negative (face hole in lower-center exposes eyes at 0, mouth at −1.00).
         assertTrue(
-            "Elvis hair bottom ${bottom} extends down (face hole design)",
+            "Elvis hair bottom $bottom extends down (face hole design)",
             bottom < 0f,
         )
     }
@@ -1165,7 +1167,7 @@ class LensAnchorTest {
     @Test
     fun theTongueIsStillVisibleWithTheMouthShut() {
         // The reference effect has NO trigger — its blendshape weight is a constant — so the tongue
-        // being out at rest is the faithful behaviour. A restFraction of 0 would be a different joke.
+        // being out at rest is the faithful behavior. A restFraction of 0 would be a different joke.
         val spec = requireNotNull(
             Lens.TwistedTongue.art.single { it.placement.mouthOpen != null }.placement.mouthOpen,
         )

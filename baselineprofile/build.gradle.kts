@@ -5,10 +5,12 @@ plugins {
 
 android {
     namespace = "io.github.stozo04.openloop.baselineprofile"
-    compileSdk = 36
+    compileSdk = 37 // keep in step with :app
 
     defaultConfig {
         minSdk = 26
+        // Mirrors :app (one behind latest; each target bump is its own reviewed project).
+        //noinspection OldTargetApi
         targetSdk = 36
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -124,7 +124,7 @@ interface VideoStorageRepository {
 
     /**
      * Compress [bitmap] to `filesDir/videos/photo_<ts>.jpg` and return its [RecordedVideo]
-     * (kind = [VideoKind.PHOTO]), or `null` if the write failed.
+     * (kind = [VideoKind.PHOTO]), or `null` if writing failed.
      *
      * The photo is its own thumbnail — [RecordedVideo.thumbnailPath] points at the same file.
      * `ThumbnailDecoder.decodeSampled` already subsamples any JPEG to a bounded long edge before
@@ -138,6 +138,6 @@ interface VideoStorageRepository {
     /** Removes the video file and its thumbnail. `suspend` + off the main thread (file I/O). */
     suspend fun deleteVideo(video: RecordedVideo)
 
-    /** Removes the raw video file and its thumbnail by [id]. `suspend` + off the main thread. */
+    /** Removes the raw video file and the thumbnail that belongs to it, by [id]. `suspend` + off the main thread. */
     suspend fun deleteRawVideo(id: Long)
 }

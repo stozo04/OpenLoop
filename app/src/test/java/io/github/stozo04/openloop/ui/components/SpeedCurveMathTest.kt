@@ -27,7 +27,7 @@ class SpeedCurveMathTest {
 
     @Test
     fun `clampKeyT does not throw when neighbours are closer than twice the minimum gap`() {
-        // Neighbours 0.06 apart with MIN_KEY_GAP 0.05 → lower bound 0.11, upper bound 0.05.
+        // Neighbors 0.06 apart with MIN_KEY_GAP 0.05 → lower bound 0.11, upper bound 0.05.
         // A naive coerceIn(0.11, 0.05) throws IllegalArgumentException.
         val keys = listOf(
             SpeedKey(0f, 1f),
@@ -140,8 +140,8 @@ class SpeedCurveMathTest {
     /**
      * The "too close to an existing interior key" guard. At the 3-point cap the UI can never present a
      * curve that reaches this branch (an interior key means the cap is already hit), so this feeds
-     * [SpeedCurveMath.insertKeyAt] a synthetic 2-key curve to keep the guard covered — it is what stops
-     * two handles stacking if the cap is ever raised again.
+     * [SpeedCurveMath.insertKeyAt] a synthetic 2-key curve to keep the guard covered. That guard is
+     * what stops two handles stacking if the cap is ever raised again.
      */
     @Test
     fun `insertKeyAt refuses inside an existing key's personal space`() {
@@ -205,7 +205,7 @@ class SpeedCurveMathTest {
             (half + double) / 2f,
             1e-4f,
         )
-        // A linear axis would put 1x at ~0.27; the log axis centres it.
+        // A linear axis would put 1x at ~0.27; the log axis centers it.
         assertTrue("1x should be near the middle, got $one", abs(one - 0.5f) < 0.1f)
     }
 

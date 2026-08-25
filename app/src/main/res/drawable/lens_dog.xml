@@ -10,14 +10,14 @@
   rather than eyeballed. With widthInUnits = 2.90 the viewport is exactly 100 units per face unit,
   and with upInUnits = 0.385 the art's top edge sits 1.45 units above the eye line:
 
-      face unit -> viewport y  =  (1.45 - u) * 100          centre line: x = 145
+      face unit -> viewport y  =  (1.45 - u) * 100          center line: x = 145
 
       crown      +1.25  ->  y =  20
       eye line    0.00  ->  y = 145
       nose        -0.42 ->  y = 187
       art bottom  -0.68 ->  y = 213
 
-  THE CONSTRAINT THAT SET THE EAR POSITIONS. An eye sits about 0.40 units off the centre line
+  THE CONSTRAINT THAT SET THE EAR POSITIONS. An eye sits about 0.40 units off the center line
   (Lens.kt's KDoc records that interpupillary is ~0.8 of eye-to-mouth), i.e. x = 105 and x = 185.
   The head edge is at 0.775 units, x = 42.5 and x = 247.5. So each ear has to live in the band
   between them — outboard enough to clear the eye, inboard enough to still touch the head. These
@@ -52,7 +52,7 @@
                         C222,150 206,128 205,100
                         C204,68 202,32 214,22 Z" />
 
-  <!-- Ear inners, inset so a rim of the outer colour always reads as the edge of the ear. -->
+  <!-- Ear inners, inset so a rim of the outer color always reads as the edge of the ear. -->
   <path
       android:fillColor="#FF5E3A1E"
       android:pathData="M76,42
@@ -66,7 +66,7 @@
                         C224,138 214,120 213,98
                         C212,74 208,50 214,42 Z" />
 
-  <!-- Snout. Centred on the face's centre line and sitting on the subject's own nose: it spans
+  <!-- Snout. Centered on the face's center line and sitting on the subject's own nose: it spans
        -0.22 to -0.62 units, below the eyes and well clear of the mouth at -1.0. -->
   <path
       android:fillColor="#FF221C18"

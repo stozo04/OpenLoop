@@ -93,14 +93,11 @@
              ACTION_OPEN_DOCUMENT fallback, so it degrades gracefully. This is Google's documented
              backport snippet (see the link below), copied verbatim.
 
-             EXPECTED IDE noise (working as intended): Android Studio's code inspector resolves the
-             android:name as a class reference and reports 4 "unresolved package" ERRORs
-             (android / gms / metadata / ModuleDependencies) because the GMS class is NOT on our
-             compile classpath — it's provided at RUNTIME by Google Play services. This is harmless:
-             the build, Lint, and runtime are all unaffected. tools:ignore="MissingClass" silences
-             only Lint's MissingClass check, not the IDE inspector (a separate engine), and there is
-             no clean per-line manifest suppression for it — so those red markers are accepted, not a
-             defect. Do NOT remove the <service> to clear them: it is what gives API 26–29 the picker.
+             IDE note: Android Studio's inspector resolves android:name as a class reference, and the
+             GMS class is NOT on our compile classpath (Play services supplies it at runtime), so
+             the `suppress AndroidDomInspection` comment directly above that <service> keeps it
+             from reporting as an error; tools:ignore="MissingClass" does the same for Lint. Do NOT
+             remove the <service> to "clean up": it is what gives API 26–29 the picker.
              See https://developer.android.com/training/data-storage/shared/photopicker -->
         <!-- WorkManager's merged foreground service — typed for media export (Issue #40). Declares
              BOTH dataSync and mediaProcessing: the worker requests mediaProcessing on API 35+ and
@@ -113,6 +110,7 @@
             android:foregroundServiceType="dataSync|mediaProcessing"
             tools:node="merge" />
 
+        <!--suppress AndroidDomInspection -->
         <service
             android:name="com.google.android.gms.metadata.ModuleDependencies"
             android:enabled="false"

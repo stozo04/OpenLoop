@@ -16,7 +16,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.stozo04.openloop.media.BoomerangMode
-import io.github.stozo04.openloop.ui.EditorLoadingKind
 import io.github.stozo04.openloop.media.VideoFilter
 import org.junit.Assert.assertEquals
 import org.junit.Rule

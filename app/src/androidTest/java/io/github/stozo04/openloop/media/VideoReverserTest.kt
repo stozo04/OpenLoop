@@ -1,7 +1,6 @@
 package io.github.stozo04.openloop.media
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.media.Image
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
@@ -11,6 +10,7 @@ import android.media.MediaMuxer
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.stozo04.openloop.media.SyntheticVideoFixtures.frameLuma
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -23,7 +23,6 @@ import org.junit.runner.RunWith
 import java.io.File
 import java.io.IOException
 import kotlin.math.abs
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Instrumented tests for [VideoReverser] — requires a real [MediaCodec], so it cannot run on the JVM.
@@ -368,39 +367,9 @@ class VideoReverserTest {
         }
     }
 
-    /** Mean luma (0..255) of the frame nearest [timeUs], or -1 if it can't be decoded. */
-    private fun frameLuma(file: File, timeUs: Long): Int {
-        val bitmap: Bitmap = MediaMetadataRetriever().use { r ->
-            r.setDataSource(file.absolutePath)
-            r.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
-        } ?: return -1
-
-        var total = 0L
-        var count = 0
-        val stepX = (bitmap.width / SAMPLE_GRID).coerceAtLeast(1)
-        val stepY = (bitmap.height / SAMPLE_GRID).coerceAtLeast(1)
-        var x = 0
-        while (x < bitmap.width) {
-            var yy = 0
-            while (yy < bitmap.height) {
-                val px = bitmap.getPixel(x, yy)
-                val r = (px shr 16) and 0xFF
-                val g = (px shr 8) and 0xFF
-                val b = px and 0xFF
-                total += (r + g + b) / 3
-                count++
-                yy += stepY
-            }
-            x += stepX
-        }
-        bitmap.recycle()
-        return if (count == 0) -1 else (total / count).toInt()
-    }
-
     private companion object {
         const val DEQUEUE_TIMEOUT_US = 10_000L
         const val LUMA_TOLERANCE = 45      // codec round-trip slack on mean luma (0..255)
         const val RAMP_MIN_SPREAD = 20     // first vs last must differ this much to apply the order check
-        const val SAMPLE_GRID = 16         // sample ~16×16 pixels for the mean
     }
 }

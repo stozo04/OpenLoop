@@ -104,7 +104,7 @@ internal fun avcEncoderPreferenceRank(
         rank += 1_000
     }
     if (isSamsung) {
-        // RTL 20:32:28.346: c2.android.avc.encoder → dequeueOutputBuffer cancelled ~113ms later.
+        // RTL 20:32:28.346: c2.android.avc.encoder → dequeueOutputBuffer canceled ~113ms later.
         if (codecName.contains("android.avc", ignoreCase = true)) {
             rank += 400
         }

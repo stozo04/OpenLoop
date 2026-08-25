@@ -36,7 +36,7 @@ fun shouldPromptForFlexibleUpdate(
  * once per process and fires [onUpdateDownloaded] whenever Play has an APK staged.
  *
  * The [launcher] is owned by the Activity (only it can register one before `STARTED`). Call
- * [detach] from `onDestroy` to release the install listener.
+ * [detach] from `onDestroy` to release the installation listener.
  *
  * Off Play (sideloaded debug builds) Play reports `UPDATE_NOT_AVAILABLE` — silent no-op, no UI.
  *
@@ -64,7 +64,7 @@ class AppUpdateController(
 
     /**
      * Poll Play: prompt if an update is already staged, otherwise start the FLEXIBLE flow when the
-     * gate is open. Safe to call on every resume — Google's recommended stalled-update handling.
+     * gate is open. Safe to call every time the Activity resumes — Google's recommended stalled-update handling.
      */
     fun check() {
         appUpdateManager.appUpdateInfo
@@ -99,7 +99,7 @@ class AppUpdateController(
         appUpdateManager.completeUpdate()
     }
 
-    /** Release the install listener. The Activity's launcher unregisters with the Activity. */
+    /** Release the installation listener. The Activity's launcher unregisters with the Activity. */
     fun detach() {
         appUpdateManager.unregisterListener(installStateListener)
     }
