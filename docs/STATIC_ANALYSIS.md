@@ -132,7 +132,7 @@ sweep turn the export into a pass/fail over tracked files.
 
 ### Running it
 
-1. **Scope first.** Analyze → Inspect Code → *Custom scope* → **OpenLoop Tracked**. The scope is
+1. **Scope first.** Code → Inspect Code → *Custom scope* → **OpenLoop Tracked**. The scope is
    committed at `.idea/scopes/OpenLoop_Tracked.xml` (`.gitignore` un-ignores `.idea/scopes/` and
    `.idea/dictionaries/` for exactly this). It excludes `.claude/worktrees/` (git worktrees — full
    copies of the repo), build output, the gitignored DeepAR bundle, `docs/local/`, the swarm

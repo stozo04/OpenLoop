@@ -19,7 +19,7 @@
          Legit terms go into cspell.json `words` (never disable the check).
       8. JSON validity of every tracked *.json; the IDE dictionary is in sync with cspell.json.
       9. Inspect Code (Engine 2): parses the Android Studio HTML export with scripts/inspect-report.py — zero hard
-         findings in tracked files. Run Analyze → Inspect Code with the "OpenLoop Tracked" scope and export HTML
+         findings in tracked files. Run Code → Inspect Code with the "OpenLoop Tracked" scope and export HTML
          to build/inspect-export/. Pass -SkipInspectCode ONLY where Studio is unavailable; the receipt then says
          so and the PR description must say so too.
 
@@ -227,7 +227,7 @@ Gate "9. Inspect Code export (Engine 2) — 0 hard findings in tracked files" {
         return "FAIL: $($out | Select-Object -Last 1) — build/inspect-problems.tsv"
     }
     if ($SkipInspectCode) { return "SKIPPED (-SkipInspectCode: say so in the PR; the owner runs Inspect Code before merge)" }
-    return "FAIL: no export at $InspectExport. Android Studio → Analyze → Inspect Code → scope 'OpenLoop Tracked' → Export → HTML → build/inspect-export/"
+    return "FAIL: no export at $InspectExport. Android Studio → Code → Inspect Code → scope 'OpenLoop Tracked' → Export → HTML → build/inspect-export/"
 }
 
 # ---------------------------------------------------------------------------- verdict + receipt

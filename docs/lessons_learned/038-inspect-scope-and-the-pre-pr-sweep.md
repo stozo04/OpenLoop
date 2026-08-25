@@ -6,7 +6,7 @@
 
 ## What went wrong
 
-Android Studio's **Analyze → Inspect Code** was run over the *whole project directory*. That
+Android Studio's **Code → Inspect Code** was run over the *whole project directory*. That
 directory is not the repo. It also holds:
 
 - `.claude/worktrees/` — four git worktrees, i.e. **full copies of the repo** from parallel sessions

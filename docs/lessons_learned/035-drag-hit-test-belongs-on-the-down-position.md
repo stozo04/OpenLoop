@@ -35,7 +35,7 @@ The trim handles do the same post-slop hit test, but against `HANDLE_TOUCH_WIDTH
 costs ~17% of the zone rather than all of it. They also dodge the second failure entirely by using an
 **anchored delta**:
 
-```kotlin
+```text
 dragAnchorPx = pos.x            // post-slop position
 dragAnchorMs = curStartMs       // value at that moment
 // …then:
@@ -50,7 +50,7 @@ the handle by a slop on every grab.
 
 Record the true down position and hit-test *that*. The tap detector on the same node already sees it:
 
-```kotlin
+```text
 detectTapGestures(onPress = { downPosition = it }, onTap = …, onLongPress = …)
 // …then, in the drag detector:
 onDragStart = {
@@ -79,7 +79,7 @@ control inherits this arithmetic.
 - The test that catches it — press at the element's *computed* position and assert the drag moved it,
   driving the geometry from production code rather than guessing a screen coordinate:
 
-  ```kotlin
+  ```text
   val insetPx = with(composeTestRule.density) { GRAPH_INSET.toPx() }
   onNodeWithTag("speed_curve_graph").performTouchInput {
       val geo = SpeedGraphGeometry(width.toFloat(), height.toFloat(), insetPx)

@@ -128,7 +128,7 @@ Three facts fell straight out, none of them visible in the preview image:
 
 `.mat` files are small JSON, and they name the textures and the shader:
 
-```json
+```text
 // skinsamplingmat.mat
 "shader": "head.dprx",
 "s_texColor":     { "texture": "CameraTexture.tex" },   ← reads the LIVE CAMERA
@@ -222,7 +222,7 @@ If your next effect needs a fourth capability, add it the same way: a default-va
 A sticker pinned rigidly to a landmark reads as a decal. The reference puts a pendulum on six nodes;
 this ships **one damped spring on the tongue**:
 
-```kotlin
+```text
 lagged   = offset - drive * pivotShift      // the pivot moved, the mass has inertia and didn't
 velocity = velocity + (-stiffness * lagged - damping * velocity) * dt
 offset   = lagged + velocity * dt

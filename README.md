@@ -162,7 +162,7 @@ commit. Full policy: [`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md).
 
 ### Running the code inspections (Android Studio "Inspect Code")
 
-OpenLoop reproduces Android Studio's **Analyze → Inspect Code** as a merge gate. It's **two
+OpenLoop reproduces Android Studio's **Code → Inspect Code** as a merge gate. It's **two
 engines** — full design and severity rules in [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).
 Set `JAVA_HOME` first (same as the build section above).
 
@@ -184,7 +184,7 @@ findings into its PR comment.
 > whatever else happens to be in the tree. See `docs/STATIC_ANALYSIS.md`.
 
 **Engine 2 — IDE inspections + proofreading** (faithful Kotlin/Markdown/grammar pass) runs **in
-Android Studio**: Analyze → Inspect Code → custom scope **OpenLoop Tracked** (committed at
+Android Studio**: Code → Inspect Code → custom scope **OpenLoop Tracked** (committed at
 `.idea/scopes/`, it skips git worktrees, build output and gitignored vendor files) → Export → HTML
 into `build/inspect-export/`. Then:
 
@@ -274,7 +274,7 @@ Architecture, DataStore, Permissions, Compose, CameraX, Media & Audio, Coroutine
 The reviewer web-searches `developer.android.com` for the latest guidance on every run — no stale rules. It posts a structured PASS/FAIL/WARNING report directly on the PR with file-level specifics, Google doc citations, and reasoning for every finding.
 
 On top of the standards review, every PR must also pass **code inspection** — the same checks
-Android Studio's *Analyze → Inspect Code* produces, run headlessly. There are two engines (see
+Android Studio's *Code → Inspect Code* produces, run headlessly. There are two engines (see
 [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md) for the full design and the exact commands):
 
 - **Engine 1 — Android Lint** (`./gradlew :app:lintDebug`): automated, run by the sweep and the

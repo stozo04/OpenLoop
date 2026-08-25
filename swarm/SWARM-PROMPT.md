@@ -81,7 +81,7 @@ Prefer absolute paths:
 
 One JSON object per line:
 
-```json
+```text
 {"id":"<you>-<epoch_ms>","from":"claude|codex","to":"...","replyTo":"<id|null>","type":"proposal|question|answer|ack|status|correction|claim|release|done","createdAt":"<iso>","body":{...}}
 ```
 

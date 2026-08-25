@@ -28,7 +28,7 @@ construction, and brings the ripple, the accessibility click action, and `Role.B
 `detectTapGestures` silently omits. Reach for `pointerInput` only for gestures `clickable` /
 `toggleable` / `draggable` genuinely cannot express.
 
-```kotlin
+```text
 .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
 ```
 

@@ -159,7 +159,6 @@ private fun OnboardingPageMedia() {
         if (!LocalInspectionMode.current) {
             OnboardingVideoCard(
                 rawResId = onboardingPage.videoRawRes,
-                playing = true,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -228,7 +227,7 @@ private fun BenefitBadge(text: String) {
 /**
  * Autoplay, looping, muted preview of a bundled raw-resource video, cropped to fill the full-bleed
  * onboarding page. Mirrors the gallery's `LoopingVideoOverlay` (ExoPlayer in an [AndroidView], released
- * in a [DisposableEffect]) but inline and silent. Plays only while [playing] and pauses on `ON_STOP` so a
+ * in a [DisposableEffect]) but inline and silent. Plays while the app is started and pauses on `ON_STOP` so a
  * backgrounded app stays idle. There is intentionally no *runtime* still-image fallback: the bundled clip
  * is the product demo, and a decode failure simply leaves the scrimmed gradient background (per the
  * onboarding-video PRD). The static `OnboardingPage.drawableRes` is only the inspection-mode fallback —
@@ -244,7 +243,6 @@ private fun BenefitBadge(text: String) {
 @Composable
 private fun OnboardingVideoCard(
     rawResId: Int,
-    playing: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -256,15 +254,15 @@ private fun OnboardingVideoCard(
             setMediaItem(MediaItem.fromUri(uri))
             repeatMode = Player.REPEAT_MODE_ALL
             volume = 0f // muted: onboarding plays silently
-            playWhenReady = playing
+            playWhenReady = true
             prepare()
         }
     }
-    // Lifecycle-aware playback: play only while [playing] AND the app is started, and pause on ON_STOP
+    // Lifecycle-aware playback: play while the app is started, and pause on ON_STOP
     // so a backgrounded app isn't decoding (developer.android.com/media/implement/playback-app —
     // stop/release playback in onStop on API 24+). The player itself is released on leave-composition.
-    LifecycleStartEffect(playing) {
-        exoPlayer.playWhenReady = playing
+    LifecycleStartEffect(Unit) {
+        exoPlayer.playWhenReady = true
         onStopOrDispose { exoPlayer.playWhenReady = false }
     }
     DisposableEffect(Unit) {

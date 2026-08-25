@@ -1,6 +1,5 @@
 package io.github.stozo04.openloop.ui.components
 
-import android.graphics.Bitmap
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -284,7 +283,7 @@ private fun FilmstripTrimSelector(
             .roundToInt()
             .coerceIn(FILMSTRIP_FRAME_MIN, FILMSTRIP_FRAME_MAX)
 
-        val frames by produceState(emptyList<Bitmap?>(), sourceFile, durationMs, frameCount) {
+        val frames by produceState(emptyList(), sourceFile, durationMs, frameCount) {
             value = withContext(Dispatchers.IO) {
                 extractTrimFilmstripFrames(sourceFile, durationMs, frameCount)
             }

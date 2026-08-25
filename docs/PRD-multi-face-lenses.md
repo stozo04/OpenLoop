@@ -73,7 +73,7 @@ knows a face exists, so nothing downstream changes.
 
 ```kotlin
 data class FaceSnapshot(
-    …existing landmarks, sourceAspect, mouthOpenness…,
+    // …existing landmarks, sourceAspect, mouthOpenness…
     /** ML Kit tracking id — the key every per-face state hangs off. */
     val trackingId: Int = NO_TRACKING_ID,
 )
