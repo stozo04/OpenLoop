@@ -124,6 +124,11 @@ then ML Kit comes out. Don't ship both.
 Run it on an `ImageAnalysis` use case with `STRATEGY_KEEP_ONLY_LATEST`, `PERFORMANCE_MODE_FAST`,
 single-face (`CONTOUR_MODE` is computed for the most prominent face only — correct for selfies).
 
+> **Superseded 2026-08-25 — [`PRD-multi-face-lenses.md`](PRD-multi-face-lenses.md).** The tracker
+> now follows up to **two** faces (`FaceTracker.MAX_TRACKED_FACES`; locked slots, per-face hold,
+> id-churn re-keying in `FaceRoster`) and the renderer draws the lens on each. Everything else in
+> this section stands: landmark mode, `FAST`, `MIN_FACE_SIZE` 0.15, no contours.
+
 ### 5.2 Rendering — ONE custom `CameraEffect` + `SurfaceProcessor`
 
 **Revised after the owner's "all in one PR" decision (§8).** The original plan used

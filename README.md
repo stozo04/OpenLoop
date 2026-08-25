@@ -89,7 +89,7 @@ io.github.stozo04.openloop/
    git clone https://github.com/stozo04/OpenLoop.git
    ```
 
-2. **Open in Android Studio** (a current 2026.x release — the build uses AGP 9.3.1, which needs a recent Studio; the IDE will prompt if yours is too old)
+2. **Open in Android Studio** (a current 2026.x release — the build uses AGP 9.3.2, which needs a recent Studio; the IDE will prompt if yours is too old)
 
 3. **Sync Gradle and run** the `:app` module on a device or emulator running Android 8.0+ (API 26+)
 
@@ -296,7 +296,7 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 - Seven face lenses, tracked with ML Kit and baked into the recording — on up to two faces at once
 - Gallery with delete, full-screen playback and a share sheet
 - In-app updates and a Play review prompt
-- 570 unit tests + 122 instrumented tests
+- 574 unit tests + 122 instrumented tests
 
 **What's next:**
 

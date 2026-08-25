@@ -2,7 +2,8 @@
   "ignorePatterns": [
     { "pattern": "^https?:" },
     { "pattern": "^mailto:" },
-    { "pattern": "^#" }
+    { "pattern": "^#" },
+    { "pattern": "^local/" }
   ],
   "projectBaseUrl": "."
 }
