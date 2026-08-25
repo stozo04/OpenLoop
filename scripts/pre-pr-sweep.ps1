@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     Runs, in order, and reports every gate (it does not stop at the first red):
-      1. Gradle: clean assembleDebug + assembleRelease — BUILD SUCCESSFUL, exit 0, zero `e:` AND zero `w:`
-         (Kotlin warnings are already fatal via allWarningsAsErrors; build-script deprecations are caught here).
+      1. Gradle: clean assembleDebug + assembleRelease — BUILD SUCCESSFUL, exit 0, zero `e:` AND zero
+         source-attributed `w: file:…` (Kotlin warnings are already fatal via allWarningsAsErrors; build-script
+         deprecations are caught here; KGP's environmental daemon notices are not findings).
       2. 16 KB alignment: zipalign -c -P 16 on the release APK — every .so "(OK)", none "(OK - compressed)".
       3. Android Lint (Engine 1): 0 Error/Fatal AND 0 Warning in lint-results-debug.xml. The version-freshness
          checks (GradleDependency, NewerVersionAvailable, AndroidGradlePluginVersion) are reported but never fail
@@ -103,7 +104,10 @@ if (-not $DocsOnly) {
     Gate "1. clean assembleDebug assembleRelease (0 e:, 0 w:)" {
         $r = Run-Gradle @("clean", "assembleDebug", "assembleRelease")
         $errs = @($r.Lines | Where-Object { $_ -match '^e: ' })
-        $warns = @($r.Lines | Where-Object { $_ -match '^w: ' })
+        # Source-attributed warnings only (`w: file:///…:line:col`): Kotlin compiler + build-script
+        # deprecations. KGP also prints environmental `w:` notices ("Detected multiple Kotlin daemon
+        # sessions") that no code change can clear — those are not findings.
+        $warns = @($r.Lines | Where-Object { $_ -match '^w: file:' })
         $ok = ($r.Code -eq 0) -and ($r.Lines -match 'BUILD SUCCESSFUL') -and $errs.Count -eq 0 -and $warns.Count -eq 0
         if ($ok) { return "PASS (exit 0, BUILD SUCCESSFUL, 0 e:, 0 w:)" }
         return "FAIL: exit=$($r.Code) e:=$($errs.Count) w:=$($warns.Count) — first: $(($errs + $warns | Select-Object -First 1))"
