@@ -1,62 +1,69 @@
-name: Static analysis (Tier 3 — Markdown)
+name: Static analysis (text gates)
 
-# Advisory OSS approximation of Android Studio "Inspect Code" Engine 2, for CI where Android
-# Studio (Engine 2 / inspect.bat) can't run. Scoped to a PR's CHANGED Markdown (these tools have
-# no baseline; repo-wide is ~600 legacy hits). Steps are non-blocking (`|| true`) by design — they
-# surface findings in the (collapsible) job log, they don't fail the PR. Full design + how to
-# promote a tool to a hard gate (drop its `|| true`): docs/STATIC_ANALYSIS.md.
+# CI backstop for the text half of the pre-PR sweep (scripts/pre-pr-sweep.ps1 gates 6–8): Markdown
+# structure, IDE-faithful table alignment, relative links, spelling over every tracked text file, JSON
+# validity, and the cspell ↔ IDE-dictionary sync. Every step is a HARD gate — the tree is at zero and
+# there is no baseline, so a red step means the PR introduced it. Design: docs/STATIC_ANALYSIS.md.
+#
+# Deliberately whole-repo, not changed-files-only: with no baseline that is the only honest scope.
 
 on:
   pull_request:
-    paths:
-      - '**/*.md'
-  workflow_dispatch: {}        # allow manual runs (verification / on-demand)
+  workflow_dispatch: {}
 
 permissions:
   contents: read
 
 jobs:
-  markdown:
-    name: Tier 3 Markdown checks
+  text-gates:
+    name: Markdown · spelling · JSON
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0       # need base + head history to diff changed files
 
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
 
-      - name: Tier 3 on changed Markdown
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: markdownlint-cli2 (0 findings)
+        run: npx --yes markdownlint-cli2 $(git ls-files '*.md')
+
+      - name: Table alignment (0 misaligned)
+        run: python scripts/md-table-align.py
+
+      - name: markdown-link-check (0 dead relative links)
         run: |
-          # Resolve the PR's changed Markdown. On manual dispatch there's no PR context, so fall
-          # back to diffing against origin/<default branch>.
-          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
-            BASE='${{ github.event.pull_request.base.sha }}'
-            HEAD='${{ github.event.pull_request.head.sha }}'
-          else
-            git fetch --no-tags --depth=1 origin "${{ github.event.repository.default_branch }}" || true
-            BASE="origin/${{ github.event.repository.default_branch }}"
-            HEAD='HEAD'
-          fi
-          FILES=$(git diff --name-only --diff-filter=d "$BASE" "$HEAD" -- '*.md' || true)
-          if [ -z "$FILES" ]; then
-            echo "No changed Markdown files — nothing to check."
-            exit 0
-          fi
-          echo "Changed Markdown:"; echo "$FILES"
-
-          echo "::group::markdownlint-cli2"
-          npx --yes markdownlint-cli2 $FILES || true
-          echo "::endgroup::"
-
-          echo "::group::cspell"
-          npx --yes cspell --no-progress $FILES || true
-          echo "::endgroup::"
-
-          echo "::group::markdown-link-check"
-          for f in $FILES; do
-            npx --yes markdown-link-check --config .markdown-link-check.json "$f" || true
+          set -o pipefail
+          dead=0
+          for f in $(git ls-files '*.md'); do
+            npx --yes markdown-link-check --config .markdown-link-check.json -q "$f" | tee -a link-check.log || dead=1
           done
-          echo "::endgroup::"
+          exit $dead
+
+      - name: cspell (0 unknown words)
+        run: |
+          git ls-files '*.md' '*.kt' '*.kts' '*.xml' '*.yml' '*.yaml' '*.ps1' '*.py' '*.mjs' '*.js' \
+            '*.json' '*.jsonc' '*.properties' '*.html' '*.toml' '*.pro' '*.template' '*.README' '*.txt' '*.dic' \
+            | npx --yes cspell --no-progress --file-list stdin   # `--file-list <path>` can exit 1 silently on Windows; stdin is uniform
+
+      - name: JSON validity + IDE dictionary in sync
+        run: |
+          python - <<'EOF'
+          import json, re, subprocess, sys
+          bad = []
+          for f in subprocess.check_output(["git", "ls-files", "*.json"], text=True).split():
+              raw = open(f, encoding="utf-8").read()
+              if f == "cspell.json":
+                  raw = re.sub(r"^\s*//.*$", "", raw, flags=re.M)
+              try:
+                  json.loads(raw)
+              except Exception as e:
+                  bad.append(f"{f}: {e}")
+          print("\n".join(bad) or "all JSON valid")
+          sys.exit(1 if bad else 0)
+          EOF
+          python scripts/sync-ide-dictionary.py --check

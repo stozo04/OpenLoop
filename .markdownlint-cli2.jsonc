@@ -1,5 +1,5 @@
 // Tier-3 static analysis (Issue #21) — approximate Android Studio's Markdown inspections
-// headlessly. Run: `npx --yes markdownlint-cli2 "**/*.md"`  (see docs/STATIC_ANALYSIS.md).
+// headlessly. Run: `npx --yes markdownlint-cli2 $(git ls-files '*.md')`  (see docs/STATIC_ANALYSIS.md).
 //
 // Scoped to the high-signal STRUCTURAL rules IntelliJ's Markdown inspection actually flags
 // (table formatting, ordered-list numbering, list/heading spacing). Opinionated prose rules
@@ -9,16 +9,17 @@
   "config": {
     "default": true,
     "MD013": false,                      // line-length — IntelliJ doesn't flag prose width
-    "MD060": false,                      // table pipe-spacing — opinionated; not an Inspect Code finding
+    "MD060": false,                      // table pipe alignment IS the IDE's "Incorrect table formatting" finding, but
+                                         // MD060 measures display width (✅ = 2 cells) while the IDE counts UTF-16 units
+                                         // (✅ = 1), so the two disagree on emoji rows. The IDE-faithful check/fixer is
+                                         // `python scripts/md-table-align.py [--fix]`, which the pre-PR sweep runs.
     "MD033": false,                      // inline HTML — docs intentionally use <details>, <br>
     "MD041": false,                      // first-line-heading — some docs open with intro/blockquote
     "MD024": { "siblings_only": true },  // repeated headings ok across different sections
     "MD029": { "style": "ordered" }      // ordered lists must increment 1.2.3. (the "numbered list" finding)
   },
-  // No `globs` here on purpose: callers pass the file list so Tier 3 scopes to a PR's CHANGED
-  // Markdown (there is no markdownlint baseline, and the existing docs carry ~600 legacy hits).
-  //   changed files: npx --yes markdownlint-cli2 $(git diff --name-only --diff-filter=d main...HEAD -- '*.md')
-  //   whole repo:    npx --yes markdownlint-cli2 "**/*.md"
+  // No `globs` here on purpose: callers pass the file list. The pre-PR sweep (scripts/pre-pr-sweep.ps1)
+  // runs it over EVERY tracked *.md and requires zero findings — there is no markdownlint baseline.
   "ignores": [
     "**/node_modules/**",
     "**/build/**",

@@ -2,9 +2,9 @@
 
 **Feature:** `docs/PRD-camera-lenses.md` — Broccoli / Shades / Big Mouth live camera lenses
 
-| Run | Date | Device |
-|---|---|---|
-| Original build | 2026-08-08 | Pixel_8 AVD, Android 16 (API 37 system image), cold boot |
+| Run                                               | Date           | Device                                                                             |
+| ------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| Original build                                    | 2026-08-08     | Pixel_8 AVD, Android 16 (API 37 system image), cold boot                           |
 | **Re-verification after the PR #118 review cuts** | **2026-08-09** | **Pixel 10 Pro Fold (`58271FDCG000XC`), Android 16 — real hardware** + Pixel_8 AVD |
 
 > The numbers and the geometry block below are from the **2026-08-09** run. The 2026-08-08 figures
@@ -14,25 +14,25 @@
 
 ## Verification gate (`docs/DEFINITION_OF_DONE.md`)
 
-| Gate | Result |
-|---|---|
-| `:app:testDebugUnitTest` | **354 tests, 0 failures** |
-| `:app:connectedDebugAndroidTest` | **98 tests, 0 failures** (1 skipped, pre-existing) — run on the **physical Fold** |
-| `:app:lintDebug` | **0 errors**, 24 warnings (none new; 11 filtered by baseline) |
-| `:app:assembleRelease` + `:app:bundleRelease` | `BUILD SUCCESSFUL`, exit 0 |
-| App launched on real hardware | ✅ Fold screenshot below |
-| All three lenses tracking a face | ✅ emulator screenshots below |
-| Record with a lens → Trim | ✅ `Capture finalized (4127ms)`, no `ERROR_*` |
+| Gate                                          | Result                                                                            |
+| --------------------------------------------- | --------------------------------------------------------------------------------- |
+| `:app:testDebugUnitTest`                      | **354 tests, 0 failures**                                                         |
+| `:app:connectedDebugAndroidTest`              | **98 tests, 0 failures** (1 skipped, pre-existing) — run on the **physical Fold** |
+| `:app:lintDebug`                              | **0 errors**, 24 warnings (none new; 11 filtered by baseline)                     |
+| `:app:assembleRelease` + `:app:bundleRelease` | `BUILD SUCCESSFUL`, exit 0                                                        |
+| App launched on real hardware                 | ✅ Fold screenshot below                                                           |
+| All three lenses tracking a face              | ✅ emulator screenshots below                                                      |
+| Record with a lens → Trim                     | ✅ `Capture finalized (4127ms)`, no `ERROR_*`                                      |
 
 ## Screenshots
 
-| File | What it shows |
-|---|---|
-| `2026-08-09-camera-lenses-fold-hardware.webp` | **Real hardware** (Pixel 10 Pro Fold): camera bound, lens carousel open, Broccoli selected. No face in front of the device, so no lens art — this is the hardware-run proof, not a tracking proof |
-| `2026-08-09-camera-lenses-broccoli-character.webp` | **Broccoli as a character**: the head is entirely broccoli, with the subject's own eyes and mouth composited onto it. No human nose, cheeks, forehead or jaw visible |
-| `2026-08-09-camera-lenses-shades-tracked.webp` | **Shades tracking a face** — centred on the eye line, sized to the head, rotated with it |
-| `2026-08-09-camera-lenses-big-mouth-warp.webp` | **Big Mouth**: the radial bulge on the mouth, visibly widening the lower face against the un-warped Shades frame |
-| `2026-08-09-camera-lenses-trim-after-record.webp` | A clip recorded **with the lens effect attached**, landing in Trim with a correct filmstrip and the warp baked into the frames — proof the effect in the capture path reaches `VideoCapture`, not just preview, and does not disturb the downstream pipeline |
+| File                                               | What it shows                                                                                                                                                                                                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `2026-08-09-camera-lenses-fold-hardware.webp`      | **Real hardware** (Pixel 10 Pro Fold): camera bound, lens carousel open, Broccoli selected. No face in front of the device, so no lens art — this is the hardware-run proof, not a tracking proof                                                            |
+| `2026-08-09-camera-lenses-broccoli-character.webp` | **Broccoli as a character**: the head is entirely broccoli, with the subject's own eyes and mouth composited onto it. No human nose, cheeks, forehead or jaw visible                                                                                         |
+| `2026-08-09-camera-lenses-shades-tracked.webp`     | **Shades tracking a face** — centered on the eye line, sized to the head, rotated with it                                                                                                                                                                    |
+| `2026-08-09-camera-lenses-big-mouth-warp.webp`     | **Big Mouth**: the radial bulge on the mouth, visibly widening the lower face against the un-warped Shades frame                                                                                                                                             |
+| `2026-08-09-camera-lenses-trim-after-record.webp`  | A clip recorded **with the lens effect attached**, landing in Trim with a correct filmstrip and the warp baked into the frames — proof the effect in the capture path reaches `VideoCapture`, not just preview, and does not disturb the downstream pipeline |
 
 Stored as WebP: they are photographic screenshots, and the five together are ~240 KB where the three
 PNGs they replace were 4.4 MB.
@@ -55,7 +55,7 @@ adb -s emulator-5556 emu automation play \
 ```
 
 `Walk_to_image_room` is shipped in `<sdk>/emulator/resources/macros/`, so **recording a macro by hand
-is no longer necessary** (the 2026-08-08 run did that and it is not needed).
+is no longer necessary** (the 2026-08-08 run did that, and it is not needed).
 
 The face used here is the repo's own instrumented-test fixture,
 `app/src/androidTest/assets/face_fixture.jpg` (public domain), upscaled to 1024×1024 — no personal
@@ -65,7 +65,7 @@ image, and reproducible from a clean checkout.
 
 One line of per-bind logging on each side. **Both rigs, both streams, 4:3:**
 
-```
+```text
 # Pixel 10 Pro Fold — real hardware, back camera
 OpenLoopFaceTracker: Analysis buffer=640x480 rotation=90 upright=480x640
 OpenLoopLens:        Lens output targets=3 size=1600x1200 inputDet=-1.0 outputDet=-1.0
@@ -93,7 +93,7 @@ OpenLoopLens:        Lens output targets=3 size=1280x960 inputDet=-1.0 outputDet
 
 The original run recorded:
 
-```
+```text
 OpenLoopFaceTracker: Analysis buffer=1280x720 rotation=90 upright=720x1280   ← 16:9
 OpenLoopLens:        Lens output ... size=1280x960 ... mirrored=false
 ```

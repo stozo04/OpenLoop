@@ -36,9 +36,11 @@ val state by flow.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.R
 ## Detection checklist
 
 - `collectAsState(` (with opening paren) should not appear anywhere — every match is a bug.
-  ```
+
+  ```text
   grep -rn "collectAsState(" app/src --include="*.kt"
   ```
+
 - `import androidx.compose.runtime.collectAsState` should not appear at all.
 - Every new Flow exposed by a ViewModel must be collected via `collectAsStateWithLifecycle()` at the UI layer.
 

@@ -58,9 +58,11 @@ This was pre-existing in OpenLoop, but every PR that extends the pattern makes t
 ## Detection checklist
 
 - ViewModel files must not contain `: Context` or `Context,` in any function signature:
-  ```
+
+  ```text
   grep -rn ": Context\|Context," app/src/main/java/io/github/stozo04/openloop/ui/*ViewModel*.kt
   ```
+
 - The only Context references in ViewModel code should be inside `Factory` creation — and even there, only to construct the repositories that get passed in.
 - Every ViewModel test should be possible without `mockk<Context>()`.
 

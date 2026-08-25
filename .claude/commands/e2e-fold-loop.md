@@ -156,7 +156,7 @@ with fix-attempt counts (max 3), fixed bugs with commits, "next iteration starts
 - Bash-based boot monitors with `adb` in tight loops (timed out twice / flaky on Windows).
   Replaced by plain PowerShell poll loops inside the prep script.
 - `am start` immediately after `pm clear` on a cold-booting device — pm clear's async data
-  wipe SIGKILLs the fresh process seconds later (looks like a launch crash + scares the scan
+  wipe sends SIGKILL to the fresh process seconds later (looks like a launch crash + scares the scan
   with `process died`). Prep now clears early, settles 8 s, and the flow self-heals.
 
 ### What I wish I'd known at iteration-1 start (now encoded in the sweep skill)

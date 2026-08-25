@@ -20,7 +20,7 @@ handle** returned by `bindToLifecycle()` (`camera/CameraManager.kt`, pre-#100), 
 observed. There is no touch handling on the `PreviewView` and no zoom UI in `CameraScreen.kt`.
 
 **Explicitly out of the problem:** clips imported from the library. Import bypasses
-`CameraManager` entirely (gallery → photo picker → editor), zoom is baked into recorded pixels at
+`CameraManager` entirely (gallery → Photo Picker → editor), zoom is baked into recorded pixels at
 capture time, and the downstream trim/editor/reverse pipeline never sees a "zoom" concept. This
 feature touches the live capture path only.
 
@@ -29,11 +29,11 @@ feature touches the live capture path only.
 Samsung devices are OpenLoop's proven OEM pain point — every past Samsung failure was invisible
 on Pixels and emulators and only surfaced on real Galaxy hardware:
 
-| Incident | Device | Lesson |
-|----------|--------|--------|
+| Incident                                                   | Device                        | Lesson                                                                        |
+| ---------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------- |
 | Reverse pass produced a valid zero-frame MP4, wedging save | Galaxy S23 (SM-S911U, API 33) | [023](lessons_learned/023-media-pipeline-stages-must-count-output-samples.md) |
-| FGS type crash on 100% of Loopify saves on Android 14 | Galaxy A55 (SM-A556E, API 34) | [024](lessons_learned/024-fgs-type-constant-api-gating.md) |
-| Preview reverse exceeded deadline at 720p+ on Exynos | Galaxy S24 family (SM-S921B) | Issue #63, `media/DeviceMediaHints.kt` |
+| FGS type crash on 100% of Loopify saves on Android 14      | Galaxy A55 (SM-A556E, API 34) | [024](lessons_learned/024-fgs-type-constant-api-gating.md)                    |
+| Preview reverse exceeded deadline at 720p+ on Exynos       | Galaxy S24 family (SM-S921B)  | Issue #63, `media/DeviceMediaHints.kt`                                        |
 
 Zoom has its own Samsung-specific realities (see §5). The design below treats "works on Samsung"
 as an acceptance criterion with its own validation lane, not an afterthought.
@@ -42,13 +42,13 @@ as an acceptance criterion with its own validation lane, not an afterthought.
 
 ## 2. Decisions already made (owner, 2026-07-09)
 
-| # | Decision | Choice |
-|---|----------|--------|
-| D1 | Control surface | **Pinch gesture + transient ratio chip** (e.g. `2.3x`) that fades ~1 s after the gesture ends. No slider, no preset buttons. |
-| D2 | Mid-record zoom | **Allowed** — pinch works before and during recording; zoom is baked into the clip. |
-| D3 | Reset semantics | **Reset to 1x on every rebind** — returning to the camera screen and flipping front/back both start at 1x. This is CameraX's natural behavior (zoom state reverts when the camera closes), so no re-apply logic exists to get wrong. |
-| D4 | Range | **Honor the device-reported `ZoomState` range**, including sub-1x ultra-wide where the OEM exposes it. Never hardcode ratios. |
-| D5 | Imports | **No zoom anywhere outside live capture** (restates the requirement). |
+| #   | Decision        | Choice                                                                                                                                                                                                                               |
+| --- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Control surface | **Pinch gesture + transient ratio chip** (e.g. `2.3x`) that fades ~1 s after the gesture ends. No slider, no preset buttons.                                                                                                         |
+| D2  | Mid-record zoom | **Allowed** — pinch works before and during recording; zoom is baked into the clip.                                                                                                                                                  |
+| D3  | Reset semantics | **Reset to 1x on every rebind** — returning to the camera screen and flipping front/back both start at 1x. This is CameraX's natural behavior (zoom state reverts when the camera closes), so no re-apply logic exists to get wrong. |
+| D4  | Range           | **Honor the device-reported `ZoomState` range**, including sub-1x ultra-wide where the OEM exposes it. Never hardcode ratios.                                                                                                        |
+| D5  | Imports         | **No zoom anywhere outside live capture** (restates the requirement).                                                                                                                                                                |
 
 ---
 
@@ -206,13 +206,13 @@ as `RecordingCountdownChip`, centered in the viewfinder per the approved mock.
 
 ### 4.5 What deliberately does NOT change
 
-| Untouched | Why |
-|-----------|-----|
-| `OpenLoopUiState` / `OpenLoopNavHost` | Zoom is transient camera control inside the two capture states — no new state, router `when` stays exhaustive and unchanged (Lesson 014). |
-| `OpenLoopViewModel` | Zoom never crosses the ViewModel: the gesture writes straight to `CameraManager`, the chip reads straight from it — same direct relationship `toggleCamera` already has. Keeps Context/camera types out of the VM (Lesson 004) and keeps the ~60 Hz gesture stream out of VM state. |
-| `CameraScreenHost` single call site | Zoom via `CameraControl` mutates capture requests on the existing session — **no unbind, no rebind, no remount** (Lessons 012/022 preserved by construction). |
-| Recording pipeline, trim, editor, reverse, import | Zoom is applied pre-encode by the camera HAL; every downstream stage sees ordinary frames. |
-| Quality/resolution config | `QualitySelector.from(Quality.HD)` unchanged. |
+| Untouched                                         | Why                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OpenLoopUiState` / `OpenLoopNavHost`             | Zoom is transient camera control inside the two capture states — no new state, router `when` stays exhaustive and unchanged (Lesson 014).                                                                                                                                           |
+| `OpenLoopViewModel`                               | Zoom never crosses the ViewModel: the gesture writes straight to `CameraManager`, the chip reads straight from it — same direct relationship `toggleCamera` already has. Keeps Context/camera types out of the VM (Lesson 004) and keeps the ~60 Hz gesture stream out of VM state. |
+| `CameraScreenHost` single call site               | Zoom via `CameraControl` mutates capture requests on the existing session — **no unbind, no rebind, no remount** (Lessons 012/022 preserved by construction).                                                                                                                       |
+| Recording pipeline, trim, editor, reverse, import | Zoom is applied pre-encode by the camera HAL; every downstream stage sees ordinary frames.                                                                                                                                                                                          |
+| Quality/resolution config                         | `QualitySelector.from(Quality.HD)` unchanged.                                                                                                                                                                                                                                       |
 
 ---
 
@@ -259,21 +259,21 @@ as `RecordingCountdownChip`, centered in the viewfinder per the approved mock.
 
 ### 6.3 On-device manual QA (attached to the PR as the checklist)
 
-| Check | Pixel 10 Pro Fold (physical) | Samsung Galaxy (see §7 Q1) |
-|-------|------------------------------|----------------------------|
-| Pinch in/out at idle, back lens; chip tracks ratio | ☐ | ☐ |
-| Sub-1x reachable iff `minZoomRatio < 1` | ☐ (expect yes) | ☐ (expect no on most models) |
-| Start recording at 2x → clip plays back framed at 2x | ☐ | ☐ |
-| Pinch **during** recording → recording completes; logcat clean of `ERROR_SOURCE_INACTIVE` / premature `STOPPING` | ☐ | ☐ |
-| Zoom ramp smooth, no AE/AWB flicker (observational) | ☐ | ☐ |
-| Front lens pinch works; flip resets to 1x | ☐ | ☐ |
-| Leave to gallery → return → 1x | ☐ | ☐ |
-| Import from library → editor: zero zoom UI, flow unchanged | ☐ | ☐ |
+| Check                                                                                                            | Pixel 10 Pro Fold (physical)   | Samsung Galaxy (see §7 Q1)   |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------- |
+| Pinch in/out at idle, back lens; chip tracks ratio                                                               | ☐                              | ☐                            |
+| Sub-1x reachable iff `minZoomRatio < 1`                                                                          | ☐ (expect yes)                 | ☐ (expect no on most models) |
+| Start recording at 2x → clip plays back framed at 2x                                                             | ☐                              | ☐                            |
+| Pinch **during** recording → recording completes; logcat clean of `ERROR_SOURCE_INACTIVE` / premature `STOPPING` | ☐                              | ☐                            |
+| Zoom ramp smooth, no AE/AWB flicker (observational)                                                              | ☐                              | ☐                            |
+| Front lens pinch works; flip resets to 1x                                                                        | ☐                              | ☐                            |
+| Leave to gallery → return → 1x                                                                                   | ☐                              | ☐                            |
+| Import from library → editor: zero zoom UI, flow unchanged                                                       | ☐                              | ☐                            |
 
 ### 6.4 E2E automation
 
 Extend the `run-e2e` lane with a zoom step only if a reliable two-finger gesture is available
-(`adb shell input` can't multi-touch; the sweep scripts drive via uiautomator bounds — a
+(`adb shell input` can't multitouch; the sweep scripts drive via uiautomator bounds — a
 two-pointer swipe helper or a debug-only test hook would be needed). **Recommendation:** ship
 with 6.1–6.3 and file a follow-up issue for sweep integration rather than blocking the feature
 on gesture-injection tooling.
@@ -297,14 +297,14 @@ on gesture-injection tooling.
 
 ## 8. Risks & mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| Pinch stream floods recomposition, jank on viewfinder | Deferred reads (Lesson 016); chip-scoped recomposition; verified via Layout Inspector counts. |
+| Risk                                                           | Mitigation                                                                                                                              |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Pinch stream floods recomposition, jank on viewfinder          | Deferred reads (Lesson 016); chip-scoped recomposition; verified via Layout Inspector counts.                                           |
 | Late gesture after `releaseCamera()` → NPE/failed-future crash | `setZoomRatio` no-ops when `camera == null`; futures intentionally un-awaited; failed futures are the documented post-release behavior. |
-| Leaked `zoomState` observer across lens flips | Observer removed in `releaseCamera()` and before each rebind; unit-check via observer count on fake. |
-| OEM-specific mid-record zoom artifact ships unnoticed | §6.3 two-device matrix pre-merge; Crashlytics auto-triage post-release; `DeviceMediaHints` pattern reserved for a *proven* quirk. |
-| Pinch-only zoom excludes some users (a11y, Issue #98 context) | Known limitation, documented non-goal; preset buttons are the designed escape hatch as a follow-up. |
-| Gesture eats taps meant for future tap-to-focus | Listener structured so `ACTION_UP` + `performClick()` leaves room for a metering-point branch later. |
+| Leaked `zoomState` observer across lens flips                  | Observer removed in `releaseCamera()` and before each rebind; unit-check via observer count on fake.                                    |
+| OEM-specific mid-record zoom artifact ships unnoticed          | §6.3 two-device matrix pre-merge; Crashlytics auto-triage post-release; `DeviceMediaHints` pattern reserved for a *proven* quirk.       |
+| Pinch-only zoom excludes some users (a11y, Issue #98 context)  | Known limitation, documented non-goal; preset buttons are the designed escape hatch as a follow-up.                                     |
+| Gesture eats taps meant for future tap-to-focus                | Listener structured so `ACTION_UP` + `performClick()` leaves room for a metering-point branch later.                                    |
 
 ---
 

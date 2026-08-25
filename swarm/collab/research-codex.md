@@ -17,7 +17,7 @@ The filter-page numbers below are snapshots, not lifetime-use claims unless the 
   moving eyes and mouth are composited onto the toppings.
 - **Tier:** character. Broccoli's existing `art + FeatureLayout` path is sufficient; no renderer
   change.
-- **Art source + licence:** new original, logo-free pizza art authored in-repo and shipped under
+- **Art source + license:** new original, logo-free pizza art authored in-repo and shipped under
   Apache-2.0. Opaque cut-out, background and shadow keyed to alpha, autocropped, WebP q90.
 - **Geometry (face units):** `widthInUnits = 3.20`, `artAspect = 1.00`,
   `upInUnits = -0.35`; `FeatureLayout(eyeSpacingInUnits = 0.45,
@@ -48,8 +48,8 @@ The filter-page numbers below are snapshots, not lifetime-use claims unless the 
   `WarpSpec` choose `EYES` instead of its currently hard-coded `MOUTH` anchor; no shader change,
   dependency, second effect, or tracking capability. Both agents must ACK that small model/math
   extension before build.
-- **Art source + licence:** no render art. A new original in-repo carousel icon is Apache-2.0.
-- **Geometry (face units):** `radiusInUnits = 0.88`, `strength = 0.92`, centred on the eye midpoint.
+- **Art source + license:** no render art. A new original in-repo carousel icon is Apache-2.0.
+- **Geometry (face units):** `radiusInUnits = 0.88`, `strength = 0.92`, centered on the eye midpoint.
   The radius spans both eyes without swallowing the whole head.
 - **Evidence:**
   1. [Snapchat — Bug Eyes Lens](https://www.snapchat.com/lens/d98fbc027cf9438a8ca820c08308380a),
@@ -74,7 +74,7 @@ The filter-page numbers below are snapshots, not lifetime-use claims unless the 
   head; the face stays visible.
 - **Tier:** prop. One transparent art quad is sufficient; no animation, nose sticker, particles, or
   beauty pass.
-- **Art source + licence:** new original vector authored in-repo, Apache-2.0; rasterized and shipped
+- **Art source + license:** new original vector authored in-repo, Apache-2.0; rasterized and shipped
   as WebP q90 with lossless alpha.
 - **Geometry (face units):** `widthInUnits = 2.30`, `artAspect = 0.55`,
   `upInUnits = 1.45`. This puts the lower ear edges around 0.82 units above the eye line and the
@@ -102,8 +102,8 @@ The filter-page numbers below are snapshots, not lifetime-use claims unless the 
 - **Tier:** warp. Same existing radial shader. It shares the proposed `WarpSpec` anchor selector
   with Bug Eyes, using `NOSE` (the midpoint halfway from the eye line to mouth line); no new tracker
   landmarks or shader capability.
-- **Art source + licence:** no render art. New original in-repo carousel icon, Apache-2.0.
-- **Geometry (face units):** `radiusInUnits = 0.58`, `strength = 0.88`, centred halfway between
+- **Art source + license:** no render art. New original in-repo carousel icon, Apache-2.0.
+- **Geometry (face units):** `radiusInUnits = 0.58`, `strength = 0.88`, centered halfway between
   eye midpoint and mouth midpoint.
 - **Evidence:**
   1. [Snapchat — Big Nose Lens](https://www.snapchat.com/lens/84a8b5ff13b6488a85d756b68ec1e806),
@@ -118,7 +118,7 @@ The filter-page numbers below are snapshots, not lifetime-use claims unless the 
      published **2025-07-03**, documents a cross-platform nose-distortion trend as a shared visual
      joke. It is the closest named alternative; our round bulge is deliberately simpler.
 - **Biggest risk / kill criterion:** facial-feature ridicule can feel mean rather than playful, and
-  the approximate nose point may drift on extreme yaw. Kill it if the derived centre leaves the
+  the approximate nose point may drift on extreme yaw. Kill it if the derived center leaves the
   nose in the existing fixture/yaw math, or if Bug Eyes wins — shipping both would make the new
   catalogue warp-heavy.
 
@@ -127,10 +127,10 @@ The filter-page numbers below are snapshots, not lifetime-use claims unless the 
 - **What the viewer sees:** one oversized curled mustache sits across the upper lip and follows head
   roll.
 - **Tier:** prop. One transparent art quad; no hair segmentation or face deformation.
-- **Art source + licence:** new original black vector authored in-repo, Apache-2.0; WebP q90 with
+- **Art source + license:** new original black vector authored in-repo, Apache-2.0; WebP q90 with
   lossless alpha.
 - **Geometry (face units):** `widthInUnits = 1.55`, `artAspect = 0.34`,
-  `upInUnits = -0.72`, placing the centre just above the mouth line.
+  `upInUnits = -0.72`, placing the center just above the mouth line.
 - **Evidence:**
   1. [Snapchat — Mustache Filter](https://www.snapchat.com/topic/mustache-filter), updated
      **2026-07-28**, labels the topic as millions of trending videos and shows mustache-filter
@@ -150,7 +150,7 @@ The filter-page numbers below are snapshots, not lifetime-use claims unless the 
 
 Lock **Pizza Face + Bug Eyes + Cat Ears** unless Claude produces materially stronger current
 evidence or finds a renderer/geometry flaw. This set is character + warp + prop, requires no new
-dependency, and matches Kayley's pre-seeded ballot. I explicitly ACK the minimal `WarpSpec` anchor
+dependency, and matches Kayley's pre-seeded ballot. I explicitly acknowledge the minimal `WarpSpec` anchor
 selector needed for Bug Eyes.
 
 **Judge correction, 2026-08-15:** Kayley first killed a two-circle warp, then retracted that kill on

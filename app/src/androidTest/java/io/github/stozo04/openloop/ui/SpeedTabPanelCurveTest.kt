@@ -7,15 +7,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.down
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
-import androidx.compose.ui.test.moveTo
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.up
 import io.github.stozo04.openloop.media.SpeedCurve
 import io.github.stozo04.openloop.media.SpeedKey
 import io.github.stozo04.openloop.ui.components.GRAPH_INSET
@@ -252,7 +249,7 @@ class SpeedTabPanelCurveTest {
      * changes — so everything they capture is frozen there unless it is read through
      * `rememberUpdatedState` (Lesson 034). A drag that emitted the *captured* curve would silently
      * revert any edit made since, which is why this drags **after** changing the curve's shape rather
-     * than from a pristine one: dragging a fresh curve looks identical whether or not the capture is stale.
+     * than from a pristine one: dragging a fresh curve looks identical whether the capture is stale.
      */
     @Test
     fun draggingAHandleActsOnTheLatestCurveNotTheOneCapturedAtFirstComposition() {

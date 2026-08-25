@@ -20,14 +20,14 @@ Official workflow: [Crashlytics AI assistance MCP](https://firebase.google.com/d
 
 ## Ground truth (OpenLoop)
 
-| Field | Value |
-|-------|--------|
-| Firebase project | `openloop-8c266` (`.firebaserc` default) |
-| Android **appId** (required on every MCP call) | `1:95815153197:android:c30254bb713d1e6ae96aa4` |
-| Package / applicationId | `io.github.stozo04.openloop` |
-| `google-services.json` | `app/google-services.json` (gitignored; plugins apply only when present) |
-| Non-fatal reverse failures | `ReverseCrashlytics.kt` — keys like `reverse_outcome`, `video_mime` |
-| Codec churn / issue `3a506c4e` | [`docs/lessons_learned/020-*.md`](../../../docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md), [`023-*.md`](../../../docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md), [`reverse-video-research.md`](../../../docs/guides/reverse-video-research.md) |
+| Field                                          | Value                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Firebase project                               | `openloop-8c266` (`.firebaserc` default)                                                                                                                                                                                                                                                                         |
+| Android **appId** (required on every MCP call) | `1:95815153197:android:c30254bb713d1e6ae96aa4`                                                                                                                                                                                                                                                                   |
+| Package / applicationId                        | `io.github.stozo04.openloop`                                                                                                                                                                                                                                                                                     |
+| `google-services.json`                         | `app/google-services.json` (gitignored; plugins apply only when present)                                                                                                                                                                                                                                         |
+| Non-fatal reverse failures                     | `ReverseCrashlytics.kt` — keys like `reverse_outcome`, `video_mime`                                                                                                                                                                                                                                              |
+| Codec churn / issue `3a506c4e`                 | [`docs/lessons_learned/020-*.md`](../../../docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md), [`023-*.md`](../../../docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md), [`reverse-video-research.md`](../../../docs/guides/reverse-video-research.md) |
 
 Non-fatals upload on **next app launch**, not instantly.
 
@@ -51,7 +51,7 @@ Non-fatals upload on **next app launch**, not instantly.
 
 Workaround if Crashlytics tools do not load: add `"--only", "crashlytics"` to `args`.
 
-3. If auth fails: `npx -y firebase-tools@latest login` (same account as Firebase console access).
+1. If auth fails: `npx -y firebase-tools@latest login` (same account as Firebase console access).
 
 ## Mode A — Full triage (default)
 
@@ -122,10 +122,10 @@ If the report lacks signal, **say so** — do not invent a fix from a misleading
 
 ### Documentation actions (when user asks)
 
-| Action | Tool |
-|--------|------|
-| Add investigation note | `crashlytics_create_note` |
-| Close / update state | `crashlytics_update_issue` |
+| Action                 | Tool                       |
+| ---------------------- | -------------------------- |
+| Add investigation note | `crashlytics_create_note`  |
+| Close / update state   | `crashlytics_update_issue` |
 
 ## Mode C — Guided connect
 
@@ -133,14 +133,14 @@ If the environment exposes the `crashlytics:connect` MCP prompt, offer it as an 
 
 ## MCP tool quick reference
 
-| Goal | Tool |
-|------|------|
-| Auth / project | `firebase_get_environment` |
-| Prioritize | `crashlytics_get_report` (`topIssues`, `topVersions`, …) |
-| Issue metadata | `crashlytics_get_issue` |
+| Goal                   | Tool                                                      |
+| ---------------------- | --------------------------------------------------------- |
+| Auth / project         | `firebase_get_environment`                                |
+| Prioritize             | `crashlytics_get_report` (`topIssues`, `topVersions`, …)  |
+| Issue metadata         | `crashlytics_get_issue`                                   |
 | Sample events / stacks | `crashlytics_batch_get_events`, `crashlytics_list_events` |
-| Notes | `crashlytics_list_notes`, `crashlytics_create_note` |
-| Issue state | `crashlytics_update_issue` |
+| Notes                  | `crashlytics_list_notes`, `crashlytics_create_note`       |
+| Issue state            | `crashlytics_update_issue`                                |
 
 **Always** pass `appId: 1:95815153197:android:c30254bb713d1e6ae96aa4`.
 

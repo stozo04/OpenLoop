@@ -462,7 +462,7 @@ fun BoomerangEditorContent(
     // markers and the playhead sit exactly where the encoder puts them (Lesson 018).
     // The reversed clip's real length, measured off the main thread. The render measures it too, so
     // the graph, the playhead and the duration chip all describe the loop the encoder will build —
-    // not an idealised one where the reversed half is assumed to match the trim window exactly.
+    // not an idealized one where the reversed half is assumed to match the trim window exactly.
     val reversedDurationMs by produceState<Long?>(null, reversedFile) {
         value = reversedFile?.let { withContext(Dispatchers.IO) { videoDurationMsOf(it) } }
     }
@@ -589,7 +589,7 @@ fun BoomerangEditorContent(
                 },
                 // Bind in update (runs after factory and on every recomposition) so an epoch-bumped
                 // player replaces the released one — a factory-only bind would leave the view on the
-                // dead instance after an effects teardown.
+                // dead instance after an effects-chain teardown.
                 update = { view -> if (view.player !== exoPlayer) view.player = exoPlayer },
                 modifier = Modifier.fillMaxSize().testTag("editor_preview"),
             )

@@ -4,7 +4,7 @@
 
 Lesson 008 contained a ` ```kotlin ` fence with two constructs that are **not legal Kotlin**:
 
-```
+```text
 fun `...`() = runTest(mainDispatcherRule.testDispatcher) {
     ...
     advanceUntilIdle()
@@ -41,19 +41,25 @@ This is why the rule "make the doc snippet parse" matters: the doc is held to th
 ## Detection checklist
 
 - Dotted backtick identifiers:
-  ```
+
+  ```text
   grep -rnE "`[^`]*\.[^`]*`" docs --include="*.md"
   ```
+
   (Ignore inline file references like `MainActivity.kt`; flag backtick identifiers used *as code*,
-  especially after `fun `/`val `/`class `.)
+  especially after `fun`/`val`/`class`.)
 - Bare ellipsis lines inside fences:
-  ```
+
+  ```text
   grep -rnE "^\s*\.\.\.\s*$" docs --include="*.md"
   ```
+
 - `import` / `package` directives inside fences:
-  ```
+
+  ```text
   grep -rnE "^\s*(import|package)\s" docs --include="*.md"
   ```
+
 - After editing any doc with code fences, confirm the IDE shows zero "General Errors" for that file.
 
 ## Reference

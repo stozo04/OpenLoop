@@ -12,27 +12,27 @@ Nothing here is final until **both agents have ACKed the same section**.
 Character lens, `Broccoli` pattern: opaque art over the whole head, `FeatureLayout` non-null so the
 subject's eyes and mouth are composited onto the ball. Source: `football.jpg` at repo root.
 
-**Wilson / NFL branding stays** — Steven, 2026-08-15: the eyes-and-mouth composite covers the centre
+**Wilson / NFL branding stays** — Steven, 2026-08-15: the eyes-and-mouth composite covers the center
 of the ball. Not up for re-litigation.
 
 **Asset facts, measured 2026-08-15 (Claude).** `football.jpg` is a **lossy WebP** (RIFF/WEBP, chunk
-fourcc `VP8 `, not `VP8X`), **1320×1320**, 233 KB, **with no alpha channel at all**. It is not a JPEG
+fourcc `VP8`, not `VP8X`), **1320×1320**, 233 KB, **with no alpha channel at all**. It is not a JPEG
 despite the name. Because there is no alpha, the key-to-alpha step is mandatory rather than optional,
 and the output must be re-encoded as lossy **`VP8X`** (lossy body, lossless alpha). Kayley's
 no-baked-shadow ruling applies to the soft gray puddle at bottom-right.
 
-| Field | Value |
-|---|---|
-| Tier | Character |
-| `widthInUnits` | **4.7** |
-| `artAspect` | **0.571** — measured off the encoded 1024×585 asset per A2, not estimated |
-| `upInUnits` | **0.10** |
-| `FeatureLayout` | `eyeSpacing 0.58 · eyeUp 0.45 · eyeWidth 0.80 · mouthUp −0.45 · mouthWidth 1.30` |
-| Coverage | +1.40 above the eye line / −1.20 below, and checked **at the sides**: at the ear (±0.775) the ellipse narrows to ±1.23 and still clears crown and chin |
-| Shipped art | `lens_football_art.webp` 1024×585 (187 KB) · thumb `lens_football.webp` 256×146 |
-| Owner | **Claude** |
-| ACK claude | ✅ |
-| ACK codex | ✅ |
+| Field           | Value                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Tier            | Character                                                                                                                                              |
+| `widthInUnits`  | **4.7**                                                                                                                                                |
+| `artAspect`     | **0.571** — measured off the encoded 1024×585 asset per A2, not estimated                                                                              |
+| `upInUnits`     | **0.10**                                                                                                                                               |
+| `FeatureLayout` | `eyeSpacing 0.58 · eyeUp 0.45 · eyeWidth 0.80 · mouthUp −0.45 · mouthWidth 1.30`                                                                       |
+| Coverage        | +1.40 above the eye line / −1.20 below, and checked **at the sides**: at the ear (±0.775) the ellipse narrows to ±1.23 and still clears crown and chin |
+| Shipped art     | `lens_football_art.webp` 1024×585 (187 KB) · thumb `lens_football.webp` 256×146                                                                        |
+| Owner           | **Claude**                                                                                                                                             |
+| ACK claude      | ✅                                                                                                                                                      |
+| ACK codex       | ✅                                                                                                                                                      |
 
 ### Scope
 
@@ -56,14 +56,14 @@ evidence, not on a tie-break.
 - **What the viewer sees:** the subject's eyes balloon to cartoon size while the rest of the face
   stays normal; blinks and eye-rolls magnify with them, which is what makes it play in a loop.
 - **Tier:** warp. No art, no second texture — a radial UV displacement in the existing camera pass.
-- **Why the tier suffices, and the scope increase it needs:** the warp centre is currently
+- **Why the tier suffices, and the scope increase it needs:** the warp center is currently
   **hardcoded to the mouth midpoint** (`LensAnchor.warp`; `WarpSpec` carries only `radiusInUnits` +
   `strength`). Bug Eyes needs it on the eyes — a GOAL §2.1 scope increase, costed and ACKed below.
-- **Art source + licence:** no render art. Carousel icon is an **original in-repo vector**, Apache 2.0.
-- **Geometry (face units):** **two circles centred on the real `FaceSnapshot.leftEye` / `rightEye`
+- **Art source + license:** no render art. Carousel icon is an **original in-repo vector**, Apache 2.0.
+- **Geometry (face units):** **two circles centered on the real `FaceSnapshot.leftEye` / `rightEye`
   landmarks**, `radiusInUnits = 0.36`, `strength = 0.75`.
   - *Why landmarks, not an offset:* Claude first proposed circles at a fixed ±0.40 units from the
-    centre line. Codex countered with the real eye landmarks, which already exist on `FaceSnapshot`.
+    center line. Codex countered with the real eye landmarks, which already exist on `FaceSnapshot`.
     **Claude withdrew the offset version.** The ±0.40 was derived from the interpupillary ratio —
     precisely the reasoning the `Lens.kt` KDoc records as having made every lens ~20 % oversized.
     Landmarks need no calibration, no mirror flag and no `offsetUp` field, and they track yaw free.
@@ -86,7 +86,7 @@ evidence, not on a tie-break.
 - **Deliberate reduction, on the record:** the canonical Snapchat dog lens has an **animated tongue
   that drops when the mouth opens**. That is a second sticker + mouth-open detection + animation
   state — a real scope increase, **not in scope**. We ship the static ears-and-snout dog.
-- **Art source + licence:** **original in-repo vector**, authored here, Apache 2.0 — no attribution,
+- **Art source + license:** **original in-repo vector**, authored here, Apache 2.0 — no attribution,
   no redistribution question, no scraped Snap asset.
 - **Geometry (face units) — AS SHIPPED:** `widthInUnits = 2.90`, `artAspect = 0.7345`,
   `upInUnits = 0.385`. Viewport `290×213`, which is exactly 100 viewport units per face unit at this
@@ -119,7 +119,7 @@ evidence, not on a tie-break.
   is dead. `pizza-slice.jpg` is owner-supplied, same provenance basis as `football.jpg`.
 - **Tier:** character. `art` opaque + `features` non-null + `warp = null` — Broccoli's exact pattern.
 - **Why the tier suffices:** **zero scope increase.** A straight copy of the golden reference.
-- **Art source + licence:** **original, logo-free, in-repo art** authored here under Apache 2.0. Per
+- **Art source + license:** **original, logo-free, in-repo art** authored here under Apache 2.0. Per
   Kayley's *Create it* ruling this is unblocked and does **not** wait on Steven. No scraped
   Snap / Nickelodeon / Disney assets, no licensed characters. Same key → autocrop → `cwebp -q 90`
   pipeline as every other character.
@@ -128,12 +128,12 @@ evidence, not on a tie-break.
   `FeatureLayout` unchanged from the pie — `eyeSpacing 0.50 · eyeUp 0.30 · eyeWidth 0.75 ·
   mouthUp −0.50 · mouthWidth 1.15`.
   - **None of the pie's numbers survived.** A wedge is not a disc: the pie was 3.20 / 1.00 / −0.40.
-  - **How the width was chosen — solved, not eyeballed.** The head was modelled as the ellipse the
+  - **How the width was chosen — solved, not eyeballed.** The head was modeled as the ellipse the
     reference table describes (crown +1.25, chin −1.00, half-width 0.775 at the eye line), the
     slice's *measured* silhouette width was sampled per row off the encoded alpha, and the smallest
     `widthInUnits` was found whose silhouette covers that ellipse **at every height**. At 3.45 the
     clearance is **≥ 0.095 units everywhere**, and the binding constraint sits at **y = −0.64**,
-    where the wedge tapers fastest — nowhere near the centre line, which is precisely the check the
+    where the wedge tapers fastest — nowhere near the center line, which is precisely the check the
     Football exposed as necessary (§V2 in `LESSONS.md`).
   - Top lands at **+1.40** — a 0.15-unit margin over the crown, matching Football. Tip reaches
     **−1.76**, well past the chin.
@@ -169,17 +169,17 @@ Steven rather than buried.
 
 Per GOAL §2.1 an un-costed scope increase is killed on sight. These are costed and ACKed.
 
-| # | Change | Cost | Files | ACK claude | ACK codex |
-|---|---|---|---|---|---|
-| **W1** | `WarpTarget` on `WarpSpec` (default `MOUTH`; `EYES` anchors on the real eye landmarks). `LensAnchor.warp` returns `List<WarpCircle>`. | ~10–15 lines pure Kotlin + `LensAnchorTest` cases | `LensAnchor.kt` | ✅ | ✅ |
-| **W3** | Second uniform set + second branch in `CAMERA_FRAGMENT_SHADER`, composing two displacements sequentially. | one uniform set, one branch | `LensSurfaceProcessor.kt` | ✅ | ✅ |
+| #      | Change                                                                                                                                | Cost                                              | Files                     | ACK claude | ACK codex |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | ------------------------- | ---------- | --------- |
+| **W1** | `WarpTarget` on `WarpSpec` (default `MOUTH`; `EYES` anchors on the real eye landmarks). `LensAnchor.warp` returns `List<WarpCircle>`. | ~10–15 lines pure Kotlin + `LensAnchorTest` cases | `LensAnchor.kt`           | ✅          | ✅         |
+| **W3** | Second uniform set + second branch in `CAMERA_FRAGMENT_SHADER`, composing two displacements sequentially.                             | one uniform set, one branch                       | `LensSurfaceProcessor.kt` | ✅          | ✅         |
 
-**Explicitly NOT authorised** by either agent: new dependency, ML/neural anything, particles,
+**Explicitly NOT authorized** by either agent: new dependency, ML/neural anything, particles,
 animation, segmentation, a second `CameraEffect`, extra tracker landmarks, or any shader capability
 not listed above.
 
 **Regression guard, agreed and required by Kayley's no-regressions ruling:** every new `WarpSpec`
-field defaults to current behaviour, so **Big Mouth stays mouth-centred and bit-identical**. This is
+field defaults to current behavior, so **Big Mouth stays mouth-centered and bit-identical**. This is
 asserted in `LensAnchorTest`, not assumed.
 
 **Naming discipline (Claude, ACKed):** `WarpTarget`'s cases stay **anatomical** — `MOUTH`, `EYES`.
@@ -194,8 +194,8 @@ must handle a 1-or-2 circle list **from data**, never from a lens identity check
   only candidate (Tiny Head) was killed on evidence. Kayley's abstraction ruling names negative
   strength as an allowed generic `WarpSpec` growth, so the capability is **pre-blessed** if a
   properly evidenced shrink lens ever comes up.
-- **`rightInUnits` on `LensPlacement`** (off-centre props). Not needed — all four lenses sit on the
-  face centre line.
+- **`rightInUnits` on `LensPlacement`** (off-center props). Not needed — all four lenses sit on the
+  face center line.
 
 ---
 
@@ -204,17 +204,17 @@ must handle a 1-or-2 circle list **from data**, never from a lens identity check
 Established by Claude (`claude-1786829025120`) by reading `LensSurfaceProcessor.kt` in full **before**
 pitching; W1 independently found by Codex. Recorded because each one rules pitches in or out.
 
-| # | Finding | Consequence |
-|---|---|---|
-| W1 | Warp centre hardcoded to the mouth midpoint; `WarpSpec` carries only radius + strength | Every non-mouth warp is a scope increase. **Fixed above.** |
-| W2 | Negative strength blocked by a guard, not by the math (`delta *= 1.0 − strength·falloff²` handles it; `CLAMP_TO_EDGE` covers the rim) | A shrink warp costs one operator. Not taken — see above. |
-| W3 | One uniform set = one warp circle | True per-eye bug eyes needs a real shader change. **Taken above.** |
-| C1 | **`warp` and `art` are NOT mutually exclusive** — `drawFrame()` applies the warp, then independently draws sticker and features | GOAL §2.1 presents the tiers as exclusive; the code does not. A prop+warp lens is free. Unused this run; recorded as available. |
-| C2 | `FeatureLayout` is exactly two symmetric eyes + one mouth, hardcoded in `LensAnchor.features()` | No cyclops, no third feature, no mouthless character without changing `LensAnchor`. |
-| C3 | `LensPlacement` has no sideways term — every sticker is locked to the face centre line | An off-centre prop needs a new field. Not needed this run. |
-| **A1** | **Art over 1024 px on the long side is silently distorted — live latent bug.** `loadTexture()` clamps width and height **independently** to `MAX_ART_PX = 1024`, then rasterises into that box: a 1320×660 asset becomes 1024×660, content squashed 24 %, while the quad still uses the declared `artAspect`. Broccoli never hit it (900×1005). | **Binding rule: every art asset ships ≤1024 px on the long side after autocrop.** Both agents and Kayley ACKed. |
-| A2 | `artAspect` = the shipped asset's pixel **height ÷ width** (`lens_broccoli_art.webp` 900×1005 → 1.1167 vs declared `1.117f`) | Measure it off the encoded file after autocrop. Never estimate. |
-| F1 | `football.jpg` is lossy WebP `VP8`, 1320×1320, **no alpha channel** | Key-to-alpha is mandatory; re-encode as `VP8X` lossy + lossless alpha. |
+| #      | Finding                                                                                                                                                                                                                                                                                                                                         | Consequence                                                                                                                     |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| W1     | Warp center hardcoded to the mouth midpoint; `WarpSpec` carries only radius + strength                                                                                                                                                                                                                                                          | Every non-mouth warp is a scope increase. **Fixed above.**                                                                      |
+| W2     | Negative strength blocked by a guard, not by the math (`delta *= 1.0 − strength·falloff²` handles it; `CLAMP_TO_EDGE` covers the rim)                                                                                                                                                                                                           | A shrink warp costs one operator. Not taken — see above.                                                                        |
+| W3     | One uniform set = one warp circle                                                                                                                                                                                                                                                                                                               | True per-eye bug eyes needs a real shader change. **Taken above.**                                                              |
+| C1     | **`warp` and `art` are NOT mutually exclusive** — `drawFrame()` applies the warp, then independently draws sticker and features                                                                                                                                                                                                                 | GOAL §2.1 presents the tiers as exclusive; the code does not. A prop+warp lens is free. Unused this run; recorded as available. |
+| C2     | `FeatureLayout` is exactly two symmetric eyes + one mouth, hardcoded in `LensAnchor.features()`                                                                                                                                                                                                                                                 | No cyclops, no third feature, no mouthless character without changing `LensAnchor`.                                             |
+| C3     | `LensPlacement` has no sideways term — every sticker is locked to the face center line                                                                                                                                                                                                                                                          | An off-center prop needs a new field. Not needed this run.                                                                      |
+| **A1** | **Art over 1024 px on the long side is silently distorted — live latent bug.** `loadTexture()` clamps width and height **independently** to `MAX_ART_PX = 1024`, then rasterizes into that box: a 1320×660 asset becomes 1024×660, content squashed 24 %, while the quad still uses the declared `artAspect`. Broccoli never hit it (900×1005). | **Binding rule: every art asset ships ≤1024 px on the long side after autocrop.** Both agents and Kayley ACKed.                 |
+| A2     | `artAspect` = the shipped asset's pixel **height ÷ width** (`lens_broccoli_art.webp` 900×1005 → 1.1167 vs declared `1.117f`)                                                                                                                                                                                                                    | Measure it off the encoded file after autocrop. Never estimate.                                                                 |
+| F1     | `football.jpg` is lossy WebP `VP8`, 1320×1320, **no alpha channel**                                                                                                                                                                                                                                                                             | Key-to-alpha is mandatory; re-encode as `VP8X` lossy + lossless alpha.                                                          |
 
 ---
 
@@ -224,10 +224,10 @@ Split so that **all shared-file surgery sits with one agent**, avoiding claim th
 `LensAnchor.kt` and `LensSurfaceProcessor.kt`. `Lens.kt` is unavoidably shared — short claims, one
 entry at a time.
 
-| Agent | Lenses | Files owned end to end |
-|---|---|---|
-| **Claude** | **Football**, **Dog** | football art pipeline + `drawable-nodpi/` assets, dog vector art, thumbnails, their two `Lens.kt` entries and geometry |
-| **Codex** | **Bug Eyes**, **Pizza Face** | `LensAnchor.kt` (W1), `LensSurfaceProcessor.kt` (W3), `LensAnchorTest`, pizza art, thumbnails, their two `Lens.kt` entries and geometry |
+| Agent      | Lenses                       | Files owned end to end                                                                                                                  |
+| ---------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Claude** | **Football**, **Dog**        | football art pipeline + `drawable-nodpi/` assets, dog vector art, thumbnails, their two `Lens.kt` entries and geometry                  |
+| **Codex**  | **Bug Eyes**, **Pizza Face** | `LensAnchor.kt` (W1), `LensSurfaceProcessor.kt` (W3), `LensAnchorTest`, pizza art, thumbnails, their two `Lens.kt` entries and geometry |
 
 **One Gradle lane.** Claim `gradle` before any build/test run, post the result, release. Same for the
 emulator and `adb` — one driver at a time.
@@ -236,53 +236,53 @@ emulator and `adb` — one driver at a time.
 
 ## Killed
 
-| Candidate | Pitched by | Killed by | Why |
-|---|---|---|---|
-| Cat Ears | codex (rank 3), claude (rank 6) | codex, on Claude's D2 | Evidence is real and current (2026-07-24 topic at 103K/499K clips; nine first-party variants) but it is **cute, not funny**, and Dog occupies the same tier at the same zero cost with stronger shareability — plus Snap's own 2026-01-16 post names Dog, not cat, at +352 %. **Not killed on quality; it is the immediate fallback if Dog fails at the art stage.** |
-| Tiny Head | claude (rank 3) | codex | The cited TikTok discover pages expose **neither dates nor use counts**; Codex's cross-check found verifiable coverage only from 2021, describing a paid FaceApp **post-process**, not a live 2026 lens. Fails GOAL §2.2 before implementation cost matters. **Claude accepted without argument.** |
-| Crying-Laughing Emoji Head | claude (rank 4) | codex, accepted by claude | Emoji usage (Oxford WOTY 2015; Unicode 2021 #1 worldwide) proves **symbol recognition, not demand for this lens**; Pizza has direct lens evidence. The no-drawn-eyes/no-mouth art constraint also weakens the silhouette. |
-| Big Nose | codex (rank 4) | codex | Good evidence, but Bug Eyes is the stronger and less mean facial warp; shipping both would make the new set warp-heavy. |
-| Handlebar Mustache | codex (rank 5) | codex | Good current trend evidence, but less surprising than Dog in the same trivial prop tier. |
-| Balloon / Inflate Face | claude (pre-empted) | claude | Mechanically shipped Big Mouth at a larger radius — the *same* joke at a different scale. GOAL §2.3.2 kills "another mouth bulge". |
-| Googly Eyes | claude (pre-empted) | claude | Geometrically identical to shipped `Shades` (eye-line prop, ~1.9 wide) — caught by §2.3.2 on geometry. |
-| Dog with drop-tongue | — | both | Second sticker + mouth-open detection + animation state. Real scope increase; static version shipped instead. |
-| Pink Donut (Kayley's backup) | — | claude | Same round-food-head slot as Pizza with strictly weaker first-party evidence — no Snapchat-authored donut-head lens found in the sweep. |
-| 3D Cartoon / AI Manga / celebrity look-alike / face swap | — | GOAL §2.1 | Auto-kill: neural/generative restyling. Already dropped once by owner decision (PRD §10 Q1). |
-| Body / hand / pose / background-replacement lenses | — | GOAL §2.1 | Auto-kill: new dependency. |
-| Multi-face lenses (twin, swap-with-a-friend) | — | GOAL §2.1 | Auto-kill: the tracker is single-face by design. |
+| Candidate                                                | Pitched by                      | Killed by                 | Why                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------- | ------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cat Ears                                                 | codex (rank 3), claude (rank 6) | codex, on Claude's D2     | Evidence is real and current (2026-07-24 topic at 103K/499K clips; nine first-party variants) but it is **cute, not funny**, and Dog occupies the same tier at the same zero cost with stronger shareability — plus Snap's own 2026-01-16 post names Dog, not cat, at +352 %. **Not killed on quality; it is the immediate fallback if Dog fails at the art stage.** |
+| Tiny Head                                                | claude (rank 3)                 | codex                     | The cited TikTok discover pages expose **neither dates nor use counts**; Codex's cross-check found verifiable coverage only from 2021, describing a paid FaceApp **post-process**, not a live 2026 lens. Fails GOAL §2.2 before implementation cost matters. **Claude accepted without argument.**                                                                   |
+| Crying-Laughing Emoji Head                               | claude (rank 4)                 | codex, accepted by claude | Emoji usage (Oxford WOTY 2015; Unicode 2021 #1 worldwide) proves **symbol recognition, not demand for this lens**; Pizza has direct lens evidence. The no-drawn-eyes/no-mouth art constraint also weakens the silhouette.                                                                                                                                            |
+| Big Nose                                                 | codex (rank 4)                  | codex                     | Good evidence, but Bug Eyes is the stronger and less mean facial warp; shipping both would make the new set warp-heavy.                                                                                                                                                                                                                                              |
+| Handlebar Mustache                                       | codex (rank 5)                  | codex                     | Good current trend evidence, but less surprising than Dog in the same trivial prop tier.                                                                                                                                                                                                                                                                             |
+| Balloon / Inflate Face                                   | claude (pre-empted)             | claude                    | Mechanically shipped Big Mouth at a larger radius — the *same* joke at a different scale. GOAL §2.3.2 kills "another mouth bulge".                                                                                                                                                                                                                                   |
+| Googly Eyes                                              | claude (pre-empted)             | claude                    | Geometrically identical to shipped `Shades` (eye-line prop, ~1.9 wide) — caught by §2.3.2 on geometry.                                                                                                                                                                                                                                                               |
+| Dog with drop-tongue                                     | —                               | both                      | Second sticker + mouth-open detection + animation state. Real scope increase; static version shipped instead.                                                                                                                                                                                                                                                        |
+| Pink Donut (Kayley's backup)                             | —                               | claude                    | Same round-food-head slot as Pizza with strictly weaker first-party evidence — no Snapchat-authored donut-head lens found in the sweep.                                                                                                                                                                                                                              |
+| 3D Cartoon / AI Manga / celebrity look-alike / face swap | —                               | GOAL §2.1                 | Auto-kill: neural/generative restyling. Already dropped once by owner decision (PRD §10 Q1).                                                                                                                                                                                                                                                                         |
+| Body / hand / pose / background-replacement lenses       | —                               | GOAL §2.1                 | Auto-kill: new dependency.                                                                                                                                                                                                                                                                                                                                           |
+| Multi-face lenses (twin, swap-with-a-friend)             | —                               | GOAL §2.1                 | Auto-kill: the tracker is single-face by design.                                                                                                                                                                                                                                                                                                                     |
 
 ---
 
 ## Judge rulings
 
-| Date | From | Ruling |
-|---|---|---|
-| 2026-08-15 | Steven | Football is lens 1, character pattern, Wilson/NFL marks stay |
-| 2026-08-15 | Steven | Agreement on the three unblocks the build — no second sign-off |
-| 2026-08-15 | Steven / Kayley | Bar is catchy, funny, shareable. Pretty is not the job. Flower Crown / beauty / glitter are off the primary ballot. Deadlock ballot: Pizza Face (character), Bug Eyes (warp), Cat Ears (prop). Backup: Pink Donut. |
-| 2026-08-15 | Steven | AFK. Kayley has ultimate authority on ties, kills, and locking the three. No commits / push / PR. Hardware QA still Steven. |
-| 2026-08-15 | Kayley | Scope locked: four new lenses, seven total. Nothing removed. |
-| 2026-08-15 | Steven / Kayley | No baked photo shadows. football.jpg has a soft gray puddle bottom-right — key it out with the white. If the shipped webp still has a shadow, reject the lens. Same rule for every character. File is WebP named .jpg. Wilson/NFL stay. |
-| 2026-08-15 | Kayley | W1 approved: WarpSpec may offset from the mouth (eye-line Bug Eyes). Art long side <= 1024 after autocrop. football.jpg has no alpha — key to VP8X. |
-| 2026-08-15 | Steven / Kayley | RETRACT two-circle kill. Bug Eyes must read as two eyes. If one circle smushes the nose, implement two warp circles. Trending beats cheap. Shader change is in scope. No new deps. Three not locked until Claude posts. |
-| 2026-08-15 | Steven / Kayley | No regressions. Broccoli, Shades, Big Mouth, and the rest of the app stay put. Shader/WarpSpec changes are additive; Big Mouth remains mouth-centred and bit-identical. A red existing-catalogue test is a stop. |
-| 2026-08-15 | Steven / Kayley | Abstraction or it dies. One Lens.kt entry plus data. No named-lens branches in renderer/CameraManager/UI. Multi-circle warp is generic WarpSpec fields, not a Bug Eyes path. |
-| 2026-08-15 | Steven / Kayley | Create it. Thin Snap citations are not a kill. Author original Apache-2.0 art in-repo. Pizza is not blocked on an owner photo. Cat Ears / Dog ears+snout are both legal to create — pick on funny, not on who Snap named. No brand scrapes. |
-| 2026-08-15 | Kayley (`kayley-1786828313928`) | Kayley reads the bus herself every ~2 min. Post questions to her directly. **Do not use the GOAL §3 step 6 self-resolve ladder unless she has been silent 20+ minutes after a posted question.** |
-| 2026-08-15 | Kayley (`kayley-1786831076406`) | **Football art ACCEPTED** with the known source clip on the left tip. **Do not inpaint.** An unclipped photo at `football.jpg` + re-run `key_art.py` if Steven supplies one. **Pizza art v1 REJECTED** — the lens stays, the art is redone as real food: photographic or near-photo, opaque, original Apache-2.0, no brand marks, shadows keyed out, ≤1024 long side. "Five pepperoni circles is a sticker." |
-| 2026-08-15 | Kayley (`kayley-1786832165311`) | **Pizza v2 art PASSES.** |
-| 2026-08-15 | Kayley (`kayley-1786832813349`, reaffirmed `kayley-1786832985064`) | **"Mona Lisa is bake evidence, not a face."** The emulator portrait proves bind and bake only. **Keep the measured Football 4.7 — do not tune to the painting.** Real-face coverage is Steven's hardware QA, first on the checklist. |
-| 2026-08-15 | **Steven** | **`pizza-slice.jpg` is accepted. Key it, re-measure Pizza Face, re-gate. WHOLE PIE IS DEAD. No commits.** Supersedes the locked Pizza art and every Pizza geometry constant. |
-| 2026-08-15 | Kayley (`kayley-1786833197885`) | **Bug Eyes: the two-circle path clears the blob kill** — two independent eyes, nose bridge clean. It is **NOT** a shareable-look pass and **NOT** verified on a face. Codex owns magnitude; **do not lock new constants off the Mona Lisa.** **Dog: bind pass** — ears clear of eyes, mouth uncovered. Snout height is Steven's. **Pizza evidence 09 is stale v1 — reinstall before any Pizza claim.** Stop writing "tracked face" in headlines: painting = bake/bind, real face = Steven. |
+| Date       | From                                                               | Ruling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-08-15 | Steven                                                             | Football is lens 1, character pattern, Wilson/NFL marks stay                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 2026-08-15 | Steven                                                             | Agreement on the three unblocks the build — no second sign-off                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 2026-08-15 | Steven / Kayley                                                    | Bar is catchy, funny, shareable. Pretty is not the job. Flower Crown / beauty / glitter are off the primary ballot. Deadlock ballot: Pizza Face (character), Bug Eyes (warp), Cat Ears (prop). Backup: Pink Donut.                                                                                                                                                                                                                                                                         |
+| 2026-08-15 | Steven                                                             | AFK. Kayley has ultimate authority on ties, kills, and locking the three. No commits / push / PR. Hardware QA still Steven.                                                                                                                                                                                                                                                                                                                                                                |
+| 2026-08-15 | Kayley                                                             | Scope locked: four new lenses, seven total. Nothing removed.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 2026-08-15 | Steven / Kayley                                                    | No baked photo shadows. football.jpg has a soft gray puddle bottom-right — key it out with the white. If the shipped webp still has a shadow, reject the lens. Same rule for every character. File is WebP named .jpg. Wilson/NFL stay.                                                                                                                                                                                                                                                    |
+| 2026-08-15 | Kayley                                                             | W1 approved: WarpSpec may offset from the mouth (eye-line Bug Eyes). Art long side <= 1024 after autocrop. football.jpg has no alpha — key to VP8X.                                                                                                                                                                                                                                                                                                                                        |
+| 2026-08-15 | Steven / Kayley                                                    | RETRACT two-circle kill. Bug Eyes must read as two eyes. If one circle smushes the nose, implement two warp circles. Trending beats cheap. Shader change is in scope. No new deps. Three not locked until Claude posts.                                                                                                                                                                                                                                                                    |
+| 2026-08-15 | Steven / Kayley                                                    | No regressions. Broccoli, Shades, Big Mouth, and the rest of the app stay put. Shader/WarpSpec changes are additive; Big Mouth remains mouth-centered and bit-identical. A red existing-catalogue test is a stop.                                                                                                                                                                                                                                                                          |
+| 2026-08-15 | Steven / Kayley                                                    | Abstraction or it dies. One Lens.kt entry plus data. No named-lens branches in renderer/CameraManager/UI. Multi-circle warp is generic WarpSpec fields, not a Bug Eyes path.                                                                                                                                                                                                                                                                                                               |
+| 2026-08-15 | Steven / Kayley                                                    | Create it. Thin Snap citations are not a kill. Author original Apache-2.0 art in-repo. Pizza is not blocked on an owner photo. Cat Ears / Dog ears+snout are both legal to create — pick on funny, not on who Snap named. No brand scrapes.                                                                                                                                                                                                                                                |
+| 2026-08-15 | Kayley (`kayley-1786828313928`)                                    | Kayley reads the bus herself every ~2 min. Post questions to her directly. **Do not use the GOAL §3 step 6 self-resolve ladder unless she has been silent 20+ minutes after a posted question.**                                                                                                                                                                                                                                                                                           |
+| 2026-08-15 | Kayley (`kayley-1786831076406`)                                    | **Football art ACCEPTED** with the known source clip on the left tip. **Do not inpaint.** An unclipped photo at `football.jpg` + re-run `key_art.py` if Steven supplies one. **Pizza art v1 REJECTED** — the lens stays, the art is redone as real food: photographic or near-photo, opaque, original Apache-2.0, no brand marks, shadows keyed out, ≤1024 long side. "Five pepperoni circles is a sticker."                                                                               |
+| 2026-08-15 | Kayley (`kayley-1786832165311`)                                    | **Pizza v2 art PASSES.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 2026-08-15 | Kayley (`kayley-1786832813349`, reaffirmed `kayley-1786832985064`) | **"Mona Lisa is bake evidence, not a face."** The emulator portrait proves bind and bake only. **Keep the measured Football 4.7 — do not tune to the painting.** Real-face coverage is Steven's hardware QA, first on the checklist.                                                                                                                                                                                                                                                       |
+| 2026-08-15 | **Steven**                                                         | **`pizza-slice.jpg` is accepted. Key it, re-measure Pizza Face, re-gate. WHOLE PIE IS DEAD. No commits.** Supersedes the locked Pizza art and every Pizza geometry constant.                                                                                                                                                                                                                                                                                                               |
+| 2026-08-15 | Kayley (`kayley-1786833197885`)                                    | **Bug Eyes: the two-circle path clears the blob kill** — two independent eyes, nose bridge clean. It is **NOT** a shareable-look pass and **NOT** verified on a face. Codex owns magnitude; **do not lock new constants off the Mona Lisa.** **Dog: bind pass** — ears clear of eyes, mouth uncovered. Snout height is Steven's. **Pizza evidence 09 is stale v1 — reinstall before any Pizza claim.** Stop writing "tracked face" in headlines: painting = bake/bind, real face = Steven. |
 
 ---
 
 ## Open questions for Steven
 
-| # | Question | Status |
-|---|---|---|
-| 1 | Four **new** lenses (7 total) or four total? | **Resolved 2026-08-15 — four new.** Football + 3 agreed. Added to the existing three. |
-| 2 | `loadTexture()` clamps art width and height independently at 1024 px, distorting any non-square asset over the cap (finding A1). We work around it by shipping all art ≤1024 px. Do you also want the ~3-line proportional-clamp fix in `LensSurfaceProcessor.kt`? | **Not blocking.** Deliberately not fixed unilaterally — a shared file and a pre-existing latent bug outside this feature's scope. Raised so it is not lost. |
+| #   | Question                                                                                                                                                                                                                                                           | Status                                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Four **new** lenses (7 total) or four total?                                                                                                                                                                                                                       | **Resolved 2026-08-15 — four new.** Football + 3 agreed. Added to the existing three.                                                                       |
+| 2   | `loadTexture()` clamps art width and height independently at 1024 px, distorting any non-square asset over the cap (finding A1). We work around it by shipping all art ≤1024 px. Do you also want the ~3-line proportional-clamp fix in `LensSurfaceProcessor.kt`? | **Not blocking.** Deliberately not fixed unilaterally — a shared file and a pre-existing latent bug outside this feature's scope. Raised so it is not lost. |
 
 **Steven is unavailable for the rest of this run.** Do not add questions here expecting an answer.
 Route decisions to Kayley (Grok — `../KAYLEY-PROMPT.md`), and if no relay comes back **after 20+
@@ -291,11 +291,12 @@ rung below.
 
 ## Self-resolved deadlocks
 
-| # | What was deadlocked | Rung used | Outcome |
-|---|---|---|---|
-| _(none)_ | Phase 1 converged in two rounds with no deadlock. The §3 step 6 ladder and the pre-seeded ballot were **not** needed. | — | Both agents moved on the other's evidence: Codex dropped Cat Ears; Claude dropped Emoji Head and Tiny Head. |
+| #        | What was deadlocked                                                                                                   | Rung used | Outcome                                                                                                     |
+| -------- | --------------------------------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
+| *(none)* | Phase 1 converged in two rounds with no deadlock. The §3 step 6 ladder and the pre-seeded ballot were **not** needed. | —         | Both agents moved on the other's evidence: Codex dropped Cat Ears; Claude dropped Emoji Head and Tiny Head. |
 
 ### Kayley lock 2026-08-15
+
 Lenses 2-4 LOCKED: Bug Eyes (warp, two eye-landmark circles), Dog (prop, ears+snout, no tongue), Pizza Face (character, original art). Cat Ears killed. Football first. No commits.
 
 ### Kayley ruling 2026-08-15 17:26 CT (kayley-1786832813349)
@@ -332,18 +333,16 @@ Bug Eyes two-eye look still waits on a **real face**. Emulator runs of Dog/Bug E
 
 ### Kayley ruling 2026-08-15 18:27 CT
 
-**`pizza-slice.jpg` ACCEPTED.** Steven replaced the 123RF file. Exif JPEG, triangle down, crust at top, no watermark. Codex keys it (white + any baked shadow to alpha), remesures, re-gates. Whole pie stays dead. No commits.
+**`pizza-slice.jpg` ACCEPTED.** Steven replaced the 123RF file. Exif JPEG, triangle down, crust at top, no watermark. Codex keys it (white + any baked shadow to alpha), remeasures, re-gates. Whole pie stays dead. No commits.
 
 ### Kayley ruling 2026-08-15 18:34 CT
 
-**Codex is down** (usage limit until 2026-08-20). **Claude owns Pizza Face.** Source: `pizza-slice.jpg`. Key, remesure, re-gate, recapture. No commits.
+**Codex is down** (usage limit until 2026-08-20). **Claude owns Pizza Face.** Source: `pizza-slice.jpg`. Key, remeasure, re-gate, recapture. No commits.
 
-### Kayley ruling 2026-08-15 18:34 CT
+### Kayley ruling 2026-08-15 18:34 CT (follow-up)
 
-**Codex is down** (usage limit until 2026-08-20). Two-agent swarm: Kayley + Claude. **Claude owns Pizza Face.** Source: `pizza-slice.jpg`. Key, remesure, re-gate, recapture. No commits.
-
+**Codex is down** (usage limit until 2026-08-20). Two-agent swarm: Kayley + Claude. **Claude owns Pizza Face.** Source: `pizza-slice.jpg`. Key, remeasure, re-gate, recapture. No commits.
 
 ### Kayley ruling 2026-08-15 19:14 CT
 
 **Pizza slice PASSES.** Keyed magenta clean. Live + saved photo + saved video confirmed. Whole pie dead. Hardware QA (jaw line on a real face) then commit is Steven. Watch over.
-

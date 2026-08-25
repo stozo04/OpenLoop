@@ -15,7 +15,7 @@ Research confirms the symptom and identifies two **separate** causes that are of
 
 1. **`OpenLoop` fails because the brand token is not in the app title.** It lives only in the
    developer name — the weakest field Play indexes. This is cheap to fix.
-2. **`boom` fails because the app has ~10 installs.** Play ranks on installs, ratings, retention and
+2. **`boom` fails because the app has ~10 installations.** Play ranks on installation counts, ratings, retention and
    engagement. No metadata change beats Supercell and Boomplay from a standing start. This is not
    fixable by copywriting, and anyone who says otherwise is selling something.
 
@@ -27,9 +27,9 @@ work**: a store-listing accuracy contradiction, and a live trademark exposure. B
 ## 2. Evidence baseline (measured 2026-08-09)
 
 All Play data below came from **unauthenticated server-side fetches**, so these are clean
-signed-out samples, not personalised results.
+signed-out samples, not personalized results.
 
-**Provenance matters here, so it is labelled per row.** Play listing pages are JavaScript-rendered
+**Provenance matters here, so it is labeled per row.** Play listing pages are JavaScript-rendered
 and do not survive text extraction, so some fields could only be read from a third-party mirror
 (apkcombo). That mirror **demonstrably mangled one field during this research** — it concatenated the
 developer name into the title and returned `OpenLoop Boomerang Video Maker`, which the Play search
@@ -40,15 +40,15 @@ results disproved. Treat every ⚠️ row below as *indicative, not verbatim*.
 
 ### 2.1 Live listing vs. repo source-of-truth — they have drifted
 
-| Field | `docs/play-store/store-listing.md` (repo) | **Live on Play** | Source |
-|---|---|---|---|
-| Title | `OpenLoop: Video Loop Maker` | **`Boomerang Video Maker`** (21 chars) | ✅ |
-| Developer name | — | **`OpenLoop`** | ✅ |
-| Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.` | **`Ad Free and Open Source Boomerang Loop Video Maker`** | ⚠️ |
-| Full description | Discloses Firebase Analytics/Crashlytics | **Claims "no tracking"** | ⚠️ |
-| Version | `main` **1.0.47** (2026-08-22; was 1.0.37 post-[#123](https://github.com/stozo04/OpenLoop/pull/123) when measured) | ~~1.0.25 (Jun 23, 2026)~~ **superseded — a release has since shipped; re-read in Console** | ⚠️ |
-| Installs | — | **10+** | ⚠️ |
-| Ratings | — | **None** | ⚠️ |
+| Field             | `docs/play-store/store-listing.md` (repo)                                                                          | **Live on Play**                                                                           | Source |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ------ |
+| Title             | `OpenLoop: Video Loop Maker`                                                                                       | **`Boomerang Video Maker`** (21 chars)                                                     | ✅      |
+| Developer name    | —                                                                                                                  | **`OpenLoop`**                                                                             | ✅      |
+| Short description | `Speed-controlled video loops. 100% on-device. No ads, no signup, open source.`                                    | **`Ad Free and Open Source Boomerang Loop Video Maker`**                                   | ⚠️     |
+| Full description  | Discloses Firebase Analytics/Crashlytics                                                                           | **Claims "no tracking"**                                                                   | ⚠️     |
+| Version           | `main` **1.0.47** (2026-08-22; was 1.0.37 post-[#123](https://github.com/stozo04/OpenLoop/pull/123) when measured) | ~~1.0.25 (Jun 23, 2026)~~ **superseded — a release has since shipped; re-read in Console** | ⚠️     |
+| Installs          | —                                                                                                                  | **10+**                                                                                    | ⚠️     |
+| Ratings           | —                                                                                                                  | **None**                                                                                   | ⚠️     |
 
 > The repo doc is **not** what is live. Neither document is obviously "right" — the owner must decide
 > which is the source of truth and reconcile. See §3.1.
@@ -59,12 +59,12 @@ results disproved. Treat every ⚠️ row below as *indicative, not verbatim*.
 
 ### 2.2 Search rank baseline
 
-| Query | Rank | Notes |
-|---|---|---|
-| `openloop` | **Absent from top 27** | #1 is `Openloop Connect` (Haudi Crypto); #27 is by `OpenLoop Health, Inc.` |
-| `openloop boomerang` | **#1** | Proves the listing **is** indexed and available in the US |
-| `boom` | **Absent from top 25** | Owned by Ultimate Ears, Boom bass booster, Supercell, Boomplay |
-| `boomerang video maker` | **#7** | **#4 is a *different* app with the identical title**, by Tiger Lily Technologies |
+| Query                   | Rank                   | Notes                                                                            |
+| ----------------------- | ---------------------- | -------------------------------------------------------------------------------- |
+| `openloop`              | **Absent from top 27** | #1 is `Openloop Connect` (Haudi Crypto); #27 is by `OpenLoop Health, Inc.`       |
+| `openloop boomerang`    | **#1**                 | Proves the listing **is** indexed and available in the US                        |
+| `boom`                  | **Absent from top 25** | Owned by Ultimate Ears, Boom bass booster, Supercell, Boomplay                   |
+| `boomerang video maker` | **#7**                 | **#4 is a *different* app with the identical title**, by Tiger Lily Technologies |
 
 Two conclusions follow directly:
 
@@ -143,17 +143,17 @@ materially better posture at zero cost.
 > **Not legal advice.** If the owner wants certainty rather than a risk assessment, this is the one
 > item worth an hour of a trademark attorney's time.
 
-### 3.3 Minor: "Ad Free" in the short description is grey-area
+### 3.3 Minor: "Ad Free" in the short description is gray-area
 
 The live short description opens `Ad Free and Open Source…` (⚠️ mirror-sourced — confirm in Console
 before acting on this item). Google's
 [store-listing best practices](https://support.google.com/googleplay/android-developer/answer/13393723)
 say "Words like 'Free' and 'No Ads' promote deals and don't belong in **app titles**," and the
-Metadata policy bans "text that indicate price and promotional information" — but every example given
+Metadata policy bans "text that indicate price and promotional information." Every example given, though,
 is a *time-limited* promo ("free for limited time only," "10% off").
 
 A permanently free, genuinely ad-free app stating a durable fact is not obviously the prohibited case.
-**Assessment: grey area, low risk, not urgent.** Safer phrasing expresses the same value as
+**Assessment: gray area, low risk, not urgent.** Safer phrasing expresses the same value as
 functionality — "no ads, ever" reads as a promo; "works offline, no account" does not.
 
 ---
@@ -178,10 +178,10 @@ full description**, with the developer name a weak tiebreaker or absent entirely
 
 **Why the two observed queries diverge:**
 
-| Query | Mechanism |
-|---|---|
-| `openloop boomerang` → #1 | `boomerang` matches the **title** (highest weight), collapsing the candidate pool to a handful of apps. `openloop` then disambiguates against the developer name. A weak-field match is decisive when the pool is tiny. |
-| `openloop` → absent | **Zero** title match, zero short-description match, zero full-description match. The only matching field is the weakest one, and the candidate pool is now everything Play's NLP considers semantically near `open` + `loop`. |
+| Query                     | Mechanism                                                                                                                                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openloop boomerang` → #1 | `boomerang` matches the **title** (highest weight), collapsing the candidate pool to a handful of apps. `openloop` then disambiguates against the developer name. A weak-field match is decisive when the pool is tiny.       |
+| `openloop` → absent       | **Zero** title match, zero short-description match, zero full-description match. The only matching field is the weakest one, and the candidate pool is now everything Play's NLP considers semantically near `open` + `loop`. |
 
 Play uses **semantic/NLP matching, not literal string matching**, so the unspaced compound `openloop`
 plausibly decomposes toward two extremely generic English words. There is no separate keyword field on
@@ -196,10 +196,10 @@ suppression for new apps. Waiting fixes nothing; there is no clock running.
 [Android vitals](https://developer.android.com/topic/performance/vitals) (updated 2026-05-19) — exceed
 these and "Play **may reduce the visibility of your title**":
 
-| Metric | Overall | Per phone model |
-|---|---|---|
-| User-perceived crash rate | **1.09%** | 8% |
-| User-perceived ANR rate | **0.47%** | 8% |
+| Metric                    | Overall   | Per phone model |
+| ------------------------- | --------- | --------------- |
+| User-perceived crash rate | **1.09%** | 8%              |
+| User-perceived ANR rate   | **0.47%** | 8%              |
 
 Checked daily on a **28-day rolling average**, and evaluated **across all users regardless of app
 version** — you cannot escape a bad history by shipping a new build. A new **partial wake lock**
@@ -216,13 +216,13 @@ the bars for quality treatments: **user loss rate <5%**, **DAU/MAU >8%**, and en
 
 ### 4.2 Metadata: field limits, policy, and the suspension tripwire
 
-| Field | Limit | Indexed? | Weight |
-|---|---|---|---|
-| App title | **30** | Yes | **Highest** |
-| Short description | **80** | Yes | Second |
-| Full description | **4,000** | Yes | Third |
-| Developer name | Not documented | Officially yes, practically marginal | Unknown |
-| Tags | **Max 5** | Not stated | Unknown |
+| Field             | Limit          | Indexed?                             | Weight      |
+| ----------------- | -------------- | ------------------------------------ | ----------- |
+| App title         | **30**         | Yes                                  | **Highest** |
+| Short description | **80**         | Yes                                  | Second      |
+| Full description  | **4,000**      | Yes                                  | Third       |
+| Developer name    | Not documented | Officially yes, practically marginal | Unknown     |
+| Tags              | **Max 5**      | Not stated                           | Unknown     |
 
 Character limits apply identically to full-width and half-width characters, so CJK localisations get
 the same budget, not a scaled one.
@@ -273,12 +273,12 @@ program claims ("Editor's Choice"); price/promo text; unattributed user testimon
 
 Four distinct entities plus a generic-language problem:
 
-| Entity | Presence |
-|---|---|
+| Entity                                     | Presence                                                                                                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **OpenLoop Health, Inc.** (Des Moines, IA) | Holds **USPTO Reg. 6494802, `OPENLOOP`, Class 035** (medical staffing). **Nine of ten** Google autocomplete slots for `openloop`. On Play as `Agile Telehealth`. |
-| **Haudi Crypto, Inc.** (Japan) | `Openloop Connect` — hardware crypto wallet companion. **Currently #1 on Play for `openloop`.** |
-| **OpenLoop** (New Zealand) | `openloop.co.nz` — nationwide EV charging, live consumer app. |
-| Generic usage | "Open loop" is standard in control systems and open-loop payments. No owner to out-compete. |
+| **Haudi Crypto, Inc.** (Japan)             | `Openloop Connect` — hardware crypto wallet companion. **Currently #1 on Play for `openloop`.**                                                                  |
+| **OpenLoop** (New Zealand)                 | `openloop.co.nz` — nationwide EV charging, live consumer app.                                                                                                    |
+| Generic usage                              | "Open loop" is standard in control systems and open-loop payments. No owner to out-compete.                                                                      |
 
 **The verdict splits, and collapsing it into one answer is the common mistake:**
 
@@ -286,7 +286,7 @@ Four distinct entities plus a generic-language problem:
   phrase. Anyone typing `openloop` into Google wants a telehealth job or a control-systems explainer.
   **Do not spend an hour on it.**
 - **On Play: winnable and cheap.** The three Play competitors are a crypto wallet, a telehealth app,
-  and an EV charger. None is a consumer media app; none optimises for a general audience.
+  and an EV charger. None is a consumer media app; none optimizes for a general audience.
 
 **Critically, there is no legal blocker.** OpenLoop Health's mark is **Class 035 (services)**, not
 Class 009 (software). A boomerang camera app is not plausibly confusable with a medical staffing
@@ -300,16 +300,16 @@ leak. Do not call it growth.
 
 ### 4.4 Competitor title teardown — the pattern
 
-| Title | Chars | Structure |
-|---|---|---|
-| `Boomerit Boomerang Video Maker` | **30** | coined brand + full category string |
-| `Boom Loop Video Maker Infinity` | **30** | coined brand + category + modifier |
-| `LoopyClip, Boomerang Videos` | 27 | coined brand + category |
-| `Boomerang Video & GIF Maker` | 27 | pure category, no brand |
-| `Boomerang Loop Video Maker` | 26 | pure category, no brand |
-| `Clip Loop: Boomerang Video` | 26 | coined brand + category |
-| `Loop Video Maker - Loopiq` | 25 | **category first**, brand last |
-| `Zoomerang - Ai Video Maker` | 25 | **brand first**, category |
+| Title                               | Chars  | Structure                                   |
+| ----------------------------------- | ------ | ------------------------------------------- |
+| `Boomerit Boomerang Video Maker`    | **30** | coined brand + full category string         |
+| `Boom Loop Video Maker Infinity`    | **30** | coined brand + category + modifier          |
+| `LoopyClip, Boomerang Videos`       | 27     | coined brand + category                     |
+| `Boomerang Video & GIF Maker`       | 27     | pure category, no brand                     |
+| `Boomerang Loop Video Maker`        | 26     | pure category, no brand                     |
+| `Clip Loop: Boomerang Video`        | 26     | coined brand + category                     |
+| `Loop Video Maker - Loopiq`         | 25     | **category first**, brand last              |
+| `Zoomerang - Ai Video Maker`        | 25     | **brand first**, category                   |
 | **`Boomerang Video Maker` (yours)** | **21** | pure category, **no brand**, 9 chars unused |
 
 Four patterns:
@@ -335,19 +335,19 @@ Google Trends does not render to a text fetcher. Google *web* autocomplete was u
 contamination** analysis only — it returns ranked strings, never volumes. Competition levels below are
 qualitative inference. **No numbers were invented.**
 
-| Candidate | Competition | Intent | Verdict |
-|---|---|---|---|
-| `boomerang` (bare) | Extreme | **Poor** — Cartoon Network, Boomerang for Outlook, Roku and the sports projectile all outrank the video effect | **Abandon as a target.** Keep for relevance only. |
-| `boomerang video maker` | Very high | Excellent | Table stakes, not opportunity. Won't rank at 10 installs. |
-| `boomerang video effect` / `boomerang video loop` | Medium-high | Excellent | **Real long-tail.** Worth explicit coverage. |
-| `reverse video` (bare) | Medium | **Poor** — half of autocomplete is reverse *lookup* ("find this video's origin") | **Do not target bare.** |
-| `reverse video maker` / `play video backwards` | **Low** | Excellent | **Strong candidate.** Real shipped feature (`VideoReverser.kt`). |
-| `video speed changer` / `speed control video` | Medium | Excellent | **Strongest functional angle** — the actual differentiator. |
-| `slow motion video maker` | High | Good, diluted | Secondary — competes with the built-in camera. |
-| `ping pong video` | — | **Zero** | **Cut entirely.** 10 of 10 autocomplete results are table tennis. Using it edges toward the "irrelevant keywords" prohibition. |
-| `open source video editor android` | Very low | Excellent but tiny | Best differentiator owned; audience is mostly **not on Play** (see §4.6). |
-| `offline` / `on-device` / `private` | Low-medium | Good | **Include.** Uncontested by ad-supported incumbents who cannot make the claim. |
-| `video to gif` | Medium | Good | **Only if GIF export actually ships.** Claiming absent features violates the Metadata accuracy rule. |
+| Candidate                                         | Competition | Intent                                                                                                         | Verdict                                                                                                                        |
+| ------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `boomerang` (bare)                                | Extreme     | **Poor** — Cartoon Network, Boomerang for Outlook, Roku and the sports projectile all outrank the video effect | **Abandon as a target.** Keep for relevance only.                                                                              |
+| `boomerang video maker`                           | Very high   | Excellent                                                                                                      | Table stakes, not opportunity. Won't rank at 10 installs.                                                                      |
+| `boomerang video effect` / `boomerang video loop` | Medium-high | Excellent                                                                                                      | **Real long-tail.** Worth explicit coverage.                                                                                   |
+| `reverse video` (bare)                            | Medium      | **Poor** — half of autocomplete is reverse *lookup* ("find this video's origin")                               | **Do not target bare.**                                                                                                        |
+| `reverse video maker` / `play video backwards`    | **Low**     | Excellent                                                                                                      | **Strong candidate.** Real shipped feature (`VideoReverser.kt`).                                                               |
+| `video speed changer` / `speed control video`     | Medium      | Excellent                                                                                                      | **Strongest functional angle** — the actual differentiator.                                                                    |
+| `slow motion video maker`                         | High        | Good, diluted                                                                                                  | Secondary — competes with the built-in camera.                                                                                 |
+| `ping pong video`                                 | —           | **Zero**                                                                                                       | **Cut entirely.** 10 of 10 autocomplete results are table tennis. Using it edges toward the "irrelevant keywords" prohibition. |
+| `open source video editor android`                | Very low    | Excellent but tiny                                                                                             | Best differentiator owned; audience is mostly **not on Play** (see §4.6).                                                      |
+| `offline` / `on-device` / `private`               | Low-medium  | Good                                                                                                           | **Include.** Uncontested by ad-supported incumbents who cannot make the claim.                                                 |
+| `video to gif`                                    | Medium      | Good                                                                                                           | **Only if GIF export actually ships.** Claiming absent features violates the Metadata accuracy rule.                           |
 
 **Honest summary:** there is no hidden high-volume, low-competition keyword. Mature categories don't
 work that way. What exists are three angles the ad-supported incumbents structurally cannot match —
@@ -356,7 +356,7 @@ intent. That is niche capture, not category capture.
 
 ### 4.6 Off-Play: the landing page is the biggest free win in the repo
 
-> **Shipped since (#124):** `docs/index.html` is now the landing page specced in §5.3 tasks 1–2 (unique title,
+> **Shipped since (#124):** `docs/index.html` is now the landing page specified in §5.3 tasks 1–2 (unique title,
 > meta description, `SoftwareApplication` JSON-LD without `aggregateRating`). The paragraph below is the pre-#124 state.
 
 **`docs/index.html` is 11 lines — a `<meta http-equiv="refresh">` to the privacy policy.** The
@@ -395,7 +395,7 @@ updated 2026-07-24). A first-party page marking up its own app's genuine Play ra
 - **robots.txt must live at the host root** — `https://stozo04.github.io/robots.txt`. That path belongs
   to a `stozo04.github.io` *user-site* repo which does not exist. **You cannot serve robots.txt for a
   project site.**
-- Consequently the raw engineering markdown in `docs/` (PRDs, `lessons_learned/`, `e2e/` reports) is
+- Consequently, the raw engineering Markdown in `docs/` (PRDs, `lessons_learned/`, `e2e/` reports) is
   **publicly served and indexable**, and cannot be `noindex`ed or disallowed. *Lazy fix:* publish Pages
   from a separate folder or `gh-pages` branch containing only `index.html`, `privacy-policy.html` and
   images. Or accept it — it's Apache-2.0 anyway; the cost is a thin-content halo, not a policy problem.
@@ -433,7 +433,7 @@ implementation("com.google.android.play:review-ktx:2.0.2")
 - ❌ No modifying, overlaying, or programmatically dismissing the card.
 - ❌ No surfacing errors to the user or changing app flow on error.
 - ❌ Play policy ([User Ratings, Reviews, and Installs](https://support.google.com/googleplay/android-developer/answer/9898684)):
-  no incentivised ratings, no manipulative pop-ups, no forcing.
+  no incentivized ratings, no manipulative pop-ups, no forcing.
 - The API **never tells you** whether the dialog appeared or whether the user reviewed.
 
 **Where to trigger in this codebase:** the `Processing → ReadyToCapture` **success** transition — the
@@ -464,18 +464,18 @@ this repo.
 
 Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-queue penalty.
 
-| # | Action | Why |
-|---|---|---|
-| 1 | **Record baseline ranks** for every target keyword before touching anything | Without this the result is unreadable |
-| 2 | **Change the title** (see §5.2) | The only fix for the `openloop` brand-search failure; also improves trademark posture |
-| 3 | **Rewrite the short description** — remove the "Ad Free" opener, add the speed-control differentiator | 80 chars, second-highest weight |
-| 4 | **Fix the full description** — reconcile the "no tracking" claim with `data-safety.md` (§3.1) | **Listing accuracy — do this even if nothing else ships** |
-| 5 | **Set all 5 tags** from the Console picklist | Free; taxonomy is Console-only, not published |
-| 6 | **Add screenshots to ≥4** | 2 is the publish minimum; **4+ unlocks large-format promotional placements** — cheapest eligibility unlock available |
-| 7 | **Check Android vitals** against 1.09% crash / 0.47% ANR, incl. per-device and the new wake-lock threshold | A media/codec app with device-specific paths is exactly the profile that trips per-device limits |
-| 8 | **Glance at Promotional content eligibility** | Zero minutes to check; likely closed |
-| 9 | **Hold two weeks minimum** before judging | Re-indexing is not instant |
-| 10 | *Later:* free machine translation for the 10 supported languages | Zero-cost keyword surface — **only after English is settled**, since every edit re-triggers review across all locales |
+| #   | Action                                                                                                     | Why                                                                                                                   |
+| --- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Record baseline ranks** for every target keyword before touching anything                                | Without this the result is unreadable                                                                                 |
+| 2   | **Change the title** (see §5.2)                                                                            | The only fix for the `openloop` brand-search failure; also improves trademark posture                                 |
+| 3   | **Rewrite the short description** — remove the "Ad Free" opener, add the speed-control differentiator      | 80 chars, second-highest weight                                                                                       |
+| 4   | **Fix the full description** — reconcile the "no tracking" claim with `data-safety.md` (§3.1)              | **Listing accuracy — do this even if nothing else ships**                                                             |
+| 5   | **Set all 5 tags** from the Console picklist                                                               | Free; taxonomy is Console-only, not published                                                                         |
+| 6   | **Add screenshots to ≥4**                                                                                  | 2 is the publish minimum; **4+ unlocks large-format promotional placements** — cheapest eligibility unlock available  |
+| 7   | **Check Android vitals** against 1.09% crash / 0.47% ANR, incl. per-device and the new wake-lock threshold | A media/codec app with device-specific paths is exactly the profile that trips per-device limits                      |
+| 8   | **Glance at Promotional content eligibility**                                                              | Zero minutes to check; likely closed                                                                                  |
+| 9   | **Hold two weeks minimum** before judging                                                                  | Re-indexing is not instant                                                                                            |
+| 10  | *Later:* free machine translation for the 10 supported languages                                           | Zero-cost keyword surface — **only after English is settled**, since every edit re-triggers review across all locales |
 
 ### 5.2 The title decision — owner's call
 
@@ -493,10 +493,10 @@ Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-que
 
 ⚠️ **The gap is now one step, not two — updated 2026-08-09 after [#123](https://github.com/stozo04/OpenLoop/pull/123):**
 
-| Where | Version | Lenses + photo mode? |
-|---|---|---|
-| **Google Play (what users get)** | ~~1.0.25 (Jun 23, 2026)~~ — **stale, a release shipped after this was measured** | ✅ shipped since |
-| **`main`** | **1.0.47** (2026-08-22) | ✅ Both — #123 merged `feature/camera-lenses`; ten releases since |
+| Where                            | Version                                                                          | Lenses + photo mode?                                             |
+| -------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **Google Play (what users get)** | ~~1.0.25 (Jun 23, 2026)~~ — **stale, a release shipped after this was measured** | ✅ shipped since                                                  |
+| **`main`**                       | **1.0.47** (2026-08-22)                                                          | ✅ Both — #123 merged `feature/camera-lenses`; ten releases since |
 
 `feature/camera-lenses` carried five commits with no PR targeting `main` for several days; #123 landed
 them. **Only one step now stands between the code and users: cut a release.** Until that ships, every
@@ -516,12 +516,12 @@ the listing rewrite, not a follow-up to it.
 The research produced four naming criteria. `LoopLens` is the only candidate found that satisfies all
 four:
 
-| Criterion | Evidence |
-|---|---|
-| **Uncontested brand query** — the actual cure for §4.3 | A Play search for `"loop lens"` returns **"No results"**. Zero competing apps. The app would be the sole match on day one, versus 27 apps outranking it for `openloop`. |
-| **Category-bearing portmanteau** — the §4.4 pattern behind Boomer**it**, **Loop**iq, **Zoom**erang, **Boom Loop** | Both halves are category tokens: `Loop` (boomerang) + `Lens` (AR effects). |
-| **Covers the whole product** | Loops *and* lenses, in two syllables. |
-| **Sidesteps the §3.2 trademark exposure** | Does not use Meta's `BOOMERANG` mark as the app's name at all. |
+| Criterion                                                                                                         | Evidence                                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Uncontested brand query** — the actual cure for §4.3                                                            | A Play search for `"loop lens"` returns **"No results"**. Zero competing apps. The app would be the sole match on day one, versus 27 apps outranking it for `openloop`. |
+| **Category-bearing portmanteau** — the §4.4 pattern behind Boomer**it**, **Loop**iq, **Zoom**erang, **Boom Loop** | Both halves are category tokens: `Loop` (boomerang) + `Lens` (AR effects).                                                                                              |
+| **Covers the whole product**                                                                                      | Loops *and* lenses, in two syllables.                                                                                                                                   |
+| **Sidesteps the §3.2 trademark exposure**                                                                         | Does not use Meta's `BOOMERANG` mark as the app's name at all.                                                                                                          |
 
 Continuity bonus: "Loop" survives from `OpenLoop`, so `io.github.stozo04.openloop` — which **can never
 change** — still reads sensibly. Users never see the package ID, and GitHub auto-redirects a renamed
@@ -537,22 +537,22 @@ one of three things the app does:
 
 #### Availability — checked on Play
 
-| Name | Status |
-|---|---|
-| **LoopLens** | ✅ **Free.** `"loop lens"` returns *no results*; a `looplens` query returns only unrelated apps |
-| ~~BoomLens~~ | ❌ Taken — "BoomLens – Media Player & IPTV", Boomlens Inc. |
-| ~~LensLoop~~ | ❌ Taken — "LensLoop – Photos & Wallpapers", SinbadEdu |
-| Funhouse · Zoetrope · LoopLab · Kaleido · Rebound | ⚠️ **Not checked.** Ideas only |
-| ~~Snaploop / Loopsnap~~ | ⚠️ **Avoid** — "Snap" plus AR-lens context leans on Snap Inc. |
+| Name                                              | Status                                                                                         |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **LoopLens**                                      | ✅ **Free.** `"loop lens"` returns *no results*; a `looplens` query returns only unrelated apps |
+| ~~BoomLens~~                                      | ❌ Taken — "BoomLens – Media Player & IPTV", Boomlens Inc.                                      |
+| ~~LensLoop~~                                      | ❌ Taken — "LensLoop – Photos & Wallpapers", SinbadEdu                                          |
+| Funhouse · Zoetrope · LoopLab · Kaleido · Rebound | ⚠️ **Not checked.** Ideas only                                                                 |
+| ~~Snaploop / Loopsnap~~                           | ⚠️ **Avoid** — "Snap" plus AR-lens context leans on Snap Inc.                                  |
 
 #### If keeping `OpenLoop` instead
 
-| Title | Chars | Tradeoff |
-|---|---|---|
-| `OpenLoop: Loops & Lenses` | 24 | Covers the full product, keeps the brand. Still fights 4 entities for `openloop` (§4.3) |
-| `OpenLoop: Boomerang Maker` | 25 | Best trademark posture of the OpenLoop options, but **misses the lens half** |
-| `Boomerang Maker - OpenLoop` | 26 | Better click-through; weaker trademark posture; misses lenses |
-| `Boomerang Video Maker` | 21 | **Status quo. Do not keep.** |
+| Title                        | Chars | Tradeoff                                                                                |
+| ---------------------------- | ----- | --------------------------------------------------------------------------------------- |
+| `OpenLoop: Loops & Lenses`   | 24    | Covers the full product, keeps the brand. Still fights 4 entities for `openloop` (§4.3) |
+| `OpenLoop: Boomerang Maker`  | 25    | Best trademark posture of the OpenLoop options, but **misses the lens half**            |
+| `Boomerang Maker - OpenLoop` | 26    | Better click-through; weaker trademark posture; misses lenses                           |
+| `Boomerang Video Maker`      | 21    | **Status quo. Do not keep.**                                                            |
 
 **Renaming is cheapest right now and gets more expensive every month.** At 10+ installs and zero
 ratings there is no brand equity to lose. The deeper argument: `OpenLoop` fails *because* four
@@ -578,16 +578,16 @@ review, no native A/B test, two-week read window.
 
 ### 5.3 Repo work (this is the GitHub feature)
 
-| # | Task | Effort | Files |
-|---|---|---|---|
-| 1 | ✅ (#124) **Replace `docs/index.html`** with a real landing page: unique `<title>`, meta description, canonical link, Open Graph tags, visible Play + GitHub links, screenshots | 1–2 h | `docs/index.html` |
-| 2 | ✅ (#124) **Add `SoftwareApplication` JSON-LD** (no `aggregateRating` until real ratings exist) | 30 m | `docs/index.html` |
-| 3 | ✅ (#124, `review/InAppReview.kt`) **Integrate the In-App Review API** — trigger on `Processing → ReadyToCapture` success, gated on ≥3 cumulative saves via DataStore | 2–3 h | `app/build.gradle.kts`, `OpenLoopViewModel.kt`, `UserPreferencesRepository` |
-| 4 | ✅ (`ReviewCadenceTest`, `InAppReviewRobolectricTest`) **One JVM test** with `FakeReviewManager`: asserts the trigger fires only after N successful saves and **never** on the failure path | 30 m | `app/src/test/...` |
-| 5 | ✅ **Reconcile README accuracy** — "Zero network calls. Zero tracking." is false (§3.1) | 15 m | `README.md` |
-| 6 | ✅ (store-listing.md records the live title + drift) **Sync `docs/play-store/store-listing.md`** to whatever goes live, or annotate the drift | 20 m | `docs/play-store/store-listing.md` |
-| 7 | **Repo as SEO asset** — Play badge in README, About→website field, topics (`android`, `kotlin`, `boomerang`, `video-editor`, `camerax`, `media3`, `open-source`), cut GitHub Releases with APKs | 15 m | `README.md`, repo settings |
-| 8 | *Optional:* move Pages publishing off `docs/` so engineering markdown isn't served | 15 m | repo settings |
+| #   | Task                                                                                                                                                                                            | Effort | Files                                                                       |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| 1   | ✅ (#124) **Replace `docs/index.html`** with a real landing page: unique `<title>`, meta description, canonical link, Open Graph tags, visible Play + GitHub links, screenshots                  | 1–2 h  | `docs/index.html`                                                           |
+| 2   | ✅ (#124) **Add `SoftwareApplication` JSON-LD** (no `aggregateRating` until real ratings exist)                                                                                                  | 30 m   | `docs/index.html`                                                           |
+| 3   | ✅ (#124, `review/InAppReview.kt`) **Integrate the In-App Review API** — trigger on `Processing → ReadyToCapture` success, gated on ≥3 cumulative saves via DataStore                            | 2–3 h  | `app/build.gradle.kts`, `OpenLoopViewModel.kt`, `UserPreferencesRepository` |
+| 4   | ✅ (`ReviewCadenceTest`, `InAppReviewRobolectricTest`) **One JVM test** with `FakeReviewManager`: asserts the trigger fires only after N successful saves and **never** on the failure path      | 30 m   | `app/src/test/...`                                                          |
+| 5   | ✅ **Reconcile README accuracy** — "Zero network calls. Zero tracking." is false (§3.1)                                                                                                          | 15 m   | `README.md`                                                                 |
+| 6   | ✅ (store-listing.md records the live title + drift) **Sync `docs/play-store/store-listing.md`** to whatever goes live, or annotate the drift                                                    | 20 m   | `docs/play-store/store-listing.md`                                          |
+| 7   | **Repo as SEO asset** — Play badge in README, About→website field, topics (`android`, `kotlin`, `boomerang`, `video-editor`, `camerax`, `media3`, `open-source`), cut GitHub Releases with APKs | 15 m   | `README.md`, repo settings                                                  |
+| 8   | *Optional:* move Pages publishing off `docs/` so engineering markdown isn't served                                                                                                              | 15 m   | repo settings                                                               |
 
 **Deliberately skipped:** `sitemap.xml` (near-worthless for two pages), `robots.txt` (impossible on a
 Pages project site), App Links / `assetlinks.json` (§4.6), F-Droid FOSS flavor (multi-day, blocked).
@@ -609,7 +609,7 @@ Pages project site), App Links / `assetlinks.json` (§4.6), F-Droid FOSS flavor 
 
 - **Google Ads App campaigns:** [official guidance](https://support.google.com/google-ads/answer/9176652)
   is "set your average daily budget at **50 times your target CPI**." A $1 CPI implies **$50/day ≈
-  $1,500/month** — the floor at which the optimiser exits its learning phase. Below that you are
+  $1,500/month** — the floor at which the optimizer exits its learning phase. Below that you are
   donating money. Out of scope at zero budget.
 - **A custom domain (~$10–15/yr) is the one paid item worth buying.** It unlocks a Search Console
   Domain property, a root `robots.txt`, `/.well-known/assetlinks.json`, and a brandable URL — for ~1%
@@ -621,12 +621,12 @@ Pages project site), App Links / `assetlinks.json` (§4.6), F-Droid FOSS flavor 
 
 Re-run the §2.2 baseline **from a signed-out context** at T+2 weeks and T+6 weeks:
 
-| Query | Baseline (2026-08-09) | Target |
-|---|---|---|
-| `openloop` | Absent from top 27 | **Top 10** — the one genuinely winnable goal |
-| `openloop boomerang` | #1 | Hold #1 |
-| `boomerang video maker` | #7 | Hold or improve |
-| `boom` | Absent from top 25 | **No target. Explicitly out of scope.** |
+| Query                   | Baseline (2026-08-09) | Target                                       |
+| ----------------------- | --------------------- | -------------------------------------------- |
+| `openloop`              | Absent from top 27    | **Top 10** — the one genuinely winnable goal |
+| `openloop boomerang`    | #1                    | Hold #1                                      |
+| `boomerang video maker` | #7                    | Hold or improve                              |
+| `boom`                  | Absent from top 25    | **No target. Explicitly out of scope.**      |
 
 Plus: Play Console → listing conversion (visitors, clicks, CTR by traffic source); Search Console →
 Performance (impressions on brand queries); rating count and average.
@@ -638,22 +638,22 @@ impressions* lines up with one of these rows, not with anything in git (there we
 2026-08-11**, the day the first cliff started). All ranks are signed-out `play.google.com` searches,
 same method as §2.2.
 
-| # | Live from | Title | What it did to impressions |
-|---|---|---|---|
-| 0 | ≤ 2026-06 → ~2026-08-10 | `Boomerang Video Maker` | ~500–700/day, Jul 22 → Aug 10. Almost all of it generic-query traffic on the exact-match title. Converted to **10+** installs total. |
-| 1 | ~2026-08-11 → 2026-08-19 | `OpenLoop: Boomerang Lenses` (short desc → `Face lenses and boomerangs. Speed, ping-pong, looks. On your phone.`, full desc rewritten around lenses + loops) | **Cliff to ~0 within 2 days.** The title lost `video maker` and demoted `Boomerang` to second position, so every generic query stopped matching. Brand query fixed. Install bucket rose to **100+** across this window. |
-| 2 | 2026-08-19 (submitted ~16:00 CT, ~30 min to publish) | `Boomerang AR Loop Video Maker` | Expected: generic-query impressions return (old token set + `loop` + `AR`). Expected cost: `openloop` brand query regresses to absent (no brand token in title); bare `BOOMERANG` back in first position (§3.2); near-twin of Sarafan's `Boomerang Loop Video Maker`, which ranks #1 for that query. **Re-measure once live — that is T0 for this title.** |
+| #   | Live from                                            | Title                                                                                                                                                        | What it did to impressions                                                                                                                                                                                                                                                                                                                                 |
+| --- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | ≤ 2026-06 → ~2026-08-10                              | `Boomerang Video Maker`                                                                                                                                      | ~500–700/day, Jul 22 → Aug 10. Almost all of it generic-query traffic on the exact-match title. Converted to **10+** installs total.                                                                                                                                                                                                                       |
+| 1   | ~2026-08-11 → 2026-08-19                             | `OpenLoop: Boomerang Lenses` (short desc → `Face lenses and boomerangs. Speed, ping-pong, looks. On your phone.`, full desc rewritten around lenses + loops) | **Cliff to ~0 within 2 days.** The title lost `video maker` and demoted `Boomerang` to second position, so every generic query stopped matching. Brand query fixed. Install bucket rose to **100+** across this window.                                                                                                                                    |
+| 2   | 2026-08-19 (submitted ~16:00 CT, ~30 min to publish) | `Boomerang AR Loop Video Maker`                                                                                                                              | Expected: generic-query impressions return (old token set + `loop` + `AR`). Expected cost: `openloop` brand query regresses to absent (no brand token in title); bare `BOOMERANG` back in first position (§3.2); near-twin of Sarafan's `Boomerang Loop Video Maker`, which ranks #1 for that query. **Re-measure once live — that is T0 for this title.** |
 
 Measured ranks per title (signed-out, top 30):
 
-| Query | #0 `Boomerang Video Maker` (2026-08-09) | #1 `OpenLoop: Boomerang Lenses` (2026-08-19) | #2 `Boomerang AR Loop Video Maker` |
-|---|---|---|---|
-| `openloop` | absent | **#2** | *measure at T0* |
-| `openloop boomerang` | #1 | #1 | |
-| `boomerang video maker` | **#7** | absent | |
-| `boomerang`, `boomerang maker`, `boomerang app`, `boomerang video`, `video loop maker`, `video loop` | — (not measured) | absent | |
-| `boomerang lenses` | — | **#1** | |
-| `boom` | absent | — | out of scope |
+| Query                                                                                                | #0 `Boomerang Video Maker` (2026-08-09) | #1 `OpenLoop: Boomerang Lenses` (2026-08-19) | #2 `Boomerang AR Loop Video Maker` |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------- | ---------------------------------- |
+| `openloop`                                                                                           | absent                                  | **#2**                                       | *measure at T0*                    |
+| `openloop boomerang`                                                                                 | #1                                      | #1                                           |                                    |
+| `boomerang video maker`                                                                              | **#7**                                  | absent                                       |                                    |
+| `boomerang`, `boomerang maker`, `boomerang app`, `boomerang video`, `video loop maker`, `video loop` | — (not measured)                        | absent                                       |                                    |
+| `boomerang lenses`                                                                                   | —                                       | **#1**                                       |                                    |
+| `boom`                                                                                               | absent                                  | —                                            | out of scope                       |
 
 **How to read the graph, so nobody panics or celebrates wrongly:**
 
@@ -686,7 +686,7 @@ Measured ranks per title (signed-out, top 30):
 4. **The "Open" in OpenLoop is a permanent tax.** Not a reason to rename — the package ID cannot change
    without shipping a new app and losing everything — but go in clear-eyed.
 5. **No search-volume data backs the keyword table.** Play autocomplete and Google Trends were both
-   inaccessible. Competition estimates are qualitative inference, explicitly labelled. No numbers were
+   inaccessible. Competition estimates are qualitative inference, explicitly labeled. No numbers were
    invented.
 
 ---
@@ -703,7 +703,7 @@ Measured ranks per title (signed-out, top 30):
    remaining work is rewriting the listing around what users can already install.
 3. **Title choice** — brand-first (recommended) or keyword-first? (§5.2)
 4. **Is the trademark risk worth an attorney hour?** (§3.2)
-5. **Move Pages publishing off `docs/`,** or accept engineering markdown being publicly indexed?
+5. **Move Pages publishing off `docs/`,** or accept engineering Markdown being publicly indexed?
 
 ---
 
@@ -728,7 +728,7 @@ Every URL below was fetched and verified during research. Dates are as shown on 
 - [Control when app changes are reviewed and published](https://support.google.com/googleplay/android-developer/answer/9859654) — review times, back-of-queue penalty, managed publishing
 - [Translate and localize your app](https://support.google.com/googleplay/android-developer/answer/9844778) — free MT in 10 languages
 - [Understand promotional content](https://support.google.com/googleplay/android-developer/answer/12929029) / [Create promotional content](https://support.google.com/googleplay/android-developer/answer/12932541) — Premium growth tools gate
-- [User Ratings, Reviews, and Installs policy](https://support.google.com/googleplay/android-developer/answer/9898684) — no incentivised or manipulated ratings
+- [User Ratings, Reviews, and Installs policy](https://support.google.com/googleplay/android-developer/answer/9898684) — no incentivized or manipulated ratings
 - [Build awareness with pre-registration](https://support.google.com/googleplay/android-developer/answer/9859047) — rules pre-registration out
 - [Understand and grow your app's user base](https://support.google.com/googleplay/android-developer/answer/9859173) — free Grow-users reporting
 - [Getting featured on Google Play](https://play.google.com/console/about/guides/featuring/) — good quality → discovery; great quality → featuring

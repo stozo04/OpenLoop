@@ -64,6 +64,10 @@ private val CHIP_WIDTH = 72.dp
  * Filter tab matching the reference mock: dark rounded card, "Choose a look" title, and a horizontal
  * strip of look thumbnails with labels (lime border + label when selected).
  */
+// Chip-thumb approximations of the Media3 effects the looks apply at export.
+private const val PUNCH_CONTRAST = 0.45f
+private const val PARTY_HUE_DEGREES = 140f
+
 @Composable
 fun FilterTabPanel(
     filter: VideoFilter,
@@ -226,8 +230,8 @@ private fun VideoFilter.thumbnailColorFilter(): ColorFilter? {
                 0f, 0f, 0f, 1f, 0f,
             ),
         )
-        VideoFilter.PARTY -> hueRotateMatrix(140f)
-        VideoFilter.PUNCH -> contrastMatrix(0.45f)
+        VideoFilter.PARTY -> hueRotateMatrix()
+        VideoFilter.PUNCH -> contrastMatrix()
         // Matches HslAdjustment.adjustLightness(18) as a simple RGB lift for the chip.
         VideoFilter.GLOW -> ColorMatrix(
             floatArrayOf(
@@ -260,7 +264,8 @@ private fun rgbScaleMatrix(red: Float, green: Float, blue: Float): ColorMatrix =
 )
 
 /** Same contrastFactor formula as Media3 [androidx.media3.effect.Contrast], translated to 0–255. */
-private fun contrastMatrix(contrast: Float): ColorMatrix {
+private fun contrastMatrix(): ColorMatrix {
+    val contrast = PUNCH_CONTRAST
     val factor = (1f + contrast) / (1.0001f - contrast)
     val translate = (1f - factor) * 0.5f * 255f
     return ColorMatrix(
@@ -277,8 +282,8 @@ private fun contrastMatrix(contrast: Float): ColorMatrix {
  * Approximate HSL hue rotation for chip thumbs (luma-preserving rotation matrix).
  * Preview/export use Media3 [HslAdjustment]; this is the closest cheap Compose stand-in.
  */
-private fun hueRotateMatrix(degrees: Float): ColorMatrix {
-    val rad = degrees * PI.toFloat() / 180f
+private fun hueRotateMatrix(): ColorMatrix {
+    val rad = PARTY_HUE_DEGREES * PI.toFloat() / 180f
     val cosA = cos(rad)
     val sinA = sin(rad)
     val lumR = 0.213f

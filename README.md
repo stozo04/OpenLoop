@@ -16,8 +16,8 @@ Built with Google's latest Android libraries. All video processing runs on your 
 
 - **Capture** — Hold the shutter for a clip (up to 30 s), or import one from your library
 - **Seamless Loops** — Forward, reverse, or either bounce, generated entirely on-device via Media3 Transformer
-- **Speed Control** — Real-time playback speed from 0.5x to 3.0x before you save: a constant slider, or a **custom speed curve** you draw over the whole loop (tap to add a point, drag to bend it, presets to start from) so a ramp can peak right on the direction turn — the preview plays the curve live and the export honours it exactly
-- **Face Lenses** — seven of them: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue and Elvis. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth
+- **Speed Control** — Real-time playback speed from 0.5x to 3.0x before you save: a constant slider, or a **custom speed curve** you draw over the whole loop (tap to add a point, drag to bend it, presets to start from) so a ramp can peak right on the direction turn — the preview plays the curve live and the export honors it exactly
+- **Face Lenses** — seven of them: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue and Elvis. They render live on the viewfinder and record into the clip, tracked on-device with ML Kit — some react to you, like the tongue that hangs further out the wider you open your mouth. Two people in the shot? Both get the lens
 - **Photo Mode** — Flip the shutter to stills, lenses included
 - **Photo Booth** — a self-driving 5-4-3-2-1 countdown ×3 composited into a classic vertical strip (white borders, OpenLoop + date footer, color or B&W) — the countdown is your window to swap lenses between shots
 - **Gallery** — Browse, replay, and manage all your loops in a slick grid
@@ -35,16 +35,16 @@ Every boomerang/loop app on the Play Store either costs money, runs ads, or send
 
 ## Architecture & Tech Stack
 
-| Layer           | Technology                        | What It Does                                                                        |
-|-----------------|-----------------------------------|-------------------------------------------------------------------------------------|
-| **Language**    | Kotlin                            | Modern, concise, Google's preferred language for Android                            |
-| **UI**          | Jetpack Compose                   | Declarative UI — no XML layouts, no fragments                                       |
-| **Camera**      | AndroidX CameraX                  | Device-agnostic camera API that works across 1000+ Android devices                  |
-| **Media**       | AndroidX Media3                   | ExoPlayer for looping playback, Transformer for video reversal & export             |
-| **Preferences** | Jetpack DataStore                 | Async, coroutine-based key-value storage (replaces SharedPreferences)               |
-| **State**       | MVVM + StateFlow                  | Single ViewModel, sealed-interface state machine, unidirectional data flow          |
-| **Testing**     | JUnit 4 + MockK + Compose UI Test | Unit tests for ViewModel logic, UI regression tests for layout-critical composables |
-| **Performance** | Baseline Profiles                 | Pre-compiles "hot" code paths to eliminate Compose jank and speed up startup       |
+| Layer             | Technology                          | What It Does                                                                          |
+| ----------------- | ----------------------------------- | ------------------------------------------------------------------------------------- |
+| **Language**      | Kotlin                              | Modern, concise, Google's preferred language for Android                              |
+| **UI**            | Jetpack Compose                     | Declarative UI — no XML layouts, no fragments                                         |
+| **Camera**        | AndroidX CameraX                    | Device-agnostic camera API that works across 1000+ Android devices                    |
+| **Media**         | AndroidX Media3                     | ExoPlayer for looping playback, Transformer for video reversal & export               |
+| **Preferences**   | Jetpack DataStore                   | Async, coroutine-based key-value storage (replaces SharedPreferences)                 |
+| **State**         | MVVM + StateFlow                    | Single ViewModel, sealed-interface state machine, unidirectional data flow            |
+| **Testing**       | JUnit 4 + MockK + Compose UI Test   | Unit tests for ViewModel logic, UI regression tests for layout-critical composables   |
+| **Performance**   | Baseline Profiles                   | Pre-compiles "hot" code paths to eliminate Compose jank and speed up startup          |
 
 **SDK levels:** `minSdk 26` (Android 8.0) · `compileSdk 37` · `targetSdk 36` — targeting **API 36 (Android 16)** for Google Play readiness, tracked in [Issue #7](https://github.com/stozo04/OpenLoop/issues/7). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and [`docs/ANDROID_STANDARDS.md`](docs/ANDROID_STANDARDS.md) §11. Google Play's target-API rule: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
@@ -89,7 +89,7 @@ io.github.stozo04.openloop/
    git clone https://github.com/stozo04/OpenLoop.git
    ```
 
-2. **Open in Android Studio** (a current 2026.x release — the build uses AGP 9.3.1, which needs a recent Studio; the IDE will prompt if yours is too old)
+2. **Open in Android Studio** (a current 2026.x release — the build uses AGP 9.3.2, which needs a recent Studio; the IDE will prompt if yours is too old)
 
 3. **Sync Gradle and run** the `:app` module on a device or emulator running Android 8.0+ (API 26+)
 
@@ -125,14 +125,14 @@ The finished app lands at `app/build/outputs/apk/debug/app-debug.apk`.
 
 **Other handy commands** (drop them in place of `assembleDebug`):
 
-| Command                     | What it does                                                                 |
-|-----------------------------|------------------------------------------------------------------------------|
-| `clean`                     | Deletes old build output — run it first if a build is acting weird           |
-| `assembleDebug`             | Builds the normal debug APK (everyday "does it compile and run?")            |
-| `assembleRelease`           | Builds the optimized, shrunk release APK (the kind that goes to Google Play) |
-| `testDebugUnitTest`         | Runs the fast unit tests — no phone needed                                   |
-| `connectedDebugAndroidTest` | Runs the UI tests — needs a connected device or emulator                     |
-| `generateReleaseBaselineProfile` | Generates a performance "cheat sheet" for the app — needs a device/emulator  |
+| Command                          | What it does                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| `clean`                          | Deletes old build output — run it first if a build is acting weird             |
+| `assembleDebug`                  | Builds the normal debug APK (everyday "does it compile and run?")              |
+| `assembleRelease`                | Builds the optimized, shrunk release APK (the kind that goes to Google Play)   |
+| `testDebugUnitTest`              | Runs the fast unit tests — no phone needed                                     |
+| `connectedDebugAndroidTest`      | Runs the UI tests — needs a connected device or emulator                       |
+| `generateReleaseBaselineProfile` | Generates a performance "cheat sheet" for the app — needs a device/emulator    |
 
 You can chain them, e.g. `.\gradlew.bat clean assembleDebug`.
 
@@ -145,9 +145,24 @@ Then skim the output for lines starting with `e:` (errors — these stop the bui
 
 > **Gotcha:** if you pipe the build through something like `... | tail`, the exit code you see belongs to `tail`, not Gradle — so a failed build can look like it "passed." Check the `BUILD SUCCESSFUL`/`BUILD FAILED` line itself, not just whether the command returned cleanly.
 
-### Running the code inspections (Android Studio "Inspect Code", from a terminal)
+### The pre-PR sweep (every gate, one command)
 
-OpenLoop reproduces Android Studio's **Analyze → Inspect Code** as a merge gate. It's **two
+```powershell
+.\scripts\pre-pr-sweep.ps1                                   # full: build + zipalign + lint + tests + text gates + Inspect Code export
+.\scripts\pre-pr-sweep.ps1 -SkipConnected -SkipInspectCode   # no emulator / no Android Studio — the PR must say so
+.\scripts\pre-pr-sweep.ps1 -DocsOnly                         # docs-only branch
+```
+
+It runs every check to **zero** — clean debug+release build with compiler warnings fatal, 16 KB
+`zipalign`, Android Lint 0 errors / 0 warnings, unit + instrumented tests counted from XML,
+markdownlint, IDE-faithful table alignment, relative links, `cspell` over every tracked text file,
+JSON validity, and the Android Studio Inspect Code export — and writes `build/sweep-receipt.json`
+when all are green. A Claude Code hook refuses to create a PR without a receipt for the current
+commit. Full policy: [`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md).
+
+### Running the code inspections (Android Studio "Inspect Code")
+
+OpenLoop reproduces Android Studio's **Code → Inspect Code** as a merge gate. It's **two
 engines** — full design and severity rules in [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md).
 Set `JAVA_HOME` first (same as the build section above).
 
@@ -158,7 +173,8 @@ Set `JAVA_HOME` first (same as the build section above).
 ```
 
 Report lands at `app/build/reports/lint-results-debug.xml` (+ `.html`). A clean run has **zero
-`severity="Error"` entries**; the remaining warnings are triaged by severity. The
+`severity="Error"` and zero `severity="Warning"` entries** (the version-freshness checks are
+advisory). The
 [`pr-reviewer`](.claude/skills/pr-reviewer/SKILL.md) skill runs this automatically and folds the
 findings into its PR comment.
 
@@ -167,30 +183,27 @@ findings into its PR comment.
 > `@Suppress`) with the reason in a comment, instead of reintroducing a baseline that hides
 > whatever else happens to be in the tree. See `docs/STATIC_ANALYSIS.md`.
 
-**Engine 2 — IDE inspections + proofreading** (faithful Kotlin/Markdown/grammar pass; slow, local):
+**Engine 2 — IDE inspections + proofreading** (faithful Kotlin/Markdown/grammar pass) runs **in
+Android Studio**: Code → Inspect Code → custom scope **OpenLoop Tracked** (committed at
+`.idea/scopes/`, it skips git worktrees, build output and gitignored vendor files) → Export → HTML
+into `build/inspect-export/`. Then:
 
 ```powershell
-& "C:\Program Files\Android\Android Studio\bin\inspect.bat" `
-  "C:\Users\gates\Personal\OpenLoop" `
-  ".idea\inspectionProfiles\Project_Default.xml" `
-  "build\inspection-results" `
-  -v2 -d "C:\Users\gates\Personal\OpenLoop"
+python scripts/inspect-report.py build/inspect-export/index.html   # 0 hard findings in tracked files, or it exits 1
 ```
 
-This boots a headless Android Studio (takes minutes) and writes one XML per inspection into
-`build\inspection-results`. **Close the project in Android Studio first** and don't run a Gradle
-task at the same time — they deadlock on the Gradle build lock.
+The headless `inspect.bat` route is vacuous on this machine (it indexes nothing and reports zero) —
+see `docs/STATIC_ANALYSIS.md`. Typos are dictionary-driven: add real terms to `cspell.json` and run
+`python scripts/sync-ide-dictionary.py` so the IDE learns them too.
 
-**Tier 3 — OSS fallback** (for CI / machines without Android Studio): fast Node-based
-approximations of Engine 2's Markdown/typo/link checks, scoped to a PR's changed Markdown. Needs
-Node (no `npm install` — `npx` fetches on demand). Advisory only; configs live at the repo root
-(`.markdownlint-cli2.jsonc`, `cspell.json`, `.markdown-link-check.json`).
+**Tier 3 — the headless text gates** (Node/Python; also run in CI as a hard backstop), whole repo,
+zero findings, no baseline:
 
 ```bash
-FILES=$(git diff --name-only --diff-filter=d main...HEAD -- '*.md')
-npx --yes markdownlint-cli2 $FILES                                  # tables, list numbering, structure
-npx --yes cspell --no-progress $FILES                               # typos (project dictionary in cspell.json)
-for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done  # broken links
+npx --yes markdownlint-cli2 $(git ls-files '*.md')                  # list numbering, spacing, fence languages
+python scripts/md-table-align.py                                    # IDE-faithful table alignment (--fix rewrites)
+for f in $(git ls-files '*.md'); do npx --yes markdown-link-check --config .markdown-link-check.json -q "$f"; done
+git ls-files '*.md' '*.kt' '*.kts' '*.xml' '*.yml' '*.ps1' '*.py' '*.mjs' '*.json' '*.html' | npx --yes cspell --no-progress --file-list stdin
 ```
 
 (detekt for Kotlin is deferred — stable detekt doesn't support this project's Kotlin version
@@ -234,17 +247,17 @@ Full documentation layout (where every `.md` and image belongs): [`docs/README.m
 
 The visual identity in one place — colors, the on-device launcher icon, and the assets Google Play hosts on the store listing.
 
-| Asset | Where it lives | Notes |
-|---|---|---|
-| **Color tokens** | [`app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt) | Single source of truth — `ElectricLime` (`#CDFF4F`) primary, `Aqua` (`#34E1D5`) tertiary, coral semantic-only (recording + destructive). UI must read via `MaterialTheme.colorScheme`, never inline hex (Lesson 001). |
-| **Launcher icon (adaptive)** | [`app/src/main/res/mipmap-anydpi/ic_launcher.xml`](app/src/main/res/mipmap-anydpi/ic_launcher.xml) + [`app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`](app/src/main/res/drawable-nodpi/ic_launcher_foreground.png) | Lime→aqua infinity on a transparent foreground over pure black. This is the **only** launcher icon the app ships — `minSdk 26` is exactly where adaptive icons landed, so `-anydpi` wins on every supported device and there is no legacy bitmap to keep in sync. The same foreground feeds the API 31+ splash screen via [`app/src/main/res/values/themes.xml`](app/src/main/res/values/themes.xml). |
-| **Launcher icon (themed / monochrome)** | [`app/src/main/res/drawable-nodpi/ic_launcher_monochrome.png`](app/src/main/res/drawable-nodpi/ic_launcher_monochrome.png) | The `<monochrome>` layer the launcher tints from the user's wallpaper on Android 13+. **Derived** from `ic_launcher_foreground.png` (glow thresholded off, ribbon-crossing seam preserved) — regenerate it from the foreground rather than editing it by hand, so the two can't drift. |
-| **Play Store app icon (512×512)** | [`docs/play-store/play_store_icon_512.png`](docs/play-store/play_store_icon_512.png) | RGB (**no alpha**), solid Canvas-dark background, **no baked corners** — Play auto-applies a 30% corner radius at display time (active since 2026-03-31). Upload via **Play Console → Grow → Store presence → Main store listing → Graphics → App icon**. |
-| **Play Store feature graphic (1024×500)** | [`docs/play-store/main-image.png`](docs/play-store/main-image.png) | RGB (**no alpha**). Logo sits left-of-center so Play's promo-video play button (which lands dead-center if a promo video is attached) won't overlap it. Wordmark uses Space Grotesk Bold; tagline uses Inter Medium — matches the in-app type ramp in [`Type.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Type.kt). Upload via **Play Console → … → Graphics → Feature graphic**. |
+| Asset                                     | Where it lives                                                                                                                                                                                                                  | Notes                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Color tokens**                          | [`app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Color.kt)                                                                                              | Single source of truth — `ElectricLime` (`#CDFF4F`) primary, `Aqua` (`#34E1D5`) tertiary, coral semantic-only (recording + destructive). UI must read via `MaterialTheme.colorScheme`, never inline hex (Lesson 001).                                                                                                                                                                                 |
+| **Launcher icon (adaptive)**              | [`app/src/main/res/mipmap-anydpi/ic_launcher.xml`](app/src/main/res/mipmap-anydpi/ic_launcher.xml) + [`app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`](app/src/main/res/drawable-nodpi/ic_launcher_foreground.png) | Lime→aqua infinity on a transparent foreground over pure black. This is the **only** launcher icon the app ships — `minSdk 26` is exactly where adaptive icons landed, so `-anydpi` wins on every supported device and there is no legacy bitmap to keep in sync. The same foreground feeds the API 31+ splash screen via [`app/src/main/res/values/themes.xml`](app/src/main/res/values/themes.xml). |
+| **Launcher icon (themed / monochrome)**   | [`app/src/main/res/drawable-nodpi/ic_launcher_monochrome.png`](app/src/main/res/drawable-nodpi/ic_launcher_monochrome.png)                                                                                                      | The `<monochrome>` layer the launcher tints from the user's wallpaper on Android 13+. **Derived** from `ic_launcher_foreground.png` (glow thresholded off, ribbon-crossing seam preserved) — regenerate it from the foreground rather than editing it by hand, so the two can't drift.                                                                                                                |
+| **Play Store app icon (512×512)**         | [`docs/play-store/play_store_icon_512.png`](docs/play-store/play_store_icon_512.png)                                                                                                                                            | RGB (**no alpha**), solid Canvas-dark background, **no baked corners** — Play auto-applies a 30% corner radius at display time (active since 2026-03-31). Upload via **Play Console → Grow → Store presence → Main store listing → Graphics → App icon**.                                                                                                                                             |
+| **Play Store feature graphic (1024×500)** | [`docs/play-store/main-image.png`](docs/play-store/main-image.png)                                                                                                                                                              | RGB (**no alpha**). Logo sits left-of-center so Play's promo-video play button (which lands dead-center if a promo video is attached) won't overlap it. Wordmark uses Space Grotesk Bold; tagline uses Inter Medium — matches the in-app type ramp in [`Type.kt`](app/src/main/java/io/github/stozo04/openloop/ui/theme/Type.kt). Upload via **Play Console → … → Graphics → Feature graphic**.       |
 
 Store-listing updates (icon, feature graphic, screenshots, copy) are a **separate flow from publishing an APK/AAB** — save the store listing in Play Console and changes usually roll out within a few hours, no app release required.
 
-For the full Play Store submission pack (copy, data safety, content rating, signing, screenshots), see [`docs/play-store/`](docs/play-store/).
+For the full Play Store submission pack (copy, data safety, content rating, signing, screenshots), see [`docs/play-store/`](docs/play-store/README.md).
 
 ## Development Standards
 
@@ -254,30 +267,33 @@ This project follows Google's official Android development guidance. See [`docs/
 
 **No PR merges without passing the automated standards review.**
 
-Every pull request is reviewed by an autonomous compliance agent ([`.claude/skills/pr-reviewer/`](.claude/skills/pr-reviewer/)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
+Every pull request is reviewed by an autonomous compliance agent ([`.claude/skills/pr-reviewer/`](.claude/skills/pr-reviewer/SKILL.md)) that audits code changes against 11 categories and 75+ checklist items sourced from Google's official Android documentation:
 
 Architecture, DataStore, Permissions, Compose, CameraX, Media & Audio, Coroutines, Testing, Accessibility, Play Store Readiness, and Android Version Compatibility.
 
 The reviewer web-searches `developer.android.com` for the latest guidance on every run — no stale rules. It posts a structured PASS/FAIL/WARNING report directly on the PR with file-level specifics, Google doc citations, and reasoning for every finding.
 
 On top of the standards review, every PR must also pass **code inspection** — the same checks
-Android Studio's *Analyze → Inspect Code* produces, run headlessly. There are two engines (see
+Android Studio's *Code → Inspect Code* produces, run headlessly. There are two engines (see
 [`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md) for the full design and the exact commands):
 
-- **Engine 1 — Android Lint** (`./gradlew :app:lintDebug`): automated, run by the reviewer skill,
-  a hard gate — **zero lint errors** to merge. No baseline: findings are fixed, or suppressed at
-  the source with a stated reason.
-- **Engine 2 — IDE inspections + proofreading** (`inspect.bat`): the faithful Kotlin-redundancy /
-  Markdown / grammar-and-typo pass. Run **locally before merge** (it needs Android Studio and is
-  slow); the reviewer notes whether it was run.
+- **Engine 1 — Android Lint** (`./gradlew :app:lintDebug`): automated, run by the sweep and the
+  reviewer skill, a hard gate — **zero lint errors and warnings** to merge. No baseline: findings
+  are fixed, or suppressed at the source with a stated reason.
+- **Engine 2 — IDE inspections + proofreading** (Android Studio Inspect Code, scope *OpenLoop
+  Tracked*, HTML export parsed by `scripts/inspect-report.py`): the faithful Kotlin-redundancy /
+  Markdown / grammar-and-typo pass. Run **before the PR**; the receipt and the reviewer both note
+  whether it was run.
 
 **To merge, a PR must:**
 
-1. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
-2. Address all **WARNINGS** or document why they're accepted
-3. Pass all unit tests (430+) and instrumented tests (100+)
-4. Show **zero new Android Lint errors** (Engine 1), and have **IDE Code Inspection** (Engine 2)
-   run locally with its findings addressed or accepted
+1. Have been opened from a **green pre-PR sweep** (`scripts/pre-pr-sweep.ps1` receipt for its final
+   commit — the Claude Code hook enforces this; humans run the same script)
+2. Receive an **APPROVE** verdict from the standards reviewer (zero FAILs)
+3. Address all **WARNINGS** or document why they're accepted
+4. Pass all unit tests (570+) and instrumented tests (100+)
+5. Show **zero Android Lint errors and warnings** (Engine 1), and have the **IDE Inspect Code**
+   export (Engine 2) parsed to zero hard findings — or state in the PR that Engine 2 was skipped
 
 ### Fixing Review Feedback
 
@@ -293,10 +309,10 @@ When a PR gets review feedback, open a new session with the OpenLoop folder moun
 - Photo-booth strip: 5-4-3-2-1 ×3 capture composited into a printed strip (color or B&W)
 - Loop generation — forward, reverse and both bounces — via Media3 Transformer
 - Trim, speed control (0.5x–3.0x, constant or a custom curve) and Looks, all previewed before you save
-- Seven face lenses, tracked with ML Kit and baked into the recording
+- Seven face lenses, tracked with ML Kit and baked into the recording — on up to two faces at once
 - Gallery with delete, full-screen playback and a share sheet
 - In-app updates and a Play review prompt
-- 536 unit tests + 122 instrumented tests
+- 574 unit tests + 122 instrumented tests
 
 **What's next:**
 

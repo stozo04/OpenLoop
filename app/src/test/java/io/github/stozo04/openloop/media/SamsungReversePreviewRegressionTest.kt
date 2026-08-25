@@ -13,7 +13,7 @@ private const val RTL_SDK_INT = Build.VERSION_CODES.BAKLAVA
  * These tests do **not** run [MediaCodec] — they lock in policy we inferred from:
  * - 20:32:27 ExoPlayer Init → Release before reverse (editor must not hold decoders during Trimming)
  * - 20:32:28.346 `selectAvcEncoder: c2.android.avc.encoder` → 20:32:28.437
- *   `Pending dequeue output buffer request cancelled` on pass 1
+ *   `Pending dequeue output buffer request canceled` on pass 1
  * - 20:42:11.464 `selectAvcEncoder: OMX.google.h264.encoder` → 20:42:16.596 preview failed (~5s hard wait)
  * - 20:46:15.016 `selectAvcEncoder: c2.exynos.h264.encoder` → 20:46:20.067 preview failed (~5s hard wait)
  * Fix (1.0.12+): defer output format to pass1 [drainToMuxer] per MediaCodec FAQ; try c2.google first on Samsung.
@@ -55,15 +55,15 @@ class SamsungReversePreviewRegressionTest {
 
     @Test
     fun encoderRank_c2GooglePreferredOverOmxcGoogle_onSamsung() {
-        val c2 = avcEncoderPreferenceRank("c2.google.avc.encoder", false, true, RTL_SDK_INT)
-        val omx = avcEncoderPreferenceRank("OMX.google.h264.encoder", false, true, RTL_SDK_INT)
+        val c2 = avcEncoderPreferenceRank("c2.google.avc.encoder", isHardwareAccelerated = false, isSamsung = true, sdkInt = RTL_SDK_INT)
+        val omx = avcEncoderPreferenceRank("OMX.google.h264.encoder", isHardwareAccelerated = false, isSamsung = true, sdkInt = RTL_SDK_INT)
         assertTrue("c2.google rank=$c2 should beat OMX.google rank=$omx", c2 < omx)
     }
 
     @Test
     fun encoderRank_googlePreferredOverAndroidAvc_onSamsung() {
-        val google = avcEncoderPreferenceRank("c2.google.avc.encoder", false, true, RTL_SDK_INT)
-        val android = avcEncoderPreferenceRank("c2.android.avc.encoder", false, true, RTL_SDK_INT)
+        val google = avcEncoderPreferenceRank("c2.google.avc.encoder", isHardwareAccelerated = false, isSamsung = true, sdkInt = RTL_SDK_INT)
+        val android = avcEncoderPreferenceRank("c2.android.avc.encoder", isHardwareAccelerated = false, isSamsung = true, sdkInt = RTL_SDK_INT)
         assertTrue(
             "google rank=$google should beat android.avc rank=$android (RTL 20:32:28 regression)",
             google < android,
@@ -72,8 +72,8 @@ class SamsungReversePreviewRegressionTest {
 
     @Test
     fun encoderRank_googlePreferredOverExynos_onSamsung() {
-        val google = avcEncoderPreferenceRank("c2.google.avc.encoder", false, true, RTL_SDK_INT)
-        val exynos = avcEncoderPreferenceRank("c2.exynos.h264.encoder", true, true, RTL_SDK_INT)
+        val google = avcEncoderPreferenceRank("c2.google.avc.encoder", isHardwareAccelerated = false, isSamsung = true, sdkInt = RTL_SDK_INT)
+        val exynos = avcEncoderPreferenceRank("c2.exynos.h264.encoder", isHardwareAccelerated = true, isSamsung = true, sdkInt = RTL_SDK_INT)
         assertTrue(
             "google rank=$google should beat exynos rank=$exynos (RTL 20:46:15 regression)",
             google < exynos,
@@ -205,15 +205,15 @@ class SamsungReversePreviewRegressionTest {
      */
     @Test
     fun encoderRank_exynosPreferredOverAndroidAvc_onSamsung() {
-        val exynos = avcEncoderPreferenceRank("c2.exynos.h264.encoder", true, true, RTL_SDK_INT)
-        val android = avcEncoderPreferenceRank("c2.android.avc.encoder", false, true, RTL_SDK_INT)
+        val exynos = avcEncoderPreferenceRank("c2.exynos.h264.encoder", isHardwareAccelerated = true, isSamsung = true, sdkInt = RTL_SDK_INT)
+        val android = avcEncoderPreferenceRank("c2.android.avc.encoder", isHardwareAccelerated = false, isSamsung = true, sdkInt = RTL_SDK_INT)
         assertTrue(exynos < android)
     }
 
     @Test
     fun encoderRank_nonSamsung_doesNotPenalizeAndroidAvc() {
-        val androidSamsung = avcEncoderPreferenceRank("c2.android.avc.encoder", false, true, RTL_SDK_INT)
-        val androidOther = avcEncoderPreferenceRank("c2.android.avc.encoder", false, false, RTL_SDK_INT)
+        val androidSamsung = avcEncoderPreferenceRank("c2.android.avc.encoder", isHardwareAccelerated = false, isSamsung = true, sdkInt = RTL_SDK_INT)
+        val androidOther = avcEncoderPreferenceRank("c2.android.avc.encoder", isHardwareAccelerated = false, isSamsung = false, sdkInt = RTL_SDK_INT)
         assertTrue(androidSamsung > androidOther)
     }
 }

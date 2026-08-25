@@ -20,7 +20,7 @@ import kotlin.math.ln
 object SpeedCurveMath {
 
     /**
-     * Minimum spacing between neighbouring keys, as a fraction of the loop. Keeps handles far enough
+     * Minimum spacing between neighboring keys, as a fraction of the loop. Keeps handles far enough
      * apart to hit on a phone and stops a drag from stacking two keys into a vertical wall.
      */
     const val MIN_KEY_GAP = 0.05f
@@ -38,7 +38,7 @@ object SpeedCurveMath {
     // speed and double speed are equal-and-opposite moves — and a linear axis over 0.25×..3.0×
     // buries 1× at 27% of the height and crushes the whole slow-motion range into the bottom tenth.
     // On a log axis 0.5× and 2× sit symmetrically about 1×, which is what makes dragging feel right
-    // and what the reference mock's proportions actually show.
+    // and what the proportions of the reference mock actually show.
 
     /** Speed → vertical fraction (`0f` = bottom / slowest, `1f` = top / fastest). */
     fun speedToFraction(speed: Float): Float {
@@ -57,7 +57,7 @@ object SpeedCurveMath {
      *
      * The first and last keys are the loop's endpoints and are **x-locked** — a curve must always
      * span the whole loop, so they pin to `0f` and `1f`. Interior keys are held [MIN_KEY_GAP] clear
-     * of both neighbours.
+     * of both neighbors.
      *
      * The upper bound is floored at the lower bound before clamping. Without that, two keys dragged
      * closer than `2 × MIN_KEY_GAP` invert the range and `coerceIn` throws (Lesson 030).
@@ -167,7 +167,7 @@ object SpeedCurveMath {
 
     /**
      * The `(t, speed)` polyline the graph strokes: every key, plus [DRAW_SAMPLES_PER_SEGMENT] points
-     * of [SpeedCurve.speedAt] between each neighbouring pair.
+     * of [SpeedCurve.speedAt] between each neighboring pair.
      *
      * Key-to-key straight lines would be wrong here: the Y axis is logarithmic, so a straight segment
      * on it is a *geometric* ramp, while `speedAt` — what the readout shows and what the encoder
@@ -224,7 +224,7 @@ data class SpeedGraphGeometry(
 }
 
 /**
- * The preset shapes offered under "Presets" — pure data, no behaviour.
+ * The preset shapes offered under "Presets" — pure data, no behavior.
  *
  * There is deliberately no "Linear" entry: **Reset** already returns the curve to a flat line at the
  * current speed, and shipping the same action under two names is surface for nothing.

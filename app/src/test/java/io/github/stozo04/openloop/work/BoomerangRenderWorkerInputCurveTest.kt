@@ -12,7 +12,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The curve has to survive the trip through WorkManager [androidx.work.Data] intact — it is the one
+ * The curve has to survive the trip through WorkManager [androidx.work.Data] intact. It is the one
  * hop in the feature where the object is destroyed and rebuilt from primitives, so a mistake here
  * silently renders the wrong speed instead of failing loudly.
  */

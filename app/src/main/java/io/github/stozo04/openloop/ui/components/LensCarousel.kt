@@ -41,10 +41,10 @@ import io.github.stozo04.openloop.ui.theme.OverlayWhite
 import io.github.stozo04.openloop.ui.theme.OverlayWhiteBorder
 import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 
-/** Diameter of an unselected lens thumbnail. Also the accessibility floor for the row. */
+/** Diameter of an unselected lens thumbnail. It is also the accessibility floor for the row. */
 private val ThumbnailSize = 56.dp
 
-/** The selected thumbnail grows — the "you are wearing this" cue, before colour or ring. */
+/** The selected thumbnail grows — the "you are wearing this" cue, before color or ring. */
 private val SelectedThumbnailSize = 72.dp
 
 /**
@@ -148,7 +148,7 @@ private fun LensThumbnail(
                 .size(size)
                 .clip(CircleShape)
                 // Light backdrop, not the usual dark scrim — see OverlayArtBackdrop. The selected
-                // ring stays ElectricLime (the app's active colour everywhere else): its outer edge
+                // ring stays ElectricLime (the app's active color everywhere else): its outer edge
                 // meets the video, so lime reads over both dark and bright scenes, where a dark
                 // ring would disappear against a dark one. The size jump is the primary cue.
                 .background(OverlayArtBackdrop)

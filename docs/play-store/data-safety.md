@@ -4,8 +4,8 @@ Transcribe these into **Play Console → Policy → App content → Data safety*
 a Play Console web form (it can't live in the repo), so this file is the source-of-truth for the
 answers to enter. Keep it in sync if the app's behavior ever changes.
 
-> **Why this app DOES collect data.** As of versionCode 22 (1.0.22) OpenLoop bundles **Google
-> Analytics for Firebase** (`firebase-analytics`) and **Firebase Crashlytics** (`firebase-crashlytics`).
+> **Why this app DOES collect data.** As of versionCode 22 (1.0.22) OpenLoop bundles
+> **Google Analytics for Firebase** (`firebase-analytics`) and **Firebase Crashlytics** (`firebase-crashlytics`).
 > Both transmit data off-device to Google, which Play's policy defines as *collection*. The merged
 > release manifest therefore carries `INTERNET` + `ACCESS_NETWORK_STATE` (auto-merged by the
 > measurement SDK — see `app/src/main/AndroidManifest.xml` and the build's
@@ -31,21 +31,21 @@ answers to enter. Keep it in sync if the app's behavior ever changes.
 
 ## Top-level form answers
 
-| Question | Answer |
-|---|---|
-| Does your app collect or share any of the required user data types? | **Yes** |
-| Is all of the user data collected by your app encrypted in transit? | **Yes** — Firebase transmits over HTTPS/TLS ([source](https://firebase.google.com/docs/android/play-data-disclosure)). |
-| Which account-creation methods does your app support? | **My app does not allow users to create an account** — OpenLoop has no sign-up. |
-| Can users log in with accounts created outside of the app? | **No.** |
+| Question                                                              | Answer                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Does your app collect or share any of the required user data types?   | **Yes**                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Is all of the user data collected by your app encrypted in transit?   | **Yes** — Firebase transmits over HTTPS/TLS ([source](https://firebase.google.com/docs/android/play-data-disclosure)).                                                                                                                                                                                                                                                                                                            |
+| Which account-creation methods does your app support?                 | **My app does not allow users to create an account** — OpenLoop has no sign-up.                                                                                                                                                                                                                                                                                                                                                   |
+| Can users log in with accounts created outside of the app?            | **No.**                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Do you provide a way for users to request that their data be deleted? | **No.** The diagnostics are pseudonymous and not linked to any name, email, or account, so there is no way to locate an individual user's records to action a per-user deletion request. The controls that exist: uninstalling stops all collection; clearing app storage (or uninstalling) resets the random installation identifiers; Firebase auto-deletes the data after its retention window. *(See "Open decision" below.)* |
 
 > The deletion question also offers **"No, but user data is automatically deleted within 90 days."**
 > We use the plain **No** instead, because that badge must hold for *all* collected data and GA4
 > event-data retention is configurable up to **14 months** — we have not verified (or committed to
-> keeping) it ≤ 90 days. Plain **No** is always-accurate and zero-maintenance. If you later set
+> keeping) it ≤ 90 days. A plain **No** is always accurate and zero-maintenance. If you later set
 > GA Admin → Data settings → Data retention to **2 months** and keep it there, the 90-day option
 > becomes defensible.
-
+>
 > **Additional badges** (Independent security review · UPI Payments verified) — **not applicable**;
 > leave both off.
 
@@ -61,22 +61,22 @@ it's collected = No / required** (there is no in-app opt-out toggle yet — see 
 
 ### From Google Analytics for Firebase
 
-| Category | Data type | Purpose(s) | Source of the data |
-|---|---|---|---|
-| **App activity** | **App interactions** | Analytics | Automatic SDK events (`first_open`, `session_start`, …) plus planned custom events (export, editor tabs, gallery) — see `AnalyticsReporter.kt`. Option 1 (abstraction) shipped; full instrumentation not wired yet. |
-| **Location** | **Approximate location** | Analytics | Coarse location Google Analytics derives from the (masked) IP address. Not GPS; the app holds no location permission. |
-| **Device or other IDs** | **Device or other IDs** | Analytics | Firebase **App Instance ID** (pseudonymous). |
+| Category                | Data type                | Purpose(s) | Source of the data                                                                                                                                                                                                  |
+| ----------------------- | ------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App activity**        | **App interactions**     | Analytics  | Automatic SDK events (`first_open`, `session_start`, …) plus planned custom events (export, editor tabs, gallery) — see `AnalyticsReporter.kt`. Option 1 (abstraction) shipped; full instrumentation not wired yet. |
+| **Location**            | **Approximate location** | Analytics  | Coarse location Google Analytics derives from the (masked) IP address. Not GPS; the app holds no location permission.                                                                                               |
+| **Device or other IDs** | **Device or other IDs**  | Analytics  | Firebase **App Instance ID** (pseudonymous).                                                                                                                                                                        |
 
 > **Advertising ID — NOT declared.** Disabled in the manifest (see header note). Do not check it.
 > **In-app purchases — NOT declared.** OpenLoop has no IAP, so no purchase events are generated.
 
 ### From Firebase Crashlytics
 
-| Category | Data type | Purpose(s) | Source of the data |
-|---|---|---|---|
-| **App info and performance** | **Crash logs** | App functionality, Analytics | Stack traces + app state at crash time; custom keys/logs OpenLoop attaches (e.g. the reverse-preview non-fatals `ReverseCrashlytics` records). |
-| **App info and performance** | **Diagnostics** | App functionality, Analytics | Point-in-time device metadata/performance state captured with each crash report. |
-| **Device or other IDs** | **Device or other IDs** | App functionality, Analytics | Crashlytics **installation UUID** (counts users affected by a crash). Same category as the Analytics App Instance ID above — declare the category once and cover both. |
+| Category                     | Data type               | Purpose(s)                   | Source of the data                                                                                                                                                     |
+| ---------------------------- | ----------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App info and performance** | **Crash logs**          | App functionality, Analytics | Stack traces + app state at crash time; custom keys/logs OpenLoop attaches (e.g. the reverse-preview non-fatals `ReverseCrashlytics` records).                         |
+| **App info and performance** | **Diagnostics**         | App functionality, Analytics | Point-in-time device metadata/performance state captured with each crash report.                                                                                       |
+| **Device or other IDs**      | **Device or other IDs** | App functionality, Analytics | Crashlytics **installation UUID** (counts users affected by a crash). Same category as the Analytics App Instance ID above — declare the category once and cover both. |
 
 ---
 
@@ -136,7 +136,7 @@ Quoting the exact rules so a future reviewer or audit can trace the reasoning:
 
 - **We do NOT rely on the "Anonymous data" exemption.** That one covers data *"fully anonymized so that
   it can no longer be associated with an individual user."* Our telemetry is **pseudonymous** (keyed to
-  a random install ID), **not** anonymized, so it would not qualify — which is precisely why the docs
+  a random installation ID), **not** anonymized, so it would not qualify — which is precisely why the docs
   say "pseudonymous," never "anonymous," and why the **Service providers** exemption (above) is the one
   doing the work for `Shared = No`.
 
@@ -147,7 +147,7 @@ Quoting the exact rules so a future reviewer or audit can trace the reasoning:
 This declaration is accurate **only while** the app ships Analytics + Crashlytics with ad-ID
 collection disabled and no other off-device data paths. If a future version adds an ad SDK, accounts,
 cloud backup, remote config that sends user data, re-enables the advertising ID, or adds any new
-custom event that captures a new data type, **re-review this file before that version ships.**
+custom event that captures a new data type, then **re-review this file before that version ships.**
 
 **Notifications are not a Data safety data type.** OpenLoop does not declare or request
 `POST_NOTIFICATIONS`; export progress is in-app only. No Console Data safety change is required for

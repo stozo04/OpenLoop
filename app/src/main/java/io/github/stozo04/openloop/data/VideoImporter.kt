@@ -84,8 +84,8 @@ class VideoImporterImpl(context: Context) : VideoImporter {
     /**
      * Tries the AssetFileDescriptor path first (offset-aware for embedded regions), then falls back to
      * [MediaMetadataRetriever.setDataSource] with the content [Uri] when the AFD path fails or the
-     * provider reports [AssetFileDescriptor.UNKNOWN_LENGTH] — a common Photo Picker case that would
-     * otherwise make the pre-copy probe return 0 and reject the clip with a generic failure.
+     * provider reports [AssetFileDescriptor.UNKNOWN_LENGTH]. That is a common Photo Picker case; without
+     * the fallback the pre-copy probe would return 0 and reject the clip with a generic failure.
      */
     private fun readDurationMs(retriever: MediaMetadataRetriever, source: Uri): Long {
         contentResolver.openAssetFileDescriptor(source, "r")?.use { afd ->
@@ -100,7 +100,7 @@ class VideoImporterImpl(context: Context) : VideoImporter {
 
     private fun bindRetrieverToAsset(retriever: MediaMetadataRetriever, afd: AssetFileDescriptor) {
         val length = afd.length
-        if (length > 0L && length != AssetFileDescriptor.UNKNOWN_LENGTH) {
+        if (length > 0L) { // UNKNOWN_LENGTH is -1, so > 0 already excludes it
             // Offset-aware overload for providers that expose a region inside a larger file.
             retriever.setDataSource(afd.fileDescriptor, afd.startOffset, length)
         } else {

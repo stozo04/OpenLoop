@@ -7,14 +7,14 @@
 
 ## 1. Problem statement
 
-OpenLoop opens to a viewfinder that can only record video. Every capture is funnelled through the
+OpenLoop opens to a viewfinder that can only record video. Every capture is funneled through the
 full boomerang pipeline (Trim → Editor → Loopify render), which is right for loops and wrong for the
 moment a user just wants a still. There is no way to take a photo at all.
 
 ## 2. What we're building
 
 A **mode toggle** in the top-right of the camera screen that flips the viewfinder between
-**Video mode** (today's behaviour, unchanged) and **Photo mode**.
+**Video mode** (today's behavior, unchanged) and **Photo mode**.
 
 In Photo mode:
 
@@ -26,11 +26,11 @@ In Photo mode:
 
 ## 3. Confirmed decisions (owner, 2026-08-09)
 
-| # | Question | Decision |
-|---|----------|----------|
-| D1 | Capture path | **Preview snapshot** (`PreviewView.getBitmap()`), not an `ImageCapture` use case |
-| D2 | "Send notification" | The **existing share sheet** (`BoomerangEvent.Share`), not a system push notification |
-| D3 | Camera flip in photo mode | **Required** — front/back toggle must work exactly as it does in video mode |
+| #   | Question                  | Decision                                                                              |
+| --- | ------------------------- | ------------------------------------------------------------------------------------- |
+| D1  | Capture path              | **Preview snapshot** (`PreviewView.getBitmap()`), not an `ImageCapture` use case      |
+| D2  | "Send notification"       | The **existing share sheet** (`BoomerangEvent.Share`), not a system push notification |
+| D3  | Camera flip in photo mode | **Required** — front/back toggle must work exactly as it does in video mode           |
 
 ### Why D1 — and what it costs
 
@@ -89,14 +89,14 @@ Not persisted — the app always opens in Video mode.
 
 ### 5.2 Camera screen
 
-| Element | Video mode | Photo mode |
-|---|---|---|
-| Top-right button | `Icons.Outlined.PhotoCamera`, "Switch to photo mode" | `Icons.Outlined.Videocam`, "Switch to video mode" |
-| Shutter interior | neon `shutterGradient()` | neon `shutterGradient()` — owner's call after hardware testing: the lime look is the app's signature and stays in both modes; mode is signalled by the toggle icon and the a11y label |
-| Shutter a11y label | "Start recording" / "Stop recording" | "Take photo" |
-| Progress ring | on while recording | never |
-| Flip camera (D3) | present | **present — unchanged** |
-| Lens button + tray | present | present (lenses bake into the photo) |
+| Element            | Video mode                                           | Photo mode                                                                                                                                                                            |
+| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Top-right button   | `Icons.Outlined.PhotoCamera`, "Switch to photo mode" | `Icons.Outlined.Videocam`, "Switch to video mode"                                                                                                                                     |
+| Shutter interior   | neon `shutterGradient()`                             | neon `shutterGradient()` — owner's call after hardware testing: the lime look is the app's signature and stays in both modes; mode is signalled by the toggle icon and the a11y label |
+| Shutter a11y label | "Start recording" / "Stop recording"                 | "Take photo"                                                                                                                                                                          |
+| Progress ring      | on while recording                                   | never                                                                                                                                                                                 |
+| Flip camera (D3)   | present                                              | **present — unchanged**                                                                                                                                                               |
+| Lens button + tray | present                                              | present (lenses bake into the photo)                                                                                                                                                  |
 
 The toggle is **hidden while `Recording`** — you cannot change mode mid-capture. `BackHandler`
 gating (`isRecording || lensTrayOpen`) needs no change: photo mode holds no unsaved work.
@@ -120,7 +120,7 @@ ShutterButton.onClick (PHOTO)
 read there and handed to the ViewModel. A `Bitmap` is a plain data object, so this does not violate
 "no Context in the ViewModel" ([Lesson 004](./lessons_learned/004-viewmodel-no-context-parameters.md)).
 
-Re-entrancy is guarded by a `photoSaveInProgress` flag, mirroring `saveInProgress` on the loop path.
+Reentrancy is guarded by a `photoSaveInProgress` flag, mirroring `saveInProgress` on the loop path.
 
 ### 5.4 Storage — photos live in `filesDir/videos/`
 
@@ -177,20 +177,20 @@ long-press multi-select and delete all work unchanged.
 
 ## 7. Test plan
 
-| Layer | Coverage |
-|---|---|
-| JVM unit | `capturePhoto` saves + emits `Share`; null bitmap → no save, no crash; double-tap guarded; mode toggle ignored while `Recording`; `shareMimeType` per extension; repository `savePhoto` round-trip via `TemporaryFolder` ([Lesson 008](./lessons_learned/008-jvm-test-file-and-dispatcher-pitfalls.md)) |
-| Instrumented | Camera screen renders the toggle; shutter a11y label swaps with mode |
-| Manual (emulator) | Full capture → share → gallery → Photos loop. Photo mode **is** emulator-verifiable, unlike lenses (session memory: the emulator virtual scene has no face) — so the DoD screenshot is achievable |
+| Layer             | Coverage                                                                                                                                                                                                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JVM unit          | `capturePhoto` saves + emits `Share`; null bitmap → no save, no crash; double-tap guarded; mode toggle ignored while `Recording`; `shareMimeType` per extension; repository `savePhoto` round-trip via `TemporaryFolder` ([Lesson 008](./lessons_learned/008-jvm-test-file-and-dispatcher-pitfalls.md)) |
+| Instrumented      | Camera screen renders the toggle; shutter a11y label swaps with mode                                                                                                                                                                                                                                    |
+| Manual (emulator) | Full capture → share → gallery → Photos loop. Photo mode **is** emulator-verifiable, unlike lenses (session memory: the emulator virtual scene has no face) — so the DoD screenshot is achievable                                                                                                       |
 
 ## 8. Risks
 
-| Risk | Mitigation |
-|---|---|
-| `getBitmap()` returns null before the preview streams | Null-guarded → friendly snackbar, never a crash |
-| Photo resolution is view-sized, not sensor-sized | Accepted under D1; documented above |
-| `CameraManager.kt` is also touched by the in-review lenses PR | This PRD does **not** modify `CameraManager` at all — no conflict |
-| The worktree is based on `6dd2419`, before the uncommitted lens fixes in the main checkout | Rebase onto `feature/camera-lenses` after that PR merges |
+| Risk                                                                                       | Mitigation                                                        |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `getBitmap()` returns null before the preview streams                                      | Null-guarded → friendly snackbar, never a crash                   |
+| Photo resolution is view-sized, not sensor-sized                                           | Accepted under D1; documented above                               |
+| `CameraManager.kt` is also touched by the in-review lenses PR                              | This PRD does **not** modify `CameraManager` at all — no conflict |
+| The worktree is based on `6dd2419`, before the uncommitted lens fixes in the main checkout | Rebase onto `feature/camera-lenses` after that PR merges          |
 
 ## 9. Open questions
 

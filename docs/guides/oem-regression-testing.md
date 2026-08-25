@@ -7,11 +7,11 @@ LG phone when it isn't.
 
 **Related docs:**
 
-| Doc | Role |
-|-----|------|
-| [`docs/TEST_COVERAGE.md`](../TEST_COVERAGE.md) | Overall testing pyramid and inventory |
-| [`docs/guides/robolectric-testing-explained.md`](robolectric-testing-explained.md) | Robolectric setup and when to use it |
-| [`docs/guides/samsung-rtl-steps.md`](samsung-rtl-steps.md) | One-time Samsung Remote Test Lab (RTL) setup |
+| Doc                                                                                                                  | Role                                                    |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| [`docs/TEST_COVERAGE.md`](../TEST_COVERAGE.md)                                                                       | Overall testing pyramid and inventory                   |
+| [`docs/guides/robolectric-testing-explained.md`](robolectric-testing-explained.md)                                   | Robolectric setup and when to use it                    |
+| [`docs/guides/samsung-rtl-steps.md`](samsung-rtl-steps.md)                                                           | One-time Samsung Remote Test Lab (RTL) setup            |
 | [`docs/lessons_learned/024-fgs-type-constant-api-gating.md`](../lessons_learned/024-fgs-type-constant-api-gating.md) | FGS type must gate on the API that *added* the constant |
 
 **Agent skills** (same content, runnable commands): `.claude/skills/run-e2e-pixel-sweep/SKILL.md`
@@ -24,12 +24,12 @@ LG phone when it isn't.
 Not every OEM bug can be reproduced the same way. Pick the lane that actually exercises the
 failing layer:
 
-| Bug class | Example | Lane | Runs on |
-|-----------|---------|------|---------|
-| **Stock Android framework** | FGS type rejected on API 34 (`InvalidForegroundServiceTypeException`) | **API 34 AVD** | Emulator |
-| **App logic gated on `Build.MANUFACTURER`** | Samsung 480p preview cap, `c2.google` encoder first | **Robolectric + ShadowBuild** | JVM (seconds) |
-| **Vendor MediaCodec stack** | Exynos/QC reverse wedge, Samsung RTL regressions | **Samsung RTL sweep** | Real Galaxy (cloud) |
-| **Hardware codec init failure** | LG LM-X540 `IllegalArgumentException: start failed` | **Instrumented fault injection** | Any emulator/device |
+| Bug class                                   | Example                                                               | Lane                             | Runs on             |
+| ------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- | ------------------- |
+| **Stock Android framework**                 | FGS type rejected on API 34 (`InvalidForegroundServiceTypeException`) | **API 34 AVD**                   | Emulator            |
+| **App logic gated on `Build.MANUFACTURER`** | Samsung 480p preview cap, `c2.google` encoder first                   | **Robolectric + ShadowBuild**    | JVM (seconds)       |
+| **Vendor MediaCodec stack**                 | Exynos/QC reverse wedge, Samsung RTL regressions                      | **Samsung RTL sweep**            | Real Galaxy (cloud) |
+| **Hardware codec init failure**             | LG LM-X540 `IllegalArgumentException: start failed`                   | **Instrumented fault injection** | Any emulator/device |
 
 **Critical honesty rule:** A green run on a **stock Google emulator does not prove** a Samsung or
 LG codec bug is fixed. Emulator codecs are `c2.android` / goldfish software paths — not Exynos,
@@ -76,9 +76,9 @@ setting per editor tab, tap Save, confirm share sheet shows `boom_*.mp4`.
 
 ### Unit / Robolectric proof (same bug, no device)
 
-| Test | File |
-|------|------|
-| SDK → FGS type mapping | `BoomerangRenderNotificationsTest` |
+| Test                            | File                                           |
+| ------------------------------- | ---------------------------------------------- |
+| SDK → FGS type mapping          | `BoomerangRenderNotificationsTest`             |
 | Real `ForegroundInfo` on API 34 | `BoomerangRenderForegroundInfoRobolectricTest` |
 
 ```powershell
@@ -158,10 +158,10 @@ pwsh .claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-sweep.ps1 `
 
 Scripts:
 
-| Script | Purpose |
-|--------|---------|
-| `samsung-rtl-prep.ps1` | Install, `pm clear`, push video, logcat, launch (refuses non-Samsung) |
-| `samsung-rtl-sweep.ps1` | prep → `drive-flow.ps1` → `quality-gate.ps1` → `scan-logcat.ps1` |
+| Script                  | Purpose                                                               |
+| ----------------------- | --------------------------------------------------------------------- |
+| `samsung-rtl-prep.ps1`  | Install, `pm clear`, push video, logcat, launch (refuses non-Samsung) |
+| `samsung-rtl-sweep.ps1` | prep → `drive-flow.ps1` → `quality-gate.ps1` → `scan-logcat.ps1`      |
 
 ### Pass criteria
 
@@ -213,28 +213,28 @@ Pass: `tests=1 failures=0 errors=0`.
 
 ## Quick reference — which command when?
 
-| You're changing… | Run at minimum |
-|------------------|----------------|
-| FGS / WorkManager | API 34 unit + Robolectric FGS tests; API 34 AVD save smoke |
-| `DeviceMediaHints` / Samsung encoder order | `DeviceMediaHintsOemRobolectricTest` + `SamsungReversePreviewRegressionTest` |
-| `VideoReverser` / reverse pipeline | 4-emulator pixel sweep + Samsung RTL if Samsung-specific |
-| Anything touching save/render | Pixel sweep includes API 34; grep logcat for FGS CRASH row |
-| LG codec fallback logic | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` |
+| You're changing…                           | Run at minimum                                                                |
+| ------------------------------------------ | ----------------------------------------------------------------------------- |
+| FGS / WorkManager                          | API 34 unit + Robolectric FGS tests; API 34 AVD save smoke                    |
+| `DeviceMediaHints` / Samsung encoder order | `DeviceMediaHintsOemRobolectricTest` + `SamsungReversePreviewRegressionTest`  |
+| `VideoReverser` / reverse pipeline         | 4-emulator pixel sweep + Samsung RTL if Samsung-specific                      |
+| Anything touching save/render              | Pixel sweep includes API 34; grep logcat for FGS CRASH row                    |
+| LG codec fallback logic                    | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` |
 
 ---
 
 ## File map (everything added for OEM regression)
 
-| Path | Purpose |
-|------|---------|
-| `app/src/test/.../DeviceMediaHintsOemRobolectricTest.kt` | ShadowBuild Samsung/LG identity tests |
+| Path                                                               | Purpose                                        |
+| ------------------------------------------------------------------ | ---------------------------------------------- |
+| `app/src/test/.../DeviceMediaHintsOemRobolectricTest.kt`           | ShadowBuild Samsung/LG identity tests          |
 | `app/src/test/.../BoomerangRenderForegroundInfoRobolectricTest.kt` | API 34/35/36 FGS type on real `ForegroundInfo` |
-| `app/src/test/.../BoomerangRenderNotificationsTest.kt` | Pure SDK → FGS type mapping |
-| `app/src/main/.../DeviceMediaHints.kt` | `previewReverseMaxShortSideOrNull()` helper |
-| `.claude/skills/run-e2e-pixel-sweep/scripts/create-api34-avd.ps1` | Create `Pixel_8_API34` AVD |
-| `.claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-prep.ps1` | RTL device prep |
-| `.claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-sweep.ps1` | Full RTL regression |
-| `.claude/skills/run-e2e/scripts/scan-logcat.ps1` | Includes FGS-type-unknown CRASH signature |
+| `app/src/test/.../BoomerangRenderNotificationsTest.kt`             | Pure SDK → FGS type mapping                    |
+| `app/src/main/.../DeviceMediaHints.kt`                             | `previewReverseMaxShortSideOrNull()` helper    |
+| `.claude/skills/run-e2e-pixel-sweep/scripts/create-api34-avd.ps1`  | Create `Pixel_8_API34` AVD                     |
+| `.claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-prep.ps1`  | RTL device prep                                |
+| `.claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-sweep.ps1` | Full RTL regression                            |
+| `.claude/skills/run-e2e/scripts/scan-logcat.ps1`                   | Includes FGS-type-unknown CRASH signature      |
 
 ---
 

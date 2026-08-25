@@ -15,8 +15,8 @@
 Looks preview is a Media3 `setVideoEffects` call on the **forward** player. It does not need the
 reversed artifact. Closing the gate conflated two unrelated failure modes:
 
-- **Samsung / OEM reverse failures** (codec Surface starvation, timeouts, empty mux — Lessons 020 /
-  023) — common on Exynos/Snapdragon Galaxy devices, **not** "the phone is out of RAM."
+- **Samsung / OEM reverse failures** (codec Surface starvation, timeouts, empty mux — Lessons 020
+  and 023) — common on Exynos/Snapdragon Galaxy devices, **not** "the phone is out of RAM."
 - **Real memory pressure** (`ActivityManager.MemoryInfo.lowMemory` / API ≤ 33
   `TRIM_MEMORY_RUNNING_LOW|CRITICAL`) — the legitimate WS-3 reason to skip
   `DefaultVideoFrameProcessor`.

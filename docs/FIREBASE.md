@@ -19,13 +19,13 @@ The `GITHUB_TOKEN` secret the Cloud Function uses to file GitHub issues is a **f
    - Resource owner `stozo04`, repository **OpenLoop** only, permission **Issues: Read and write**.
 2. Update the secret (paste the new token at the hidden prompt — the argument is the *name*, not the value):
 
-   ```
+   ```text
    firebase functions:secrets:set GITHUB_TOKEN
    ```
 
 3. Re-deploy so the function binds the new secret version:
 
-   ```
+   ```text
    firebase deploy --only functions:crashlytics-autotriage
    ```
 
@@ -41,26 +41,26 @@ The `GITHUB_TOKEN` secret the Cloud Function uses to file GitHub issues is a **f
 
 ## Files
 
-| File | Role |
-|------|------|
-| `functions/index.js` | The alert listener that files the GitHub issue |
-| `functions/package.json` | Node 22 runtime + `firebase-functions` v6 |
-| `firebase.json` | Declares the function under codebase `crashlytics-autotriage` |
-| `.github/workflows/crashlytics-autotriage.yml` | The triage workflow (runs on GitHub) |
-| `.github/firebase-mcp.json` | Firebase MCP server config for the workflow |
+| File                                           | Role                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------- |
+| `functions/index.js`                           | The alert listener that files the GitHub issue                |
+| `functions/package.json`                       | Node 22 runtime + `firebase-functions` v6                     |
+| `firebase.json`                                | Declares the function under codebase `crashlytics-autotriage` |
+| `.github/workflows/crashlytics-autotriage.yml` | The triage workflow (runs on GitHub)                          |
+| `.github/firebase-mcp.json`                    | Firebase MCP server config for the workflow                   |
 
 ## Secrets & access (where each one lives)
 
-| Name | Lives in | Purpose | Expires? |
-|------|----------|---------|----------|
-| `GITHUB_TOKEN` | Firebase (Secret Manager) | Function files GitHub issues | **Yes — ~June 2027** (see above) |
-| `ANTHROPIC_API_KEY` | GitHub repo Actions secrets | Runs Claude | No (unless rotated) |
-| `GCP_SA_KEY` | GitHub repo Actions secrets | Lets the workflow read Crashlytics | No expiry, but key can be rotated |
-| Service account `gh-crashlytics-reader` | Google Cloud IAM | Holds role `Firebase Crashlytics Viewer` | — |
+| Name                                    | Lives in                    | Purpose                                  | Expires?                          |
+| --------------------------------------- | --------------------------- | ---------------------------------------- | --------------------------------- |
+| `GITHUB_TOKEN`                          | Firebase (Secret Manager)   | Function files GitHub issues             | **Yes — ~June 2027** (see above)  |
+| `ANTHROPIC_API_KEY`                     | GitHub repo Actions secrets | Runs Claude                              | No (unless rotated)               |
+| `GCP_SA_KEY`                            | GitHub repo Actions secrets | Lets the workflow read Crashlytics       | No expiry, but key can be rotated |
+| Service account `gh-crashlytics-reader` | Google Cloud IAM            | Holds role `Firebase Crashlytics Viewer` | —                                 |
 
 ## Common commands
 
-```
+```text
 firebase functions:list                                   # is the function deployed?
 firebase deploy --only functions:crashlytics-autotriage   # (re)deploy
 firebase functions:secrets:set GITHUB_TOKEN               # set/rotate the token (paste at hidden prompt)
@@ -75,11 +75,11 @@ You can exercise the whole chain (function → GitHub issue → workflow → Cla
 for a real crash, using the Firebase **functions shell**. It runs the real function code locally
 but **really** calls GitHub, so it creates a real issue that really triggers the workflow.
 
-**One-time setup**
+**One-time setup:**
 
 1. The shell needs `firebase-admin` installed:
 
-   ```
+   ```text
    cd functions
    npm install --save firebase-admin
    ```
@@ -87,15 +87,15 @@ but **really** calls GitHub, so it creates a real issue that really triggers the
 2. Create `functions/.secret.local` (gitignored — never commit) holding the token the function
    uses, so `GITHUB_TOKEN.value()` resolves locally:
 
-   ```
+   ```text
    GITHUB_TOKEN=<your fine-grained PAT>
    ```
 
    Retrieve the value if you don't have it saved: `firebase functions:secrets:access GITHUB_TOKEN`
 
-**Fire a fake crash**
+**Fire a fake crash:**
 
-```
+```text
 cd functions
 firebase functions:shell
 ```
@@ -109,7 +109,7 @@ crashlyticsToGithub({payload:{issue:{id:'<crashlytics-issue-id>',title:'Fake cra
 
 Expected log line: `Created GitHub issue #NN for Crashlytics <id>`. Type `.exit` to leave the shell.
 
-**Gotchas (learned the hard way)**
+**Gotchas (learned the hard way):**
 
 - **Payload shape:** pass `{payload:{issue:{...}}}`. Wrapping it as `{data:{payload:...}}` makes the
   id read as `unknown` (the shell already nests your argument under `event.data`).

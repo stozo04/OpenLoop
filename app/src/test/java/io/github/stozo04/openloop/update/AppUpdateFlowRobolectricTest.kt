@@ -43,7 +43,7 @@ class AppUpdateFlowRobolectricTest {
 
     @Before
     fun setUp() {
-        play = FakeAppUpdateManager(ApplicationProvider.getApplicationContext<Context>())
+        play = FakeAppUpdateManager(ApplicationProvider.getApplicationContext())
         updateReadyPrompts = 0
     }
 
@@ -62,7 +62,7 @@ class AppUpdateFlowRobolectricTest {
 
     /** Play reports a newer build that has been out longer than the staleness threshold. */
     private fun playHasANewerBuild(staleDays: Int = UPDATE_STALENESS_DAYS_THRESHOLD) {
-        play.setUpdateAvailable(BuildConfigVersionCode + 1)
+        play.setUpdateAvailable(BUILD_CONFIG_VERSION_CODE + 1)
         play.setClientVersionStalenessDays(staleDays)
     }
 
@@ -73,7 +73,7 @@ class AppUpdateFlowRobolectricTest {
         controller().check()
         settle()
 
-        assertTrue("Play's confirmation dialog should be showing", play.isConfirmationDialogVisible())
+        assertTrue("Play's confirmation dialog should be showing", play.isConfirmationDialogVisible)
         assertEquals(0, updateReadyPrompts) // nothing downloaded yet — no restart prompt
     }
 
@@ -84,7 +84,7 @@ class AppUpdateFlowRobolectricTest {
 
         controller.check()
         settle()
-        assertTrue(play.isConfirmationDialogVisible())
+        assertTrue(play.isConfirmationDialogVisible)
 
         play.userAcceptsUpdate()
         settle()
@@ -99,7 +99,7 @@ class AppUpdateFlowRobolectricTest {
         // The user taps "Restart".
         controller.completeUpdate()
         settle()
-        assertTrue("Play should be installing", play.isInstallSplashScreenVisible())
+        assertTrue("Play should be installing", play.isInstallSplashScreenVisible)
 
         play.installCompletes()
         settle()
@@ -135,11 +135,11 @@ class AppUpdateFlowRobolectricTest {
 
         controller.check()
         settle()
-        assertTrue(play.isConfirmationDialogVisible())
+        assertTrue(play.isConfirmationDialogVisible)
 
         play.userRejectsUpdate()
         settle()
-        assertFalse("Dialog should be dismissed", play.isConfirmationDialogVisible())
+        assertFalse("Dialog should be dismissed", play.isConfirmationDialogVisible)
         assertEquals("Nothing downloaded, so no restart prompt", 0, updateReadyPrompts)
 
         // Every later onResume calls check() again — declining must not re-open Play's dialog.
@@ -148,7 +148,7 @@ class AppUpdateFlowRobolectricTest {
         controller.check()
         settle()
 
-        assertFalse("Declining must not re-nag on resume", play.isConfirmationDialogVisible())
+        assertFalse("Declining must not re-nag on resume", play.isConfirmationDialogVisible)
         assertEquals(0, updateReadyPrompts)
     }
 
@@ -159,7 +159,7 @@ class AppUpdateFlowRobolectricTest {
         controller().check()
         settle()
 
-        assertFalse("Too fresh to nudge", play.isConfirmationDialogVisible())
+        assertFalse("Too fresh to nudge", play.isConfirmationDialogVisible)
         assertEquals(0, updateReadyPrompts)
     }
 
@@ -170,12 +170,12 @@ class AppUpdateFlowRobolectricTest {
         controller().check()
         settle()
 
-        assertFalse(play.isConfirmationDialogVisible())
+        assertFalse(play.isConfirmationDialogVisible)
         assertEquals(0, updateReadyPrompts)
     }
 
     private companion object {
         /** Any installed version — the fake only cares that the available code is higher. */
-        const val BuildConfigVersionCode = 1
+        const val BUILD_CONFIG_VERSION_CODE = 1
     }
 }

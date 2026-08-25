@@ -9,7 +9,7 @@ import android.widget.FrameLayout
 /**
  * [FrameLayout] that intercepts two-finger pinch gestures before children (e.g. [PreviewView])
  * consume them. Compose [pointerInput] and [PreviewView.setOnTouchListener] both fail to receive
- * multi-touch on some OEMs when [PreviewView] uses an internal [android.view.SurfaceView].
+ * multitouch on some OEMs when [PreviewView] uses an internal [android.view.SurfaceView].
  */
 class PinchZoomLayout @JvmOverloads constructor(
     context: Context,

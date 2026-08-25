@@ -26,7 +26,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Behaviour guard for the lens tray (docs/PRD-camera-lenses.md §6.2).
+ * Behavior guard for the lens tray (docs/PRD-camera-lenses.md §6.2).
  *
  * No mocking framework — instrumented tests in this repo can't use mockk (Lesson 017), and the
  * carousel is hoisted precisely so plain lambdas suffice.

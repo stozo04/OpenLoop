@@ -8,6 +8,7 @@ import io.github.stozo04.openloop.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Intent extra that swaps in [demoAppUpdateManager]. Debug builds only — see that function. */
 const val EXTRA_DEMO_UPDATE: String = "openloop.demoUpdate"
@@ -41,17 +42,17 @@ fun demoAppUpdateManager(context: Context, scope: CoroutineScope): AppUpdateMana
         fake.setClientVersionStalenessDays(UPDATE_STALENESS_DAYS_THRESHOLD)
         Log.i(TAG, "demo: pretending Play has v${BuildConfig.VERSION_CODE + 1}, stale enough to prompt")
         scope.launch {
-            delay(DEMO_STEP_MS) // let the Activity's check() open Play's flow first
-            if (!fake.isConfirmationDialogVisible()) {
+            delay(DEMO_STEP_MS.milliseconds) // let the Activity's check() open Play's flow first
+            if (!fake.isConfirmationDialogVisible) {
                 Log.w(TAG, "demo: update flow never started — is the staleness gate open?")
                 return@launch
             }
             fake.userAcceptsUpdate()
             Log.i(TAG, "demo: user accepted")
-            delay(DEMO_STEP_MS)
+            delay(DEMO_STEP_MS.milliseconds)
             fake.downloadStarts()
             Log.i(TAG, "demo: downloading…")
-            delay(DEMO_STEP_MS)
+            delay(DEMO_STEP_MS.milliseconds)
             fake.downloadCompletes()
             Log.i(TAG, "demo: download complete — the snackbar should be on screen now")
         }

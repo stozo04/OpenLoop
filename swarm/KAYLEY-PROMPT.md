@@ -79,7 +79,7 @@ Only if Kayley loses file access. A blocked agent's question renders **UNANSWERE
 `swarm/bus-follow.html`; hit **Copy** on it, paste the block above into Grok followed by the
 question, then post the answer back:
 
-```
+```text
 node swarm/tools/bus-post.mjs kayley payload.json
 ```
 

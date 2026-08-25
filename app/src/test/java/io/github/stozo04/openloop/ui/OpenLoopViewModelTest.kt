@@ -436,8 +436,8 @@ class OpenLoopViewModelTest {
             fakeVideoProcessor,
             fakeVideoImporter,
             fakeRenderScheduler,
-            // Default NoOp analytics arg keeps these constructions compiling; assert on a
-            // FakeAnalyticsReporter in new tests that care about analytics events (firebase PRD §6).
+            // Default NoOp analytics arg keeps these constructions compiling; tests that care about
+            // analytics events (firebase PRD §6) inject their own recording AnalyticsReporter.
             isLowMemoryNow = { lowMemoryNow },
             // The janitor now runs on an injected IO dispatcher (PR #58 review: file I/O off the
             // main thread). Sharing the rule's TestDispatcher keeps one scheduler (Lesson 008) so
@@ -2470,7 +2470,7 @@ class OpenLoopViewModelTest {
         assertEquals(1, fakeVideoStorage.savePhotoCallCount)
         assertEquals(1, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
 
-        // The guard releases afterwards — a later tap must still work.
+        // The guard releases afterward — a later tap must still work.
         fakeVideoStorage.savePhotoGate = null
         viewModel.capturePhoto(fakeBitmap)
         advanceUntilIdle()
@@ -2615,7 +2615,7 @@ class OpenLoopViewModelTest {
             assertEquals(1, fakeVideoStorage.savePhotoCallCount)
             assertEquals(1, fakeVideoStorage.saved.count { it.kind == VideoKind.PHOTO })
 
-            // The guard releases afterwards — a later sequence must still work.
+            // The guard releases afterward — a later sequence must still work.
             fakeVideoStorage.savePhotoGate = null
             vm.captureBoothStrip(boothFrames(), monochrome = false)
             advanceUntilIdle()
@@ -2638,7 +2638,7 @@ class OpenLoopViewModelTest {
             val aborted = boothFrames(2)
             vm.captureBoothStrip(aborted, monochrome = false) // strip 2 aborted on a null grab
 
-            // The frame-count reject is checked BEFORE the re-entrancy guard, so the promised
+            // The frame-count reject is checked BEFORE the reentrancy guard, so the promised
             // snackbar (PRD §5.4) cannot be swallowed by the in-flight save; the partial frames
             // are recycled, not composited.
             assertTrue(events.contains(BoomerangEvent.PhotoCaptureFailed))
@@ -2677,7 +2677,7 @@ class OpenLoopViewModelTest {
             assertEquals(0, fakeVideoStorage.savePhotoCallCount)
             frames.forEach { verify(exactly = 1) { it.recycle() } }
 
-            // The shared guard must release so the shutter still works afterwards.
+            // The shared guard must release so the shutter still works afterward.
             vm.capturePhoto(mockk(relaxed = true))
             advanceUntilIdle()
             assertEquals(1, fakeVideoStorage.savePhotoCallCount)

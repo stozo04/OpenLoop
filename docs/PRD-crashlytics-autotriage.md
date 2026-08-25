@@ -15,7 +15,7 @@ expiry that silently stops issue filing** — use [`FIREBASE.md`](FIREBASE.md).
 
 OpenLoop is live in Production and reachable by a very large user base. New fatal crashes surface in Firebase Crashlytics, but turning a crash into a tracked, diagnosed, and fixed issue is entirely manual today: someone has to notice the crash, open the console, read the stacktrace, file a GitHub issue, find the offending code, and write a fix. That latency and manual toil means real crashes sit unaddressed.
 
-We want a crash to **automatically** become a tracked GitHub issue with a Claude-authored root-cause diagnosis, and — when Claude is confident — a **draft** pull request with a first-pass fix, so the owner starts from a diagnosis and a candidate patch instead of a blank page.
+We want a crash to **automatically** become a tracked GitHub issue with a Claude-authored root-cause diagnosis, and — when Claude is confident — a **draft** pull request with a first-pass fix. The owner then starts from a diagnosis and a candidate patch instead of a blank page.
 
 ## 2. Goals & non-goals
 
@@ -41,7 +41,7 @@ We want a crash to **automatically** become a tracked GitHub issue with a Claude
 
 ## 4. Architecture
 
-```
+```text
 Crashlytics (new fatal issue)
         │  Firebase Alerts: crashlytics.newFatalIssue
         ▼
@@ -66,22 +66,22 @@ Human (Steven): run the full DoD gate, then mark ready / merge — or reject
 
 ### 4.1 Components
 
-| Component | File | Responsibility |
-|-----------|------|----------------|
-| Crash trigger | `functions/index.js` | `onNewFatalIssuePublished` handler: dedupe, format, create GitHub issue |
-| Functions manifest | `functions/package.json` | Node 22 runtime, `firebase-functions` v6 |
-| Firebase deploy config | `firebase.json` | New file — declares the functions codebase (`crashlytics-autotriage`) |
-| Triage workflow | `.github/workflows/crashlytics-autotriage.yml` | Trigger on labeled issue, auth, run Claude action |
-| MCP config | `.github/firebase-mcp.json` | Declares the Firebase MCP server for the action |
+| Component              | File                                           | Responsibility                                                          |
+| ---------------------- | ---------------------------------------------- | ----------------------------------------------------------------------- |
+| Crash trigger          | `functions/index.js`                           | `onNewFatalIssuePublished` handler: dedupe, format, create GitHub issue |
+| Functions manifest     | `functions/package.json`                       | Node 22 runtime, `firebase-functions` v6                                |
+| Firebase deploy config | `firebase.json`                                | New file — declares the functions codebase (`crashlytics-autotriage`)   |
+| Triage workflow        | `.github/workflows/crashlytics-autotriage.yml` | Trigger on labeled issue, auth, run Claude action                       |
+| MCP config             | `.github/firebase-mcp.json`                    | Declares the Firebase MCP server for the action                         |
 
 ### 4.2 Auth & secrets
 
-| Secret / config | Where | Purpose |
-|-----------------|-------|---------|
-| `GITHUB_TOKEN` (fine-grained PAT or GitHub App token) | Cloud Function secret (Secret Manager) | Function creates issues in `stozo04/OpenLoop` (Issues: read & write) |
-| `ANTHROPIC_API_KEY` | Repo Actions secret | Claude Code Action |
-| `GCP_SA_KEY` (service-account key JSON) or Workload Identity Federation | Repo Actions secrets | Lets the runner's Firebase MCP read Crashlytics |
-| Crashlytics read role | Service account IAM | `roles/firebasecrashlytics.viewer` (add `...writer` only if we later let Claude post Crashlytics notes / close issues) |
+| Secret / config                                                         | Where                                  | Purpose                                                                                                                |
+| ----------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_TOKEN` (fine-grained PAT or GitHub App token)                   | Cloud Function secret (Secret Manager) | Function creates issues in `stozo04/OpenLoop` (Issues: read & write)                                                   |
+| `ANTHROPIC_API_KEY`                                                     | Repo Actions secret                    | Claude Code Action                                                                                                     |
+| `GCP_SA_KEY` (service-account key JSON) or Workload Identity Federation | Repo Actions secrets                   | Lets the runner's Firebase MCP read Crashlytics                                                                        |
+| Crashlytics read role                                                   | Service account IAM                    | `roles/firebasecrashlytics.viewer` (add `...writer` only if we later let Claude post Crashlytics notes / close issues) |
 
 For Phase 0 the simple path is a service-account key JSON stored as `GCP_SA_KEY`. The more secure long-term option is **Workload Identity Federation** (no downloadable key); the workflow keeps that as a documented swap.
 
@@ -112,15 +112,15 @@ This design resolves the tension by making the bot's output a **draft triage PR*
 
 ## 8. Risks & mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| Crashlytics MCP is Experimental and may break | Degrade gracefully; function-created issue still lands even if MCP calls fail |
+| Risk                                                                                                                                                                                     | Mitigation                                                                                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Crashlytics MCP is Experimental and may break                                                                                                                                            | Degrade gracefully; function-created issue still lands even if MCP calls fail                                                                                                                                                                                                                             |
 | **Live:** Crashlytics MCP tools 404 under service-account/ADC auth ([firebase-tools#10310](https://github.com/firebase/firebase-tools/issues/10310)) — the exact auth this workflow uses | Degrade stands (a source-only triage still found lesson 030); the run is tagged `mcp-degraded` so it is visible from the issue list. Auth is **not** swapped to `FIREBASE_TOKEN` — that credential is deprecated and worse than the bug. Tracking: [#107](https://github.com/stozo04/OpenLoop/issues/107) |
-| Issue spam / token burn on crash storms | Gate on `newFatalIssue` only; dedupe; `--max-turns` cap; label-scoped trigger |
-| Unfixable crashes (OEM, OOM, third-party SDK) | Confidence gate → comment + `needs-human` instead of a bad patch |
-| Bot opens a low-quality patch that looks authoritative | Always **draft**; never auto-merge; human owns the DoD gate |
-| New `firebase.json` changes `firebase deploy` behavior | Function isolated in its own codebase name; documented in setup checklist |
-| Secret leakage | Least-privilege IAM; all tokens in Secret Manager / Actions secrets; WIF available as a keyless upgrade |
+| Issue spam / token burn on crash storms                                                                                                                                                  | Gate on `newFatalIssue` only; dedupe; `--max-turns` cap; label-scoped trigger                                                                                                                                                                                                                             |
+| Unfixable crashes (OEM, OOM, third-party SDK)                                                                                                                                            | Confidence gate → comment + `needs-human` instead of a bad patch                                                                                                                                                                                                                                          |
+| Bot opens a low-quality patch that looks authoritative                                                                                                                                   | Always **draft**; never auto-merge; human owns the DoD gate                                                                                                                                                                                                                                               |
+| New `firebase.json` changes `firebase deploy` behavior                                                                                                                                   | Function isolated in its own codebase name; documented in setup checklist                                                                                                                                                                                                                                 |
+| Secret leakage                                                                                                                                                                           | Least-privilege IAM; all tokens in Secret Manager / Actions secrets; WIF available as a keyless upgrade                                                                                                                                                                                                   |
 
 ## 9. Open questions
 

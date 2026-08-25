@@ -54,7 +54,7 @@ enum class Lens(
     /**
      * The art layers, drawn in list order — later layers paint over earlier ones.
      *
-     * Most lenses are one layer on the face's centre line. A lens becomes multi-layer when its
+     * Most lenses are one layer on the face's center line. A lens becomes multi-layer when its
      * parts track *different* anatomy: [TwistedTongue] puts an eyeball on each eye and a mouth and
      * tongue on the mouth, which one quad cannot do at any size. Each layer carries its own
      * [LensPlacement], so the anchor, offset and wobble are per-layer.
@@ -73,8 +73,8 @@ enum class Lens(
      * the subject's own eyes and mouth show through the opening, and a pale stalk hangs below the
      * chin as a neck.
      *
-     * The art's face opening is centred at (220, 230) of a 440x620 viewport, i.e. 0.79 units above
-     * the art's centre — hence the negative [LensPlacement.upInUnits], which drops the art so that
+     * The art's face opening is centered at (220, 230) of a 440x620 viewport, i.e. 0.79 units above
+     * the art's center — hence the negative [LensPlacement.upInUnits], which drops the art so that
      * opening lands on the eyes and the stalk falls under the chin. Sizing is driven by the opening
      * needing to clear brow-to-chin (~1.6 units), which makes the whole wreath 2.7 units wide.
      */
@@ -143,14 +143,14 @@ enum class Lens(
      * **A wedge is not a disc, so none of these numbers survived from the pie.** The art tapers from
      * a wide crust to a point, and a head tapers the same way — widest across the cheekbones,
      * narrowing to the jaw — which is why a downward wedge is a better head-cover than its area
-     * suggests. It is also why sizing it off the centre line alone would be meaningless.
+     * suggests. It is also why sizing it off the center line alone would be meaningless.
      *
      * The width was solved against the reference table rather than eyeballed: model the head as the
      * ellipse those numbers describe (crown +1.25, chin −1.00, half-width 0.775 at the eye line),
      * then find the smallest `widthInUnits` whose *measured* silhouette covers that ellipse at every
      * height. At 3.45 the encoded wedge clears the head by at least **0.095 units everywhere**, with
      * its narrowest margin down at y = −0.64 where the slice is tapering fastest — nowhere near the
-     * centre line, and exactly the place a single-point check would have missed. Top lands at
+     * center line, and exactly the place a single-point check would have missed. Top lands at
      * **+1.40**, a 0.15-unit margin over the crown, matching [Football].
      */
     PizzaFace(
@@ -201,7 +201,7 @@ enum class Lens(
      * to be wide. At 4.7 units the
      * encoded ellipse reaches 1.40 above the eye line — a 0.15-unit margin over the crown, matching
      * [PizzaFace] — and 1.20 below it, clearing the chin. Checked at the *sides* too, not just the
-     * centre line: at the ear (±0.775 units) the ellipse has narrowed to ±1.23 and still covers
+     * center line: at the ear (±0.775 units) the ellipse has narrowed to ±1.23 and still covers
      * crown and chin, which is the check a bounding box would have missed.
      */
     Football(
@@ -222,7 +222,7 @@ enum class Lens(
                     // Measured off the encoded asset (1024x585), not estimated — the art carries a
                     // 1.5% transparent margin, so the ball itself is ~97% of the quad.
                     artAspect = 0.571f,
-                    // Centred just below the eye line so the ellipse reaches +1.34 over the crown
+                    // Centered just below the eye line so the ellipse reaches +1.34 over the crown
                     // and -1.86 under the chin.
                     upInUnits = -0.26f,
                 ),
@@ -247,7 +247,7 @@ enum class Lens(
      * drawable serves as both art and carousel thumbnail (the tray uses `ContentScale.Fit`, so wide
      * art letterboxes into the circle rather than being cropped).
      *
-     * **The eyes are what set the ear positions.** An eye sits ~0.40 units off the centre line, and
+     * **The eyes are what set the ear positions.** An eye sits ~0.40 units off the center line, and
      * the head edge is at 0.775; an ear therefore has to live in the band between them — outboard
      * enough to miss the eye, inboard enough to still meet the head. These ears run from 0.59 to
      * 1.35 units, clearing each eye by 0.19. A first draft put the inner edges at 0.34 and sat them
@@ -295,29 +295,29 @@ enum class Lens(
      * `twisted-tounge/GUIDE.md`.
      *
      * **The first lens with parts on different anatomy.** Every lens before it is one quad on the
-     * face's centre line. This one cannot be: an eyeball has to sit on each *eye* and the tongue has
+     * face's center line. This one cannot be: an eyeball has to sit on each *eye* and the tongue has
      * to hang from the *mouth*, and no single quad tracks three landmarks. Hence [LensPlacement]'s
      * `anchor`, and hence [art] being a list.
      *
      * A **prop**, not a character — [features] stays null and the subject's own face shows around
      * the parts. The reference effect covers the mouth region with skin-toned geometry that samples
-     * the camera for its colour; that machinery is not here and is not needed, because the mouth
+     * the camera for its color; that machinery is not here and is not needed, because the mouth
      * layer is lips-and-cavity rather than a patch of cheek, so it has no skin tone to match.
      *
      * ## The numbers
      *
      * Solved against the reference table at the top of this file, not eyeballed:
      *
-     * * **Eyeballs.** A ball 0.62 units across, centred on each tracked eye. Eyes sit ±0.40 off the
-     *   centre line, so the inner edges land at 0.09 — an 0.18 gap across the bridge, which is the
+     * * **Eyeballs.** A ball 0.62 units across, centered on each tracked eye. Eyes sit ±0.40 off the
+     *   center line, so the inner edges land at 0.09 — an 0.18 gap across the bridge, which is the
      *   nearly-touching look of the reference — and the outer edges at 0.71, inside the 0.775 head
      *   edge. The ball is 200/220 of its square viewport (the rest is the contact shadow that makes
      *   it read as *proud of* the socket rather than painted on it), so `widthInUnits` is
      *   0.62 / 0.909 = 0.68.
      * * **Mouth.** 1.02 units wide against a 0.8-unit resting mouth, because it is drawn open.
      *   Dropped 0.10 so it spans -0.80 to -1.40 from the eye line: the jaw opens downward, so an
-     *   open mouth is not centred on the closed mouth's corners.
-     * * **Tongue.** 0.56 x 1.33 units, centred 0.565 below the mouth, which puts its root 0.10
+     *   open mouth is not centered on the closed mouth's corners.
+     * * **Tongue.** 0.56 x 1.33 units, centered 0.565 below the mouth, which puts its root 0.10
      *   *above* the anchor — up inside the mouth, overlapping the teeth that hide it. The tip lands
      *   2.23 units below the eye line, well past the chin; that length *is* the joke.
      *

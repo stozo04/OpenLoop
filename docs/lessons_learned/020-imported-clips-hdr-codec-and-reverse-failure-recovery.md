@@ -12,12 +12,14 @@ at once on the very first real HDR video:
 
 1. **10-bit HDR into an 8-bit encoder.** `VideoReverser` decodes onto an AVC encoder's input Surface.
    An imported HDR (HLG/PQ, 10-bit / P010) source decodes to 10-bit frames the H.264 encoder rejects:
-   ```
+
+   ```text
    GC2_EncComp: AVC does not support 10-bit input
    CCodecBufferChannel: [c2.google.avc.encoder] work failed to complete: 22   (EINVAL)
    ```
+
    No tone-mapping happened, so the reverse threw `IllegalStateException: Pending dequeue output buffer
-   request cancelled`.
+   request canceled`.
 
 2. **A caught failure still wedged the UI.** The ViewModel *did* catch it ("Reverse generation for
    preview failed") and cleared `isReversedFileLoading` — but the editor's shimmer was gated on

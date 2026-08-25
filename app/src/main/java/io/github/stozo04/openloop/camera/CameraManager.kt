@@ -46,14 +46,14 @@ class CameraManager(private val context: Context) {
     private var camera: Camera? = null
 
     /**
-     * The lens renderer. Created once and attached on EVERY bind, whether or not a lens is
+     * The lens renderer. Created once and attached on EVERY bind, whether a lens is
      * selected — see [LensSurfaceProcessor]'s header. Attaching or removing a [CameraEffect]
      * requires a rebind, and a rebind during capture finalizes the recording with
      * `ERROR_SOURCE_INACTIVE` (Lesson 012), so "no lens" is an identity pass-through rather than
      * an absent effect.
      */
     private val lensProcessor = LensSurfaceProcessor(context)
-    private val faceTracker = FaceTracker(lensProcessor::setFace)
+    private val faceTracker = FaceTracker(lensProcessor::setFaces)
     private var zoomStateObserver: Observer<ZoomState>? = null
     private var observedZoomState: LiveData<ZoomState>? = null
     /** Per-pinch anchor ratio — avoids stale [ZoomState] reads during a fast scale stream. */
@@ -101,7 +101,7 @@ class CameraManager(private val context: Context) {
                 // normalized position means the same thing in both and no correction is needed.
                 //
                 // A 16:9 analysis stream was tried first and put every lens visibly off sideways:
-                // 16:9 and 4:3 see different parts of the sensor, and modelling that difference is
+                // 16:9 and 4:3 see different parts of the sensor, and modeling that difference is
                 // guesswork about how the device derives one from the other. Matching the shapes
                 // removes the question instead of answering it.
                 val analysis = ImageAnalysis.Builder()
@@ -116,8 +116,11 @@ class CameraManager(private val context: Context) {
                     .build()
                     .also { it.setAnalyzer(cameraExecutor, faceTracker) }
 
+                // A lens flip lands here without releaseCamera(); the roster must not carry the
+                // other sensor's faces into this bind (see FaceTracker.reset).
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
+                faceTracker.reset()
                 camera = bindWithLensEffect(
                     lifecycleOwner = lifecycleOwner,
                     cameraSelector = cameraSelector,
@@ -194,7 +197,7 @@ class CameraManager(private val context: Context) {
         } catch (exc: IllegalArgumentException) {
             Log.w(TAG, "Face analysis not supported alongside preview + video; lenses disabled", exc)
             analysis.clearAnalyzer()
-            lensProcessor.setFace(null)
+            lensProcessor.setFaces(emptyList())
             provider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
@@ -281,7 +284,7 @@ class CameraManager(private val context: Context) {
      * (near-default magnetic snap, or zoom-in-then-out multiplicative undershoot).
      */
     fun onPinchZoomEnd() {
-        val boundCamera = camera ?: run {
+        if (camera == null) {
             pinchSessionRatio = null
             pinchSessionPeakRatio = null
             return
@@ -412,9 +415,12 @@ class CameraManager(private val context: Context) {
         }
         try {
             detachZoomObserver()
-            // unbindAll() stops the analysis stream; the ImageAnalysis instance is rebuilt on the
-            // next startCamera(), and faceTracker outlives both, so there is nothing to clear.
+            // Stop the analysis stream before reset() so no in-flight analyze() can re-seed the
+            // roster after the epoch bump (the race fixed by swapping this order). faceTracker
+            // outlives both unbind and the rebuilt ImageAnalysis, and holds the last faces for
+            // 350 ms — drop them so the next bind starts with a clean viewfinder.
             cameraProvider?.unbindAll()
+            faceTracker.reset()
             videoCapture = null
             camera = null
         } catch (exc: Exception) {

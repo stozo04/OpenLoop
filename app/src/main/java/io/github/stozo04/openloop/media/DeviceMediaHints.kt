@@ -1,7 +1,6 @@
 package io.github.stozo04.openloop.media
 
 import android.os.Build
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**

@@ -30,6 +30,7 @@ adb: try `adb` on PATH, else `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`
 (on this machine: `C:\Users\gates\AppData\Local\Android\Sdk\platform-tools\adb.exe`).
 
 `adb devices`:
+
 - **No device** → stop, tell the user to start an emulator / connect a device. Don't guess.
 - **Exactly one** → use it.
 - **Multiple** → ask which, then pass `-s <serial>` on every call.
@@ -39,7 +40,7 @@ adb: try `adb` on PATH, else `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`
 Force-stop first (so the running process can't rewrite the file from its in-memory cache on exit),
 then delete just the one DataStore file. Two commands:
 
-```
+```text
 adb -s <serial> shell am force-stop io.github.stozo04.openloop
 adb -s <serial> shell run-as io.github.stozo04.openloop rm -f files/datastore/openloop_preferences.preferences_pb
 ```
@@ -62,9 +63,9 @@ Tell the user it's done. Only relaunch / screenshot if the user explicitly asks.
 
 ## Quick reference
 
-| Goal | Command |
-|------|---------|
+| Goal                             | Command                                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Reset onboarding (the only mode) | force-stop, then `adb -s <serial> shell run-as io.github.stozo04.openloop rm -f files/datastore/openloop_preferences.preferences_pb` |
-| Relaunch (only if asked) | `adb -s <serial> shell am start -n io.github.stozo04.openloop/.MainActivity` |
+| Relaunch (only if asked)         | `adb -s <serial> shell am start -n io.github.stozo04.openloop/.MainActivity`                                                         |
 
 DataStore reference: [Google's DataStore guide](https://developer.android.com/topic/libraries/architecture/datastore). The repo's usage is one boolean (`has_completed_onboarding`) in `data/UserPreferencesRepository.kt`.

@@ -4,7 +4,6 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.os.Build
 import java.io.File
-import java.io.IOException
 
 /** Structured probe used for Crashlytics custom keys and the share-sheet report. */
 internal data class ReversePreviewDiagnostics(

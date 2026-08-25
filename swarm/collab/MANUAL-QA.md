@@ -7,14 +7,14 @@ Mirrors `docs/PRD-camera-lenses.md` §11.1 and extends it with the items this ch
 **How to read the status column.** Nothing in this document is a claim that a lens looks good on a
 person. Where an item says *verified*, it was verified against a **flat portrait in the emulator's
 virtual scene** — good enough to prove the plumbing, useless for judging tracking or quality.
-Kayley's ruling, verbatim: *"Mona Lisa is bake evidence, not a face."* That is the right framing and
+Kayley's ruling, verbatim: *"Mona Lisa is bake evidence, not a face."* That is the right framing, and
 it is applied throughout.
 
-| Status | Means |
-|---|---|
+| Status         | Means                                                                                                                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | ✅ **verified** | Actually observed this run on the emulator — each artifact was pulled off the device and opened, not inferred from a log line. Screenshots were reviewed during the run and deliberately **not committed** (owner decision: no screenshots in the PR). |
-| ⚠️ **partly** | Mechanism proven, but the thing you actually care about needs a person |
-| ⬜ **yours** | Not reachable by any agent in this run. Needs you, a real face, real hardware |
+| ⚠️ **partly**  | Mechanism proven, but the thing you actually care about needs a person                                                                                                                                                                                 |
+| ⬜ **yours**    | Not reachable by any agent in this run. Needs you, a real face, real hardware                                                                                                                                                                          |
 
 ---
 
@@ -25,26 +25,26 @@ flicker off when the detector blips, and does it snap back cleanly?
 
 There is deliberately **no smoothing and no hold-last-face** in the code, and this change did not add
 any — tuning that blind trades latency for steadiness and risks making it worse. If it jitters, say
-so and it becomes a small, well-understood change: an exponential filter on `FaceSnapshot` plus a
+so, and it becomes a small, well-understood change: an exponential filter on `FaceSnapshot` plus a
 short hold. **Nobody has been able to observe this**, because a painting on a wall does not move.
 
 ---
 
-## 1. Placement, per lens, front camera, face centred
+## 1. Placement, per lens, front camera, face centered
 
 ⬜ **yours** for all four. Each lens should land **on** your face, not mirrored to the wrong side.
 
-| # | Lens | What to look for | The specific thing I am worried about |
-|---|---|---|---|
-| 1.1 | **Football** | The ball swallows your whole head | **THE ONE MOST LIKELY TO NEED A TUNE — check this first.** See §6. |
-| 1.2 | **Bug Eyes** | Both eyes enlarged, independently | Does it read as *funny*, or just as slightly bigger eyes? See §7. |
-| 1.3 | **Dog** | Ears either side of your head, snout on your nose | Ears must not creep over your eyes. Clearance is designed at 0.19 face units. |
+| #   | Lens           | What to look for                                                                   | The specific thing I am worried about                                                                                                                                                                                                                                                                                                                         |
+| --- | -------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | **Football**   | The ball swallows your whole head                                                  | **THE ONE MOST LIKELY TO NEED A TUNE — check this first.** See §6.                                                                                                                                                                                                                                                                                            |
+| 1.2 | **Bug Eyes**   | Both eyes enlarged, independently                                                  | Does it read as *funny*, or just as slightly bigger eyes? See §7.                                                                                                                                                                                                                                                                                             |
+| 1.3 | **Dog**        | Ears either side of your head, snout on your nose                                  | Ears must not creep over your eyes. Clearance is designed at 0.19 face units.                                                                                                                                                                                                                                                                                 |
 | 1.4 | **Pizza Face** | The **slice** swallows your whole head — crust across the brow, tip below the chin | Any forehead, jaw or cheek visible = fails PRD §4b. **Art and geometry changed late** (owner ruled the whole pie dead, `pizza-slice.jpg` accepted), so this is the newest thing in the change and the least looked-at. Watch the **jaw line** specifically: a wedge narrows going down, and the tightest coverage margin in the whole lens sits at y = −0.64. |
 
 ## 2. Roll
 
 ⬜ **yours.** Tilt your head left and right. The art must roll **with** your head, not against it.
-Rotation is derived from the face frame's own axes rather than a Euler angle, so if this is wrong it
+Rotation is derived from the face frame's own axes rather than an Euler angle, so if this is wrong it
 is wrong for every lens at once.
 
 ## 3. Back camera
@@ -58,11 +58,11 @@ mirroring leg.
 ⬜ **yours.** Hold the phone both ways. No 90° offset. This is the leg of Lesson 032 that a static
 poster cannot exercise, because the emulator scene never rotates.
 
-## 5. Warp behaviour
+## 5. Warp behavior
 
 ⚠️ **partly.** Bug Eyes was observed enlarging both eyes on the portrait (an A/B against the same scene with no lens). What is **not** verified: that the bulge scales correctly as you move
 toward and away from the camera, and that it tracks a moving head. Big Mouth is unchanged and should
-behave exactly as it did before — **if it does not, that is a regression in our `WarpSpec` change and
+behave exactly as it did before — **if it does not, that is a regression in our `WarpSpec` change, and
 it is the single most important regression to catch.**
 
 ## 6. Football coverage — the top risk in this change
@@ -86,9 +86,9 @@ the painting, real-face coverage is your call** (`kayley-1786832985064`).
 **If a real face shows the same thing**, the fix is one constant — `widthInUnits` scales both axes:
 
 | `widthInUnits` | Coverage above / below the eye line |
-|---|---|
-| 4.7 (shipped) | +1.40 / −1.20 |
-| 5.2 | +1.59 / −1.39 |
+| -------------- | ----------------------------------- |
+| 4.7 (shipped)  | +1.40 / −1.20                       |
+| 5.2            | +1.59 / −1.39                       |
 
 Worth knowing *why* the football is the only lens with this exposure: it is a **horizontal ellipse**
 (`artAspect` 0.571 — wider than tall) covering a head that is taller than it is wide. Pizza's quad is
@@ -98,7 +98,7 @@ Football did not. That is **shape**, not sloppiness.
 
 ## 7. Is Bug Eyes actually funny?
 
-⬜ **yours — a judgement call, not a bug.**
+⬜ **yours — a judgment call, not a bug.**
 
 What was actually established: on the emulator's painted portrait, **both generic eye circles
 visibly fire independently and the nose bridge stays clean** (an A/B against the same scene with no lens). Kayley ruled that this clears the *blob kill* — and ruled just as explicitly
@@ -127,14 +127,14 @@ capability** — no shader work, no new ACK needed.
 
 **Per-lens media capture — 7 of the 8 artifacts, individually captured and individually looked at:**
 
-| Lens | Saved photo | Saved video |
-|---|---|---|
-| Football | ✅ | ✅ |
-| Pizza Face (**slice**) | ✅ | ✅ |
-| Bug Eyes | ✅ (subtle but present vs an unlensed A/B) | ✅ (clear vs an unlensed A/B) |
-| Dog | ✅ | ❌ **not captured** |
+| Lens                   | Saved photo                               | Saved video                  |
+| ---------------------- | ----------------------------------------- | ---------------------------- |
+| Football               | ✅                                         | ✅                            |
+| Pizza Face (**slice**) | ✅                                         | ✅                            |
+| Bug Eyes               | ✅ (subtle but present vs an unlensed A/B) | ✅ (clear vs an unlensed A/B) |
+| Dog                    | ✅                                         | ❌ **not captured**           |
 
-*(Pizza was re-captured end to end after the owner's slice ruling, against an install verified by SHA-1.)*
+(Pizza was re-captured end to end after the owner's slice ruling, against an installed build verified by SHA-1.)
 
 Every one of these was pulled off the device and opened — none is inferred. The Bug Eyes rows are
 A/B comparisons against an unlensed frame of the same scene, because the effect is modest enough
@@ -177,7 +177,7 @@ inpainting a product photo is inventing content. Kayley accepted the art with th
 does not read at render scale. If you want it gone, drop an **unclipped football photo** at
 `football.jpg` and re-run:
 
-```
+```text
 python swarm/tools/key_art.py football.jpg app/src/main/res/drawable-nodpi/lens_football_art.webp \
     --thumb app/src/main/res/drawable-nodpi/lens_football.webp --close 10 --pad 0.015 --erode 3 --edge-white 230
 ```
@@ -199,19 +199,19 @@ Everything below was observed on **emulator-5556 = the Pixel_8 AVD**, against th
 portrait reached with `adb emu automation play <sdk>/emulator/resources/macros/Walk_to_image_room`.
 Evidence files are in the run capture.
 
-| Claim | Status |
-|---|---|
-| All **seven** lenses appear in the carousel with accessibility labels | ✅ Broccoli, Shades, Big Mouth, Bug Eyes, Pizza Face, Football, Dog |
-| The one `CameraEffect` is attached to preview **and** video | ✅ `Lens output targets=3 size=1280x960` |
-| Analysis and effect streams are the **same shape** (Lesson 032 pin holding) | ✅ analysis `640x480`, output `1280x960` — both 4:3 |
-| Face found in the scene, face frame built, art anchored to it | ✅ **all four** new lenses — Football, Bug Eyes, Dog, Pizza Face. Pizza has since been **re-arted and re-measured** for the owner-accepted slice; see the slice row below. Every Pizza capture is taken against an install verified by SHA-1 to carry the same art bytes as the repo, after an earlier capture from a stale install had to be retracted. |
-| Lens baked into the saved photo | ✅ Football |
-| Lens baked into the saved video | ✅ Football |
-| Recording finalizes cleanly with a lens active | ✅ no `ERROR_SOURCE_INACTIVE` |
-| No crash across install → carousel → 4 lens switches → photo → 27 s recording | ✅ no FATAL, no `AndroidRuntime` exception |
-| Dog ears clear the eyes | ✅ on this subject, matching the designed 0.19-unit clearance |
-| Bug Eyes — both eye circles fire independently, nose bridge clean (the *blob kill*) | ✅ A/B against the unlensed frame. **Not** a shareable-look pass; not verified on a face. |
-| Football hides the whole head | ❌ **not on this subject** — see §6 |
+| Claim                                                                               | Status                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All **seven** lenses appear in the carousel with accessibility labels               | ✅ Broccoli, Shades, Big Mouth, Bug Eyes, Pizza Face, Football, Dog                                                                                                                                                                                                                                                                                      |
+| The one `CameraEffect` is attached to preview **and** video                         | ✅ `Lens output targets=3 size=1280x960`                                                                                                                                                                                                                                                                                                                 |
+| Analysis and effect streams are the **same shape** (Lesson 032 pin holding)         | ✅ analysis `640x480`, output `1280x960` — both 4:3                                                                                                                                                                                                                                                                                                      |
+| Face found in the scene, face frame built, art anchored to it                       | ✅ **all four** new lenses — Football, Bug Eyes, Dog, Pizza Face. Pizza has since been **re-arted and re-measured** for the owner-accepted slice; see the slice row below. Every Pizza capture is taken against an install verified by SHA-1 to carry the same art bytes as the repo, after an earlier capture from a stale install had to be retracted. |
+| Lens baked into the saved photo                                                     | ✅ Football                                                                                                                                                                                                                                                                                                                                              |
+| Lens baked into the saved video                                                     | ✅ Football                                                                                                                                                                                                                                                                                                                                              |
+| Recording finalizes cleanly with a lens active                                      | ✅ no `ERROR_SOURCE_INACTIVE`                                                                                                                                                                                                                                                                                                                            |
+| No crash across install → carousel → 4 lens switches → photo → 27 s recording       | ✅ no FATAL, no `AndroidRuntime` exception                                                                                                                                                                                                                                                                                                               |
+| Dog ears clear the eyes                                                             | ✅ on this subject, matching the designed 0.19-unit clearance                                                                                                                                                                                                                                                                                            |
+| Bug Eyes — both eye circles fire independently, nose bridge clean (the *blob kill*) | ✅ A/B against the unlensed frame. **Not** a shareable-look pass; not verified on a face.                                                                                                                                                                                                                                                                |
+| Football hides the whole head                                                       | ❌ **not on this subject** — see §6                                                                                                                                                                                                                                                                                                                      |
 
 ## What no agent in this run could verify, and why
 

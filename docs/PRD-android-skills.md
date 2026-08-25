@@ -9,7 +9,7 @@
 
 Agent sessions in this repo rely on model training data that can be a year stale — which is
 why `CLAUDE.md` forces a `developer.android.com` search before any claim about Android
-behavior. Google now ships the same knowledge as **agent skills**: 21 evaluated, versioned
+behavior. Google ships that same knowledge today as **agent skills**: 21 evaluated, versioned
 `SKILL.md` packages (the open standard OpenLoop's own `.claude/skills/` already uses),
 deliberately focused on "use cases and workflows where evaluations show LLMs underperform."
 Several target OpenLoop's exact domains: CameraX recording lifecycles, R8/keep-rule
@@ -26,7 +26,7 @@ contradicts this repo's architecture will steer sessions against it.
 2. The r8-analyzer flow produces an actionable keep-rule/app-size report on the 31 MB release bundle.
 3. No skill recommendation against a documented repo decision survives — the `CLAUDE.md`
    precedence section catches it.
-4. All existing gates stay green (markdown placement, cspell, lint).
+4. All existing gates stay green (Markdown placement, cspell, lint).
 
 ## Decision: all 21 skills via the official plugin (owner, 2026-08-21)
 
@@ -81,32 +81,32 @@ AGP-version suggestions vs the installed-Studio ceiling).
 
 ### High value (expected to trigger and help)
 
-| Skill | Why (verified against the skill body, not just its description) |
-|---|---|
-| `camera/camerax` | Core domain. Body read in full: recording-lifecycle pitfalls (`prepareRecording().withAudioEnabled()` immutability — we record video), `Camera2Interop` blueprints for manual controls, and references for **foldables** (our Fold lanes), **thermals** (long recordings), **ML Kit spatial** (coordinate mapping + mirrored lens — `LensAnchor`'s exact problem), and **testing** (fakes over mocks — matches `TEST_COVERAGE.md`). Current: last-updated 2026-08-06, CameraX-1.6-era APIs. |
-| `performance/r8-analyzer` | Body read in full. AGP 9.3.1 unlocks its quantitative Path A: `./gradlew :app:analyzeReleaseR8Config` → Python analysis → scored keep-rule report in `tmp/keepradius/` (gitignored, like play-policy-insights' `.scratch/`). Direct lever on the 31 MB bundle; becomes a release-cadence step. |
+| Skill                     | Why (verified against the skill body, not just its description)                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `camera/camerax`          | Core domain. Body read in full: recording-lifecycle pitfalls (`prepareRecording().withAudioEnabled()` immutability — we record video), `Camera2Interop` blueprints for manual controls, and references for **foldables** (our Fold lanes), **thermals** (long recordings), **ML Kit spatial** (coordinate mapping + mirrored lens — `LensAnchor`'s exact problem), and **testing** (fakes over mocks — matches `TEST_COVERAGE.md`). Current: last-updated 2026-08-06, CameraX-1.6-era APIs. |
+| `performance/r8-analyzer` | Body read in full. AGP 9.3.1 unlocks its quantitative Path A: `./gradlew :app:analyzeReleaseR8Config` → Python analysis → scored keep-rule report in `tmp/keepradius/` (gitignored, like play-policy-insights' `.scratch/`). Direct lever on the 31 MB bundle; becomes a release-cadence step.                                                                                                                                                                                              |
 
 ### Pilot first (run once before trusting its output — pilot approved 2026-08-21)
 
-| Skill | Why the caution |
-|---|---|
+| Skill                       | Why the caution                                                                                                                                                                                                                                                                                |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `play/play-policy-insights` | Not markdown — a ~100 kB Python harness (orchestrator, scanner, Play Store scraper) generating compliance reports against Permissions/Data-Safety policy domains. High value for our live Play presence (`docs/play-store/`), but its report earns trust by one pilot run, not by description. |
 
 ### Audit once (skill stays installed; the audit is a one-time task)
 
-| Skill | Why |
-|---|---|
-| `system/edge-to-edge` | One-time migration check against targetSdk 36; a camera-first UI is mostly there already. Run the audit, fix gaps, done. |
+| Skill                   | Why                                                                                                                                                             |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `system/edge-to-edge`   | One-time migration check against targetSdk 36; a camera-first UI is mostly there already. Run the audit, fix gaps, done.                                        |
 | `testing/testing-setup` | We already have a testing strategy (`docs/TEST_COVERAGE.md`); its references assume Hilt, which we don't use. Skim once for gaps (screenshot testing patterns). |
 
 ### Later (leverage when the domain work starts)
 
-| Skill | Trigger to adopt |
-|---|---|
-| `jetpack-compose/adaptive` | First real tablet/Fold-posture layout work. Caution: its references embed Navigation 3 recipes — use the layout guidance, ignore the nav recipes. |
-| `profilers/android-profiler` | First perf investigation that needs Perfetto (encoder churn, jank in the media pipeline). |
-| `security/android-intent-security` | Next feature touching share/import intents (`VideoImporter`, share sheet, MediaStore publish) — run as an audit then. |
-| `jetpack-compose/theming/styles` | Next design-system pass over `ui/theme/` + `ui/components/`. Its description is a migration recipe (dependency bump, component themes, `Modifier.styleable`) — adopt deliberately, not mid-feature. Triaged on frontmatter only; read the body at adoption time. |
+| Skill                              | Trigger to adopt                                                                                                                                                                                                                                                 |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `jetpack-compose/adaptive`         | First real tablet/Fold-posture layout work. Caution: its references embed Navigation 3 recipes — use the layout guidance, ignore the nav recipes.                                                                                                                |
+| `profilers/android-profiler`       | First perf investigation that needs Perfetto (encoder churn, jank in the media pipeline).                                                                                                                                                                        |
+| `security/android-intent-security` | Next feature touching share/import intents (`VideoImporter`, share sheet, MediaStore publish) — run as an audit then.                                                                                                                                            |
+| `jetpack-compose/theming/styles`   | Next design-system pass over `ui/theme/` + `ui/components/`. Its description is a migration recipe (dependency bump, component themes, `Modifier.styleable`) — adopt deliberately, not mid-feature. Triaged on frontmatter only; read the body at adoption time. |
 
 ### Evaluate separately (its own decision, not this PRD)
 
@@ -117,31 +117,31 @@ Swapping that layer is a real project with real risk. Open question below.
 
 ### Installed but guarded or dormant
 
-| Skill | Reason |
-|---|---|
-| `navigation/navigation-3` | **Guarded — installed per the all-21 decision, but its advice must not be followed here.** OpenLoop deliberately uses a sealed-state machine + exhaustive `OpenLoopNavHost` `when` (Lesson 014, `PRD-mission-control.md`), not Navigation. The `CLAUDE.md` precedence section exists chiefly for this skill. |
-| `jetpack-compose/migration/migrate-xml-views-to-jetpack-compose` | Pure Compose app; nothing to migrate. |
-| `build-system/agp/agp-9-upgrade` | Already on AGP 9.3.1. (Also: AGP ceiling is set by the installed Studio, not Maven.) |
-| `media/media3-cast-integration` | Cast is out of scope. Revisit only if a "play loops on TV" feature is ever proposed — YAGNI today. |
-| `play/play-billing-library-version-upgrade` | Free app, no IAP. |
-| `play/engage-sdk-integration`, `identity/verified-email`, `device-ai/appfunctions` | No matching surface in the app. |
-| `tv/*`, `wear/*`, `xr/*` | Form factors out of scope. |
+| Skill                                                                              | Reason                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `navigation/navigation-3`                                                          | **Guarded — installed per the all-21 decision, but its advice must not be followed here.** OpenLoop deliberately uses a sealed-state machine + exhaustive `OpenLoopNavHost` `when` (Lesson 014, `PRD-mission-control.md`), not Navigation. The `CLAUDE.md` precedence section exists chiefly for this skill. |
+| `jetpack-compose/migration/migrate-xml-views-to-jetpack-compose`                   | Pure Compose app; nothing to migrate.                                                                                                                                                                                                                                                                        |
+| `build-system/agp/agp-9-upgrade`                                                   | Already on AGP 9.3.1. (Also: AGP ceiling is set by the installed Studio, not Maven.)                                                                                                                                                                                                                         |
+| `media/media3-cast-integration`                                                    | Cast is out of scope. Revisit only if a "play loops on TV" feature is ever proposed — YAGNI today.                                                                                                                                                                                                           |
+| `play/play-billing-library-version-upgrade`                                        | Free app, no IAP.                                                                                                                                                                                                                                                                                            |
+| `play/engage-sdk-integration`, `identity/verified-email`, `device-ai/appfunctions` | No matching surface in the app.                                                                                                                                                                                                                                                                              |
+| `tv/*`, `wear/*`, `xr/*`                                                           | Form factors out of scope.                                                                                                                                                                                                                                                                                   |
 
 ## How future features use these skills
 
 The half of #139 that outlives this PR — what each adopted skill does for work we haven't
 started:
 
-| Future work | Skill leverage |
-|---|---|
-| Manual camera controls (exposure/focus for loops) | camerax `Camera2Interop` structural blueprint: ViewModel state → controller → session wiring, pre-decomposed to avoid the timeout failure mode it documents. |
-| Low-light / night loops | camerax `low-light.md` (Night Mode, LLB). |
-| Fold posture-aware capture UI | camerax `foldables.md` (hinge states) now; `jetpack-compose/adaptive` when layouts split. |
-| Long-recording stability | camerax `thermals.md` (`StreamUseCase`, thermal throttling) — pairs with the OEM regression lanes. |
-| Dual-lens photo booth / PiP capture | camerax `ConcurrentCamera` guidance. |
-| Every release | r8-analyzer report on keep-rule drift + size regression, alongside the existing DoD gate; play-policy-insights (if the pilot lands) as the pre-upload compliance check next to `pr-reviewer`. |
-| New lens features touching `FaceTracker`/`LensAnchor` | camerax `mlkit-spatial.md` (rotation, mirroring, coordinate mapping). |
-| `CameraManager` test coverage | camerax `testing.md` (`FakeCameraConfig`, async lifecycle validation). |
+| Future work                                           | Skill leverage                                                                                                                                                                                |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manual camera controls (exposure/focus for loops)     | camerax `Camera2Interop` structural blueprint: ViewModel state → controller → session wiring, pre-decomposed to avoid the timeout failure mode it documents.                                  |
+| Low-light / night loops                               | camerax `low-light.md` (Night Mode, LLB).                                                                                                                                                     |
+| Fold posture-aware capture UI                         | camerax `foldables.md` (hinge states) now; `jetpack-compose/adaptive` when layouts split.                                                                                                     |
+| Long-recording stability                              | camerax `thermals.md` (`StreamUseCase`, thermal throttling) — pairs with the OEM regression lanes.                                                                                            |
+| Dual-lens photo booth / PiP capture                   | camerax `ConcurrentCamera` guidance.                                                                                                                                                          |
+| Every release                                         | r8-analyzer report on keep-rule drift + size regression, alongside the existing DoD gate; play-policy-insights (if the pilot lands) as the pre-upload compliance check next to `pr-reviewer`. |
+| New lens features touching `FaceTracker`/`LensAnchor` | camerax `mlkit-spatial.md` (rotation, mirroring, coordinate mapping).                                                                                                                         |
+| `CameraManager` test coverage                         | camerax `testing.md` (`FakeCameraConfig`, async lifecycle validation).                                                                                                                        |
 
 ## Implementation plan (approved, sized S)
 

@@ -4,7 +4,11 @@ This is OpenLoop's plan and runbook for running the same checks Android Studio's
 Inspect Code** produces, headlessly, and folding them into the PR-merge gate alongside the
 [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) standards review.
 
-Last verified: 2026-08-20 · AGP 9.3.1 · Android Studio at `C:\Program Files\Android\Android Studio`
+Last verified: 2026-08-25 · AGP 9.3.2 · Gradle 9.7.1 · Android Studio at `C:\Program Files\Android\Android Studio`
+
+> **The gate is one command:** `.\scripts\pre-pr-sweep.ps1` runs every engine and tool on this page to
+> **zero** and writes `build/sweep-receipt.json`; a Claude Code hook refuses PR creation without it.
+> Full flow: [`DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md). This page is the *why* and the per-tool detail.
 
 ---
 
@@ -13,25 +17,29 @@ Last verified: 2026-08-20 · AGP 9.3.1 · Android Studio at `C:\Program Files\An
 Android Studio's single "Inspect Code" action is really **two analysis engines stacked**, and
 they differ enormously in how headless-runnable they are. OpenLoop treats them as two tiers.
 
-| Engine | Catches (examples from a real Inspect Code run) | Headless? |
-|--------|--------------------------------------------------|-----------|
-| **1. Android Lint** | *Correctness*: Obsolete Gradle dependency, Newer library versions available, Target SDK not latest. *Performance*: `mipmap-anydpi-v26` unnecessary (`ObsoleteSdkInt`). *Usability*: image in density-independent drawable folder (`IconLocation`), monochrome icon not defined, launcher silhouette, duplicated icons. | ✅ **Yes** — `./gradlew :app:lintDebug`, no IDE needed |
-| **2. IntelliJ inspections + Grazie** | Kotlin *redundant constructs*, Java *declaration redundancy*, *Markdown* table formatting / numbered lists / **unresolved file references**, the Markdown "Annotator" parse errors ("Expecting an element"), and *Proofreading* (grammar, typos, style). | ⚠️ **IDE-only** — needs `inspect.bat`; slow; not reproducible by lint or standalone OSS tools (esp. Grazie grammar) |
+| Engine                               | Catches (examples from a real Inspect Code run)                                                                                                                                                                                                                                                                        | Headless?                                                                                                           |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **1. Android Lint**                  | *Correctness*: Obsolete Gradle dependency, Newer library versions available, Target SDK not latest. *Performance*: `mipmap-anydpi-v26` unnecessary (`ObsoleteSdkInt`). *Usability*: image in density-independent drawable folder (`IconLocation`), monochrome icon not defined, launcher silhouette, duplicated icons. | ✅ **Yes** — `./gradlew :app:lintDebug`, no IDE needed                                                               |
+| **2. IntelliJ inspections + Grazie** | Kotlin *redundant constructs*, Java *declaration redundancy*, *Markdown* table formatting / numbered lists / **unresolved file references**, the Markdown "Annotator" parse errors ("Expecting an element"), and *Proofreading* (grammar, typos, style).                                                               | ⚠️ **IDE-only** — needs `inspect.bat`; slow; not reproducible by lint or standalone OSS tools (esp. Grazie grammar) |
 
 ---
 
 ## Tier 1 — Android Lint (automated gate, runs on every review)
 
 Lint is deterministic and CI-safe, so it is wired directly into the `pr-reviewer` skill
-(Phase 3.5) and is a **hard merge gate**: zero new lint **errors** to merge.
+(Phase 3.5) and into the sweep, and is a **hard merge gate**: zero lint **errors and warnings**.
+The sweep parses `lint-results-debug.xml` itself rather than flipping `abortOnError` /
+`warningsAsErrors` — the reviewer skill still needs the build to succeed and emit a full report.
+The version-freshness checks (`GradleDependency`, `NewerVersionAvailable`,
+`AndroidGradlePluginVersion`) are **advisory**: their messages embed a moving upstream version, so
+they self-invalidate on a schedule nobody here controls (see "Message drift" below).
 
 ### Configuration (already in `app/build.gradle.kts`)
 
 ```kotlin
 android {
     lint {
-        xmlReport = true          // machine-readable — the skill parses this
-        htmlReport = true         // human-readable companion for local triage
+        // XML + HTML reports are always generated on AGP 9.3+ (xmlReport/htmlReport are deprecated no-ops)
         checkDependencies = true  // lint included-module code too
         // No baseline — see "No baseline" below.
         abortOnError = false      // the skill decides the verdict, not the build
@@ -60,14 +68,14 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # macOS: see RE
 this gate was added (the repo carried ~294 pre-existing inspection items, of which 11 were
 lint-detectable) until 2026-08-17, when all 11 were **fixed** rather than carried:
 
-| Entries | Issue | How it was cleared |
-|---|---|---|
-| 2 | `MonochromeLauncherIcon` | Added a `<monochrome>` layer — themed icons on Android 13+ (a real product gap, not just a lint nag) |
-| 2 + 1 | `IconLauncherShape`, `IconDuplicates` | Deleted `mipmap-xxxhdpi/` — legacy pre-API-26 bitmaps, unreachable at minSdk 26 |
-| 1 | `ObsoleteSdkInt` | `mipmap-anydpi-v26/` → `mipmap-anydpi/` |
-| 1 | `IconLocation` | `onboarding_skater.jpg` deleted — it only ever rendered under Compose `@Preview`, and shipped 649 KB to do it (owner's call) |
-| 1 | `UnusedAttribute` | Scoped `tools:ignore` **at the source** in `AndroidManifest.xml`, with the reason next to the attribute |
-| 2 + 1 | `GradleDependency`, `NewerVersionAvailable` | Bumped activity-compose, datastore-preferences, kotlinx-coroutines-test to current stable |
+| Entries | Issue                                       | How it was cleared                                                                                                           |
+| ------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 2       | `MonochromeLauncherIcon`                    | Added a `<monochrome>` layer — themed icons on Android 13+ (a real product gap, not just a lint nag)                         |
+| 2 + 1   | `IconLauncherShape`, `IconDuplicates`       | Deleted `mipmap-xxxhdpi/` — legacy pre-API-26 bitmaps, unreachable at minSdk 26                                              |
+| 1       | `ObsoleteSdkInt`                            | `mipmap-anydpi-v26/` → `mipmap-anydpi/`                                                                                      |
+| 1       | `IconLocation`                              | `onboarding_skater.jpg` deleted — it only ever rendered under Compose `@Preview`, and shipped 649 KB to do it (owner's call) |
+| 1       | `UnusedAttribute`                           | Scoped `tools:ignore` **at the source** in `AndroidManifest.xml`, with the reason next to the attribute                      |
+| 2 + 1   | `GradleDependency`, `NewerVersionAvailable` | Bumped activity-compose, datastore-preferences, kotlinx-coroutines-test to current stable                                    |
 
 An **empty** baseline is worse than none: it reproduces the "created with a different
 target/variant" noise on every `lintVitalRelease` and stands as an invitation to regenerate.
@@ -106,106 +114,117 @@ cannot hide anything, because a non-matching entry was suppressing nothing. Veri
 
 ### Severity mapping (lint → review verdict)
 
-| Lint severity / category | Review severity |
-|--------------------------|-----------------|
-| `Error` / `Fatal` | **FAIL** |
-| `Warning` in Correctness / Security / Performance (`OldTargetApi`, `GradleDependency`, `NewerVersionAvailable`, …) | **WARNING** |
-| `Warning` in Usability / i18n / icons | **RECOMMENDATION** |
-| `Hint` / `Informational` (e.g. `LintBaseline`) | ignored — not a finding |
+| Lint severity / category                                                                                           | Review severity         |
+| ------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| `Error` / `Fatal`                                                                                                  | **FAIL**                |
+| `Warning` in Correctness / Security / Performance (`OldTargetApi`, `GradleDependency`, `NewerVersionAvailable`, …) | **WARNING**             |
+| `Warning` in Usability / i18n / icons                                                                              | **RECOMMENDATION**      |
+| `Hint` / `Informational` (e.g. `LintBaseline`)                                                                     | ignored — not a finding |
 
 ---
 
-## Tier 2 — IDE inspections + proofreading (faithful, run locally before merge)
+## Tier 2 — IDE inspections + proofreading (faithful; run from Android Studio, parsed by the sweep)
 
 This is the **only** faithful reproduction of the Kotlin-redundancy, Markdown, and **proofreading**
-findings — because it is literally the same engine Android Studio uses, run headless against the
-committed inspection profile. It needs Android Studio installed and is slow (it boots a headless
-IDE instance), so it is **not** part of the automated skill run. Instead, the author runs it
-locally before opening/merging a PR, and the merge policy requires it to be clean.
+findings — it is literally the engine Android Studio runs. It cannot be run headlessly on this
+machine (see the gotcha below), so the flow is: run it **in the IDE**, export HTML, and let the
+sweep turn the export into a pass/fail over tracked files.
+
+### Running it
+
+1. **Scope first.** Code → Inspect Code → *Custom scope* → **OpenLoop Tracked**. The scope is
+   committed at `.idea/scopes/OpenLoop_Tracked.xml` (`.gitignore` un-ignores `.idea/scopes/` and
+   `.idea/dictionaries/` for exactly this). It excludes `.claude/worktrees/` (git worktrees — full
+   copies of the repo), build output, the gitignored DeepAR bundle, `docs/local/`, the swarm
+   message-bus logs and every other file git does not track. A "whole project" run once produced
+   **82,752 items in a 9 GB export, 98 % of them phantom** (Lesson 038).
+2. **Export → HTML** into `build/inspect-export/` (gitignored). Don't put it at the repo root.
+3. **Parse it:** `python scripts/inspect-report.py build/inspect-export/index.html` — or just run the
+   sweep, which does this in gate 9. The parser streams the export, keeps only problems in files
+   `git ls-files` knows, and exits non-zero on any *hard* finding. Advisory inspections (the
+   version-freshness checks, and the Play Policy "Foreground Services Insights" whose justification
+   lives in Play Console, not in code) are listed but never fail it. `--tsv` writes the full list.
+4. **Typos** are dictionary-driven: `cspell.json` `words` is the single project vocabulary, and
+   `python scripts/sync-ide-dictionary.py` derives `.idea/dictionaries/project.xml` from it
+   (committed; the sweep fails if it is stale). Add a legitimate term there, fix a real typo in
+   place. IntelliJ looks words up case-insensitively, so the XML holds them lowercased.
+5. **Suppress at the source, with a reason**, when an inspection is wrong for this code — the
+   manifest's `<!--suppress AndroidDomInspection -->` above the Photo Picker `ModuleDependencies`
+   service, `@Suppress("SameReturnValue")` on a documented design seam, `@Suppress("UnstableApiUsage")`
+   on the Gradle template's `RepositoriesMode`. Never a baseline, never disabling the inspection.
+
+### The headless route is vacuous here — don't trust it
+
+`inspect.bat` exists (`C:\Program Files\Android\Android Studio\bin\inspect.bat <project> <profile>
+<out> -v2 -d <scope>`), but on Studio **Quail** with this project's external-storage module model it
+completes in ~10 s, writes only `.descriptions.xml`, and reports **zero problems because it indexed
+zero files** — the log tell is `PerProjectIndexingQueue - Finished for [OpenLoop]. No files to index`.
+Confirmed 2026-08-08 by planting a throwaway `.kt` with an unused import, a redundant type, a stray
+semicolon and three typos: still zero result files. Same shape as [Lesson 011](lessons_learned/011-16kb-uncompressed-native-libs.md)'s
+vacuous `zipalign` pass. **An empty output dir is not a pass.** Until that changes, the IDE run above
+is the only Engine 2 that counts; an agent without Studio passes `-SkipInspectCode`, the receipt
+records it, and the PR description must say so.
+
+### What the IDE flags that nothing else does (so you know what the export is for)
+
+- **Grazie** grammar and dialect rules ("American English uses '-er' instead of '-re'", comma
+  before a coordinating conjunction, "Consider splitting this 45-word sentence"). The repo writes
+  **American English** in prose and comments; identifiers, log keys, string literals that match
+  platform messages (`"Pending dequeue output buffer request cancelled"`) and verbatim quotes are
+  never "corrected".
+- Kotlin inspections the compiler is silent on: unused imports/symbols, "parameter always has the
+  same value", redundant `requireNotNull`, `Long` overloads where a `Duration` exists, and so on.
+- Markdown "Incorrect table formatting" (pipes not vertically aligned — measured in UTF-16 units),
+  "Incorrectly numbered list item" (including a wrapped line that happens to start with `023)`),
+  "Unresolved file references" (a link to a bare directory resolves to `''` — link to a file).
+- `Mismatched image size` on `docs/index.html`: `width`/`height` attributes must be the image's
+  intrinsic size; CSS does the display sizing.
+
+---
+
+## Tier 3 — the headless text gates (hard; part of the sweep and of CI) ([Issue #21](https://github.com/stozo04/OpenLoop/issues/21))
+
+Tier 3 is the **Node/Python** subset of Engine 2 that runs anywhere: in the sweep (gates 6–8), and
+in CI (`.github/workflows/static-analysis.yml`) as a backstop. It **supplements** Tier 2 — it has no
+equivalent of Grazie grammar — but for the classes it covers it is the same bar: **zero, whole repo,
+no baseline.** (It used to be advisory and scoped to changed files while the docs carried ~600
+legacy hits; those were cleared on 2026-08-25 and the gate went hard.)
+
+### The tools (all run via `npx` / `python`, no committed `node_modules`)
+
+| Tool                                                                   | Config (committed)               | Approximates (Engine 2 finding)                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) | `.markdownlint-cli2.jsonc`       | Ordered-list numbering, list/heading/fence spacing, fence languages, emphasis-as-heading                                                                                                                                                   |
+| `scripts/md-table-align.py`                                            | —                                | "Incorrect table formatting" — pipes vertically aligned, **UTF-16 units like the IDE**. markdownlint's `MD060 aligned` measures display width instead (an emoji counts 2), so it disagrees on ✅/❌ rows and is off; `--fix` rewrites tables |
+| [`markdown-link-check`](https://github.com/tcort/markdown-link-check)  | `.markdown-link-check.json`      | "Unresolved file references" (validates **relative** links offline; HTTP is ignored — external-URL liveness is intentionally out of scope, it's flaky in CI)                                                                               |
+| [`cspell`](https://cspell.org)                                         | `cspell.json`                    | "Typo" — over **every** tracked text file (Markdown, Kotlin, XML, scripts, configs), because the IDE spell-checks comments and string literals too. `words` is the single project dictionary; the IDE XML is generated from it             |
+| `scripts/sync-ide-dictionary.py --check`                               | `.idea/dictionaries/project.xml` | Keeps the IDE's project dictionary identical to `cspell.json`                                                                                                                                                                              |
+| JSON validity (`python -c json.loads`)                                 | —                                | "Compliance with JSON standard"                                                                                                                                                                                                            |
+
+`markdownlint` still disables the opinionated prose rules IntelliJ doesn't flag (`MD013`
+line-length, `MD033` inline-HTML, `MD041` first-line-heading). `cspell` stays `en,en-GB` so test
+names and identifiers written in British English are not typos — dialect drift in *prose* is a
+Grazie (Tier 2) finding, and the prose is American.
 
 ### Running it
 
 ```powershell
-& "C:\Program Files\Android\Android Studio\bin\inspect.bat" `
-  "C:\Users\gates\Personal\OpenLoop" `
-  "C:\Users\gates\Personal\OpenLoop\.idea\inspectionProfiles\Project_Default.xml" `
-  "C:\Users\gates\Personal\OpenLoop\build\inspection-results" `
-  -v2 -d "C:\Users\gates\Personal\OpenLoop"
+.\scripts\pre-pr-sweep.ps1 -DocsOnly          # gates 6–9 only (docs-only branches; the receipt records it)
 ```
 
-- **Args:** project path · inspection profile · output dir · `-v2` (verbose) · `-d` (scope).
-- Point `-d` at the **repo root**, not just `app/src`, so it inspects `docs/` too — that's where
-  the Markdown "Annotator", unresolved-file-reference, and proofreading findings live (and where
-  the project already cares — see [Lesson 009](lessons_learned/009-toml-inline-tables-single-line.md)
-  / [Lesson 010](lessons_learned/010-markdown-code-fences-are-inspected.md)).
-- Output: one XML file per inspection in the output dir. Open in Studio or read as text.
-- The committed `.idea/inspectionProfiles/Project_Default.xml` only serializes the Compose-Preview
-  inspections explicitly; everything else (Kotlin redundancy, Markdown, Grazie proofreading) rides
-  on the IDE's built-in defaults, which the headless inspector loads too — so the run reproduces
-  the full Inspect Code result, not just the serialized entries.
-
-### Gotchas
-
-- **Slow** — minutes, because it boots a headless Studio. It's a pre-merge step, not a fast loop.
-- **Gradle/IDE lock** — do **not** run while Android Studio has this project open, or while a
-  `gradlew` task is running. Same build-lock deadlock documented in [Lesson 012](lessons_learned/012-camera-bound-screen-single-call-site.md).
-- **Environment-gated** — if `inspect.bat` isn't present (a cloud/CI runner without Studio), the
-  reviewer must state Engine 2 was **not run** rather than implying a pass. See Tier 3.
-- **⚠️ An empty output dir is NOT a pass — verify with a probe.** On Studio **Quail 2026.1.1**
-  (`AI-261.23567.138.2611.15503007`) the headless run completes in ~10 s, writes only
-  `.descriptions.xml`, and reports zero problems — because it never loads the Gradle/Android
-  module model (`inspect.bat` does not run a Gradle sync, and this project keeps its modules in
-  external storage: `ExternalStorageConfigurationManager enabled="true"`, no `modules.xml`/`.iml`
-  under `.idea/`). The log tell is `PerProjectIndexingQueue - Finished for [OpenLoop]. No files to
-  index with loading content.` Confirmed 2026-08-08 by dropping in a throwaway `.kt` with an unused
-  import, a redundant explicit type, a stray semicolon and three typos: **still zero result files.**
-  Same shape as [Lesson 011](lessons_learned/011-16kb-uncompressed-native-libs.md)'s vacuous
-  `zipalign` pass. **Before trusting a clean headless run, plant such a probe and confirm it is
-  reported; if it isn't, run Engine 2 from the IDE instead (Analyze → Inspect Code), which uses the
-  synced model.**
-
----
-
-## Tier 3 — lightweight OSS fallback for environments without Android Studio ([Issue #21](https://github.com/stozo04/OpenLoop/issues/21))
-
-When the reviewer runs somewhere without Android Studio (a cloud runner / CI), Engine 2 can't
-run. Tier 3 is a fast, headless, **Node-based** approximation of Engine 2's high-value subset. It
-**supplements** Tier 2 — it does not replace it (it has no equivalent of Grazie grammar).
-
-> **Advisory by design.** Tier 3 findings are surfaced at **RECOMMENDATION** severity, not as a
-> hard gate. None of these tools has a lint-style baseline, so Tier 3 is **scoped to a PR's
-> changed Markdown files** rather than the whole repo (the existing docs carry ~600 legacy
-> markdownlint hits). Caveat: file-level scoping means a *modified* doc surfaces its pre-existing
-> issues too, not only the changed lines — read Tier 3 output as "worth a look," not "blocking."
-
-### The tools (all run via `npx`, no committed `node_modules`)
-
-| Tool | Config (committed) | Approximates (Engine 2 finding) |
-|------|--------------------|---------------------------------|
-| [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) | `.markdownlint-cli2.jsonc` | Markdown table formatting, ordered-list numbering, list/heading/fence spacing |
-| [`markdown-link-check`](https://github.com/tcort/markdown-link-check) | `.markdown-link-check.json` | "Unresolved file references" (validates **relative** links offline; HTTP is ignored — external-URL liveness is intentionally out of scope, it's flaky in CI) |
-| [`cspell`](https://cspell.org) | `cspell.json` | Proofreading "typos" (`words` is the project dictionary of domain/tool proper-nouns) |
-
-The configs are tuned to match what Inspect Code actually reports: `markdownlint` disables the
-opinionated prose rules IntelliJ doesn't flag (`MD013` line-length, `MD060` table pipe-spacing,
-`MD033` inline-HTML); `cspell` is seeded with `OpenLoop`, `CameraX`, `ExoPlayer`, `detekt`,
-`Grazie`, etc. so real terms aren't flagged as typos.
-
-### Running it
+or by hand, whole repo:
 
 ```bash
-# Scope to the Markdown this PR changed (the intended use):
-FILES=$(git diff --name-only --diff-filter=d main...HEAD -- '*.md')
-npx --yes markdownlint-cli2 $FILES
-npx --yes cspell --no-progress $FILES
-for f in $FILES; do npx --yes markdown-link-check --config .markdown-link-check.json "$f"; done
-
-# Whole-repo audit (noisy — expect the ~600 legacy markdownlint hits):
-npx --yes markdownlint-cli2 "**/*.md"
+npx --yes markdownlint-cli2 $(git ls-files '*.md')
+python scripts/md-table-align.py            # add --fix to rewrite
+for f in $(git ls-files '*.md'); do npx --yes markdown-link-check --config .markdown-link-check.json -q "$f"; done
+git ls-files '*.md' '*.kt' '*.kts' '*.xml' '*.yml' '*.ps1' '*.py' '*.mjs' '*.json' '*.html' | npx --yes cspell --no-progress --file-list stdin
+python scripts/sync-ide-dictionary.py --check
 ```
 
-> Grow `cspell.json`'s `words` list when it flags a legitimate term — **don't disable the check**.
-> Same spirit as the lint baseline: keep the signal, don't silence it.
+> Grow `cspell.json`'s `words` list when it flags a legitimate term, then re-run
+> `python scripts/sync-ide-dictionary.py` — **don't disable the check**. Same spirit as the lint
+> baseline: keep the signal, don't silence it.
 
 ### Why detekt was deferred (not in this tier yet)
 
@@ -232,23 +251,26 @@ broken references on `main`** (not introduced by this work):
 `*.md` file outside `docs/` (allowed exceptions: root `README.md`, `CLAUDE.md`). Policy:
 [`docs/README.md`](README.md) § Enforcement.
 
-### Hosting Tier 3 — GitHub Actions (active)
+### Hosting Tier 3 — GitHub Actions (hard)
 
-Tier 3 runs in CI via **`.github/workflows/static-analysis.yml`** (`pull_request` on `**/*.md`,
-plus `workflow_dispatch` for manual runs). It uses `actions/checkout@v6` + `actions/setup-node@v6`
-(Node 24-era majors), diffs the PR's changed Markdown against the base SHA, and runs the three
-tools inside collapsible log groups. **Steps are non-blocking (`|| true`)** — findings surface in
-the job log, they don't fail the PR (advisory, per the design above). To promote a tool to a hard
-gate (e.g. fail on a newly-introduced dead link), drop its `|| true` in the workflow.
+Tier 3 runs in CI via **`.github/workflows/static-analysis.yml`** on every pull request (plus
+`workflow_dispatch`): `actions/checkout@v6`, `setup-node@v6`, `setup-python@v5`, then the same six
+checks as sweep gates 6–8 over the **whole tracked tree**. Every step is a **hard** gate — the tree
+is at zero, so a red step is something the PR introduced. The Gradle half of the sweep (build,
+lint, tests) is deliberately not in CI yet: it cannot be tried without pushing, and the receipt hook
+already makes it a precondition of every PR. Adding it is a follow-up, not a gap in the gate.
 
 ---
 
 ## How this plugs into the merge gate
 
-1. `pr-reviewer` **Phase 3.5** runs **Engine 1 (Lint)** automatically and folds findings into the
-   report at the mapped severity, with a new **"Static Analysis (Lint + IDE Inspect)"** row in the
+1. **Before the PR exists:** `scripts/pre-pr-sweep.ps1` must be green on the final commit — the
+   `PreToolUse` hook in `.claude/settings.json` (`scripts/hooks/require-sweep.mjs`) refuses
+   `gh pr create` / `create_pull_request` without `build/sweep-receipt.json` for `HEAD`.
+2. `pr-reviewer` **Phase 3.5** runs **Engine 1 (Lint)** automatically and folds findings into the
+   report at the mapped severity, with a **"Static Analysis (Lint + IDE Inspect)"** row in the
    summary table.
-2. The review's Verdict states whether **Engine 2 (IDE Inspect)** was run locally or skipped — its
-   absence never reads as a pass.
-3. The [README PR Merge Policy](../README.md#pr-merge-policy) lists both engines as merge
-   requirements.
+3. The review's Verdict states whether **Engine 2 (IDE Inspect)** was parsed from an export or
+   skipped (the receipt's `inspectCode` field says which) — its absence never reads as a pass.
+4. CI's text gates re-run Tier 3 as a backstop.
+5. The [README PR Merge Policy](../README.md#pr-merge-policy) lists all of it as merge requirements.

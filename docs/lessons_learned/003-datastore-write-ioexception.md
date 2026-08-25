@@ -50,9 +50,11 @@ class FailingWritePreferencesRepository : UserPreferencesRepository {
 ## Detection checklist
 
 - Grep for repository writes that touch DataStore — each call must be inside a try-catch for IOException (or its caller must catch it):
-  ```
+
+  ```text
   grep -rn "repository\.set\|Repository\.set" app/src --include="*.kt"
   ```
+
 - Every preferences-backed feature must have at least one test that exercises the IOException path.
 - The read-side `.catch { if (it is IOException) ... else throw it }` must re-throw non-IOException — silently swallowing all exceptions hides real bugs.
 

@@ -52,7 +52,7 @@ jobs:
       # Application Default Credentials.
       #
       # Phase 0 (simple): a service-account key JSON stored as the secret GCP_SA_KEY.
-      # More secure later: swap credentials_json for keyless Workload Identity Federation.
+      # More secure later: replace the `credentials_json` key file with keyless Workload Identity Federation.
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:

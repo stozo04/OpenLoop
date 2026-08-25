@@ -4,7 +4,7 @@
 
 Lesson 002's `gradle/libs.versions.toml` example was written as a **multi-line** inline table:
 
-```
+```text
 androidx-lifecycle-runtime-compose = {
     group = "androidx.lifecycle",
     name = "lifecycle-runtime-compose",
@@ -42,9 +42,11 @@ parsed.
 ## Detection checklist
 
 - Grep for an inline table that opens at end-of-line (the multi-line smell):
-  ```
+
+  ```text
   grep -rn "= {$" --include="*.toml" --include="*.md" .
   ```
+
   Each hit should be collapsed to one line or converted to a `[header]` table.
 - After editing any `.toml` (or a ` ```toml ` fence), confirm the IDE shows zero syntax errors.
 

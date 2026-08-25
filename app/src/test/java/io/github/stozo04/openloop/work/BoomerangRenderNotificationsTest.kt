@@ -67,7 +67,7 @@ class BoomerangRenderNotificationsTest {
     fun belowApi29_isUntyped() {
         // minSdk is 26; typed foreground services don't exist before API 29, so the worker uses the
         // untyped ForegroundInfo constructor and this helper's value is 0.
-        for (sdk in 26..(Build.VERSION_CODES.Q - 1)) {
+        for (sdk in 26..<Build.VERSION_CODES.Q) {
             assertEquals(
                 "API $sdk predates typed FGS and must be untyped (0)",
                 0,

@@ -104,6 +104,8 @@ import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import io.github.stozo04.openloop.ui.theme.shutterGradient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.withContext
 
 /**
@@ -235,7 +237,7 @@ fun CameraScreen(
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
-    // Native pinch host — intercepts multi-touch before PreviewView/SurfaceView can consume it.
+    // Native pinch host — intercepts multitouch before PreviewView/SurfaceView can consume it.
     val pinchHost = remember {
         PinchZoomLayout(context).also { host ->
             host.addView(
@@ -280,7 +282,7 @@ fun CameraScreen(
                 boothShot.intValue = shot
                 for (digit in BOOTH_COUNTDOWN_SECONDS downTo 1) {
                     boothDigit.intValue = digit
-                    delay(1_000L)
+                    delay(1.seconds)
                 }
                 // Grab AFTER the `1` clears. Compose overlays can never contaminate the grab
                 // (getBitmap() returns the camera preview content only), but this keeps the ritual
@@ -554,7 +556,7 @@ fun CameraScreen(
                         boothArmed = boothArmed,
                         // Genuinely disabled mid-booth (PRD §5.1) — the sequence replaces the
                         // shutter, and a real disable (vs. a no-op onClick) keeps TalkBack's
-                        // announcement, the confirm haptic, and the press animation honest.
+                        // announcement, the confirmation haptic, and the press animation honest.
                         enabled = !boothActive,
                         progressFraction = {
                             (recordingElapsedState.value.toFloat() / OpenLoopViewModel.MAX_RECORDING.inWholeMilliseconds)
@@ -823,7 +825,7 @@ private fun CaptureModeSegment(
  * an elapsed-time tick only triggers a redraw of the ring, never a recomposition of this button or
  * the screen above it.
  *
- * [enabled] wires straight into `clickable(enabled = …)`, which suppresses the tap, the confirm
+ * [enabled] wires straight into `clickable(enabled = …)`, which suppresses the tap, the confirmation
  * haptic, and the press interaction, and adds the disabled semantics TalkBack announces — a booth
  * sequence must not leave an announced-enabled shutter that silently does nothing (PRD-photo-booth
  * §5.1; the camera-flip button gates the same way).
@@ -1160,7 +1162,7 @@ fun rememberZoomChipVisible(pinchInProgress: Boolean, pinchEndCount: Int): Boole
         if (pinchInProgress) {
             visible = true
         } else if (visible) {
-            delay(ZOOM_CHIP_LINGER_MS)
+            delay(ZOOM_CHIP_LINGER_MS.milliseconds)
             visible = false
         }
     }

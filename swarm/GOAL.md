@@ -59,7 +59,7 @@ nose, cheek, forehead or jaw?* If yes, it is a prop pretending to be a character
 broccoli lens failed this on its first build and had to be redone; do not repeat it.
 
 **Branding — owner decision, 2026-08-15:** the Wilson script and NFL shield **stay**. Steven's call:
-the eyes-and-mouth composite covers the centre of the ball where the marks sit. Do not spend a round
+the eyes-and-mouth composite covers the center of the ball where the marks sit. Do not spend a round
 re-litigating it. Do the background key + autocrop + WebP q90 encode exactly as
 `lens_broccoli_art.webp` was done (PRD §11.2 "Encoding") — lossy body, lossless alpha, so the cut-out
 edge that makes the character read stays bit-exact.
@@ -73,14 +73,14 @@ edge that makes the character read stays bit-exact.
 The renderer supports exactly **three shapes** today, and adding a lens is designed to be *only* one
 `Lens.kt` enum entry plus its art. Every pitch **must name its tier**:
 
-| Tier | What it is | Shape in `Lens.kt` | Cost |
-|---|---|---|---|
-| **Prop** | Art drawn over a still-visible face | `art` set, `features = null` | Trivial — one entry + a drawable (`Shades`) |
-| **Character** | Opaque art over the whole head, eyes + mouth composited on | `art` set, `features` set | Trivial — one entry + a drawable (`Broccoli`) |
-| **Warp** | Radial UV displacement of the camera pixels | `warp` set, `art = null` | Trivial — one entry, no art (`Big Mouth`) |
+| Tier          | What it is                                                 | Shape in `Lens.kt`           | Cost                                          |
+| ------------- | ---------------------------------------------------------- | ---------------------------- | --------------------------------------------- |
+| **Prop**      | Art drawn over a still-visible face                        | `art` set, `features = null` | Trivial — one entry + a drawable (`Shades`)   |
+| **Character** | Opaque art over the whole head, eyes + mouth composited on | `art` set, `features` set    | Trivial — one entry + a drawable (`Broccoli`) |
+| **Warp**      | Radial UV displacement of the camera pixels                | `warp` set, `art = null`     | Trivial — one entry, no art (`Big Mouth`)     |
 
 A pitch that needs a capability the shader does not have (a second sticker, animation, a
-non-radial warp, colour grading, particles) is a **scope increase**: name the shader change, cost it,
+non-radial warp, color grading, particles) is a **scope increase**: name the shader change, cost it,
 and get **both agents' explicit ACK** before it enters the shortlist. Un-costed scope increases are
 killed on sight.
 
@@ -121,14 +121,14 @@ whether someone sends the clip to a friend.
 2. **No near-duplicate of a shipped lens.** Another face-covering vegetable, another mouth bulge, or
    another eyewear prop is a "no" — the catalogue should read as four distinct ideas.
 3. **Readable at a glance.** A lens that only works if the viewer already knows the joke is weak.
-4. **Face-unit sizeable.** You must be able to state its geometry in face units before you build it
+4. **Face-unit sizable.** You must be able to state its geometry in face units before you build it
    (§4). If you cannot describe where it sits, you do not understand it yet.
 
 ### 2.4 Each shortlist entry must include
 
 - Name + one-sentence description of what the viewer sees
 - **Tier** (prop / character / warp) and why that tier is sufficient
-- Art source and licence status (in-repo vector, public domain, or owner-supplied)
+- Art source and license status (in-repo vector, public domain, or owner-supplied)
 - Proposed geometry in **face units** — `widthInUnits`, `artAspect`, `upInUnits`, and for a
   character the full `FeatureLayout`; for a warp, `radiusInUnits` + `strength`
 - Evidence pack (≥3 dated sources)
@@ -154,7 +154,7 @@ whether someone sends the clip to a friend.
       this: **Pizza Face** (character), **Bug Eyes** (warp), **Cat Ears** (prop), backup **Pink
       Donut**. On a lens-choice deadlock, that ballot is the answer.
    2. **Smaller scope wins** — the option needing no new shader capability, no new dependency, no
-      new licence question.
+      new license question.
    3. **Stronger evidence wins** — more dated primary sources.
    4. **Alphabetical.** Dumb on purpose. It ends the argument and nothing about it is arguable.
 
@@ -164,7 +164,7 @@ whether someone sends the clip to a friend.
 
 **Minimum two rounds.** A third only if it would actually change the list; do not perform rounds.
 
-**PRD-first is honoured by `decisions.md`.** The locked shortlist section is the PRD of record for
+**PRD-first is honored by `decisions.md`.** The locked shortlist section is the PRD of record for
 this work. At PR time, fold it into `docs/PRD-camera-lenses.md` as a new §13 — do not create a
 second PRD.
 
@@ -177,11 +177,11 @@ second PRD.
 Every size is in **face units**, where one unit = the subject's eye-to-mouth distance
 (`LensAnchor.faceFrame`). The reference table lives in `Lens.kt`'s KDoc:
 
-| Real measurement | ≈ face units |
-|---|---|
-| head width, ear to ear | 1.55 |
-| eye line up to the crown | 1.25 |
-| mouth width, at rest | 0.8 |
+| Real measurement         | ≈ face units |
+| ------------------------ | ------------ |
+| head width, ear to ear   | 1.55         |
+| eye line up to the crown | 1.25         |
+| mouth width, at rest     | 0.8          |
 
 That table exists because an earlier pass reasoned the numbers from published head statistics and
 **every lens came out ~20 % oversized**. Re-measure against this table. Do not nudge a lens in
@@ -233,14 +233,14 @@ scope — not a footnote.
 
 **The repo's gate, not a lighter one:** `docs/DEFINITION_OF_DONE.md`.
 
-| Gate | Command | Bar |
-|---|---|---|
-| Debug build | `./gradlew :app:assembleDebug` | `BUILD SUCCESSFUL`, **exit 0**, zero `e:` |
-| Release build | `./gradlew :app:assembleRelease` | same |
-| Unit tests | `./gradlew :app:testDebugUnitTest` | **0 failures** |
-| Instrumented | `./gradlew :app:connectedDebugAndroidTest` | 0 failures — on the **Pixel_8 AVD** |
-| Lint | `./gradlew :app:lintDebug` | zero *new* errors |
-| Run it | launch on the emulator | screenshot captured |
+| Gate          | Command                                    | Bar                                       |
+| ------------- | ------------------------------------------ | ----------------------------------------- |
+| Debug build   | `./gradlew :app:assembleDebug`             | `BUILD SUCCESSFUL`, **exit 0**, zero `e:` |
+| Release build | `./gradlew :app:assembleRelease`           | same                                      |
+| Unit tests    | `./gradlew :app:testDebugUnitTest`         | **0 failures**                            |
+| Instrumented  | `./gradlew :app:connectedDebugAndroidTest` | 0 failures — on the **Pixel_8 AVD**       |
+| Lint          | `./gradlew :app:lintDebug`                 | zero *new* errors                         |
+| Run it        | launch on the emulator                     | screenshot captured                       |
 
 Two things that bite here specifically:
 

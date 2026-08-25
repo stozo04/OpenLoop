@@ -10,14 +10,26 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 
 **OpenLoop is live in Production and reachable by billions of users. Any error the agent encounters while working — a failing test, a compile error, a lint error, a crash — MUST be fixed before a PR is created. No exceptions, even for pre-existing failures the agent did not introduce.**
 
-- "Not my change" is **not** a reason to leave a red build. If you touch a module and its tests don't compile or don't pass, you fix them as part of the work (or, if the fix is genuinely out of scope, you **stop and flag it to the owner and get explicit direction** — you do not open a PR on top of a known-broken baseline).
-- A PR must be opened only from a **fully green** state: clean debug + release build, **0 test failures**, **0 new lint errors**. A known failing test in the branch is a release blocker, full stop.
+- "Not my change" is **not** a reason to leave a red build. If you touch a module and its tests don't compile or don't pass, you fix them as part of the work. If the fix is genuinely out of scope, you **stop and flag it to the owner and get explicit direction** — you do not open a PR on top of a known-broken baseline.
+- A PR must be opened only from a **fully green** state: clean debug + release build, **0 test failures**, **0 lint errors, 0 lint warnings, 0 compiler warnings, 0 Markdown/spelling/inspection findings**. A known failing test in the branch is a release blocker, full stop.
+- **The pre-PR sweep is the gate, and it is mechanical.** `.\scripts\pre-pr-sweep.ps1` runs every check below and writes `build/sweep-receipt.json` only when all of them are green. A Claude Code `PreToolUse` hook (`scripts/hooks/require-sweep.mjs`, wired in `.claude/settings.json`) refuses `gh pr create` and the GitHub `create_pull_request` tool unless that receipt exists **for the current `HEAD` on a clean tree** — so the sweep is, by construction, the last thing that runs after the final commit. Humans run the same script; there is no other route to a PR.
 - If you discover the breakage was already on `main`, that makes it **more** urgent, not less — a broken gate on `main` means the safety net is down for every future change. Repair it (or escalate) immediately; never build on top of it.
 - Capture the green proof (build verdict + exit 0 + test counts, per the gate below) in the PR.
 
 ---
 
 ## The gate (run top to bottom)
+
+> **One command runs steps 1–4 and the text gates and enforces zero across the board:**
+>
+> ```powershell
+> .\scripts\pre-pr-sweep.ps1                         # full sweep — emulator/device attached, Inspect Code export present
+> .\scripts\pre-pr-sweep.ps1 -SkipConnected -SkipInspectCode   # what an agent without Studio/emulator can run; the PR must say so
+> ```
+>
+> It reports every gate (it never stops at the first red), logs to `build/sweep.log`, and writes
+> `build/sweep-receipt.json` on green. The steps below are what it runs, kept here so a human can
+> reproduce any one of them by hand.
 
 ### 0. Baseline — before you change anything
 
@@ -55,7 +67,9 @@ Reproduce both Inspect Code engines and clear them. Full design + severity rules
 .\gradlew.bat :app:lintDebug --console=plain        # Engine 1 — Android Lint (the automated gate)
 ```
 
-There is no lint baseline, so the report must show **zero `severity="Error"` entries** outright; remaining warnings are triaged by severity. Then run **Engine 2** (IDE inspections + proofreading) locally via `inspect.bat` (command in `STATIC_ANALYSIS.md`) — it's slow and needs Android Studio closed. **Do not introduce a `lint-baseline.xml` to silence findings** — a generated baseline swallows every issue currently in the tree, including ones the PR just added. Fix it, or suppress it at the source with a stated reason.
+There is no lint baseline, so the report must show **zero `severity="Error"` entries and zero `severity="Warning"` entries** (the sweep parses the XML; only the version-freshness checks `GradleDependency` / `NewerVersionAvailable` / `AndroidGradlePluginVersion` are advisory). Then **Engine 2** (IDE inspections + proofreading): in Android Studio run **Code → Inspect Code** with the custom scope **OpenLoop Tracked**, export the result as HTML into `build/inspect-export/`, and let the sweep parse it (`python scripts/inspect-report.py build/inspect-export/index.html` — zero hard findings in tracked files). The headless `inspect.bat` is vacuous on this machine (`STATIC_ANALYSIS.md`), so the IDE run is the real one. **Do not introduce a `lint-baseline.xml` to silence findings** — a generated baseline swallows every issue currently in the tree, including ones the PR just added. Fix it, or suppress it at the source with a stated reason.
+
+The text gates run alongside (all zero, whole repo, no baseline): `markdownlint-cli2`, `python scripts/md-table-align.py`, `markdown-link-check`, `cspell` over every tracked text file (legit terms go into `cspell.json` `words`; `python scripts/sync-ide-dictionary.py` keeps the IDE dictionary identical), and JSON validity.
 
 ### 4. Automated tests — unit and instrumented
 
@@ -101,7 +115,7 @@ A command finishing is **not** a passed build. Confirm all three:
 
 1. The verdict line says **`BUILD SUCCESSFUL`** (not `BUILD FAILED`).
 2. Gradle's **exit code is `0`** — `echo $LASTEXITCODE` (PowerShell) / `echo $?` (bash), captured *right after* gradlew.
-3. **Zero `e:` lines** (Kotlin compile errors). Then skim `w:` warnings and `Unable to strip ... .so` notes (benign) and decide which matter.
+3. **Zero `e:` lines** (Kotlin compile errors) **and zero `w:` lines.** Kotlin warnings are build failures (`allWarningsAsErrors = true` in `app/build.gradle.kts`); a `w:` from a build script (a deprecated DSL) is caught by the sweep. `Unable to strip ... .so` notes are benign.
 
 > **Gotcha:** piping Gradle through `| tail` (or any pipe) gives you the *pipe's* exit code, not Gradle's — a failed build can look like it "passed." Read the `BUILD SUCCESSFUL`/`BUILD FAILED` line itself. (This is also in the README; it bit us once.)
 
@@ -123,7 +137,8 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] Baseline green before changes (clean assembleDebug)
 - [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
-- [ ] Static analysis: Android Lint 0 new errors (lintDebug); IDE Inspect Code run locally + findings addressed
+- [ ] `.\scripts\pre-pr-sweep.ps1` GREEN on the final commit: build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown + tables + links + cspell + JSON all zero (receipt: build/sweep-receipt.json)
+- [ ] Inspect Code (Engine 2) export parsed to 0 hard findings — or the PR says it was SKIPPED and why
 - [ ] Play-facing docs aligned (owner rule, 2026-08-24): permission/telemetry/storage changes → data-safety.md + privacy policy (md + html, new effective date); lens/feature changes → store-listing.md (+ docs/index.html, root README.md)
 - [ ] Agent memory aligned (owner rule, 2026-08-24, Claude sessions): the project memory (`MEMORY.md` index + entries) reflects what this PR changed — new durable facts captured, entries this PR made stale corrected or deleted. Memory is never left stale.
 - [ ] Root `README.md` aligned (owner rule, 2026-08-24): the GitHub-facing README reflects this PR — feature list, tech stack, SDK levels, state machine, commands. Never stale.

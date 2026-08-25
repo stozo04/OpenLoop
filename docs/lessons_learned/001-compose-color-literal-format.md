@@ -12,19 +12,23 @@ Compose's `Color(value: Long)` constructor expects exactly **8 hex digits** in `
 
 1. Count the hex digits after `0x` — there must be exactly 8. 6 means missing alpha; 10+ means a typo.
 2. Prefer named constants in the design system file over inline hex literals:
+
    ```kotlin
    private val NeonPurple = Color(0xFF7C4DFF)
    private val NeonCoral  = Color(0xFFFF5252)
    ```
+
    Centralizing colors makes typos cheaper to catch and easier to fix in one place.
 3. Cross-reference any new color against the design tokens table in `docs/PRD-mission-control.md`.
 
 ## Detection checklist
 
 - Search for `Color(0x` in the diff; verify each match has exactly 8 digits between `0x` and `)`.
-  ```
+
+  ```text
   grep -rn "Color(0x" app/src --include="*.kt"
   ```
+
 - For any theme-level color change, confirm it matches the design tokens table.
 
 ## Reference

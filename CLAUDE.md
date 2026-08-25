@@ -25,7 +25,7 @@ Order of operations at session start:
 
 1. Read this `CLAUDE.md` (already in context).
 2. Read `docs/lessons_learned/README.md` — it explains the two tiers and carries the index.
-3. Read **every core lesson in full: 008 and 011–036.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
+3. Read **every core lesson in full: 008 and 011–038.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
 4. **Skim the index rows for the baseline lessons (001–007, 009, 010)** — generic Android/Compose hygiene now largely held by Lint, CI, and IDE inspections. Open one only when the work actually touches that area.
 5. Proceed with the user's request.
 
@@ -67,7 +67,9 @@ Before anything destructive (deleting files, overwriting code, sending communica
 
 **Production zero-error rule (non-negotiable):** OpenLoop is live in Production and reachable by billions of users. **Any error the agent encounters while working — a failing test, a compile error, a lint error, a crash — MUST be resolved before a PR is created, even pre-existing failures the agent did not introduce.** "Not my change" is never a reason to open a PR on a red baseline; fix it as part of the work, or stop and escalate to the owner for explicit direction. A PR is opened only from a fully green state (clean debug + release build, 0 test failures, 0 new lint errors). Full policy in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**.
 
-A change is **not done because it compiles.** Before calling any non-trivial change done or opening a PR, clear the verification gate in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**: baseline → clean build (debug **and** release) genuinely green → requirement checks (e.g. 16 KB `zipalign`) → unit + instrumented tests with 0 failures → **static analysis clean** (Android Lint reports zero *new* errors via `./gradlew :app:lintDebug`, and IDE "Inspect Code" / `inspect.bat` run locally — see **[`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md)**) → **actually run the app on an emulator, launch it, and capture a screenshot as proof** → honestly state what could not be verified + a manual QA checklist → attach the screenshot to the PR. "Genuinely green" = `BUILD SUCCESSFUL` **and** exit code 0 **and** zero `e:` errors (never trust a `| tail`-masked exit code). This is the standard, not a nice-to-have.
+A change is **not done because it compiles.** Before calling any non-trivial change done or opening a PR, clear the verification gate in **[`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md)**: baseline → clean build (debug **and** release) genuinely green → requirement checks (e.g. 16 KB `zipalign`) → unit + instrumented tests with 0 failures → **static analysis at zero** (Android Lint 0 errors **and** 0 warnings, the Markdown/spelling/JSON text gates at 0, and the Android Studio "Inspect Code" export parsed to 0 hard findings — see **[`docs/STATIC_ANALYSIS.md`](docs/STATIC_ANALYSIS.md)**) → **actually run the app on an emulator, launch it, and capture a screenshot as proof** → honestly state what could not be verified + a manual QA checklist → attach the screenshot to the PR. "Genuinely green" = `BUILD SUCCESSFUL` **and** exit code 0 **and** zero `e:` **and** zero `w:` lines (never trust a `| tail`-masked exit code). This is the standard, not a nice-to-have.
+
+**The pre-PR sweep is mandatory and mechanical (owner rule, 2026-08-25):** `.\scripts\pre-pr-sweep.ps1` runs every one of those checks to zero and writes `build/sweep-receipt.json`; the `PreToolUse` hook in `.claude/settings.json` refuses `gh pr create` / `create_pull_request` without a receipt for the current `HEAD` on a clean tree. Run it **after the final commit**. If Android Studio or an emulator is unavailable, pass `-SkipInspectCode` / `-SkipConnected` and say so in the PR — never work around the hook.
 
 ### Note-taking
 
@@ -81,21 +83,21 @@ Show reasoning, not just conclusions. I value breadth and rigor equally — cast
 
 When operating in a specific subfolder that has its own CLAUDE.md, respect that folder's voice and approach. The root CLAUDE.md (this file) provides defaults; subfolder overrides take precedence.
 
-All project documentation (`.md` files) belongs in the `docs/` directory — not the project root. The only exceptions are `CLAUDE.md` and `README.md` which live at the root by convention. **Folder map and placement rules:** [`docs/README.md`](docs/README.md) (markdown layout, image assets, gitignored `docs/local/` for private notes).
+All project documentation (`.md` files) belongs in the `docs/` directory — not the project root. The only exceptions are `CLAUDE.md` and `README.md` which live at the root by convention. **Folder map and placement rules:** [`docs/README.md`](docs/README.md) (Markdown layout, image assets, gitignored `docs/local/` for private notes).
 
 ## Architecture Snapshot
 
 ### Tech Stack
 
-| Layer | Technology | Version |
-|-------|-----------|--------|
-| Language | Kotlin | 2.4.10 |
-| UI | Jetpack Compose | BOM 2026.08.00 |
-| Camera | AndroidX CameraX | 1.6.1 |
-| Media | AndroidX Media3 (ExoPlayer, Transformer) | 1.11.0 |
-| Preferences | Jetpack DataStore (Preferences) | 1.2.1 |
-| Build | Gradle 9.5.0, AGP 9.3.1 | — |
-| Target | compileSdk 37, minSdk 26, targetSdk 36 | — |
+| Layer       | Technology                               | Version        |
+| ----------- | ---------------------------------------- | -------------- |
+| Language    | Kotlin                                   | 2.4.10         |
+| UI          | Jetpack Compose                          | BOM 2026.08.00 |
+| Camera      | AndroidX CameraX                         | 1.6.1          |
+| Media       | AndroidX Media3 (ExoPlayer, Transformer) | 1.11.0         |
+| Preferences | Jetpack DataStore (Preferences)          | 1.2.1          |
+| Build       | Gradle 9.5.0, AGP 9.3.2                  | —              |
+| Target      | compileSdk 37, minSdk 26, targetSdk 36   | —              |
 
 > **SDK status (shipped via [Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36 (Android 16)** — `targetSdk` 36, `compileSdk` 37, `minSdk` stays 26 — which is Google Play's target-API floor for new apps and updates from 2026-08-31 (`ANDROID_STANDARDS.md` §8 carries the dated citation). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and `ANDROID_STANDARDS.md` §11. Play's requirement: [Target API Level Requirements](https://developer.android.com/google/play/requirements/target-sdk).
 
@@ -105,13 +107,15 @@ All project documentation (`.md` files) belongs in the `docs/` directory — not
 io.github.stozo04.openloop/
 ├── camera/
 │   ├── CameraManager.kt         # CameraX bind/unbind, recording, lens toggle, pinch-zoom control
-│   ├── PinchZoomLayout.kt       # FrameLayout that intercepts multi-touch for pinch (Fold-safe)
+│   ├── PinchZoomLayout.kt       # FrameLayout that intercepts multitouch for pinch (Fold-safe)
 │   ├── ZoomUi.kt                # Pure zoom snapshot + clamp/chip-format math (JVM-tested)
 │   └── lens/                    # Live camera lenses — docs/PRD-camera-lenses.md
 │       ├── Lens.kt              # The catalogue. Nothing outside this file names an individual lens
 │       ├── LensAnchor.kt        # Pure face-frame placement math (JVM-tested: LensAnchorTest)
-│       ├── LensSurfaceProcessor.kt  # The ONE CameraEffect: EGL + 3 GL programs, sticker/feature draw
-│       └── FaceTracker.kt       # ML Kit (stable API) ImageAnalysis.Analyzer → FaceSnapshot
+│       ├── LensSurfaceProcessor.kt  # The ONE CameraEffect: EGL + 3 GL programs, sticker/feature draw per face
+│       ├── LensMotion.kt        # Per-face wobble springs + eased mouth, stepped once per frame (JVM-tested)
+│       ├── FaceRoster.kt        # Pure slot rule + per-face hold + id-churn adoption (JVM-tested) — docs/PRD-multi-face-lenses.md
+│       └── FaceTracker.kt       # ML Kit (stable API) ImageAnalysis.Analyzer → List<FaceSnapshot> (up to 2)
 ├── data/                        # UserPreferencesRepository (DataStore), VideoStorageRepository, VideoImporter
 ├── diagnostics/                 # AnalyticsReporter + Crashlytics wrappers, debug-report share
 ├── media/                       # The pipeline
@@ -163,15 +167,15 @@ Design tokens, storage layout, and the engineering decision log live in `docs/PR
 
 ## Reference Documents
 
-| Document | Purpose |
-|----------|--------|
-| [`docs/README.md`](docs/README.md) | **Documentation layout** — where every `.md` and doc image belongs; enforcement rules |
-| `docs/DEFINITION_OF_DONE.md` | **The "Ready for PR" verification gate** — build + test + *run the app + screenshot* before anything is called done. Non-negotiable for non-trivial changes. |
-| `docs/lessons_learned/` | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.** |
-| `docs/PRD-mission-control.md` | **Durable design record** — design tokens, storage layout, decision log. Check the decision log before structural changes; the Architecture Snapshot above is the structural map. |
-| `docs/TEST_COVERAGE.md` | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. **OEM lanes:** [`docs/guides/oem-regression-testing.md`](docs/guides/oem-regression-testing.md). |
-| `docs/ANDROID_STANDARDS.md` | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7). |
-| `docs/STATIC_ANALYSIS.md` | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the no-baseline policy, and severity mapping. |
-| `docs/guides/` | **Plain-English how-tos and durable reference** (reverse algorithm, Robolectric, OEM lanes). Index: [`docs/guides/README.md`](docs/guides/README.md). |
-| `docs/play-store/` | **Play Console submission pack** — privacy policy, data safety, store listing copy, signing. |
-| `.github/` | PR template, branch naming (`feature/<short-description>`), and workflow conventions. |
+| Document                           | Purpose                                                                                                                                                                                                                                                                                               |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`docs/README.md`](docs/README.md) | **Documentation layout** — where every `.md` and doc image belongs; enforcement rules                                                                                                                                                                                                                 |
+| `docs/DEFINITION_OF_DONE.md`       | **The "Ready for PR" verification gate** — build + test + *run the app + screenshot* before anything is called done. Non-negotiable for non-trivial changes.                                                                                                                                          |
+| `docs/lessons_learned/`            | **Distilled rules from past PR reviews and bugs. Read every file at session start — see "Required Reading" above.**                                                                                                                                                                                   |
+| `docs/PRD-mission-control.md`      | **Durable design record** — design tokens, storage layout, decision log. Check the decision log before structural changes; the Architecture Snapshot above is the structural map.                                                                                                                     |
+| `docs/TEST_COVERAGE.md`            | **Testing strategy and inventory.** Defines test directories, pyramid, frameworks, coroutine testing, current coverage, and gaps. Sourced from Google docs. **OEM lanes:** [`docs/guides/oem-regression-testing.md`](docs/guides/oem-regression-testing.md).                                          |
+| `docs/ANDROID_STANDARDS.md`        | **Google Android best practices.** Non-negotiable standards with links to official specs. Consult before introducing new patterns or libraries. §11 covers Android-16 / target-36 rules (now in force — the app targets 36 as of Issue #7).                                                           |
+| `docs/STATIC_ANALYSIS.md`          | **The "Inspect Code" merge gate.** How OpenLoop reproduces Android Studio's two inspection engines headlessly — Engine 1 (Android Lint, automated by the pr-reviewer skill) and Engine 2 (IDE inspections + proofreading, run locally). Exact commands, the no-baseline policy, and severity mapping. |
+| `docs/guides/`                     | **Plain-English how-tos and durable reference** (reverse algorithm, Robolectric, OEM lanes). Index: [`docs/guides/README.md`](docs/guides/README.md).                                                                                                                                                 |
+| `docs/play-store/`                 | **Play Console submission pack** — privacy policy, data safety, store listing copy, signing.                                                                                                                                                                                                          |
+| `.github/`                         | PR template, branch naming (`feature/<short-description>`), and workflow conventions.                                                                                                                                                                                                                 |

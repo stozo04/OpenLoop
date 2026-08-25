@@ -24,12 +24,12 @@ The plugin's skills appear as `android-skills:<name>`.
 
 Auto-triggering is probabilistic. When you want a skill for sure, name it:
 
-| You want | Type |
-|---|---|
-| CameraX guidance on a camera change | `/android-skills:camerax` (or "use the camerax skill for this") |
-| A keep-rule / app-size report before a release | `/android-skills:r8-analyzer` |
-| A Play-policy compliance audit before a submission | `/android-skills:play-policy-insights` |
-| Anything else | `/android-skills:<skill-name>` — names in the PRD's Triage section |
+| You want                                           | Type                                                               |
+| -------------------------------------------------- | ------------------------------------------------------------------ |
+| CameraX guidance on a camera change                | `/android-skills:camerax` (or "use the camerax skill for this")    |
+| A keep-rule / app-size report before a release     | `/android-skills:r8-analyzer`                                      |
+| A Play-policy compliance audit before a submission | `/android-skills:play-policy-insights`                             |
+| Anything else                                      | `/android-skills:<skill-name>` — names in the PRD's Triage section |
 
 ## The two flows worth running on a cadence
 
@@ -53,7 +53,7 @@ in this repo's `CLAUDE.md` protects none of them.
 `extraKnownMarketplaces` entry makes the marketplace name resolve without a `/plugin marketplace add`,
 but since Claude Code v2.1.195 a plugin that only the project's `.claude/settings.json` enables, and
 that comes from an external source such as a GitHub repository, **does not load until you install it
-once** — until then Claude Code reports it as not installed and prints the install command
+once** — until then Claude Code reports it as not installed and prints the installation command
 ([Configure team marketplaces](https://code.claude.com/docs/en/discover-plugins#configure-team-marketplaces),
 read 2026-08-22). Run it with the scope flag — **`claude plugin install android-skills@android-skills
 --scope project`** — because without `--scope project` the CLI installs to **user** scope, which is

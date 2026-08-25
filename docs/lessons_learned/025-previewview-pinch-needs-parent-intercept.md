@@ -4,7 +4,7 @@
 
 ## What went wrong
 
-Pinch-to-zoom on the live viewfinder worked on the emulator but **never started on a Pixel Fold**: the gesture callbacks were simply not invoked. Two textbook wirings both failed the same way:
+Pinch-to-zoom on the live viewfinder worked on the emulator but **never started on a Pixel Fold**: the gesture callbacks were simply not invoked. Two textbook wiring choices both failed the same way:
 
 1. A Compose `Modifier.pointerInput { detectTransformGestures { … } }` overlay above the `AndroidView` hosting the `PreviewView`.
 2. The CameraX-documented `previewView.setOnTouchListener` + `ScaleGestureDetector` (PRD-capture-zoom §4.3's original design).
@@ -13,7 +13,7 @@ Root cause: when `PreviewView` runs on its `SurfaceView` path (and on some OEM/f
 
 ## Pattern
 
-Intercept the multi-touch stream **in a parent `ViewGroup`, before child dispatch**, using the framework's interception hook — that is the one place OEM input quirks cannot route around:
+Intercept the multitouch stream **in a parent `ViewGroup`, before child dispatch**, using the framework's interception hook — that is the one place OEM input quirks cannot route around:
 
 ```kotlin
 class PinchZoomLayout(context: Context) : FrameLayout(context) {
@@ -31,8 +31,8 @@ Wrap the `PreviewView` in this layout inside the `remember {}` block and hand th
 
 ## Detection checklist
 
-- Any gesture that must work **over** an `AndroidView`-hosted `SurfaceView` (camera preview, video surface): test it on physical foldable hardware, not just the emulator — the emulator's input path delivers multi-touch where real devices may not.
-- Grep for `setOnTouchListener` or `pointerInput` attached to/over a `PreviewView` — both are silent-failure wirings for multi-touch; use the parent-intercept layout instead.
+- Any gesture that must work **over** an `AndroidView`-hosted `SurfaceView` (camera preview, video surface): test it on physical foldable hardware, not just the emulator — the emulator's input path delivers multitouch where real devices may not.
+- Grep for `setOnTouchListener` or `pointerInput` attached to/over a `PreviewView` — both are silent-failure wiring choices for multitouch; use the parent-intercept layout instead.
 - Log gesture begin/end (`OpenLoopPinchZoom` tag): a pinch on hardware that produces zero begin logs is this bug.
 - New `View` subclass handling touch: `./gradlew :app:lintDebug` must show no `ClickableViewAccessibility` finding for it.
 

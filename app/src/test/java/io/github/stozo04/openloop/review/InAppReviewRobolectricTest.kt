@@ -106,7 +106,7 @@ class InAppReviewRobolectricTest {
     /**
      * A non-`ReviewException` failure must not escape. This runs on the host's single event collector
      * *ahead of* the "Saved" snackbar, so anything thrown here kills the collector and every snackbar
-     * after it — the user would lose their save confirmation to a rating ask that couldn't be shown.
+     * after it. The user would lose their save confirmation to a rating ask that couldn't be shown.
      */
     @Test
     fun `launchInAppReview swallows a non-ReviewException failure instead of killing the collector`() {

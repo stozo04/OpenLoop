@@ -426,8 +426,8 @@ class CameraScreenTest {
         composeTestRule.runOnIdle { assertEquals(1, closes) }
     }
 
-    // ── The REAL screen's booth wiring (PRD test plan; D2 decided 2026-08-20). The hoisted-
-    // composable tests above stay green even if CameraScreen's own wiring is deleted — this one
+    // ── The REAL screen's booth wiring (PRD test plan; D2 decided 2026-08-20). The tests above
+    // drive the hoisted composable and stay green even if CameraScreen's own wiring is deleted — this one
     // mounts CameraScreen itself, so drawer → arm → armed-shutter → sequence → §5.1 gating is
     // what is under test. ──
 

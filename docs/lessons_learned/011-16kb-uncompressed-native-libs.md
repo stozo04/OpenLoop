@@ -4,7 +4,7 @@
 
 While satisfying the Android 15+/16 **16 KB page size** requirement (Issue #7), the first `zipalign` check on the release APK looked like a pass:
 
-```
+```text
 lib/arm64-v8a/libimage_processing_util_jni.so (OK - compressed)
 ...
 Verification successful
@@ -23,25 +23,30 @@ useLegacyPackaging = false   // the modern default; required for real 16 KB mapp
 
 After flipping it, the same check shows a **real** pass — `(OK)` (no "compressed"), each `.so` at a 16384-byte (16 KB) multiple:
 
-```
+```text
 lib/arm64-v8a/libimage_processing_util_jni.so (OK)   # offset divisible by 16384
 Verification successful
 ```
 
 Two independent things must both be true for 16 KB compliance:
+
 1. **Packaging:** libs uncompressed + 16 KB-zip-aligned in the APK (`useLegacyPackaging = false`; AGP zipaligns with build-tools 35+).
 2. **The `.so` itself** must be built 16 KB ELF-aligned by the dependency — true for **CameraX >= 1.4.0** and recent **Media3**. Older CameraX (1.2/1.3) shipped 4 KB-aligned libs.
 
 ## Detection checklist
 
 - Grep the build for legacy packaging, which makes the alignment check meaningless:
-  ```
+
+  ```text
   grep -rn "useLegacyPackaging = true" app/build.gradle.kts
   ```
+
 - Run the check against the **release** APK and read the per-`.so` lines, not just the exit code:
-  ```
+
+  ```text
   <sdk>/build-tools/<ver>/zipalign -c -P 16 -v 4 app/build/outputs/apk/release/app-release-unsigned.apk
   ```
+
   - `(OK - compressed)` → alignment is **unverified**; set `useLegacyPackaging = false`, rebuild, re-check.
   - `(OK)` with offsets divisible by 16384 → genuinely aligned.
 - Cross-check a single lib's ELF alignment: `llvm-objdump -p <lib>.so | grep LOAD` should show `align 2**14` (16 KB), not `2**12`/`2**13`.

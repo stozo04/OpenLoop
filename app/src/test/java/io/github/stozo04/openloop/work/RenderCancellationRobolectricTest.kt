@@ -22,6 +22,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -36,9 +37,9 @@ import org.robolectric.RobolectricTestRunner
  * scheduler surfaces [BoomerangRenderWorkResult.Cancelled] end-to-end — the flow plumbing the
  * pure-JVM [RenderWorkResultMappingTest] can only cover for [renderWorkResultOf] in isolation.
  *
- * A [WorkerFactory] substitutes a worker that parks until cancelled, so the WorkSpec reaches a real
+ * A [WorkerFactory] substitutes a worker that parks until canceled, so the WorkSpec reaches a real
  * RUNNING state and `cancelUniqueWork` drives the same running → CANCELLED transition a user's
- * "Cancel" tap does — without instantiating the heavy [BoomerangRenderWorker] or touching a codec
+ * "Cancel" tap does. Nothing instantiates the heavy [BoomerangRenderWorker] or touches a codec
  * (encode lives in `BoomerangRenderWorkerTest` on device).
  *
  * Do **not** go back to gating this on a no-op `Configuration.setExecutor`: that left the test's
@@ -86,11 +87,11 @@ class RenderCancellationRobolectricTest {
         assertEquals(WorkInfo.State.CANCELLED, workManager.stateOf(workId))
 
         // observeResult maps the CANCELLED WorkInfo through renderWorkResultOf and surfaces it.
-        val result = runBlocking { withTimeout(5_000L) { scheduler.observeResult(workId).first() } }
+        val result = runBlocking { withTimeout(5.seconds) { scheduler.observeResult(workId).first() } }
         assertEquals(BoomerangRenderWorkResult.Cancelled, result)
     }
 
-    /** Stands in for [BoomerangRenderWorker]: signals it started, then parks until cancelled. */
+    /** Stands in for [BoomerangRenderWorker]: signals it started, then parks until canceled. */
     private class ParkedWorkerFactory(private val started: CountDownLatch) : WorkerFactory() {
         override fun createWorker(
             appContext: Context,

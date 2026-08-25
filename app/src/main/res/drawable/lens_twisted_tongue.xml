@@ -9,7 +9,7 @@
   cream as the live art, on transparency; the tray renders each thumbnail on a light glass chip, so
   a cream ball on a white chip has almost no edge and the whole lens read as a pale blob (owner
   feedback, 2026-08-16). Every light shape therefore carries a heavy dark rim, and the mouth is a
-  solid dark mass — the silhouette has to survive at ~56dp against a light background, which is the
+  solid dark mass. The silhouette has to survive at ~56dp against a light background, which is the
   only size and background this file is ever seen at.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"

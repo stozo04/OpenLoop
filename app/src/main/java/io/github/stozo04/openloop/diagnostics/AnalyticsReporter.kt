@@ -23,8 +23,8 @@ interface AnalyticsReporter {
 
     /**
      * Emit a `screen_view` event for the named screen. [screenClass] is optional context for the
-     * console (typically the Composable's enclosing state class). Called from the navhost's
-     * per-state side-effect — see option 2 of the rollout PRD.
+     * console (typically the Composable's enclosing state class). Called from the NavHost's
+     * per-state side effect — see option 2 of the rollout PRD.
      */
     fun screenView(screenName: String, screenClass: String? = null)
 

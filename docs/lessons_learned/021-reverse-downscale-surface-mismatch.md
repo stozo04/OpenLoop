@@ -1,4 +1,4 @@
-# Lesson 021 — Don't downscale inside a decode→encode-Surface transcode by sizing the encoder Surface smaller than the decoder's output; the producer→consumer scale is device-dependent and corrupts to green on the software path
+# Lesson 021 — Don't downscale inside a decode→encode Surface pipeline by sizing the encoder Surface smaller than the decoder's output; the producer→consumer scale is device-dependent and corrupts to green on the software path
 
 > Origin: onboarding-video work — found on the Pixel 10 Pro Fold (Android 16) the first time a
 > **>1080p import** (1440×2560 H.264, 8-bit SDR) was reversed: the boomerang's forward half was clean
@@ -47,8 +47,8 @@ silent corruption risk on software/vendor codecs.
 - Grep `media/` for `createInputSurface()` paired with an encoder `MediaFormat` whose width/height
   come from `cappedToShortSide()` / any value **smaller than the decoder's input format** — that is the
   mismatch. The encoder Surface size must equal the decoder output size.
-- A transcode that works on camera captures but corrupts (green/garbled) only on **imported** clips is
-  a tell that an imported-only branch (here: the >cap downscale) is being exercised for the first time.
+- A transcoding pass that works on camera captures but corrupts (green/garbled) only on **imported** clips is
+  a sign that an imported-only branch (here: the >cap downscale) is being exercised for the first time.
 - `VideoReverser` logs `selectAvcEncoder: <name> for WxH` and `reverse pass2: WxH, frames=N, sync=M`.
   `sync < frames` would mean pass 1 didn't honor all-keyframe (a *different* failure — stutter, not
   green); a software encoder name on a large clip explains a slow "Loopifying…".

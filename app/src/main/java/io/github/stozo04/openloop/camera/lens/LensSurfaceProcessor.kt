@@ -1,7 +1,6 @@
 package io.github.stozo04.openloop.camera.lens
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.SurfaceTexture
 import android.opengl.EGL14
@@ -46,9 +45,15 @@ import kotlin.math.sin
  *
  * ## Threading
  *
- * All GL work happens on [glThread]. [setLens] is called from the main thread and [setFace] from
- * the ML Kit analyzer thread; both are `@Volatile` reads on the GL side — a lens or face that lands
- * one frame late is invisible, and a lock here would stall the camera.
+ * All GL work happens on [glThread]. [setLens] and [setFaces] are called from other threads (the
+ * UI, and ML Kit's result callback); both are `@Volatile` reads on the GL side — a lens or roster
+ * that lands one frame late is invisible, and a lock here would stall the camera.
+ *
+ * ## Several faces
+ *
+ * The roster from [FaceTracker] can carry more than one face (`docs/PRD-multi-face-lenses.md`),
+ * and the same lens draws on every one of them: the camera pass runs once per output, then the
+ * sticker and feature passes run once per face. Animation state is per face too, in [motion].
  */
 class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
@@ -63,8 +68,9 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     @Volatile
     private var activeLens: Lens? = null
 
+    /** This frame's tracked faces in slot order — an immutable list swapped in whole. */
     @Volatile
-    private var face: FaceSnapshot? = null
+    private var faces: List<FaceSnapshot> = emptyList()
 
     @Volatile
     private var released: Boolean = false
@@ -88,30 +94,16 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
     /**
      * Uploaded art, keyed by **drawable** rather than by lens. A lens can now carry several layers,
-     * and two of them can be the same file — Twisted Tongue draws one eyeball on each eye — so
-     * keying by lens would either upload the same bitmap twice or need a nested map.
+     * and two of them can be the same file (Twisted Tongue draws one eyeball on each eye). Keying
+     * by lens would therefore either upload the same bitmap twice or need a nested map.
      */
     private val stickerTextures = HashMap<Int, Int>()
 
-    // ---- Wobble state. Touched only on glThread, stepped once per frame (see [stepWobbles]). ----
-
-    /** The lens the states below belong to; a change clears them so a swing cannot carry over. */
-    private var wobbleLens: Lens? = null
-    private val wobbleStates = HashMap<Int, LensPhysics.Wobble>()
-
-    /** This frame's swing angle per art layer, index-aligned with the lens's art. Reused. */
-    private var wobbleAngles = FloatArray(0)
-
-    /** Previous frame's face and timestamp — the two things a spring step needs. */
-    private var previousFace: FaceSnapshot? = null
-    private var previousFrameNs = 0L
-
     /**
-     * Eased mouth openness, `0f`..`1f`. The detector's raw value jitters frame to frame; easing it
-     * is what turns a twitchy number into an animation. Held per-processor rather than per-layer
-     * because it describes the *subject*, not a lens.
+     * Per-face wobble springs and eased mouth. Touched only on glThread, stepped once per frame in
+     * [drawFrame] before the output loop — see [LensMotion] for why that ordering matters.
      */
-    private var easedOpenness = 0f
+    private val motion = LensMotion()
 
     private val surfaceTextureMatrix = FloatArray(MATRIX_SIZE)
     private val outputTextureMatrix = FloatArray(MATRIX_SIZE)
@@ -151,12 +143,15 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         activeLens = lens
     }
 
-    /** Publishes the newest tracked face, or `null` when nobody is in frame. */
-    fun setFace(snapshot: FaceSnapshot?) {
-        face = snapshot
+    /**
+     * Publishes the newest roster of tracked faces, in slot order; empty when nobody is in frame.
+     * The list must not be mutated after the call — it is read as-is on the GL thread.
+     */
+    fun setFaces(snapshots: List<FaceSnapshot>) {
+        faces = snapshots
     }
 
-    /** Tears down the GL thread. The processor is unusable afterwards. */
+    /** Tears down the GL thread. The processor is unusable afterward. */
     fun release() {
         released = true
         glHandler.post {
@@ -240,14 +235,13 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         val timestampNs = surfaceTexture.timestamp
 
         val lens = activeLens
-        val trackedFace = face
+        val roster = faces
 
         // Physics advances ONCE per frame, here, before the per-output loop. Stepping it inside the
         // loop would run the simulation once per output — the preview and the recording would each
         // see a differently-advanced spring, and with two outputs attached the tongue would swing at
         // double speed. The angles come out dimensionless, so every output can use them as-is.
-        val wobbles = stepWobbles(lens, trackedFace, timestampNs)
-        val openFraction = easedOpenness
+        motion.step(lens, roster, timestampNs)
 
         for ((output, eglSurface) in outputs) {
             if (!EGL14.eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) continue
@@ -257,39 +251,52 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             output.updateTransformMatrix(outputTextureMatrix, surfaceTextureMatrix)
             logOutputGeometryOnce(output, size)
 
-            // The tracker read a different stream off the same sensor; re-frame its landmarks onto
-            // this output's shape, then rebuild the face frame from them. Orientation and scale
-            // come out of that frame, so nothing here needs a mirror flag or a roll angle.
-            val snapshot = trackedFace?.let { LensAnchor.reframe(it, frameAspect) }
-            val faceFrame = snapshot?.let { LensAnchor.faceFrame(it, frameAspect) }
-
             GLES20.glViewport(0, 0, size.width, size.height)
             drawCamera(input.textureId)
-            // Layers paint in catalogue order, so a lens controls its own stacking — Twisted
-            // Tongue's teeth land on top of its tongue purely by sitting later in the list.
-            if (lens != null && snapshot != null && faceFrame != null) {
-                lens.art.forEachIndexed { index, art ->
-                    drawSticker(
-                        art = art,
-                        face = snapshot,
-                        faceFrame = faceFrame,
-                        frameAspect = frameAspect,
-                        wobbleRadians = wobbles.getOrElse(index) { 0f },
-                        openFraction = openFraction,
-                    )
-                }
-            }
-            // Character lenses paste the subject's own eyes and mouth back on top of the art, so
-            // the vegetable does the acting. Must come after the sticker, which is opaque.
-            val layout = lens?.features
-            if (layout != null && snapshot != null && faceFrame != null) {
-                LensAnchor.features(snapshot, faceFrame, layout, frameAspect).forEach { feature ->
-                    drawFeature(input.textureId, feature, frameAspect)
-                }
+            if (lens != null) {
+                // Faces paint in slot order, so the longest-tracked face sits underneath if two
+                // lenses ever overlap — deterministic, and the same on preview and recording.
+                for (tracked in roster) drawLensOnFace(lens, tracked, input.textureId, frameAspect)
             }
 
             EGLExt.eglPresentationTimeANDROID(eglDisplay, eglSurface, timestampNs)
             EGL14.eglSwapBuffers(eglDisplay, eglSurface)
+        }
+    }
+
+    /** Composites the whole lens — every sticker layer, then the features — onto one face. */
+    private fun drawLensOnFace(
+        lens: Lens,
+        tracked: FaceSnapshot,
+        cameraTextureId: Int,
+        frameAspect: Float,
+    ) {
+        // The tracker read a different stream off the same sensor; re-frame its landmarks onto
+        // this output's shape, then rebuild the face frame from them. Orientation and scale
+        // come out of that frame, so nothing here needs a mirror flag or a roll angle.
+        val snapshot = LensAnchor.reframe(tracked, frameAspect)
+        val faceFrame = LensAnchor.faceFrame(snapshot, frameAspect) ?: return
+        val faceMotion = motion.forFace(tracked.trackingId)
+        val wobbles = faceMotion?.wobbleAngles
+        val openFraction = faceMotion?.openFraction ?: 0f
+
+        // Layers paint in catalogue order, so a lens controls its own stacking — Twisted
+        // Tongue's teeth land on top of its tongue purely by sitting later in the list.
+        lens.art.forEachIndexed { index, art ->
+            drawSticker(
+                art = art,
+                face = snapshot,
+                faceFrame = faceFrame,
+                frameAspect = frameAspect,
+                wobbleRadians = wobbles?.getOrElse(index) { 0f } ?: 0f,
+                openFraction = openFraction,
+            )
+        }
+        // Character lenses paste the subject's own eyes and mouth back on top of the art, so
+        // the vegetable does the acting. Must come after the sticker, which is opaque.
+        val layout = lens.features ?: return
+        LensAnchor.features(snapshot, faceFrame, layout, frameAspect).forEach { feature ->
+            drawFeature(cameraTextureId, feature, frameAspect)
         }
     }
 
@@ -347,77 +354,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, VERTEX_COUNT)
         GLES20.glDisable(GLES20.GL_BLEND)
-    }
-
-    /**
-     * Advances every wobbling layer of [lens] by one frame and returns their swing angles.
-     *
-     * Three things make this correct, and each was a bug waiting to happen:
-     *
-     * 1. **Once per frame, not once per output.** Called from [drawFrame] *before* the output loop.
-     * 2. **In the tracker's own space.** The drive is measured on the raw snapshot against its own
-     *    `sourceAspect`, never an output's shape. [LensAnchor.lateralShiftInUnits] divides by the
-     *    face unit, so the result is dimensionless and means the same thing to preview and recorder.
-     * 3. **No face means settle, not snap.** With no previous face the shift is zero, which decays
-     *    the spring toward rest instead of teleporting it — matching [FaceTracker]'s own drop-out
-     *    hold, so a blink does not make the tongue jump.
-     */
-    private fun stepWobbles(lens: Lens?, face: FaceSnapshot?, timestampNs: Long): FloatArray {
-        if (lens !== wobbleLens) {
-            wobbleStates.clear()
-            wobbleLens = lens
-            previousFace = null
-        }
-        val layers = lens?.art.orEmpty()
-        if (wobbleAngles.size != layers.size) wobbleAngles = FloatArray(layers.size)
-
-        // Camera timestamps are nanoseconds and monotonic, and tie the swing to the video's own
-        // timeline rather than to how fast this thread happens to run. A device that reports 0
-        // (or steps backwards) falls back to the wall clock rather than freezing the animation.
-        val nowNs = if (timestampNs > 0L) timestampNs else System.nanoTime()
-        val elapsedNs = nowNs - previousFrameNs
-        val dtSeconds = if (previousFrameNs == 0L || elapsedNs <= 0L) {
-            0f
-        } else {
-            elapsedNs / NANOS_PER_SECOND
-        }
-        previousFrameNs = nowNs
-
-        // Same clamped dt as the spring, so a dropped frame cannot make the reveal jump either.
-        easedOpenness = LensPhysics.ease(
-            current = easedOpenness,
-            target = face?.mouthOpenness ?: 0f,
-            dtSeconds = dtSeconds,
-            halfLifeSeconds = MOUTH_EASE_HALF_LIFE_SECONDS,
-        )
-
-        val previous = previousFace
-        previousFace = face
-        val shift = if (face != null && previous != null) {
-            LensAnchor.faceFrame(face, face.sourceAspect)
-                ?.let { LensAnchor.lateralShiftInUnits(previous, face, it, face.sourceAspect) }
-                ?: 0f
-        } else {
-            0f
-        }
-
-        if (layers.isEmpty()) return wobbleAngles
-        layers.forEachIndexed { index, art ->
-            val spec = art.placement.wobble
-            if (spec == null) {
-                wobbleAngles[index] = 0f
-                return@forEachIndexed
-            }
-            val stepped = LensPhysics.step(
-                state = wobbleStates[index] ?: LensPhysics.Wobble.REST,
-                pivotShiftInUnits = shift,
-                dtSeconds = dtSeconds,
-                spec = spec,
-            )
-            wobbleStates[index] = stepped
-            wobbleAngles[index] = stepped.offsetRadians
-        }
-        return wobbleAngles
     }
 
     /**
@@ -617,7 +553,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         return textures[0]
     }
 
-    /** Rasterises a (vector) drawable once and uploads it as a GL texture. */
+    /** Rasterizes a (vector) drawable once and uploads it as a GL texture. */
     private fun loadTexture(drawableRes: Int): Int {
         val drawable = ResourcesCompat.getDrawable(appContext.resources, drawableRes, null)
             ?: return 0
@@ -658,10 +594,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         loggedOutputs.clear()
         stickerTextures.values.forEach { GLES20.glDeleteTextures(1, intArrayOf(it), 0) }
         stickerTextures.clear()
-        wobbleStates.clear()
-        wobbleLens = null
-        previousFace = null
-        previousFrameNs = 0L
+        motion.clear()
         if (eglDisplay != EGL14.EGL_NO_DISPLAY) {
             EGL14.eglMakeCurrent(
                 eglDisplay,
@@ -714,13 +647,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         const val VERTEX_COUNT = 4
         const val QUAD_COMPONENTS = 8
         const val MAX_ART_PX = 1024
-        const val NANOS_PER_SECOND = 1_000_000_000f
-
-        /**
-         * How fast a mouth-driven layer follows the jaw. 80 ms is under a fifth of a second, so the
-         * reveal still feels immediate, while smoothing the detector's frame-to-frame jitter.
-         */
-        const val MOUTH_EASE_HALF_LIFE_SECONDS = 0.08f
 
         /** Strip order: top-left, top-right, bottom-left, bottom-right (y down, before rotation). */
         val CORNER_SIGNS = arrayOf(

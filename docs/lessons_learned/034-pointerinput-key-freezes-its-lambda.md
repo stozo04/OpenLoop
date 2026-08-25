@@ -28,7 +28,7 @@ construction, and brings the ripple, the accessibility click action, and `Role.B
 `detectTapGestures` silently omits. Reach for `pointerInput` only for gestures `clickable` /
 `toggleable` / `draggable` genuinely cannot express.
 
-```kotlin
+```text
 .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
 ```
 
@@ -58,13 +58,13 @@ bump, so a frozen copy would seek a **released** player.
 
 Every `pointerInput` in `app/src/main`, and how each stands:
 
-| Site | Key | Status |
-|---|---|---|
-| `SpeedCurvePanel` graph tap + drag | `sizePx` | Guarded — `latestCurve` / `latestOnCurveChange` / `latestOnScrub` |
-| `SpeedCurvePanel` action buttons | *(was `enabled`)* | **Was the bug.** Now `Modifier.clickable` |
-| `SpeedCurvePanel` readout / preset rows | *(was `current`, `preset`)* | **The audit called these "safe" and was wrong** — see below. Now `Modifier.clickable` |
-| `SpeedTabPanel` speed slider | `widthPx` | **Was latent.** `latestSpeed` was aliased but `onSpeedChange` was not; harmless only because the call site is `viewModel::updateSpeed`. Now aliased |
-| `TrimFilmstripControls` handle drag | `durationMs` | Already correct — the reference implementation |
+| Site                                    | Key                         | Status                                                                                                                                              |
+| --------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SpeedCurvePanel` graph tap + drag      | `sizePx`                    | Guarded — `latestCurve` / `latestOnCurveChange` / `latestOnScrub`                                                                                   |
+| `SpeedCurvePanel` action buttons        | *(was `enabled`)*           | **Was the bug.** Now `Modifier.clickable`                                                                                                           |
+| `SpeedCurvePanel` readout / preset rows | *(was `current`, `preset`)* | **The audit called these "safe" and was wrong** — see below. Now `Modifier.clickable`                                                               |
+| `SpeedTabPanel` speed slider            | `widthPx`                   | **Was latent.** `latestSpeed` was aliased but `onSpeedChange` was not; harmless only because the call site is `viewModel::updateSpeed`. Now aliased |
+| `TrimFilmstripControls` handle drag     | `durationMs`                | Already correct — the reference implementation                                                                                                      |
 
 The slider is the instructive one: it applied the pattern **halfway**. Aliasing the state you happened
 to think about, and not the callback, leaves the same trap armed.

@@ -8,7 +8,7 @@ Galaxy hardware.
 > Heads-up: the file name says "RTL", not "emulator" — RTL devices are **real phones in
 > Samsung's lab**, streamed to your browser. That's why camera capture shows a wall and
 > why you test the media pipeline via **import** instead.
-
+>
 > **Automated sweep:** After RDB connect, run the scripted regression:
 > `pwsh .claude/skills/run-e2e-pixel-sweep/scripts/samsung-rtl-sweep.ps1 -ArtifactDir $env:TEMP\openloop_rtl\s23`
 > Full OEM context: [`oem-regression-testing.md`](oem-regression-testing.md).
@@ -32,7 +32,7 @@ from the link on that panel (lands as `rdb.zip` → extract; ours lives at
 
 RDB shells out to `adb` and **fails silently** if it can't find it. The SDK copy is at:
 
-```
+```text
 %LOCALAPPDATA%\Android\Sdk\platform-tools
 ```
 
@@ -65,7 +65,7 @@ adb devices
 # → localhost:<port>    device     (port changes every session!)
 ```
 
-4. Identify the device (replace the port with yours — and use `-s` on **every** command;
+1. Identify the device (replace the port with yours — and use `-s` on **every** command;
    a stale `ANDROID_SERIAL` from a previous session will otherwise hijack plain `adb`):
 
 ```powershell
@@ -126,7 +126,7 @@ tab (Direction / Speed / Looks) → **Save (green check)** → gallery playback.
 
 The Save path is the historical S23 weak spot — watch it closely.
 
-### What to grep for afterwards
+### What to grep for afterward
 
 ```powershell
 Select-String -Path "$env:USERPROFILE\openloop-s23-release.txt" -Pattern `
@@ -135,11 +135,11 @@ Select-String -Path "$env:USERPROFILE\openloop-s23-release.txt" -Pattern `
 
 On a **release** build specifically:
 
-| Signature | Likely cause |
-|---|---|
-| `ClassNotFoundException` / `NoSuchMethodException` | R8 strict full mode stripped a reflectively-used class/constructor → add an explicit keep rule in `app/proguard-rules.pro` |
-| `Resources$NotFoundException` | Optimized resource shrinking removed a runtime-only resource → `tools:keep` in a `res/raw/keep.xml` |
-| `MediaCodec` errors / reverse timeouts | Device codec behavior — see `docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md` and `023-media-pipeline-stages-must-count-output-samples.md` |
+| Signature                                          | Likely cause                                                                                                                                                                 |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ClassNotFoundException` / `NoSuchMethodException` | R8 strict full mode stripped a reflectively-used class/constructor → add an explicit keep rule in `app/proguard-rules.pro`                                                   |
+| `Resources$NotFoundException`                      | Optimized resource shrinking removed a runtime-only resource → `tools:keep` in a `res/raw/keep.xml`                                                                          |
+| `MediaCodec` errors / reverse timeouts             | Device codec behavior — see `docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md` and `023-media-pipeline-stages-must-count-output-samples.md` |
 
 ---
 
@@ -148,7 +148,7 @@ On a **release** build specifically:
 - **`connectedAndroidTest` cannot drive `localhost:` serials** — Gradle's UTP refuses
   them. Install with `:app:installDebug`, then run instrumented tests with
   `adb shell am instrument` directly.
-- **`connectedAndroidTest` uninstalls the app afterwards**, destroying cache/files
+- **`connectedAndroidTest` uninstalls the app afterward**, destroying cache/files
   evidence. If you're debugging stateful behavior, `adb pull` what you need first.
 - The `localhost:<port>` **port changes every RTL session** — never hardcode it; check
   `adb devices` each time and pass `-s` explicitly.

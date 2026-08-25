@@ -28,13 +28,13 @@ this research pass and the main thing needing a decision.
 
 ## 2. Hard constraints (owner, this session)
 
-| # | Constraint | Consequence |
-|---|---|---|
-| C1 | **Free and open source. No paid licenses, no per-MAU billing.** | Kills Snap Camera Kit, DeepAR, Banuba, Perfect Corp. See §4. |
-| C2 | 100 % on-device processing (existing product positioning) | Kills any SDK that streams lens content from a vendor CDN. |
-| C3 | Apache 2.0 app — every dependency and shipped model must be license-compatible | ML Kit and MediaPipe (Apache 2.0) are fine; proprietary SDK binaries are not. |
-| C4 | The lens must be visible in the **live preview** and land in the **saved video** | Effect must target `PREVIEW` *and* `VIDEO_CAPTURE`. |
-| C5 | minSdk 26, CameraX 1.6.1, Compose, existing MVVM/state-machine architecture | No new architecture; lens state lives in the ViewModel like `EditorTabState`. |
+| #   | Constraint                                                                       | Consequence                                                                   |
+| --- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| C1  | **Free and open source. No paid licenses, no per-MAU billing.**                  | Kills Snap Camera Kit, DeepAR, Banuba, Perfect Corp. See §4.                  |
+| C2  | 100 % on-device processing (existing product positioning)                        | Kills any SDK that streams lens content from a vendor CDN.                    |
+| C3  | Apache 2.0 app — every dependency and shipped model must be license-compatible   | ML Kit and MediaPipe (Apache 2.0) are fine; proprietary SDK binaries are not. |
+| C4  | The lens must be visible in the **live preview** and land in the **saved video** | Effect must target `PREVIEW` *and* `VIDEO_CAPTURE`.                           |
+| C5  | minSdk 26, CameraX 1.6.1, Compose, existing MVVM/state-machine architecture      | No new architecture; lens state lives in the ViewModel like `EditorTabState`. |
 
 ---
 
@@ -43,11 +43,11 @@ this research pass and the main thing needing a decision.
 Researched what each Snapchat lens does visually, then classified by rendering tier. This is the
 load-bearing table.
 
-| Lens | What it does | Tier | In-house cost |
-|---|---|---|---|
-| **Broccoli Head** | Replaces/covers the head with a broccoli graphic; eyes and mouth exaggerated on top | **Sticker** — a bitmap anchored to the face box, rotated by head roll | **Low.** Canvas draw. No GL, no shaders. |
-| **Big Mouth** | Warps the actual face pixels — mouth/lips balloon outward, cartoon-distorted | **Warp** — per-frame mesh deformation of the camera texture | **Medium-high.** Custom `SurfaceProcessor`, EGL context, triangulated mesh, vertex shader. |
-| **3D Cartoon** | Restyles the entire frame into a rendered-cartoon look (a learned style, not a filter) | **Neural** — on-device generative restyling at 30 fps | **Very high.** No off-the-shelf free Android model. Research project, not a feature. |
+| Lens              | What it does                                                                           | Tier                                                                  | In-house cost                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **Broccoli Head** | Replaces/covers the head with a broccoli graphic; eyes and mouth exaggerated on top    | **Sticker** — a bitmap anchored to the face box, rotated by head roll | **Low.** Canvas draw. No GL, no shaders.                                                   |
+| **Big Mouth**     | Warps the actual face pixels — mouth/lips balloon outward, cartoon-distorted           | **Warp** — per-frame mesh deformation of the camera texture           | **Medium-high.** Custom `SurfaceProcessor`, EGL context, triangulated mesh, vertex shader. |
+| **3D Cartoon**    | Restyles the entire frame into a rendered-cartoon look (a learned style, not a filter) | **Neural** — on-device generative restyling at 30 fps                 | **Very high.** No off-the-shelf free Android model. Research project, not a feature.       |
 
 **Finding:** "3D Cartoon" is not buildable in-house at acceptable quality/perf without a licensed
 SDK, which C1 forbids. It should be dropped from v1 and replaced.
@@ -61,13 +61,13 @@ first in the UI.
 
 ## 4. Build vs. buy — buy is ruled out
 
-| Option | On-device? | Cost | Lens availability | Verdict |
-|---|---|---|---|---|
-| **Snap Camera Kit** | Rendering is on-device; how lens *content* is delivered was **not verified** this session | No published price; requires a Snap developer account, app review, and agreement to the Camera Kit Terms | You get **Lens Studio** lenses you author + a curated community set. Snap's *own* branded lenses (the actual "Big Mouth") are not offered to partners. | ❌ **C1 / C3** — a proprietary binary SDK under Snap's own terms cannot ship in an Apache 2.0 app on unpriced terms. C2 not relied on. |
-| **DeepAR** | Yes | Free tier ≈10 MAU **with watermark**; ≈$25/mo entry, scales with MAU | Bring-your-own via DeepAR Studio | ❌ C1 |
-| **Banuba** | Yes | Enterprise quote, no free production tier | Bring-your-own | ❌ C1 |
-| **ARCore Augmented Faces** | Yes | Free | Bring-your-own 3D asset | ⚠️ Renderer story is dead — Sceneform was archived Dec 2021 and Google says don't use it for new projects. Would mean adopting Filament or the community SceneView fork. Overkill for a sticker. |
-| **In-house: ML Kit + CameraX effects** | Yes | Free, Apache 2.0 | Bring-your-own | ✅ **Recommended** |
+| Option                                 | On-device?                                                                                | Cost                                                                                                     | Lens availability                                                                                                                                      | Verdict                                                                                                                                                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Snap Camera Kit**                    | Rendering is on-device; how lens *content* is delivered was **not verified** this session | No published price; requires a Snap developer account, app review, and agreement to the Camera Kit Terms | You get **Lens Studio** lenses you author + a curated community set. Snap's *own* branded lenses (the actual "Big Mouth") are not offered to partners. | ❌ **C1 / C3** — a proprietary binary SDK under Snap's own terms cannot ship in an Apache 2.0 app on unpriced terms. C2 not relied on.                                                            |
+| **DeepAR**                             | Yes                                                                                       | Free tier ≈10 MAU **with watermark**; ≈$25/mo entry, scales with MAU                                     | Bring-your-own via DeepAR Studio                                                                                                                       | ❌ C1                                                                                                                                                                                             |
+| **Banuba**                             | Yes                                                                                       | Enterprise quote, no free production tier                                                                | Bring-your-own                                                                                                                                         | ❌ C1                                                                                                                                                                                             |
+| **ARCore Augmented Faces**             | Yes                                                                                       | Free                                                                                                     | Bring-your-own 3D asset                                                                                                                                | ⚠️ Renderer story is dead — Sceneform was archived Dec 2021 and Google says don't use it for new projects. Would mean adopting Filament or the community SceneView fork. Overkill for a sticker. |
+| **In-house: ML Kit + CameraX effects** | Yes                                                                                       | Free, Apache 2.0                                                                                         | Bring-your-own                                                                                                                                         | ✅ **Recommended**                                                                                                                                                                                |
 
 > ⚠️ The DeepAR/Banuba figures come from vendor marketing comparisons, not a price sheet. They are
 > directionally right (MAU-metered, paid) and that alone fails C1 — no further verification needed.
@@ -83,10 +83,10 @@ entirely and animates only the eyes and mouth on the vegetable.
 
 That splits the catalogue in two, and the renderer supports both from one mechanism:
 
-| Kind | Art | The subject's face | Examples |
-|---|---|---|---|
-| **Prop** | drawn over the face | stays visible | Shades, Big Mouth (a warp, no art) |
-| **Character** | drawn **opaque** over the whole head | hidden; only the eyes and mouth are lifted out and composited onto the art | Broccoli |
+| Kind          | Art                                  | The subject's face                                                         | Examples                           |
+| ------------- | ------------------------------------ | -------------------------------------------------------------------------- | ---------------------------------- |
+| **Prop**      | drawn over the face                  | stays visible                                                              | Shades, Big Mouth (a warp, no art) |
+| **Character** | drawn **opaque** over the whole head | hidden; only the eyes and mouth are lifted out and composited onto the art | Broccoli                           |
 
 A character lens carries a `FeatureLayout` — where the eyes and mouth sit **on the character's
 face**, in face units. Sources follow the subject's real landmarks (so blinks, smiles and head
@@ -111,11 +111,11 @@ CameraX bindToLifecycle
 
 ### 5.1 Face tracking — ML Kit Face Detection (stable), not Face Mesh (beta)
 
-| Candidate | Status | Data | Verdict |
-|---|---|---|---|
-| **ML Kit Face Detection** (`com.google.mlkit:face-detection`) | **Stable**, actively released | Bounding box, `headEulerAngleY/Z`, and in `CONTOUR_MODE` **133 points** including `UPPER_LIP_TOP/BOTTOM` and `LOWER_LIP_TOP/BOTTOM` | ✅ **Recommended.** Enough for the sticker *and* the mouth warp. |
-| ML Kit Face Mesh | **Beta**, no SLA, last release Aug 2024 | 468 3D points | ❌ Beta + stale for a Production app. |
-| MediaPipe Face Landmarker (`tasks-vision`) | Actively maintained, Apache 2.0 | 478 points, 52 blendshapes, facial transform matrix | ⏸ Adopt only if the warp lens needs a denser mesh than ML Kit contours give. Adds several MB (native libs + `.task` bundle). |
+| Candidate                                                     | Status                                  | Data                                                                                                                                | Verdict                                                                                                                      |
+| ------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **ML Kit Face Detection** (`com.google.mlkit:face-detection`) | **Stable**, actively released           | Bounding box, `headEulerAngleY/Z`, and in `CONTOUR_MODE` **133 points** including `UPPER_LIP_TOP/BOTTOM` and `LOWER_LIP_TOP/BOTTOM` | ✅ **Recommended.** Enough for the sticker *and* the mouth warp.                                                              |
+| ML Kit Face Mesh                                              | **Beta**, no SLA, last release Aug 2024 | 468 3D points                                                                                                                       | ❌ Beta + stale for a Production app.                                                                                         |
+| MediaPipe Face Landmarker (`tasks-vision`)                    | Actively maintained, Apache 2.0         | 478 points, 52 blendshapes, facial transform matrix                                                                                 | ⏸ Adopt only if the warp lens needs a denser mesh than ML Kit contours give. Adds several MB (native libs + `.task` bundle). |
 
 Starting with ML Kit face-detection means **one dependency, stable API, no beta risk, smallest APK
 delta**. If Big Mouth later proves it needs a real mesh, that's the moment to add MediaPipe — and
@@ -123,6 +123,11 @@ then ML Kit comes out. Don't ship both.
 
 Run it on an `ImageAnalysis` use case with `STRATEGY_KEEP_ONLY_LATEST`, `PERFORMANCE_MODE_FAST`,
 single-face (`CONTOUR_MODE` is computed for the most prominent face only — correct for selfies).
+
+> **Superseded 2026-08-25 — [`PRD-multi-face-lenses.md`](PRD-multi-face-lenses.md).** The tracker
+> now follows up to **two** faces (`FaceTracker.MAX_TRACKED_FACES`; locked slots, per-face hold,
+> id-churn re-keying in `FaceRoster`) and the renderer draws the lens on each. Everything else in
+> this section stands: landmark mode, `FAST`, `MIN_FACE_SIZE` 0.15, no contours.
 
 ### 5.2 Rendering — ONE custom `CameraEffect` + `SurfaceProcessor`
 
@@ -132,7 +137,7 @@ shipping both together: **CameraX permits at most one effect per target**, so st
 cannot be two effects, and `OverlayEffect` is `final`-shaped around Canvas drawing with no hook for
 a UV warp.
 
-So: one hand-written `CameraEffect(PREVIEW or VIDEO_CAPTURE, executor, SurfaceProcessor)`, with a
+So: one handwritten `CameraEffect(PREVIEW or VIDEO_CAPTURE, executor, SurfaceProcessor)`, with a
 single GL program whose **uniforms** select the behavior:
 
 ```glsl
@@ -142,13 +147,13 @@ vec4 cam = texture2D(cameraTexture /* samplerExternalOES */, uv);
 gl_FragColor = stickerEnabled ? over(texture2D(stickerTexture, stickerUv), cam) : cam;
 ```
 
-* **Big Mouth** = `bulge()` — a radial UV displacement centred on the mouth. A fragment-shader
+* **Big Mouth** = `bulge()` — a radial UV displacement centered on the mouth. A fragment-shader
   warp, **not** a triangulated vertex mesh: same look, a fraction of the code.
 * **Broccoli / sunglasses** = an alpha-blended textured quad positioned from the face box and head
   roll.
 * **No lens** = `warpStrength = 0`, `stickerEnabled = false` → identity pass-through.
 
-Lens art ships as **vector drawables rasterised once at startup**, not PNGs — smaller, resolution
+Lens art ships as **vector drawables rasterized once at startup**, not PNGs — smaller, resolution
 independent, and unambiguously ours for an Apache 2.0 repo (§10 Q5 answered).
 
 ### 5.3 The effect is attached **always**, and switches internally
@@ -236,15 +241,15 @@ entries**; the tray is an overlay on the camera-bound states, not a route (Lesso
 **Owner decision (2026-08-08): everything lands in ONE PR**, iterated on the emulator until it
 behaves as designed. The phases below are therefore build order within that PR, not separate PRs.
 
-| Step | Deliverable | Gate |
-|---|---|---|
-| **0 — Spike** | On a running emulator: `Preview + VideoCapture + ImageAnalysis` binds; a custom `CameraEffect` renders to preview *and* recording; a face is actually detectable in the emulator camera (custom virtual-scene poster). | Blocks everything below. |
-| **1 — Pure math + tests** | `LensAnchor.kt` — face box + euler + rotation + mirror → sticker matrix / warp centre. No Android types. JVM-tested first (R1 dies here). | `:app:testDebugUnitTest` green. |
-| **2 — GL renderer** | `LensSurfaceProcessor` + shader; identity pass-through when no lens. | Preview unchanged with no lens active. |
-| **3 — Tracker** | ML Kit `ImageAnalysis` → `FaceSnapshot` flow. | Face box logged live. |
-| **4 — UI** | Lens button (`CenterStart`), carousel, ViewModel flows, `BackHandler`. | Compose tests green. |
-| **5 — Lenses** | **Broccoli** (sticker) · **Big Mouth** (warp) · one more sticker (**Sunglasses**). | All three render and record. |
-| **6 — Verify** | `docs/DEFINITION_OF_DONE.md` gate + emulator run + screenshot. | Green before PR. |
+| Step                      | Deliverable                                                                                                                                                                                                            | Gate                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **0 — Spike**             | On a running emulator: `Preview + VideoCapture + ImageAnalysis` binds; a custom `CameraEffect` renders to preview *and* recording; a face is actually detectable in the emulator camera (custom virtual-scene poster). | Blocks everything below.               |
+| **1 — Pure math + tests** | `LensAnchor.kt` — face box + euler + rotation + mirror → sticker matrix / warp center. No Android types. JVM-tested first (R1 dies here).                                                                              | `:app:testDebugUnitTest` green.        |
+| **2 — GL renderer**       | `LensSurfaceProcessor` + shader; identity pass-through when no lens.                                                                                                                                                   | Preview unchanged with no lens active. |
+| **3 — Tracker**           | ML Kit `ImageAnalysis` → `FaceSnapshot` flow.                                                                                                                                                                          | Face box logged live.                  |
+| **4 — UI**                | Lens button (`CenterStart`), carousel, ViewModel flows, `BackHandler`.                                                                                                                                                 | Compose tests green.                   |
+| **5 — Lenses**            | **Broccoli** (sticker) · **Big Mouth** (warp) · one more sticker (**Sunglasses**).                                                                                                                                     | All three render and record.           |
+| **6 — Verify**            | `docs/DEFINITION_OF_DONE.md` gate + emulator run + screenshot.                                                                                                                                                         | Green before PR.                       |
 
 **3D Cartoon: dropped** (owner, §10 Q1). Reopens only if C1 changes.
 If Sunglasses adds risk late, shipping two lenses is acceptable (owner's second selection).
@@ -253,28 +258,28 @@ If Sunglasses adds risk late, shipping two lenses is acceptable (owner's second 
 
 ## 9. Risks
 
-| # | Risk | Mitigation |
-|---|---|---|
-| R1 | **Coordinate-space hell** — ML Kit reports in analysis-image space; `OverlayEffect` draws in buffer space; front camera adds mirroring; device rotation adds another transform. Misalignment here is *the* likely bug. | Isolate the whole mapping in a **pure Kotlin function** (`LensAnchor.kt`) with no Android types in its signature, JVM-tested per-orientation/per-lens-facing — the house pattern from `ZoomUi.kt`, `BoomerangSequence.kt`, `TrimHandleMath.kt`. |
-| R2 | Third stream: `Preview + VideoCapture + ImageAnalysis` is only guaranteed on `LEVEL_3` hardware. Below that, CameraX 1.5+ no longer throws but falls back to an OpenGL stream copy — extra latency and power. | Phase 0 measures it across the sweep lanes. If the fallback is too costly, drop `ImageAnalysis` and run detection off the effect's own frames instead. |
-| R3 | Tracker latency → the sticker lags the face. | `STRATEGY_KEEP_ONLY_LATEST` + `PERFORMANCE_MODE_FAST`; if visible, interpolate the last two snapshots. Do not add prediction speculatively. |
-| R4 | The always-attached effect costs battery on an idle camera. | Measured in phase 0; documented fallback in §5.3. |
-| R5 | Lens is unremovable once baked (§5.4). | Explicit, accepted, stated in the PR. |
-| R6 | APK growth from the ML Kit bundled model + lens art. | Prefer the **unbundled** (Play-services-delivered) face-detection variant if size matters; measure both in phase 0. |
-| R7 | OEM breakage — this repo's history is Samsung encoder/surface bugs (Lessons 019/021/023/027). A new GL stage in the capture path is exactly that risk surface. | Run the Samsung RTL lane + `run-e2e-pixel-sweep` before the PR, not after. |
+| #   | Risk                                                                                                                                                                                                                   | Mitigation                                                                                                                                                                                                                                      |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | **Coordinate-space hell** — ML Kit reports in analysis-image space; `OverlayEffect` draws in buffer space; front camera adds mirroring; device rotation adds another transform. Misalignment here is *the* likely bug. | Isolate the whole mapping in a **pure Kotlin function** (`LensAnchor.kt`) with no Android types in its signature, JVM-tested per-orientation/per-lens-facing — the house pattern from `ZoomUi.kt`, `BoomerangSequence.kt`, `TrimHandleMath.kt`. |
+| R2  | Third stream: `Preview + VideoCapture + ImageAnalysis` is only guaranteed on `LEVEL_3` hardware. Below that, CameraX 1.5+ no longer throws but falls back to an OpenGL stream copy — extra latency and power.          | Phase 0 measures it across the sweep lanes. If the fallback is too costly, drop `ImageAnalysis` and run detection off the effect's own frames instead.                                                                                          |
+| R3  | Tracker latency → the sticker lags the face.                                                                                                                                                                           | `STRATEGY_KEEP_ONLY_LATEST` + `PERFORMANCE_MODE_FAST`; if visible, interpolate the last two snapshots. Do not add prediction speculatively.                                                                                                     |
+| R4  | The always-attached effect costs battery on an idle camera.                                                                                                                                                            | Measured in phase 0; documented fallback in §5.3.                                                                                                                                                                                               |
+| R5  | Lens is unremovable once baked (§5.4).                                                                                                                                                                                 | Explicit, accepted, stated in the PR.                                                                                                                                                                                                           |
+| R6  | APK growth from the ML Kit bundled model + lens art.                                                                                                                                                                   | Prefer the **unbundled** (Play-services-delivered) face-detection variant if size matters; measure both in phase 0.                                                                                                                             |
+| R7  | OEM breakage — this repo's history is Samsung encoder/surface bugs (Lessons 019/021/023/027). A new GL stage in the capture path is exactly that risk surface.                                                         | Run the Samsung RTL lane + `run-e2e-pixel-sweep` before the PR, not after.                                                                                                                                                                      |
 
 ---
 
 ## 10. Decisions (all resolved)
 
-| # | Question | Decision |
-|---|---|---|
-| 1 | Replace 3D Cartoon with what? | **Dropped**, replaced by a second sticker lens — **Shades**. Owner, 2026-08-08. Shipping two lenses stays acceptable if Shades ever needs to be cut. |
-| 2 | Which lens ships first? | **All three, one PR.** Owner, 2026-08-08. This is what forced §5.2's single-effect design. |
-| 3 | Lens switching while recording? | **Yes.** Free under §5.3, guarded by `OpenLoopViewModelTest."changing lenses mid-recording never touches the capture state"`. |
-| 4 | Auto-flip to the front camera? | **No.** The flip button is 54.dp away and back-camera tracking works. One less branch. |
-| 5 | Where does lens art come from? | **Mixed, and one item needs clearing.** Shades and the Big Mouth icon are vector drawables authored in-repo — Apache 2.0 covers every pixel. **Broccoli is a photograph**, because hand-drawn vector florets could not reach the quality bar. The shipped `lens_broccoli*.webp` came from an owner-supplied file; **the owner confirmed the licence on 2026-08-09** (PR #118). A public-domain USDA alternative stays prepared as a drop-in replacement — see §11.2. |
-| 6 | Does the lens persist across launches? | **No.** `activeLens` is plain ViewModel state — reset on every launch. |
+| #   | Question                               | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Replace 3D Cartoon with what?          | **Dropped**, replaced by a second sticker lens — **Shades**. Owner, 2026-08-08. Shipping two lenses stays acceptable if Shades ever needs to be cut.                                                                                                                                                                                                                                                                                                                 |
+| 2   | Which lens ships first?                | **All three, one PR.** Owner, 2026-08-08. This is what forced §5.2's single-effect design.                                                                                                                                                                                                                                                                                                                                                                           |
+| 3   | Lens switching while recording?        | **Yes.** Free under §5.3, guarded by `OpenLoopViewModelTest."changing lenses mid-recording never touches the capture state"`.                                                                                                                                                                                                                                                                                                                                        |
+| 4   | Auto-flip to the front camera?         | **No.** The flip button is 54.dp away and back-camera tracking works. One less branch.                                                                                                                                                                                                                                                                                                                                                                               |
+| 5   | Where does lens art come from?         | **Mixed, and one item needs clearing.** Shades and the Big Mouth icon are vector drawables authored in-repo — Apache 2.0 covers every pixel. **Broccoli is a photograph**, because hand-drawn vector florets could not reach the quality bar. The shipped `lens_broccoli*.webp` came from an owner-supplied file; **the owner confirmed the license on 2026-08-09** (PR #118). A public-domain USDA alternative stays prepared as a drop-in replacement — see §11.2. |
+| 6   | Does the lens persist across launches? | **No.** `activeLens` is plain ViewModel state — reset on every launch.                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ## 10b. As built — what changed from the plan
 
@@ -350,7 +355,7 @@ Follows `docs/TEST_COVERAGE.md`.
   `CameraBackHandlerTest` — back closes the tray, and takes priority over the recording backstop. ✅
 * **Instrumented (real ML Kit):** `FaceTrackerNormalizationTest` — detects a face in a bundled
   public-domain still, asserts the normalized geometry stays in-frame and dominates a head crop
-  (catching a divide-by-the-wrong-dimension), that mouth landmarks resolve below the box centre,
+  (catching a divide-by-the-wrong-dimension), that mouth landmarks resolve below the box center,
   and that Broccoli anchors above the face. ✅
 * **E2E:** extend `run-e2e` to select a lens before recording, and reuse the pixel-sweep per-half fps
   and freeze/green/black scans on the lens output. ⬜
@@ -359,26 +364,26 @@ Follows `docs/TEST_COVERAGE.md`.
 ### 11.1 Manual QA — must be done on hardware
 
 Everything below needs a **real face on real hardware** and is the honest residual risk. The
-2026-08-09 re-verification run closed the emulator-reachable parts of items 5–7 (bulge on the mouth,
+2026-08-09 re-verification run closed the emulator-reachable parts of items 6–8 (bulge on the mouth,
 record-with-lens → Trim with the effect baked in, and a mid-recording lens switch covered by
-`OpenLoopViewModelTest`); it could not touch 0–4 or 8, because the hardware run had nobody in front
+`OpenLoopViewModelTest`); it could not touch 1–5 or 9, because the hardware run had nobody in front
 of the camera and the emulator shows a static poster. See `docs/e2e/2026-08-08-camera-lenses-proof.md`.
 
-0. **Steadiness first.** Does the lens sit still on a still face, and does it flicker off when the
+1. **Steadiness first.** Does the lens sit still on a still face, and does it flicker off when the
    detector blips or the subject moves fast? Nothing about this is observable without a real face,
    and it is the most likely "it looks cheap" complaint. Deliberately **no smoothing or
    hold-last-face was added**: both trade latency for steadiness, and tuning that blind risks
    making it worse than leaving it out. If it jitters or flickers, say so — an exponential filter
    on `FaceSnapshot` plus a short hold is a small, well-understood change once there is something
    to tune against.
-1. Front camera, face centred: each lens lands **on** the face, not mirrored to the wrong side.
-2. Tilt the head left and right: the sticker rolls **with** the head, not against it.
-3. Back camera: same three checks — mirroring must differ between the two, and only in x.
-4. Portrait and landscape holds: no 90° offset.
-5. Big Mouth: the bulge sits on the mouth and scales with distance from the camera.
-6. Record with a lens, then trim / speed / reverse / Looks: the baked lens survives the pipeline.
-7. Switch lenses mid-recording: the clip finalizes normally.
-8. Walk out of frame: preview returns to a clean pass-through with no ghost sticker.
+2. Front camera, face centered: each lens lands **on** the face, not mirrored to the wrong side.
+3. Tilt the head left and right: the sticker rolls **with** the head, not against it.
+4. Back camera: same three checks — mirroring must differ between the two, and only in x.
+5. Portrait and landscape holds: no 90° offset.
+6. Big Mouth: the bulge sits on the mouth and scales with distance from the camera.
+7. Record with a lens, then trim / speed / reverse / Looks: the baked lens survives the pipeline.
+8. Switch lenses mid-recording: the clip finalizes normally.
+9. Walk out of frame: preview returns to a clean pass-through with no ghost sticker.
 
 ---
 
@@ -396,7 +401,7 @@ redistribution rights cannot ship — this was raised as a merge blocker on PR #
 
 The prepared public-domain fallback below stays on record in case that ever needs revisiting.
 
-Everything else in the feature is licence-clean by construction: Shades and the Big Mouth icon are
+Everything else in the feature is license-clean by construction: Shades and the Big Mouth icon are
 vector drawables authored in-repo, ML Kit is Apache 2.0, and the instrumented-test face fixture is
 public domain.
 
@@ -441,12 +446,12 @@ sources, disagreements, kills, and final mutual ACK are preserved in
 `swarm/collab/research-codex.md`, `research-claude.md`, and `decisions.md`; this section records the
 result as built.
 
-| Lens | Tier | Final data | Art |
-|---|---|---|---|
-| Bug Eyes | warp | Two circles centred exactly on `FaceSnapshot.leftEye` and `rightEye`; radius `0.36`, strength `0.75`, target `EYES` | Original in-repo carousel vector; no live sticker art |
-| Pizza Face | character | width `3.6`, aspect `1.005`, up `-0.4`; features `0.50 / 0.30 / 0.75 / -0.50 / 1.15` | Original generated near-photo food source, keyed to 1019×1024 WebP plus 255×256 thumbnail |
-| Football | character | width `4.7`, aspect `0.571`, up `0.10`; features `0.58 / 0.45 / 0.80 / -0.45 / 1.30` | Owner-provided `football.jpg`, keyed to 1024×585 WebP plus 256×146 thumbnail; known source clip at the left tip retained honestly |
-| Dog | prop | width `2.90`, aspect `0.7345`, up `0.385`; no feature compositing or warp | Original 290×213 in-repo vector; same resource is reused for the carousel |
+| Lens       | Tier      | Final data                                                                                                           | Art                                                                                                                               |
+| ---------- | --------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Bug Eyes   | warp      | Two circles centered exactly on `FaceSnapshot.leftEye` and `rightEye`; radius `0.36`, strength `0.75`, target `EYES` | Original in-repo carousel vector; no live sticker art                                                                             |
+| Pizza Face | character | width `3.6`, aspect `1.005`, up `-0.4`; features `0.50 / 0.30 / 0.75 / -0.50 / 1.15`                                 | Original generated near-photo food source, keyed to 1019×1024 WebP plus 255×256 thumbnail                                         |
+| Football   | character | width `4.7`, aspect `0.571`, up `0.10`; features `0.58 / 0.45 / 0.80 / -0.45 / 1.30`                                 | Owner-provided `football.jpg`, keyed to 1024×585 WebP plus 256×146 thumbnail; known source clip at the left tip retained honestly |
+| Dog        | prop      | width `2.90`, aspect `0.7345`, up `0.385`; no feature compositing or warp                                            | Original 290×213 in-repo vector; same resource is reused for the carousel                                                         |
 
 Feature tuples are `eyeSpacing / eyeUp / eyeWidth / mouthUp / mouthWidth`, in face units. Every
 photographic asset is at or below the renderer's 1024-pixel long-side limit, uses lossless alpha,
@@ -458,13 +463,13 @@ Kayley accepted the replacement on 2026-08-15 after inspecting the encoded file.
 
 `WarpSpec` gained the anatomical `WarpTarget` values `MOUTH` and `EYES`, defaulting to `MOUTH`.
 `LensAnchor.warps()` therefore produces one unchanged mouth circle for Big Mouth or two landmark-
-centred eye circles for Bug Eyes. `LensSurfaceProcessor` binds two generic uniform sets and applies
+centered eye circles for Bug Eyes. `LensSurfaceProcessor` binds two generic uniform sets and applies
 the same shader function twice; an unused set is disabled with `WarpCircle.NONE`. No renderer,
-tracker, UI, camera, or capture branch names a lens, and the default keeps Big Mouth's centre,
+tracker, UI, camera, or capture branch names a lens, and the default keeps Big Mouth's center,
 radius, and strength unchanged.
 
 `LensAnchorTest.warps_eyeTargetUsesBothTrackedEyes` is the smallest regression check for the new
-branch. It asserts two circles and exact landmark centres; the existing mouth-centred test protects
+branch. It asserts two circles and exact landmark centers; the existing mouth-centered test protects
 the old path.
 
 ### Final-tree verification
@@ -510,7 +515,7 @@ into view. The test now scrolls to each catalogue entry before retaining the sam
 Real-face quality remains a hardware gate owned by Steven: front/back mirroring, head roll,
 portrait/landscape alignment, steadiness and flicker, fast movement, distance scaling, no-face
 pass-through, and whether each joke actually looks good. A static emulator poster can prove bind,
-render, capture, and saved-media paths; it cannot prove those human-facing behaviours.
+render, capture, and saved-media paths; it cannot prove those human-facing behaviors.
 
 ---
 
@@ -530,13 +535,13 @@ owner has more effects of this kind queued.
 
 Read out of `effect.json`'s scene graph and the `.mat` shader bindings, not from the preview image:
 
-| Reference node | What it is | Shipped as |
-|---|---|---|
-| `L_eye_phy` / `R_eye_phy` + `pSphere5/6` on `matcap*.mat` | matcap-shaded eyeball spheres at ±3.08 units, each on `simplePendulumPhysics` | Opaque eyeball art on the `LEFT_EYE` / `RIGHT_EYE` anchors |
-| `tongue_1..5` chain, four with `simplePendulumPhysics` | a bone chain that lags the head | One tongue layer with a single damped spring (`LensPhysics`) |
-| `Group48969` / `group1group4` / `Group17997` on `skinsamplingmat.mat` + `colorSampling` | skin-toned mouth surround that samples the camera for its colour | **Dropped** — the mouth layer is lips-and-cavity, so it has no complexion to match |
-| `morphbase2.fbx` → `dense_new`, `blendShapeWeights = [1.0]` | a static full-face morph | **Dropped** — a dense mesh warp is a different renderer |
-| `nose1.fbx` | phong nose overlay | **Dropped** — invisible under the eyes and mouth |
+| Reference node                                                                          | What it is                                                                    | Shipped as                                                                         |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `L_eye_phy` / `R_eye_phy` + `pSphere5/6` on `matcap*.mat`                               | matcap-shaded eyeball spheres at ±3.08 units, each on `simplePendulumPhysics` | Opaque eyeball art on the `LEFT_EYE` / `RIGHT_EYE` anchors                         |
+| `tongue_1..5` chain, four with `simplePendulumPhysics`                                  | a bone chain that lags the head                                               | One tongue layer with a single damped spring (`LensPhysics`)                       |
+| `Group48969` / `group1group4` / `Group17997` on `skinsamplingmat.mat` + `colorSampling` | skin-toned mouth surround that samples the camera for its color               | **Dropped** — the mouth layer is lips-and-cavity, so it has no complexion to match |
+| `morphbase2.fbx` → `dense_new`, `blendShapeWeights = [1.0]`                             | a static full-face morph                                                      | **Dropped** — a dense mesh warp is a different renderer                            |
+| `nose1.fbx`                                                                             | phong nose overlay                                                            | **Dropped** — invisible under the eyes and mouth                                   |
 
 The two drops are the honest scope line: this renderer composites textured quads and does one
 radial UV bulge. It does not skin meshes, and nothing here pretends otherwise.
@@ -549,7 +554,7 @@ rule ("adding a lens is one entry plus its art") survives:
 1. **`Lens.art` is a `List<LensArt>`.** Layers draw in list order, so a lens controls its own
    stacking. Every previous lens is a one-element list.
 2. **`LensPlacement` gained `anchor` (`FACE`/`LEFT_EYE`/`RIGHT_EYE`/`MOUTH`) and `rightInUnits`.**
-   `FACE` is the default and reproduces the old centre-line behaviour exactly. This is what lets one
+   `FACE` is the default and reproduces the old center-line behavior exactly. This is what lets one
    lens track three landmarks at once — impossible with a single quad at any size.
 3. **`LensPhysics`** — a pure damped-spring module. A layer opts in with a `WobbleSpec`;
    `LensAnchor.sticker` takes a `wobbleRadians` that rotates the art **about its anchor**, so a
@@ -558,16 +563,16 @@ rule ("adding a lens is one entry plus its art") survives:
 
 ### 14.3 Decisions
 
-| # | Question | Decision |
-|---|---|---|
-| 1 | Ship the DeepAR SDK? | **No** — §4 C1/C3, decided 2026-08-08 and unchanged. Paid/MAU-metered, and a proprietary binary cannot ship in an Apache 2.0 app. |
-| 2 | Ship the DeepAR *assets* (matcaps, normal maps, FBX meshes)? | **No.** This repo is public; we hold no redistribution rights. `twisted-tounge/**` is gitignored except the guide. Art is original vector, authored here. |
-| 3 | Gate the tongue on mouth-open? | **No.** The reference does not either — its blendshape weight is statically `1.0` and there is no trigger in the graph. Openness detection would need ML Kit `CONTOUR_MODE`, which §5.1 rejected on per-frame cost. Faithful *and* cheap. |
-| 4 | Bulge the eyes with the existing `WarpTarget.EYES`? | **No.** The eyeball art is opaque and covers the socket, so a warp underneath is invisible — one less moving part. |
-| 5 | Wobble the eyeballs too? | **No.** The reference does, but the eyeball is centred *on* its anchor, so rotation about that anchor barely moves it; a visible jiggle would need a second mechanism (translation). The tongue carries the motion. Same primitive with a lever arm if it is ever wanted. |
-| 6 | Roll as a physics drive? | **No.** Translation only. A roll term needs the part to hang in world-down rather than face-down — a different, larger model. Marked `ponytail:` in `LensAnchor.lateralShiftInUnits`. |
-| 7 | Teeth as their own layer? | **Yes.** A lolling tongue passes *over* the lower lip but *under* the upper teeth — a three-way interleave one drawable cannot express. |
-| 8 | Carousel thumbnail art | **Redrawn once.** The first version used the live art's cream eyeballs on transparency; the tray renders each thumbnail on a light glass chip, so it read as a pale blob (owner feedback, 2026-08-16). Every light shape now carries a heavy dark rim. Thumbnails are designed for the chip they sit on, not scaled down from the live art. |
+| #   | Question                                                     | Decision                                                                                                                                                                                                                                                                                                                                    |
+| --- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Ship the DeepAR SDK?                                         | **No** — §4 C1/C3, decided 2026-08-08 and unchanged. Paid/MAU-metered, and a proprietary binary cannot ship in an Apache 2.0 app.                                                                                                                                                                                                           |
+| 2   | Ship the DeepAR *assets* (matcaps, normal maps, FBX meshes)? | **No.** This repo is public; we hold no redistribution rights. `twisted-tounge/**` is gitignored except the guide. Art is original vector, authored here.                                                                                                                                                                                   |
+| 3   | Gate the tongue on mouth-open?                               | **No.** The reference does not either — its blendshape weight is statically `1.0` and there is no trigger in the graph. Openness detection would need ML Kit `CONTOUR_MODE`, which §5.1 rejected on per-frame cost. Faithful *and* cheap.                                                                                                   |
+| 4   | Bulge the eyes with the existing `WarpTarget.EYES`?          | **No.** The eyeball art is opaque and covers the socket, so a warp underneath is invisible — one less moving part.                                                                                                                                                                                                                          |
+| 5   | Wobble the eyeballs too?                                     | **No.** The reference does, but the eyeball is centered *on* its anchor, so rotation about that anchor barely moves it; a visible jiggle would need a second mechanism (translation). The tongue carries the motion. Same primitive with a lever arm if it is ever wanted.                                                                  |
+| 6   | Roll as a physics drive?                                     | **No.** Translation only. A roll term needs the part to hang in world-down rather than face-down — a different, larger model. Marked `ponytail:` in `LensAnchor.lateralShiftInUnits`.                                                                                                                                                       |
+| 7   | Teeth as their own layer?                                    | **Yes.** A lolling tongue passes *over* the lower lip but *under* the upper teeth — a three-way interleave one drawable cannot express.                                                                                                                                                                                                     |
+| 8   | Carousel thumbnail art                                       | **Redrawn once.** The first version used the live art's cream eyeballs on transparency; the tray renders each thumbnail on a light glass chip, so it read as a pale blob (owner feedback, 2026-08-16). Every light shape now carries a heavy dark rim. Thumbnails are designed for the chip they sit on, not scaled down from the live art. |
 
 ### 14.4 Where this feature is actually verified
 
@@ -592,7 +597,7 @@ exercise one line of the spring.
 
 ### 14.5 Residual risk — unchanged and owner-owned
 
-Everything in §11.1 still applies, plus one item this lens adds — call it **item 9**, continuing
+Everything in §11.1 still applies, plus one item this lens adds — call it **item 10**, continuing
 that list's numbering:
 
 **Does the tongue's swing look right on a real head?** Frequency, damping and drive are tuned
@@ -619,7 +624,7 @@ reasoning rather than the lenses.
 * The catalogue is now **seven** lenses: Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue,
   Elvis.
 
-Nothing outside the catalogue named either lens — that was §5's design goal and it held, so the
+Nothing outside the catalogue named either lens — that was §5's design goal, and it held, so the
 removal is one enum edit plus the test call sites that happened to pick Big Mouth as a stand-in.
 Lens selection is session state (`MutableStateFlow<Lens?>(null)` in `OpenLoopViewModel`), never
 persisted, so no user can hold a stale reference to a deleted entry across a launch.
@@ -632,9 +637,9 @@ are all deleted rather than left as unreachable code. §13's "Generic two-eye wa
 describes machinery that no longer exists; it stays as the record of why it was built that way.
 
 The camera fragment shader collapses to a single `texture2D`. Its flip into y-down screen space
-existed **only** so the warp centres could be compared against `LensAnchor`'s coordinates — with the
+existed **only** so the warp centers could be compared against `LensAnchor`'s coordinates — with the
 warp gone the flip and its inverse cancel exactly, so removing both is a no-op on output, not a
-behaviour change. `drawCamera` no longer needs the lens, the face, or the frame aspect, and
+behavior change. `drawCamera` no longer needs the lens, the face, or the frame aspect, and
 `uFrameAspect` survives only on the feature program, which has its own copy.
 
 This is a separate commit from §15.1 on purpose: reverting it restores the engine without bringing

@@ -27,6 +27,7 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] 🧪 My changes have been verified locally and work as expected.
 - [ ] 🔍 I have performed a self-review of my own code.
 - [ ] ✍️ I have commented my code, particularly in hard-to-understand areas.
-- [ ] 📖 My changes generate no new compile warnings or errors.
-- [ ] 🏪 **Play-facing docs aligned**: if this PR changes permissions, data collection, file storage, or user-facing features/lenses — privacy policy (md + html), data safety, and store listing updated to match (`docs/DEFINITION_OF_DONE.md`).
+- [ ] 📖 My changes generate no compile warnings or errors (`allWarningsAsErrors` is on).
+- [ ] 🧹 **Pre-PR sweep GREEN on the final commit** (`.\scripts\pre-pr-sweep.ps1` → `build/sweep-receipt.json`): build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown/tables/links/cspell/JSON at zero. Inspect Code export: parsed to 0 / SKIPPED because: ______
+- [ ] 🏪 **Play-facing docs aligned**: if this PR changes permissions, data collection, file storage, or user-facing features/lenses — privacy policy (MD + HTML), data safety, and store listing updated to match (`docs/DEFINITION_OF_DONE.md`).
 - [ ] 🧹 The git branch is clean and references to obsolete branches have been pruned.
