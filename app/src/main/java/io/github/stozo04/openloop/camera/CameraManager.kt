@@ -118,9 +118,9 @@ class CameraManager(private val context: Context) {
 
                 // A lens flip lands here without releaseCamera(); the roster must not carry the
                 // other sensor's faces into this bind (see FaceTracker.reset).
-                faceTracker.reset()
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
+                faceTracker.reset()
                 camera = bindWithLensEffect(
                     lifecycleOwner = lifecycleOwner,
                     cameraSelector = cameraSelector,
@@ -415,11 +415,12 @@ class CameraManager(private val context: Context) {
         }
         try {
             detachZoomObserver()
-            // unbindAll() stops the analysis stream and the ImageAnalysis instance is rebuilt on
-            // the next startCamera(), but faceTracker outlives both and holds the last faces for
+            // Stop the analysis stream before reset() so no in-flight analyze() can re-seed the
+            // roster after the epoch bump (the race fixed by swapping this order). faceTracker
+            // outlives both unbind and the rebuilt ImageAnalysis, and holds the last faces for
             // 350 ms — drop them so the next bind starts with a clean viewfinder.
-            faceTracker.reset()
             cameraProvider?.unbindAll()
+            faceTracker.reset()
             videoCapture = null
             camera = null
         } catch (exc: Exception) {
