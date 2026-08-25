@@ -1,4 +1,4 @@
-# Lesson 037 — A per-identity hold must handle the detector re-labelling the same thing
+# Lesson 037 — A per-identity hold must handle the detector re-labeling the same thing
 
 **Origin:** Multi-face lenses (`docs/PRD-multi-face-lenses.md`), 2026-08-25 — caught in review
 **Applies to:** `camera/lens/FaceRoster.kt`, `camera/lens/FaceTracker.kt`, and any future "track
@@ -7,11 +7,11 @@ N things by id and hold through drop-outs" code (hands, pets, a second tracker)
 ## What went wrong
 
 The single-face tracker rode out a blink with one rule: *hold the last face for 350 ms, but a fresh
-detection always wins.* Going to two faces, the hold became per tracking id — correct on its own
-(one person turning away must not blink the other's lens off) — and the "fresh always wins" rule
+detection always wins.* Going to two faces, the hold became per tracking id, which is correct on its
+own (one person turning away must not blink the other's lens off). But the "fresh always wins" rule
 quietly disappeared, because "fresh" now had to mean "fresh **for that id**".
 
-ML Kit does not keep an id across a dropped frame reliably. Lose a face for a frame or two and it
+ML Kit does not keep an id across a dropped frame reliably. Lose a face for a frame or two, and it
 often comes back under a **new** id. With a per-id hold that means:
 
 * the old id is still held, in a slot, for up to 350 ms;
@@ -38,7 +38,7 @@ because the ids it asserted were the new ones — the tests pinned the bug.
 2. **Dedupe a held entry against a fresh one by geometry, not by id — the *nearest* one.** A
    fresh face with no slot standing within one face-unit (eye-to-mouth, square space — Lesson 032)
    of a held-but-unseen slot holder *is* that person. Nearest, not first-reported: two people cheek
-   to cheek can both be relabelled in one frame, and first-match lets their identities cross.
+   to cheek can both be relabeled in one frame, and first-match lets their identities cross.
 3. **Then re-key to the original id, never the new one.** Publish the adopted snapshot under the
    holder's id and alias new → original on ingest, for as long as the holder is held. The identity
    a tracker publishes is a *contract* with everything downstream that keeps a `Map<Int, State>`
@@ -58,7 +58,7 @@ because the ids it asserted were the new ones — the tests pinned the bug.
   adoption step next to it, and a test named for id churn.
 * A tracker test suite with no case for "same thing, new id" has not tested the hold.
 * `rg -n "HashMap<Int" app/src/main/java/.../camera/lens` — every per-id map downstream of the
-  roster must be fed ids the roster has already canonicalised; if a new consumer appears, the
+  roster must be fed ids the roster has already canonicalized; if a new consumer appears, the
   boundary test above gains an assertion.
 * Symptom on device: a lens briefly doubles on one face after a blink or a fast head turn, a
   second person is lensed only after a visible delay — or a hanging part snaps straight / a

@@ -21,7 +21,7 @@ Three questions, in this order. Answering them out of order wastes the most time
 For OpenLoop the answer was already on file. `docs/PRD-camera-lenses.md` §4 evaluated DeepAR in
 August and rejected it on two hard constraints:
 
-* **C1** — free and open source, no paid licences, no per-MAU billing. DeepAR is MAU-metered.
+* **C1** — free and open source, no paid licenses, no per-MAU billing. DeepAR is MAU-metered.
 * **C3** — the app is Apache 2.0; a proprietary binary SDK cannot ship inside it.
 
 So "just use their SDK" was never available, and neither was "just use their assets" (§7). **Check
@@ -42,13 +42,13 @@ shade with matcaps.
 
 So the honest triage is a table with a **Dropped** column, written before any code:
 
-| Reference feature | Renderer can express it? |
-|---|---|
-| eyeball spheres, matcap-shaded | ✅ as opaque art on an eye anchor |
-| tongue on a 4-joint pendulum chain | ✅ approximately — one damped spring |
+| Reference feature                                 | Renderer can express it?                           |
+| ------------------------------------------------- | -------------------------------------------------- |
+| eyeball spheres, matcap-shaded                    | ✅ as opaque art on an eye anchor                   |
+| tongue on a 4-joint pendulum chain                | ✅ approximately — one damped spring                |
 | skin-toned mouth surround that samples the camera | ❌ drop — and see §4.3 for why it stopped mattering |
-| dense face-mesh morph at weight 1.0 | ❌ drop — different renderer entirely |
-| phong nose overlay | ❌ drop — invisible under the other layers |
+| dense face-mesh morph at weight 1.0               | ❌ drop — different renderer entirely               |
+| phong nose overlay                                | ❌ drop — invisible under the other layers          |
 
 **A port is a lossy translation and the losses belong in writing.** Two of the five went in the bin,
 and the lens is still recognisably the effect. Deciding that up front is much cheaper than
@@ -116,7 +116,7 @@ Three facts fell straight out, none of them visible in the preview image:
 
 1. The tongue is a **chain**, and four of its five joints carry physics. The effect's whole feel is
    secondary motion, not the art.
-2. The eyeballs are at **symmetric ±3.081**, so they are placed on the eyes, not on the face centre.
+2. The eyeballs are at **symmetric ±3.081**, so they are placed on the eyes, not on the face center.
 3. `blendShapeWeights = [1.0]` is a **constant**. There is no animation and no trigger anywhere in
    the graph — which answered "does the tongue come out only when the mouth opens?" with **no**,
    definitively, in one line. That saved building mouth-open detection the effect never had.
@@ -144,7 +144,7 @@ vec4 skin = mix(v_color0, cameraSmooth, map.a);          // sampled skin + camer
 vec4 outp = mix(skin, diffuse*color*multiplyFactor.x, diffuse.a*color.a);
 ```
 
-That is a skin-tone matcher: blend a drawn surface toward the camera's own colour so the prosthetic
+That is a skin-tone matcher: blend a drawn surface toward the camera's own color so the prosthetic
 matches the subject's complexion. Genuinely clever, and a real capability this renderer lacks — see
 §4.3 for how it stopped being needed rather than being reimplemented.
 
@@ -157,17 +157,17 @@ matches the subject's complexion. Genuinely clever, and a real capability this r
 
 The reusable part. DeepAR concept on the left, OpenLoop primitive on the right:
 
-| DeepAR / Studio | OpenLoop equivalent | Notes |
-|---|---|---|
-| Node `localPosition` in the face rig | `LensPlacement.upInUnits` / `rightInUnits` | **Do not convert the numbers.** See §4.1. |
-| Node parented to a face bone | `LensPlacement.anchor` (`LEFT_EYE`/`RIGHT_EYE`/`MOUTH`/`FACE`) | |
-| Several nodes under one effect | `Lens.art: List<LensArt>`, drawn in list order | |
-| `simplePendulumPhysics` | `LensPhysics.WobbleSpec` on a layer | One spring per hanging part, not per joint |
-| `meshRenderer` + `matcap*.mat` | opaque art (a vector drawable) | Matcap shading → bake the highlight into a radial gradient |
-| Material sampling `CameraTexture.tex` | `FeatureLayout` (character lenses) — or design it out | §4.3 |
-| `blendShapeWeights` on a morph mesh | usually nothing; check if it is a constant first | §2.1 point 3 |
-| A `.armesh` / `.fbx` silhouette | the alpha channel of a vector drawable | |
-| Effect draw order | list order in `Lens.art` | |
+| DeepAR / Studio                       | OpenLoop equivalent                                            | Notes                                                      |
+| ------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------- |
+| Node `localPosition` in the face rig  | `LensPlacement.upInUnits` / `rightInUnits`                     | **Do not convert the numbers.** See §4.1.                  |
+| Node parented to a face bone          | `LensPlacement.anchor` (`LEFT_EYE`/`RIGHT_EYE`/`MOUTH`/`FACE`) |                                                            |
+| Several nodes under one effect        | `Lens.art: List<LensArt>`, drawn in list order                 |                                                            |
+| `simplePendulumPhysics`               | `LensPhysics.WobbleSpec` on a layer                            | One spring per hanging part, not per joint                 |
+| `meshRenderer` + `matcap*.mat`        | opaque art (a vector drawable)                                 | Matcap shading → bake the highlight into a radial gradient |
+| Material sampling `CameraTexture.tex` | `FeatureLayout` (character lenses) — or design it out          | §4.3                                                       |
+| `blendShapeWeights` on a morph mesh   | usually nothing; check if it is a constant first               | §2.1 point 3                                               |
+| A `.armesh` / `.fbx` silhouette       | the alpha channel of a vector drawable                         |                                                            |
+| Effect draw order                     | list order in `Lens.art`                                       |                                                            |
 
 ### The one rule that matters most
 
@@ -176,7 +176,7 @@ The reusable part. DeepAR concept on the left, OpenLoop primitive on the right:
 DeepAR's `±3.081` is in its own rig's arbitrary scale. Converting it requires knowing that rig's unit
 — which the project does not state — so any conversion is a guess wearing a decimal point.
 
-What the number *tells* you is only this: **the eyeballs are symmetric about the centre line and
+What the number *tells* you is only this: **the eyeballs are symmetric about the center line and
 anchored to the eyes.** That is the design intent, and it is all you need. The magnitude comes from
 this repo's own anatomy table in `Lens.kt`:
 
@@ -184,7 +184,7 @@ this repo's own anatomy table in `Lens.kt`:
 head width, ear to ear   1.55 units      (so half-width 0.775)
 eye line up to the crown 1.25 units
 mouth width, at rest     0.80 units
-eye off the centre line  0.40 units
+eye off the center line  0.40 units
 ```
 
 So the eyeball got sized by arithmetic against *that* table, not by scaling `3.081`:
@@ -211,7 +211,7 @@ change below holds that line — the renderer gained capabilities, not special c
    and a tongue has to hang from the *mouth*, and no single quad tracks three landmarks at any size.
    Every earlier lens is a one-element list.
 2. **`LensPlacement` gained `anchor` and `rightInUnits`.** `anchor` defaults to `FACE`, which
-   reproduces the old centre-line behaviour exactly, so this is additive.
+   reproduces the old center-line behavior exactly, so this is additive.
 3. **`LensPhysics`** — a pure damped-spring module (§4.2).
 
 If your next effect needs a fourth capability, add it the same way: a default-valued field on
@@ -236,7 +236,7 @@ Two decisions in there are worth stealing:
   a jittery detector gives a jittery drive rather than an unbounded one.
 * **Clamp `dt`.** A dropped frame, a paused preview, or the first frame after a bind produces a
   large gap, and explicit integration over an unclamped gap is precisely how a spring reaches
-  infinity — then `NaN`, then a vertex buffer that erases the whole quad with nothing in logcat.
+  infinity. Then comes `NaN`, then a vertex buffer that erases the whole quad with nothing in logcat.
 
 **Step the simulation once per frame, not once per output.** `drawFrame` loops over the preview
 surface *and* the recorder surface. Stepping inside that loop would advance the spring twice per
@@ -250,11 +250,11 @@ The reference covers the mouth region with geometry that samples the camera to m
 (§2.2). Reimplementing that is real work: a sampling mask, a smoothing pass, a second camera read.
 
 It was never needed — because the mouth layer was designed as **lips and cavity** rather than as a
-patch of cheek. A lip is lip-coloured on everyone. There is no complexion to match, so the entire
+patch of cheek. A lip is lip-colored on everyone. There is no complexion to match, so the entire
 capability became irrelevant rather than deferred.
 
 This is the same move the repo already made once: PRD §10b pinned `ImageAnalysis` to 4:3 so the
-field-of-view mismatch between streams *could not arise*, instead of modelling it. **When a vendor
+field-of-view mismatch between streams *could not arise*, instead of modeling it. **When a vendor
 capability looks expensive, check whether a design change makes the question disappear.** Reach for
 that before reaching for the shader.
 
@@ -262,7 +262,7 @@ that before reaching for the shader.
 
 A tongue lolling out passes **over** the lower lip but **under** the upper teeth. That is a
 three-way interleave, so the mouth cannot be one drawable — the cavity has to be behind the tongue
-and the teeth in front of it. Hence three mouth-region layers:
+and the teeth in front of it. Hence, three mouth-region layers:
 
 ```text
 1. mouth  (lips + cavity)   ← behind
@@ -290,12 +290,12 @@ knowing as the signature of exactly the situation above.
 **RTF parsing burned two attempts.** `Getting Started.rtf` is 68 KB of Aspose-generated style tables
 wrapping about a page of DeepAR marketing. Naive control-word stripping produced one word per line
 and a `SyntaxError` from quoting a regex inside a shell heredoc. *It contained nothing useful.* If a
-vendor export ships a "Getting Started" document, it is onboarding copy, not a licence — check the
+vendor export ships a "Getting Started" document, it is onboarding copy, not a license — check the
 project files instead, and write throwaway parsing to a scratch file rather than fighting shell
 quoting.
 
 **Test fixtures are not anatomy.** `LensAnchorTest.face()` is a synthetic head whose eye span was
-chosen to make the face unit a round number — its eyes sit **0.53** units off the centre line, not
+chosen to make the face unit a round number — its eyes sit **0.53** units off the center line, not
 the documented **0.40**. Asserting an anatomical claim against it failed, correctly. The fix was to
 assert against the catalogue constants and the documented table, since that is what the claim is
 actually about. *A property about your shipped numbers should read your shipped numbers.*
@@ -331,7 +331,7 @@ costs minutes rather than a re-derivation.
 approximates SVG arcs as midpoint ellipses, and ignores `<aapt:attr>` gradients — so it would render
 this lens's circles and gradients as garbage. Extending it to full fidelity would duplicate what the
 JVM tests already assert more rigorously (geometry) and what the emulator shows better (appearance).
-*Skipped deliberately.* If you port an effect whose art is flat vector shapes on the centre line, the
+*Skipped deliberately.* If you port an effect whose art is flat vector shapes on the center line, the
 tool is still the fastest check available.
 
 ---
@@ -345,15 +345,15 @@ a head. So it cannot exercise a single line of the physics.
 
 Split verification accordingly, and be explicit about which half covers what:
 
-| Property | Verified where | Why not the other |
-|---|---|---|
-| spring settles, never exceeds its limit, cannot explode | `LensPhysicsTest` (JVM) | the poster cannot move |
-| anchors resolve to landmarks; swing preserves hanging distance | `LensAnchorTest` (JVM) | arithmetic, so a picture is a weaker check |
-| eyeballs clear the bridge / stay on the head | `LensAnchorTest` (JVM) | arithmetic |
-| tongue root stays behind the teeth **at the swing limit** | `LensAnchorTest` (JVM) | passes trivially at rest — test the limit |
-| art parses, gradients render, layers stack correctly | emulator | no rasteriser here is faithful to VectorDrawable |
-| carousel entry, touch targets | `LensCarouselTest` (instrumented) | catalogue-driven; needed no edit |
-| **does the swing look right on a real head** | **nowhere — owner, on hardware** | say so plainly |
+| Property                                                       | Verified where                    | Why not the other                                |
+| -------------------------------------------------------------- | --------------------------------- | ------------------------------------------------ |
+| spring settles, never exceeds its limit, cannot explode        | `LensPhysicsTest` (JVM)           | the poster cannot move                           |
+| anchors resolve to landmarks; swing preserves hanging distance | `LensAnchorTest` (JVM)            | arithmetic, so a picture is a weaker check       |
+| eyeballs clear the bridge / stay on the head                   | `LensAnchorTest` (JVM)            | arithmetic                                       |
+| tongue root stays behind the teeth **at the swing limit**      | `LensAnchorTest` (JVM)            | passes trivially at rest — test the limit        |
+| art parses, gradients render, layers stack correctly           | emulator                          | no rasteriser here is faithful to VectorDrawable |
+| carousel entry, touch targets                                  | `LensCarouselTest` (instrumented) | catalogue-driven; needed no edit                 |
+| **does the swing look right on a real head**                   | **nowhere — owner, on hardware**  | say so plainly                                   |
 
 ### What the final run actually showed
 
@@ -384,11 +384,11 @@ And keep the last row honest. A static poster proves plumbing. It does not prove
 ## 7. Licensing — the part that can actually hurt
 
 **OpenLoop is public under Apache 2.0.** Anything committed is redistributed to everyone, under a
-licence granting them the right to redistribute it again.
+license granting them the right to redistribute it again.
 
 The vendor project in this folder contains matcap textures, a 2.4 MB normal map, `.armesh`/`.fbx`
 geometry and a compiled bundle. **We hold no redistribution rights to any of it.** Committing the
-folder wholesale would publish another company's assets under our licence. This has bitten the repo
+folder wholesale would publish another company's assets under our license. This has bitten the repo
 before — PR #118 was blocked on exactly this question for the broccoli photograph (PRD §11.2).
 
 So the folder is gitignored except this guide:
@@ -417,7 +417,7 @@ All shipped art is original vector drawable authored in this repo. For the next 
 
 For the next effect, in order:
 
-1. **Triage (20 min).** Vendor licence → what the effect mechanically is → what this renderer can
+1. **Triage (20 min).** Vendor license → what the effect mechanically is → what this renderer can
    express. Write the **Dropped** column before any code.
 2. **Gitignore the vendor folder** immediately (§7).
 3. **Dump the scene graph** (§2.1). Look for physics components, constant blendshape weights, and
@@ -445,4 +445,4 @@ For the next effect, in order:
 * **Make it arithmetic, then assert it.** Every geometric claim here — the nose-bridge gap, the head
   edge, the tongue root behind the teeth at full swing — is a number derived from a documented table
   and locked in by a unit test. On a feature you fundamentally cannot see while building it, that is
-  not extra rigour. It is the only rigour available.
+  not extra rigor. It is the only rigor available.

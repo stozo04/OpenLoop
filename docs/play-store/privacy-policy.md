@@ -25,9 +25,9 @@ OpenLoop includes two Google/Firebase tools that send a limited amount of diagno
 to Google, which processes it on our behalf:
 
 - **Google Analytics for Firebase** — records app-usage events (for example, which screens you open
-  and actions such as saving or sharing a loop), an **approximate location** (country/region/city
-  level) that Google derives from your IP address, and a random **app-installation identifier** (the
-  Firebase App Instance ID).
+  and actions such as saving or sharing a loop). It also records an **approximate location**
+  (country/region/city level) that Google derives from your IP address, and a random
+  **app-installation identifier** (the Firebase App Instance ID).
 - **Firebase Crashlytics** — if the app crashes, records the crash details: a stack trace, the app's
   state at the time, point-in-time device information, and a random installation identifier used to
   count how many users a given crash affected.
@@ -89,7 +89,7 @@ your Gallery app.
 
 ## Sharing
 
-When you tap **Share**, Android's system share sheet opens and **you** choose where to send the
+When you tap **Share**, Android's system share sheet opens, and **you** choose where to send the
 boomerang (for example a messaging or social app). That transfer is performed by Android and the app
 you select — it is initiated and controlled entirely by you. OpenLoop does not transmit your video on
 its own and is not involved beyond handing the file to the app you pick.
@@ -108,7 +108,7 @@ crash diagnostics are retained by Firebase for a limited period under Google's s
 settings and then deleted automatically.
 
 The diagnostics are pseudonymous and are not linked to your name, email, or any account, so we have
-no way to identify or single out one individual's records — and therefore cannot action a request to
+no way to identify or single out one individual's records. We therefore cannot action a request to
 delete a specific person's diagnostic data. You stay in control in these ways:
 
 - **Uninstalling OpenLoop stops all further data collection.**

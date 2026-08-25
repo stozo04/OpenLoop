@@ -7,7 +7,7 @@
 ## What went wrong
 
 The test needed WorkManager work that is still cancellable, so it configured the worker executor to
-throw the work away:
+discard the work:
 
 ```kotlin
 Configuration.Builder()
@@ -37,7 +37,7 @@ Configuration.Builder()
             object : CoroutineWorker(ctx, params) {
                 override suspend fun doWork(): Result {
                     started.countDown()
-                    awaitCancellation()   // genuinely RUNNING until cancelled
+                    awaitCancellation()   // genuinely RUNNING until canceled
                 }
             }
     })

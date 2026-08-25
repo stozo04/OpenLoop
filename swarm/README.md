@@ -20,9 +20,11 @@ each agent a few lines that say who it is and what to read.
    > Steven's sign-off is already on record; do not wait for permission.
 4. **Kayley:** paste the block inside [`KAYLEY-PROMPT.md`](KAYLEY-PROMPT.md).
 5. In a spare terminal:
-   ```
+
+   ```text
    node swarm/tools/render-bus.mjs --watch
    ```
+
 6. Open `swarm/bus-follow.html` in a browser. It self-refreshes every 2s.
 
 `SWARM-PROMPT.md` is still the full protocol — the agents read it from disk in step 2/3, and it is
@@ -30,18 +32,18 @@ the file to edit when the rules change. You just never have to paste it.
 
 ## Layout
 
-| Path | What |
-|---|---|
-| `GOAL.md` | The brief — what to build, the quality bar, the Definition of Done |
-| `SWARM-PROMPT.md` | Paste into both agents |
-| `KAYLEY-PROMPT.md` | Paste into Grok when a tie-break is needed, plus how to relay the answer back |
-| `collab/bus/*.jsonl` | The message bus — **one writer per file** |
-| `collab/decisions.md` | The locked shortlist, ACKs, and judge rulings (the PRD of record) |
-| `collab/LESSONS.md` | Honest notes on what worked and what wasted time |
-| `collab/research-*.md` | Each agent's evidence trail |
-| `tools/render-bus.mjs` | Renders the bus + decisions into `bus-follow.html` |
-| `tools/bus-post.mjs` | Safe bus append helper |
-| `bus-follow.html` | Generated. Gitignored. |
+| Path                   | What                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `GOAL.md`              | The brief — what to build, the quality bar, the Definition of Done            |
+| `SWARM-PROMPT.md`      | Paste into both agents                                                        |
+| `KAYLEY-PROMPT.md`     | Paste into Grok when a tie-break is needed, plus how to relay the answer back |
+| `collab/bus/*.jsonl`   | The message bus — **one writer per file**                                     |
+| `collab/decisions.md`  | The locked shortlist, ACKs, and judge rulings (the PRD of record)             |
+| `collab/LESSONS.md`    | Honest notes on what worked and what wasted time                              |
+| `collab/research-*.md` | Each agent's evidence trail                                                   |
+| `tools/render-bus.mjs` | Renders the bus + decisions into `bus-follow.html`                            |
+| `tools/bus-post.mjs`   | Safe bus append helper                                                        |
+| `bus-follow.html`      | Generated. Gitignored.                                                        |
 
 ## Breaking a tie (Kayley = Grok)
 
@@ -61,7 +63,7 @@ To weigh in — or to post a ruling by hand — write a payload and post it:
   "body": { "headline": "Tie-break: go with X", "why": "..." } }
 ```
 
-```
+```text
 node swarm/tools/bus-post.mjs kayley payload.json
 ```
 

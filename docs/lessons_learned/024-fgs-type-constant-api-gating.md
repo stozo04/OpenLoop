@@ -16,7 +16,7 @@ constant happily *compiles* against `compileSdk 36`, so nothing flagged it — b
 literal `8192`, and on an actual **Android 14 (API 34)** device the platform's service validator does
 not recognize that type bit. With `targetSdk 36`, an unrecognized type is fatal:
 
-```
+```text
 java.lang.RuntimeException: Unable to start service SystemForegroundService …
 Caused by: android.app.InvalidForegroundServiceTypeException:
     Starting FGS with type unknown … targetSDK=36 has been prohibited
@@ -60,7 +60,7 @@ fun foregroundServiceTypeForSdk(sdkInt: Int): Int = when {
 ## Reference
 
 - ServiceInfo (per-constant "Added in API level"):
-  https://developer.android.com/reference/android/content/pm/ServiceInfo
+  <https://developer.android.com/reference/android/content/pm/ServiceInfo>
 - Changes to foreground service types for Android 15:
-  https://developer.android.com/about/versions/15/changes/foreground-service-types
+  <https://developer.android.com/about/versions/15/changes/foreground-service-types>
 - Origin: Crashlytics issue `9663c7436eb21e7ec4219eba1125416f` (Galaxy A55 / Android 14, v1.0.23).

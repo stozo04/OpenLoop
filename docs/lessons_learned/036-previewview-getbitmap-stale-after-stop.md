@@ -16,7 +16,7 @@ facts compound:
 1. **`delay()` is not frame-bound.** Coroutine timers keep ticking while the activity is stopped —
    only `animateTo`/`withFrameNanos` suspend with the paused frame clock. The countdown, the grabs,
    and the completion hand-off all keep executing in the background.
-2. **CameraX stops the stream on ON_STOP, but the COMPATIBLE-mode `PreviewView` is a
+2. **CameraX stops the stream at ON_STOP, but the COMPATIBLE-mode `PreviewView` is a
    `TextureView`, and a `TextureView` retains its last rendered frame.** `getBitmap()` happily
    returns that frozen frame, non-null, for as long as the view lives.
 3. So the null-grab abort never fires, and every backgrounded "shot" bakes the **same stale frame**

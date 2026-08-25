@@ -7,25 +7,25 @@
 ## The rule
 
 `detectDragGestures` does **not** call `onDragStart` at the down event. It waits until the pointer has
-travelled past **touch slop** (~8 dp) and reports *that* position. So the offset handed to
+traveled past **touch slop** (~8 dp) and reports *that* position. So the offset handed to
 `onDragStart` is already a slop's distance from where the finger actually landed, **in the direction of
 the drag**.
 
 That matters for two different things, and they fail differently:
 
-| What `onDragStart`'s offset is used for | Effect of the slop | Verdict |
-|---|---|---|
-| **Picking** which element was grabbed | Shifts the grab zone by ~8 dp *in the drag direction* | Broken when the zone is small |
-| **Anchoring** the value being dragged | Cancels out, if the delta is measured from the same frame | Safe — see below |
+| What `onDragStart`'s offset is used for | Effect of the slop                                        | Verdict                       |
+| --------------------------------------- | --------------------------------------------------------- | ----------------------------- |
+| **Picking** which element was grabbed   | Shifts the grab zone by ~8 dp *in the drag direction*     | Broken when the zone is small |
+| **Anchoring** the value being dragged   | Cancels out, if the delta is measured from the same frame | Safe — see below              |
 
 ## Why the speed graph broke and the trim handles did not
 
 The graph's hit tolerance is `0.09` in **normalized graph space**, not pixels. Converted:
 
-| axis | usable extent | 0.09 tolerance | after ~8 dp slop |
-|---|---|---|---|
-| vertical (speed) | ~96 dp | **~8.6 dp** | **~0.6 dp left** |
-| horizontal (time) | ~276 dp | ~25 dp | ~17 dp left |
+| axis              | usable extent | 0.09 tolerance | after ~8 dp slop |
+| ----------------- | ------------- | -------------- | ---------------- |
+| vertical (speed)  | ~96 dp        | **~8.6 dp**    | **~0.6 dp left** |
+| horizontal (time) | ~276 dp       | ~25 dp         | ~17 dp left      |
 
 A **vertical** drag — the entire purpose of the control — spent essentially its whole grab budget on
 slop. Horizontal drags kept most of theirs. That asymmetry is why it survived review: every casual
@@ -62,7 +62,7 @@ onDragStart = {
 
 `onPress` fires on the down event, always before slop is exceeded, so the value is there in time.
 
-## The generalisable trap
+## The generalizable trap
 
 **A hit tolerance expressed as a fraction of a control is not a tolerance in dp.** Convert it on the
 *shortest* axis before believing it, and compare against touch slop (~8 dp) and the Material minimum
@@ -78,6 +78,7 @@ control inherits this arithmetic.
   either axis → needs the down-position fix or a bigger tolerance.
 - The test that catches it — press at the element's *computed* position and assert the drag moved it,
   driving the geometry from production code rather than guessing a screen coordinate:
+
   ```kotlin
   val insetPx = with(composeTestRule.density) { GRAPH_INSET.toPx() }
   onNodeWithTag("speed_curve_graph").performTouchInput {
@@ -86,6 +87,7 @@ control inherits this arithmetic.
       down(handle); repeat(6) { moveTo(…) }; up()
   }
   ```
+
   A test that presses at `center` and hopes is testing the coordinate guess, not the control. Note also
   that **`adb input swipe` cannot distinguish this bug from a working control** — both look like
   "nothing happened" — so the proof has to be an instrumented test.

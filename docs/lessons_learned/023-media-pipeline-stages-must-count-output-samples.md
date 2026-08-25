@@ -53,7 +53,7 @@ file all along — the reverse half of the preview was a ~0-duration clip nobody
 
 - Grep media write loops for `writeSampleData` — each enclosing stage must have a sample counter
   checked at exit. `grep -n "writeSampleData" app/src/main/java`
-- Grep for size-only artifact checks: `length() > 0` / `length() >= ` used as a success/cache gate
+- Grep for size-only artifact checks: `length() > 0` / `length() >=` used as a success/cache gate
   on produced media files.
 - For every `Transformer`/`MediaCodec` callback exception type used in a module, confirm a worker
   or coroutine `catch` actually matches its static type (watch for `Exception`-direct subclasses).

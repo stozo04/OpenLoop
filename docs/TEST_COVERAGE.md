@@ -86,11 +86,11 @@ LG hardware codec). Stock emulators cannot spoof Samsung/LG identity or vendor c
 
 **Robolectric — when to use it, run commands, and what must never move to it:** [`docs/guides/robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)
 
-| Lane | What | Where |
-|------|------|-------|
-| API 34 FGS | `Pixel_8_API34` AVD + save smoke; Robolectric `ForegroundInfo` tests | Emulator + `test/` |
-| Samsung app logic | `DeviceMediaHintsOemRobolectricTest` (ShadowBuild) | `test/` |
-| Samsung vendor codecs | `samsung-rtl-sweep.ps1` on Samsung Remote Test Lab | Real Galaxy |
+| Lane                       | What                                                                          | Where                        |
+| -------------------------- | ----------------------------------------------------------------------------- | ---------------------------- |
+| API 34 FGS                 | `Pixel_8_API34` AVD + save smoke; Robolectric `ForegroundInfo` tests          | Emulator + `test/`           |
+| Samsung app logic          | `DeviceMediaHintsOemRobolectricTest` (ShadowBuild)                            | `test/`                      |
+| Samsung vendor codecs      | `samsung-rtl-sweep.ps1` on Samsung Remote Test Lab                            | Real Galaxy                  |
 | LG `start failed` recovery | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` | `androidTest/` on any device |
 
 The **4-emulator pixel sweep** (`Pixel_6` → `Pixel_8` → `Pixel_10_Pro_Fold` → `Pixel_8_API34`)
@@ -101,17 +101,17 @@ media-pipeline or FGS changes.
 
 ## Frameworks & Tools
 
-| Tool | Purpose | Used In |
-|------|---------|--------|
-| **JUnit 4** | Test runner and assertions | `test/` |
-| **MockK** | Kotlin-first mocking library | `test/` (for Android framework classes like `Context`, `Log`) |
-| **Fakes** | Hand-written test doubles using real interfaces | `test/` (preferred over mocks for Flow-based interfaces) |
-| **kotlinx-coroutines-test** | `TestDispatcher`, `runTest`, virtual time control | `test/` |
-| **Robolectric 4.16.1** | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (see [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)) |
-| **JaCoCo 0.8.13** | JVM/Robolectric unit-test coverage reports and the ViewModel coverage gate | Gradle tasks: `jacocoDebugUnitTestReport`, `jacocoDebugViewModelCoverageVerification` |
-| **androidx.work.testing** | `TestListenableWorkerBuilder` for worker guard tests without a device | `test/` (+ `androidTest/` for full encode) |
-| **Compose UI Test** | `createComposeRule`, semantic matchers, UI assertions | `androidTest/` |
-| **AndroidJUnit4** | Instrumented test runner | `androidTest/` |
+| Tool                        | Purpose                                                                                        | Used In                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **JUnit 4**                 | Test runner and assertions                                                                     | `test/`                                                                                     |
+| **MockK**                   | Kotlin-first mocking library                                                                   | `test/` (for Android framework classes like `Context`, `Log`)                               |
+| **Fakes**                   | Hand-written test doubles using real interfaces                                                | `test/` (preferred over mocks for Flow-based interfaces)                                    |
+| **kotlinx-coroutines-test** | `TestDispatcher`, `runTest`, virtual time control                                              | `test/`                                                                                     |
+| **Robolectric 4.16.1**      | Run real Android framework code on the JVM; `@Config(sdk=[...])` for version-specific behavior | `test/` (see [`robolectric-testing-explained.md`](guides/robolectric-testing-explained.md)) |
+| **JaCoCo 0.8.13**           | JVM/Robolectric unit-test coverage reports and the ViewModel coverage gate                     | Gradle tasks: `jacocoDebugUnitTestReport`, `jacocoDebugViewModelCoverageVerification`       |
+| **androidx.work.testing**   | `TestListenableWorkerBuilder` for worker guard tests without a device                          | `test/` (+ `androidTest/` for full encode)                                                  |
+| **Compose UI Test**         | `createComposeRule`, semantic matchers, UI assertions                                          | `androidTest/`                                                                              |
+| **AndroidJUnit4**           | Instrumented test runner                                                                       | `androidTest/`                                                                              |
 
 ### Fakes Over Mocks
 
@@ -173,10 +173,10 @@ class MainDispatcherRule(
 
 ### UnconfinedTestDispatcher vs StandardTestDispatcher
 
-| Dispatcher | Behavior | Use When |
-|-----------|----------|----------|
-| `UnconfinedTestDispatcher` | Runs coroutines **eagerly** (blocking). Simpler test code. | Default choice. Most tests. |
-| `StandardTestDispatcher` | Queues coroutines. You control execution with `advanceUntilIdle()`, `advanceTimeBy()`. | Testing timing, delays, concurrency, or observing intermediate states. |
+| Dispatcher                 | Behavior                                                                               | Use When                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `UnconfinedTestDispatcher` | Runs coroutines **eagerly** (blocking). Simpler test code.                             | Default choice. Most tests.                                            |
+| `StandardTestDispatcher`   | Queues coroutines. You control execution with `advanceUntilIdle()`, `advanceTimeBy()`. | Testing timing, delays, concurrency, or observing intermediate states. |
 
 OpenLoop defaults to `UnconfinedTestDispatcher` for simplicity. The `startBurstCapture … auto-caps at 30 seconds` test drives the 30 s cap with virtual time (`advanceUntilIdle()` over a bounded loop — Lesson 008); the reverse-preview timeout tests use `advanceTimeBy(…)`.
 
@@ -210,48 +210,48 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 **OEM / API regression (Robolectric + JVM):**
 
-| Test class | What it validates |
-|------------|-------------------|
-| `BoomerangRenderNotificationsTest` | SDK → FGS type mapping (API 34 must not get `mediaProcessing`) |
-| `BoomerangRenderForegroundInfoRobolectricTest` | Real `ForegroundInfo.foregroundServiceType` under `@Config(sdk=[34/35/36])` |
-| `BoomerangRenderNotificationsRobolectricTest` | Channel idempotency, progress clamp, `PendingIntent.FLAG_IMMUTABLE` |
-| `VideoImporterImportRobolectricTest` | `importToFile` copy contract via `ShadowContentResolver` |
-| `UserPreferencesRepositoryImplRobolectricTest` | Real DataStore round-trip (onboarding flag) |
-| `DeviceMediaHintsOemRobolectricTest` | `ShadowBuild` Samsung/LG identity → preview cap + encoder order |
-| `BoomerangRenderWorkerRobolectricTest` | Worker guard paths: invalid input, `getForegroundInfo`, FGS denied + partial cleanup |
-| `RenderCancellationRobolectricTest` | Real WorkManager `CANCELLED` → scheduler emits `BoomerangRenderWorkResult.Cancelled` (no Crashlytics beacon / no `SaveFailed`) |
-| `SamsungReversePreviewRegressionTest` | Samsung encoder ranking (RTL-derived, explicit `isSamsung=true`) |
-| `AppUpdateFlowRobolectricTest` | Play in-app update FLEXIBLE flow on `FakeAppUpdateManager`: stale build → dialog → download → restart prompt → install; a download finished while backgrounded is re-surfaced on resume |
-| `InAppReviewRobolectricTest` | `launchInAppReview` shows the card only while the user is still idle, and swallows a non-`ReviewException` failure instead of killing the collector |
+| Test class                                     | What it validates                                                                                                                                                                       |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BoomerangRenderNotificationsTest`             | SDK → FGS type mapping (API 34 must not get `mediaProcessing`)                                                                                                                          |
+| `BoomerangRenderForegroundInfoRobolectricTest` | Real `ForegroundInfo.foregroundServiceType` under `@Config(sdk=[34/35/36])`                                                                                                             |
+| `BoomerangRenderNotificationsRobolectricTest`  | Channel idempotency, progress clamp, `PendingIntent.FLAG_IMMUTABLE`                                                                                                                     |
+| `VideoImporterImportRobolectricTest`           | `importToFile` copy contract via `ShadowContentResolver`                                                                                                                                |
+| `UserPreferencesRepositoryImplRobolectricTest` | Real DataStore round-trip (onboarding flag)                                                                                                                                             |
+| `DeviceMediaHintsOemRobolectricTest`           | `ShadowBuild` Samsung/LG identity → preview cap + encoder order                                                                                                                         |
+| `BoomerangRenderWorkerRobolectricTest`         | Worker guard paths: invalid input, `getForegroundInfo`, FGS denied + partial cleanup                                                                                                    |
+| `RenderCancellationRobolectricTest`            | Real WorkManager `CANCELLED` → scheduler emits `BoomerangRenderWorkResult.Cancelled` (no Crashlytics beacon / no `SaveFailed`)                                                          |
+| `SamsungReversePreviewRegressionTest`          | Samsung encoder ranking (RTL-derived, explicit `isSamsung=true`)                                                                                                                        |
+| `AppUpdateFlowRobolectricTest`                 | Play in-app update FLEXIBLE flow on `FakeAppUpdateManager`: stale build → dialog → download → restart prompt → install; a download finished while backgrounded is re-surfaced on resume |
+| `InAppReviewRobolectricTest`                   | `launchInAppReview` shows the card only while the user is still idle, and swallows a non-`ReviewException` failure instead of killing the collector                                     |
 
 **Core ViewModel / storage (representative rows):**
 
-| Test | Category | What It Validates |
-|------|----------|------------------|
-| `first-time user resolves to Onboarding after init` | DataStore | DataStore `false` → Onboarding state |
-| `returning user resolves to CheckingPermissions after init` | DataStore | DataStore `true` → CheckingPermissions state |
-| `onOnboardingCompleted persists true to repository` | DataStore | Write to DataStore actually happens |
-| `onOnboardingCompleted handles IOException gracefully` | Error | Failed write still transitions to CheckingPermissions |
-| `onOnboardingCompleted transitions to CheckingPermissions` | State | Onboarding → CheckingPermissions |
-| `onPermissionsChecked when granted transitions to ReadyToCapture` | State | Permission grant → camera ready |
-| `onPermissionsChecked when denied transitions to PermissionDenied` | State | Permission deny → denied screen |
-| `showPermissionRationale transitions to PermissionRationale` | Permissions | Denied-once → educational rationale (Issue #11) |
-| `onRationaleAcknowledged transitions to CheckingPermissions` | Permissions | Acknowledge rationale → re-check (Issue #11) |
-| `onRationaleDeclined transitions to PermissionDenied` | Permissions | "Not now" cancel → blocked-but-recoverable screen (Issue #11) |
-| `rationale flow ending in grant reaches ReadyToCapture` | Permissions | Full rationale → grant path (Issue #11) |
-| `rationale flow ending in denial reaches PermissionDenied` | Permissions | Full rationale → denial path (Issue #11) |
-| `resetToCapture transitions state back to ReadyToCapture` | State | State reset works from any state |
-| `startBurstCapture when not ready does not transition or call camera` | Guard | Guard clause prevents recording from wrong state |
-| `startBurstCapture starts recording and auto-caps at 30 seconds` | Capture | Full capture lifecycle; the 30 s cap fires under virtual time |
-| `startBurstCapture reverts to ReadyToCapture when recording cannot start` | Error | Camera error → graceful fallback to ReadyToCapture |
-| `stopBurstCapture cancels coroutine job and stops recording` | Capture | Clean shutdown of recording |
-| `finalize success auto-routes to Trim with a ScratchClip and initialized editorState` | Capture | Successful recording → Trim (no preview landing pad) |
-| `finalize error discards the scratch and returns to ReadyToCapture` | Error | Failed recording → graceful fallback |
-| `navigateToGallery transitions state to Gallery` | Navigation | Gallery navigation works |
-| `navigateBackFromGallery transitions state to ReadyToCapture` | Navigation | Back from gallery works |
-| `loadRecordedVideos with empty storage returns empty list` | Storage | Empty state handled correctly |
-| `commitPendingDeletion deletes each file from storage and reloads` | Storage | Deletion flow works |
-| `recordedVideos flow starts as empty list` | State | Initial state is clean |
+| Test                                                                                  | Category    | What It Validates                                             |
+| ------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------- |
+| `first-time user resolves to Onboarding after init`                                   | DataStore   | DataStore `false` → Onboarding state                          |
+| `returning user resolves to CheckingPermissions after init`                           | DataStore   | DataStore `true` → CheckingPermissions state                  |
+| `onOnboardingCompleted persists true to repository`                                   | DataStore   | Write to DataStore actually happens                           |
+| `onOnboardingCompleted handles IOException gracefully`                                | Error       | Failed write still transitions to CheckingPermissions         |
+| `onOnboardingCompleted transitions to CheckingPermissions`                            | State       | Onboarding → CheckingPermissions                              |
+| `onPermissionsChecked when granted transitions to ReadyToCapture`                     | State       | Permission grant → camera ready                               |
+| `onPermissionsChecked when denied transitions to PermissionDenied`                    | State       | Permission deny → denied screen                               |
+| `showPermissionRationale transitions to PermissionRationale`                          | Permissions | Denied-once → educational rationale (Issue #11)               |
+| `onRationaleAcknowledged transitions to CheckingPermissions`                          | Permissions | Acknowledge rationale → re-check (Issue #11)                  |
+| `onRationaleDeclined transitions to PermissionDenied`                                 | Permissions | "Not now" cancel → blocked-but-recoverable screen (Issue #11) |
+| `rationale flow ending in grant reaches ReadyToCapture`                               | Permissions | Full rationale → grant path (Issue #11)                       |
+| `rationale flow ending in denial reaches PermissionDenied`                            | Permissions | Full rationale → denial path (Issue #11)                      |
+| `resetToCapture transitions state back to ReadyToCapture`                             | State       | State reset works from any state                              |
+| `startBurstCapture when not ready does not transition or call camera`                 | Guard       | Guard clause prevents recording from wrong state              |
+| `startBurstCapture starts recording and auto-caps at 30 seconds`                      | Capture     | Full capture lifecycle; the 30 s cap fires under virtual time |
+| `startBurstCapture reverts to ReadyToCapture when recording cannot start`             | Error       | Camera error → graceful fallback to ReadyToCapture            |
+| `stopBurstCapture cancels coroutine job and stops recording`                          | Capture     | Clean shutdown of recording                                   |
+| `finalize success auto-routes to Trim with a ScratchClip and initialized editorState` | Capture     | Successful recording → Trim (no preview landing pad)          |
+| `finalize error discards the scratch and returns to ReadyToCapture`                   | Error       | Failed recording → graceful fallback                          |
+| `navigateToGallery transitions state to Gallery`                                      | Navigation  | Gallery navigation works                                      |
+| `navigateBackFromGallery transitions state to ReadyToCapture`                         | Navigation  | Back from gallery works                                       |
+| `loadRecordedVideos with empty storage returns empty list`                            | Storage     | Empty state handled correctly                                 |
+| `commitPendingDeletion deletes each file from storage and reloads`                    | Storage     | Deletion flow works                                           |
+| `recordedVideos flow starts as empty list`                                            | State       | Initial state is clean                                        |
 
 **Other JVM suites (class names only — the live inventory is `./gradlew :app:testDebugUnitTest`):**
 `media/` — `BoomerangSequenceTest`, `BoothStripLayoutTest`, `DeviceMediaHintsTest`, `KeyframeSpeedProviderTest`, `LoopClipSpanTest`, `MediaCodecLifecycleTest`, `MediaDimensionsTest`, `MediaFormatUtilsTest`, `Pass1SampleActionTest`, `ReverseNormalizeTest`, `ReverseOutputValidatorTest`, `ReverseScratchJanitorTest`, `SpeedCurveDurationTest`, `SpeedCurveTest`, `ThumbnailDecoderTest`, `VideoFilterTest` · `ui/` — `EditorEffectsPreviewTest`, `EditorLoadingKindTest`, `EditorPlaylistBindTest`, `MemoryPressureTest`; `ui/components/` — `SpeedCurveMathTest`, `TrimHandleMathTest`, `TrimRulerMathTest` · `camera/` — `ZoomMathTest`; `camera/lens/` — `LensAnchorTest`, `LensPhysicsTest`, `FaceRosterTest`, `LensMotionTest`, `FaceSnapshotTest` · `data/` — `VideoStorageRepositoryImplTest` · `work/` — `BoomerangRenderWorkerInputTest`, `BoomerangRenderWorkerInputCurveTest`, `RenderWorkResultMappingTest` · `update/` — `AppUpdateControllerTest`, `AppUpdateGateTest` · `review/` — `ReviewCadenceTest` · root — `ShareMimeTypeTest`.
@@ -260,26 +260,26 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 **Media / OEM:**
 
-| Test | What it guards |
-|------|----------------|
+| Test                                                                          | What it guards                                                        |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` | LG 47233ad7 — `start failed` → software codec retry (fault injection) |
-| `VideoReverserTest` (Samsung-only cases) | Skip on emulator; run on Samsung RTL hardware |
+| `VideoReverserTest` (Samsung-only cases)                                      | Skip on emulator; run on Samsung RTL hardware                         |
 
 **Onboarding UI (Compose) — `OnboardingScreenTest`:**
 
-| Test | What it guards |
-|------|----------------|
+| Test                                       | What it guards                        |
+| ------------------------------------------ | ------------------------------------- |
 | `getStartedButton_isDisplayedAndClickable` | The single CTA renders and is enabled |
-| `getStartedButton_invokesCallbackOnClick` | CTA fires `onOnboardingCompleted` |
+| `getStartedButton_invokesCallbackOnClick`  | CTA fires `onOnboardingCompleted`     |
 
 **Permission explanation UI (Compose) — `PermissionExplanationScreenTest`:**
 
-| Test | What it guards |
-|------|----------------|
+| Test                                                 | What it guards                                                       |
+| ---------------------------------------------------- | -------------------------------------------------------------------- |
 | `rationaleVariant_showsGrantAndCancel_hidesSettings` | Rationale screen shows "Grant"/"Not now", hides Settings (Issue #11) |
-| `denialVariant_showsTryAgainAndSettings` | Denial screen shows "Try Again"/"Open Device Settings" (Issue #11) |
-| `noSecondaryAction_rendersPrimaryOnly` | Omitting the secondary action hides the second button (Issue #11) |
-| `primaryAndSecondaryClicks_invokeTheirCallbacks` | Both buttons fire their callbacks (Issue #11) |
+| `denialVariant_showsTryAgainAndSettings`             | Denial screen shows "Try Again"/"Open Device Settings" (Issue #11)   |
+| `noSecondaryAction_rendersPrimaryOnly`               | Omitting the secondary action hides the second button (Issue #11)    |
+| `primaryAndSecondaryClicks_invokeTheirCallbacks`     | Both buttons fire their callbacks (Issue #11)                        |
 
 **Other instrumented suites (class names):** `ui/` — `CameraScreenTest`, `CameraBackHandlerTest`, `GalleryScreenTest`, `TrimScreenTest`, `BoomerangEditorScreenTest`, `SpeedTabPanelCurveTest`, `LoopifyingScreenshotTest`; `ui/components/` — `EditorBottomToolbarTest`, `LensCarouselTest`; `media/` — `VideoProcessorPreScaleTest`, `ReverseOutputValidatorAndroidTest`, `LoopifyingBenchmarkTest`; `camera/lens/` — `FaceTrackerNormalizationTest`; root — `OpenLoopNavHostTest`, `ShareBoomerangTest`.
 
@@ -289,14 +289,14 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 These are areas that need tests but don't have them yet:
 
-| Area | Why It's Missing | Priority |
-|------|-----------------|----------|
-| Samsung vendor codec on emulator | **Impossible** — use Samsung RTL sweep ([`oem-regression-testing.md`](guides/oem-regression-testing.md)) | N/A (use RTL) |
-| LG on literal LM-X540 hardware | No LG RTL; instrumented injection covers logic only | Low |
-| `CameraManager` | Hardware-dependent, hard to unit test | Low (manual testing) |
-| Accessibility — colour contrast | Touch-target and screen-reader asserts exist (`homeButton_meetsMinimumTouchTarget`, `everyKeyframeIsReachableByScreenReader`, `TrimScreenTest`); there is no automated contrast check | Medium |
-| Error recovery flows | Corrupted DataStore, permission revocation mid-use | Medium |
-| Robolectric Compose (Tier 3) | No JVM Compose harness yet; onboarding interaction tests stay on device | Low |
+| Area                             | Why It's Missing                                                                                                                                                                      | Priority             |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| Samsung vendor codec on emulator | **Impossible** — use Samsung RTL sweep ([`oem-regression-testing.md`](guides/oem-regression-testing.md))                                                                              | N/A (use RTL)        |
+| LG on literal LM-X540 hardware   | No LG RTL; instrumented injection covers logic only                                                                                                                                   | Low                  |
+| `CameraManager`                  | Hardware-dependent, hard to unit test                                                                                                                                                 | Low (manual testing) |
+| Accessibility — color contrast   | Touch-target and screen-reader asserts exist (`homeButton_meetsMinimumTouchTarget`, `everyKeyframeIsReachableByScreenReader`, `TrimScreenTest`); there is no automated contrast check | Medium               |
+| Error recovery flows             | Corrupted DataStore, permission revocation mid-use                                                                                                                                    | Medium               |
+| Robolectric Compose (Tier 3)     | No JVM Compose harness yet; onboarding interaction tests stay on device                                                                                                               | Low                  |
 
 **Closed gaps (screen UI):** every screen now has a Compose suite under `androidTest/.../ui/` — `CameraScreenTest`, `CameraBackHandlerTest`, `GalleryScreenTest`, `TrimScreenTest`, `BoomerangEditorScreenTest`, `SpeedTabPanelCurveTest`, `OnboardingScreenTest`, `PermissionExplanationScreenTest`, plus `OpenLoopNavHostTest` for the router.
 

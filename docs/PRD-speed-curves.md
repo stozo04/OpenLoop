@@ -38,14 +38,14 @@ Everything in this section was checked this session against primary sources, not
 Read against the actual 1.10.1 sources jar in the Gradle cache, that is **half right and materially
 misleading**. There is no public *factory*, but the interface is public and implementable:
 
-| Fact | Source |
-|---|---|
-| `androidx.media3.common.audio.SpeedProvider` is a **public** `@UnstableApi` interface — `getSpeed(timeUs)` + `getNextSpeedChangeTimeUs(timeUs)` | `media3-common-1.10.1-sources.jar` |
-| `SpeedChangeEffect(SpeedProvider)` constructor exists alongside the float one | `media3-effect-1.10.1-sources.jar` |
-| The **whole class** is `@Deprecated`: *"Use `EditedMediaItem.Builder#setSpeed(SpeedProvider)` instead."* | same |
-| `EditedMediaItem.Builder.setSpeed(SpeedProvider)` exists and is not deprecated | `media3-transformer-1.10.1-sources.jar` |
-| **"If a `SpeedProvider` is set, speed changing effects are not allowed."** | `setSpeed` javadoc |
-| `SegmentSpeedProvider` (package-private) is a working keyframe implementation: `ImmutableSortedMap<Long, Float>` + `floorEntry` / `higherKey` | `media3-transformer` sources |
+| Fact                                                                                                                                            | Source                                  |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `androidx.media3.common.audio.SpeedProvider` is a **public** `@UnstableApi` interface — `getSpeed(timeUs)` + `getNextSpeedChangeTimeUs(timeUs)` | `media3-common-1.10.1-sources.jar`      |
+| `SpeedChangeEffect(SpeedProvider)` constructor exists alongside the float one                                                                   | `media3-effect-1.10.1-sources.jar`      |
+| The **whole class** is `@Deprecated`: *"Use `EditedMediaItem.Builder#setSpeed(SpeedProvider)` instead."*                                        | same                                    |
+| `EditedMediaItem.Builder.setSpeed(SpeedProvider)` exists and is not deprecated                                                                  | `media3-transformer-1.10.1-sources.jar` |
+| **"If a `SpeedProvider` is set, speed changing effects are not allowed."**                                                                      | `setSpeed` javadoc                      |
+| `SegmentSpeedProvider` (package-private) is a working keyframe implementation: `ImmutableSortedMap<Long, Float>` + `floorEntry` / `higherKey`   | `media3-transformer` sources            |
 
 Per CLAUDE.md I searched `developer.android.com` before relying on any of this. **Honest result: the
 public docs are silent on speed.** The [Transformations guide](https://developer.android.com/media/media3/transformer/transformations)
@@ -53,14 +53,14 @@ does not mention `setSpeed`, `SpeedProvider`, or `SpeedChangeEffect` at all, and
 [`EditedMediaItem.Builder` reference](https://developer.android.com/reference/androidx/media3/transformer/EditedMediaItem.Builder)
 renders as a nav shell. The [Media3 1.10 release notes](https://developer.android.com/jetpack/androidx/releases/media3)
 confirm `setSpeed` exists and that `setFrameRate` is the documented companion for capping output size when
-speed is raised. **The deprecation javadoc in the shipped artifact is therefore the authority here**, and
+speed is raised. **The deprecation Javadoc in the shipped artifact is therefore the authority here**, and
 the PRD treats it as such rather than claiming a doc page that does not exist.
 
 **Done:** the stale comment is gone — `videoEffects()` no longer builds a speed effect at all (D-2).
 
 ### 2.1a The export path was traced, not assumed
 
-A signature existing is not the same as Transformer honouring it for **video**. Traced end to end
+A signature existing is not the same as Transformer honoring it for **video**. Traced end to end
 through the 1.10.1 sources:
 
 ```text
@@ -137,14 +137,14 @@ trivial for a `TreeMap` lookup, and the shader only queries at frame boundaries 
 
 ### 3.2 Out (v1) — with reasons
 
-| Cut | Why |
-|---|---|
+| Cut                                                                               | Why                                                                                                                                                                                                                                                             |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Transport bar / scrubber** (play·pause, time readout, fullscreen from the mock) | Not in the editor today. The curve needs a *playhead*, which the position poller gives for free; a seekable transport is a separate feature with its own interaction with `REPEAT_MODE_ALL` and the reverse-preview hold. Ship the playhead, not the transport. |
-| **Freehand draw → auto-simplify** | Staged as "later" in the original brief. Douglas–Peucker over a touch stream is a week of tuning for a gesture the point cap already covers. |
-| **Elastic / Bounce preset** | Cannot read as elastic inside the point cap — needs 10+ oscillating keyframes. Ships as a lie or as a cap increase; do neither in v1. (Even further out of reach at the 3-point cap, R-9.) |
-| **Asymmetric per-half curves** ("apply curve to reverse pass differently") | The global-timeline domain (§5.1) already lets a user draw an asymmetric curve by hand. A separate control for it is redundant surface. |
-| **Cubic / spline interpolation** | v1 draws linear and exports linear. Do not draw a spline the export will not honor (§5.5). |
-| **Audio** | The pipeline already does `setRemoveAudio(true)` and the preview is `volume = 0f`. Nothing to do. |
+| **Freehand draw → auto-simplify**                                                 | Staged as "later" in the original brief. Douglas–Peucker over a touch stream is a week of tuning for a gesture the point cap already covers.                                                                                                                    |
+| **Elastic / Bounce preset**                                                       | Cannot read as elastic inside the point cap — needs 10+ oscillating keyframes. Ships as a lie or as a cap increase; do neither in v1. (Even further out of reach at the 3-point cap, R-9.)                                                                      |
+| **Asymmetric per-half curves** ("apply curve to reverse pass differently")        | The global-timeline domain (§5.1) already lets a user draw an asymmetric curve by hand. A separate control for it is redundant surface.                                                                                                                         |
+| **Cubic / spline interpolation**                                                  | v1 draws linear and exports linear. Do not draw a spline the export will not honor (§5.5).                                                                                                                                                                      |
+| **Audio**                                                                         | The pipeline already does `setRemoveAudio(true)` and the preview is `volume = 0f`. Nothing to do.                                                                                                                                                               |
 
 ---
 
@@ -182,9 +182,9 @@ explanation of what the graph means.
 ```
 
 - **Height** ~100 dp; **X** = the full loop timeline (§5.1); **Y** = speed, `MIN_SPEED`..`MAX_SPEED`
-  (0.25×–3.0×), guide lines at 0.5× / 1× / 2× to match the existing scale labels.
+  (0.25×–3.0×), guidelines at 0.5× / 1× / 2× to match the existing scale labels.
 - **Tap** empty graph → add a keyframe there (lime handle). **Drag** a handle → move in both axes;
-  order is preserved by clamping x between its neighbours. **Long-press** a handle → delete.
+  order is preserved by clamping x between its neighbors. **Long-press** a handle → delete.
 - Endpoints at t=0 and t=1 always exist and are **x-locked** (y-draggable only), so the curve is always
   total. Only interior points can be added/deleted → the 3-point cap means one free point (R-9).
 - The playhead is a thin white vertical line driven by the preview position, with a
@@ -223,11 +223,11 @@ answers. The weighted average is the honest "what this curve amounts to overall"
 Each is a `List<SpeedKey>` constant — no code, just data. (No "Linear" entry — **Reset** is that action,
 §4.3.)
 
-| Preset | Shape |
-|---|---|
-| Ease In | slow → fast |
-| Ease Out | fast → slow |
-| Slow–Fast–Slow | S-curve, the "breathing" loop |
+| Preset                  | Shape                                                          |
+| ----------------------- | -------------------------------------------------------------- |
+| Ease In                 | slow → fast                                                    |
+| Ease Out                | fast → slow                                                    |
+| Slow–Fast–Slow          | S-curve, the "breathing" loop                                  |
 | Accelerate into Reverse | ramps up across the forward half, peaks at the turn, eases out |
 
 "Accelerate into Reverse" is the preset that justifies the global-timeline domain in §5.1 — it is
@@ -252,14 +252,14 @@ framework** — one sheet, one flag.
 
 ### 4.6 Haptics
 
-| Interaction | Type |
-|---|---|
-| Mode toggle tap | `ToggleOn` / `ToggleOff` |
-| Add a keyframe | `ContextClick` |
-| Drag crosses a 0.5× / 1× / 2× guide line | `SegmentTick` (reuses the existing `SPEED_DETENTS` logic verbatim) |
-| Drag hits a clamp (endpoint, neighbour, min/max speed) | `Reject` |
-| Long-press delete | `LongPress` |
-| Preset applied · Flatten | `Confirm` |
+| Interaction                                            | Type                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------ |
+| Mode toggle tap                                        | `ToggleOn` / `ToggleOff`                                           |
+| Add a keyframe                                         | `ContextClick`                                                     |
+| Drag crosses a 0.5× / 1× / 2× guideline                | `SegmentTick` (reuses the existing `SPEED_DETENTS` logic verbatim) |
+| Drag hits a clamp (endpoint, neighbour, min/max speed) | `Reject`                                                           |
+| Long-press delete                                      | `LongPress`                                                        |
+| Preset applied · Flatten                               | `Confirm`                                                          |
 
 **Deliberately not shipped: a tick when the playhead crosses a keyframe.** It was in the brief, but the
 preview loops forever — a 7 s loop with 4 keyframes would buzz the phone every ~1.8 s indefinitely while
@@ -272,20 +272,20 @@ The panel being replaced carries a full semantics contract: `contentDescription`
 `ProgressBarRangeInfo`, and a working `setProgress` so TalkBack can set the speed. A gesture-only
 `Canvas` would be a **regression** for the same user. Not acceptable, and not something to defer.
 
-| Element | Semantics |
-|---|---|
-| Mode toggle | Two `Tab`-role nodes, selected state announced |
-| Graph container | `contentDescription` = "Speed curve"; `stateDescription` = "4 points, 0.5× to 2×, average 1.4×" |
-| Each keyframe | Its own focusable node: "Point 2 of 4, 40% through the loop, 1.7×" |
-| Keyframe actions | `CustomAccessibilityAction`s — *Increase speed* / *Decrease speed* (0.05× steps), *Move earlier* / *Move later* (2% steps, clamped to neighbours), *Delete point* (interior points only) |
-| ＋ Point | The screen-reader path for adding (§4.3) |
-| Presets · Reset · Flatten | Plain buttons, labelled; already accessible |
+| Element                   | Semantics                                                                                                                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mode toggle               | Two `Tab`-role nodes, selected state announced                                                                                                                                           |
+| Graph container           | `contentDescription` = "Speed curve"; `stateDescription` = "4 points, 0.5× to 2×, average 1.4×"                                                                                          |
+| Each keyframe             | Its own focusable node: "Point 2 of 4, 40% through the loop, 1.7×"                                                                                                                       |
+| Keyframe actions          | `CustomAccessibilityAction`s — *Increase speed* / *Decrease speed* (0.05× steps), *Move earlier* / *Move later* (2% steps, clamped to neighbors), *Delete point* (interior points only)  |
+| ＋ Point                   | The screen-reader path for adding (§4.3)                                                                                                                                                 |
+| Presets · Reset · Flatten | Plain buttons, labeled; already accessible                                                                                                                                               |
 
 The endpoint keyframes announce as x-locked so a user is not left hunting for a *Move* action that
 does nothing. Each custom action reuses the same clamped `SpeedCurveMath` functions the drag path
-uses — one implementation, so the two input paths cannot drift apart (and TalkBack `setProgress` is
+uses — one implementation, so the two input paths cannot drift apart. TalkBack `setProgress` is
 exactly how Lesson 030's inverted-range crash was reachable, so the clamps must be shared, not
-duplicated).
+duplicated.
 
 ---
 
@@ -313,19 +313,19 @@ curve path — and it lands on the non-deprecated API.
 
 ### 5.3 New / changed files
 
-| File | Change |
-|---|---|
-| `media/SpeedCurve.kt` **(new)** | `SpeedKey(t, speed)`, `SpeedCurve(keys)`. Pure: `speedAt(t)` (linear interp), `flatten()` (duration-weighted average), `maxSpeed()` (frame-rate cap input), `sampleClip(…)` → the per-clip sampled speed provider (the draft's `sample`/`sliceFor` names were renamed at implementation). **No Android imports.** |
-| `media/KeyframeSpeedProvider.kt` **(new)** | ~20 lines implementing `SpeedProvider` over a `TreeMap`, mirroring `SegmentSpeedProvider`'s `floorEntry`/`higherKey` shape (it is package-private in Media3, so mirror — do not try to reuse). |
-| `media/VideoProcessor.kt` | `renderBoomerang` takes `curve: SpeedCurve` instead of `speed: Float`. `videoEffects()` drops `SpeedChangeEffect`. `buildEditedMediaItem` calls `.setSpeed(provider)`. Fix the stale §2.1 comment. |
-| `ui/components/SpeedCurveMath.kt` **(new)** | Drag/clamp/hit-test/px↔value math, pure, JVM-tested (`TrimHandleMath` precedent — Lesson 030). |
-| `ui/components/SpeedCurvePanel.kt` **(new)** | The `Canvas` graph + gestures + bottom row. |
-| `ui/components/SpeedTabPanel.kt` | Add the toggle; branch to slider or curve panel. |
-| `ui/OpenLoopUiState.kt` | `EditorTabState` gains `curve: SpeedCurve?` — **`null` means constant mode**. `speed: Float` is untouched. |
-| `ui/OpenLoopViewModel.kt` | `updateCurve` (every in-mode edit, presets and reset included — no overlay), `enterCurveMode` (seeds flat at `speed`), `flattenCurveToConstant`, `setConstantSpeedFromCurve`, `markSpeedCurveIntroSeen`. |
-| `ui/BoomerangEditorScreen.kt` | Position poller when `curve != null`; pass curve down. |
-| `data/UserPreferencesRepository.kt` | `hasSeenSpeedCurveIntro` + setter. |
-| `work/` render worker | Serialize the curve into `Data` (flat `FloatArray` of t/speed pairs). |
+| File                                         | Change                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `media/SpeedCurve.kt` **(new)**              | `SpeedKey(t, speed)`, `SpeedCurve(keys)`. Pure: `speedAt(t)` (linear interp), `flatten()` (duration-weighted average), `maxSpeed()` (frame-rate cap input), `sampleClip(…)` → the per-clip sampled speed provider (the draft's `sample`/`sliceFor` names were renamed at implementation). **No Android imports.** |
+| `media/KeyframeSpeedProvider.kt` **(new)**   | ~20 lines implementing `SpeedProvider` over a `TreeMap`, mirroring `SegmentSpeedProvider`'s `floorEntry`/`higherKey` shape (it is package-private in Media3, so mirror — do not try to reuse).                                                                                                                    |
+| `media/VideoProcessor.kt`                    | `renderBoomerang` takes `curve: SpeedCurve` instead of `speed: Float`. `videoEffects()` drops `SpeedChangeEffect`. `buildEditedMediaItem` calls `.setSpeed(provider)`. Fix the stale §2.1 comment.                                                                                                                |
+| `ui/components/SpeedCurveMath.kt` **(new)**  | Drag/clamp/hit-test/px↔value math, pure, JVM-tested (`TrimHandleMath` precedent — Lesson 030).                                                                                                                                                                                                                    |
+| `ui/components/SpeedCurvePanel.kt` **(new)** | The `Canvas` graph + gestures + bottom row.                                                                                                                                                                                                                                                                       |
+| `ui/components/SpeedTabPanel.kt`             | Add the toggle; branch to slider or curve panel.                                                                                                                                                                                                                                                                  |
+| `ui/OpenLoopUiState.kt`                      | `EditorTabState` gains `curve: SpeedCurve?` — **`null` means constant mode**. `speed: Float` is untouched.                                                                                                                                                                                                        |
+| `ui/OpenLoopViewModel.kt`                    | `updateCurve` (every in-mode edit, presets and reset included — no overlay), `enterCurveMode` (seeds flat at `speed`), `flattenCurveToConstant`, `setConstantSpeedFromCurve`, `markSpeedCurveIntroSeen`.                                                                                                          |
+| `ui/BoomerangEditorScreen.kt`                | Position poller when `curve != null`; pass curve down.                                                                                                                                                                                                                                                            |
+| `data/UserPreferencesRepository.kt`          | `hasSeenSpeedCurveIntro` + setter.                                                                                                                                                                                                                                                                                |
+| `work/` render worker                        | Serialize the curve into `Data` (flat `FloatArray` of t/speed pairs).                                                                                                                                                                                                                                             |
 
 `curve: SpeedCurve?` with `null` = constant is deliberately lazier than a mode enum plus a parallel
 value: every existing consumer of `tab.speed` keeps working unchanged, and Flatten is literally
@@ -344,7 +344,7 @@ provider_i(t) = curve.speedAt((startUs_i + t) / totalUs)
 `startUs_i` **must be accumulated from the post-seam-drop clip durations**, not from `i × clipDuration`.
 A clip that drops its leading frame is one frame shorter, and the drop is decided by *sequence position*,
 not clip identity. Getting this wrong slides the curve by a frame per turn — invisible at 2 clips,
-obvious at reps > 1. This is the single highest-risk line in the feature and it gets its own unit test.
+obvious at reps > 1. This is the single highest-risk line in the feature, and it gets its own unit test.
 
 ### 5.5 Draw what you export
 
@@ -394,14 +394,14 @@ memory gate. Not for a speed feature.
 
 ## 6. Constraints & risks
 
-| Risk | Mitigation |
-|---|---|
-| **Per-clip offset drift at seams** (§5.4) | Dedicated unit test over all 4 modes × reps 1–2, asserting global-t continuity across clip boundaries. |
-| **Variable output frame rate** — different curve regions emit frames at different densities, so the encoder sees VFR | Legal MP4, but rate-control behaviour is device-dependent. Must be checked on the Fold and a Samsung, not just the emulator (Lessons 020/021/027 are all "the emulator hid it"). |
-| **Slow-mo judder** — the shader re-timestamps without interpolating, so a 0.25× region spreads the same frames over 4× the time | Pre-existing at constant 0.25×; a curve makes it reachable in a *portion* of the loop. Accept for v1; note in QA. |
-| `@UnstableApi` on `SpeedProvider` | Already pervasive — the whole media package is `@UnstableApi`. No new exposure. |
-| **Longer outputs** | A curve dipping to 0.25× lengthens the render. Same ceiling as the existing slider; no new bound needed. |
-| **Discoverability** — power feature in a casual app | Constant stays the default and is untouched; Curve is one tap away and explains itself once (§4.5). |
+| Risk                                                                                                                            | Mitigation                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Per-clip offset drift at seams** (§5.4)                                                                                       | Dedicated unit test over all 4 modes × reps 1–2, asserting global-t continuity across clip boundaries.                                                                           |
+| **Variable output frame rate** — different curve regions emit frames at different densities, so the encoder sees VFR            | Legal MP4, but rate-control behavior is device-dependent. Must be checked on the Fold and a Samsung, not just the emulator (Lessons 020/021/027 are all "the emulator hid it").  |
+| **Slow-mo judder** — the shader re-timestamps without interpolating, so a 0.25× region spreads the same frames over 4× the time | Pre-existing at constant 0.25×; a curve makes it reachable in a *portion* of the loop. Accept for v1; note in QA.                                                                |
+| `@UnstableApi` on `SpeedProvider`                                                                                               | Already pervasive — the whole media package is `@UnstableApi`. No new exposure.                                                                                                  |
+| **Longer outputs**                                                                                                              | A curve dipping to 0.25× lengthens the render. Same ceiling as the existing slider; no new bound needed.                                                                         |
+| **Discoverability** — power feature in a casual app                                                                             | Constant stays the default and is untouched; Curve is one tap away and explains itself once (§4.5).                                                                              |
 
 ---
 
@@ -428,14 +428,14 @@ baseline:
 
 ## 8. Open questions — **resolved 2026-08-17**
 
-| # | Question | Answer |
-|---|---|---|
-| 1 | Y-axis range | **Keep `MIN_SPEED..MAX_SPEED` = 0.25×–3.0×.** Graph and slider share one scale; Flatten round-trips losslessly. Guide lines still drawn at 0.5× / 1× / 2×. |
-| 2 | Keyframe cap | **3 total** — 2 x-locked endpoints + 1 free interior point. Was 6 at sign-off; cut after on-device use (R-9). |
-| 3 | Toggle placement | **Inside the Speed card**, above the graph/slider — the whole speed control stays one object. |
-| 4 | Transport bar | **Out.** Playhead line + `Current: 1.7×` label only, driven by the position poller the curve needs regardless. A seekable scrubber gets its own PRD if wanted — it has to reckon with `REPEAT_MODE_ALL`, the playlist rebind debounce, and the reverse-preview hold. |
+| #   | Question         | Answer                                                                                                                                                                                                                                                               |
+| --- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Y-axis range     | **Keep `MIN_SPEED..MAX_SPEED` = 0.25×–3.0×.** Graph and slider share one scale; Flatten round-trips losslessly. Guidelines still drawn at 0.5× / 1× / 2×.                                                                                                            |
+| 2   | Keyframe cap     | **3 total** — 2 x-locked endpoints + 1 free interior point. Was 6 at sign-off; cut after on-device use (R-9).                                                                                                                                                        |
+| 3   | Toggle placement | **Inside the Speed card**, above the graph/slider — the whole speed control stays one object.                                                                                                                                                                        |
+| 4   | Transport bar    | **Out.** Playhead line + `Current: 1.7×` label only, driven by the position poller the curve needs regardless. A seekable scrubber gets its own PRD if wanted — it has to reckon with `REPEAT_MODE_ALL`, the playlist rebind debounce, and the reverse-preview hold. |
 
-Nothing is blocking. Remaining risk is empirical, not decisional: the variable-frame-rate behaviour in
+Nothing is blocking. Remaining risk is empirical, not decisional: the variable-frame-rate behavior in
 §6 has to be confirmed on real hardware, and the emulator is exactly the environment that hid Lessons
 020, 021 and 027.
 
@@ -446,36 +446,36 @@ Nothing is blocking. Remaining risk is empirical, not decisional: the variable-f
 Changes made during implementation, at the owner's request or because the device run exposed a gap.
 Recorded here so the document matches the code (Lesson 007).
 
-| # | Change | Why |
-|---|---|---|
-| R-1 | **Both axes are labelled.** Y: `0.5× / 1× / 2× / 3×` down the left of the plot. X: time ticks under it, reusing the Trim ruler's math (`trimRulerLabelTimesMs` / `formatTrimRulerLabel`). | Owner request. "Higher is faster" was the only cue for what a handle's height meant. |
-| R-2 | X ticks are the loop's length **at 1×**, not the sped-up output length. | The curve is defined on the input timeline. Output time is a *non-linear* function of input time once speed varies, so evenly-spaced output ticks would sit at uneven — i.e. wrong — places. It also keeps the axis stable while dragging instead of relabelling on every pointer move. |
-| R-3 | **Y axis is logarithmic.** | Not in the original design. Speed is perceived multiplicatively; on a linear 0.25–3.0 axis, 1× sits at 27% of the height and the whole slow-motion range is crushed into the bottom tenth. On a log axis 0.5× and 2× straddle 1× symmetrically (asserted in `SpeedCurveMathTest`). |
-| R-4 | **"Flatten to Constant" button removed**; Presets · Add point · Reset fill equal thirds. | Owner request. Tapping the **Constant** segment already flattens (to the duration-preserving average), so the button was a second name for one action. D-5's *semantics* are unchanged — only the redundant control is gone. |
-| R-5 | **Drag scrubs the preview.** Dragging a handle seeks the preview to that keyframe's moment and pauses there; release resumes the loop. | Owner request ("see exactly how the clip will turn out… when to scale the speed up or down"). Live speed-as-you-adjust already worked via the poller; this adds *which frame* you are editing. Throttled at 1.5% of the loop per seek. |
-| R-6 | **The reversed clip's duration is measured, not assumed** — and the duration chip derives from the same spans the render uses. | A real bug the device run caught: see [Lesson 033](lessons_learned/033-derived-timeline-must-measure-its-artifacts.md). The editor promised 9.2 s and the encoder produced 7.06 s. |
+| #   | Change                                                                                                                                                                                    | Why                                                                                                                                                                                                                                                                                     |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R-1 | **Both axes are labeled.** Y: `0.5× / 1× / 2× / 3×` down the left of the plot. X: time ticks under it, reusing the Trim ruler's math (`trimRulerLabelTimesMs` / `formatTrimRulerLabel`).  | Owner request. "Higher is faster" was the only cue for what a handle's height meant.                                                                                                                                                                                                    |
+| R-2 | X ticks are the loop's length **at 1×**, not the sped-up output length.                                                                                                                   | The curve is defined on the input timeline. Output time is a *non-linear* function of input time once speed varies, so evenly-spaced output ticks would sit at uneven — i.e. wrong — places. It also keeps the axis stable while dragging instead of relabelling on every pointer move. |
+| R-3 | **Y axis is logarithmic.**                                                                                                                                                                | Not in the original design. Speed is perceived multiplicatively; on a linear 0.25–3.0 axis, 1× sits at 27% of the height and the whole slow-motion range is crushed into the bottom tenth. On a log axis 0.5× and 2× straddle 1× symmetrically (asserted in `SpeedCurveMathTest`).      |
+| R-4 | **"Flatten to Constant" button removed**; Presets · Add point · Reset fill equal thirds.                                                                                                  | Owner request. Tapping the **Constant** segment already flattens (to the duration-preserving average), so the button was a second name for one action. D-5's *semantics* are unchanged — only the redundant control is gone.                                                            |
+| R-5 | **Drag scrubs the preview.** Dragging a handle seeks the preview to that keyframe's moment and pauses there; release resumes the loop.                                                    | Owner request ("see exactly how the clip will turn out… when to scale the speed up or down"). Live speed-as-you-adjust already worked via the poller; this adds *which frame* you are editing. Throttled at 1.5% of the loop per seek.                                                  |
+| R-6 | **The reversed clip's duration is measured, not assumed** — and the duration chip derives from the same spans the render uses.                                                            | A real bug the device run caught: see [Lesson 033](lessons_learned/033-derived-timeline-must-measure-its-artifacts.md). The editor promised 9.2 s and the encoder produced 7.06 s.                                                                                                      |
 
 ## 8b. Verification
 
 Full gate per [`docs/DEFINITION_OF_DONE.md`](DEFINITION_OF_DONE.md).
 
-| Check | Result |
-|---|---|
-| Debug + release build | `BUILD SUCCESSFUL`, exit 0, zero `e:`, zero `w:` |
-| JVM unit tests | **522 tests, 0 failures** (up from 503) |
-| Instrumented / Compose tests | **117 tests, 0 failures, 1 skipped** on Pixel_8 API 36 — the whole `connectedDebugAndroidTest` suite, not just the new class |
-| Android Lint (`:app:lintDebug`) | 0 errors; 24 warnings, **identical to the pre-change baseline** (all dependency-version nags) |
-| Engine 2 "Inspect Code" | **Not run** — cannot run on this machine; substituted per `STATIC_ANALYSIS.md` (lint + zero compiler warnings + Tier 3) |
-| App run on emulator | Pixel_8 API 36, full capture → trim → editor → curve → save → share flow |
-| Screenshots | [Custom mode after a drag](e2e/2026-08-17-speed-curve-editor.png), [before adding a point](e2e/2026-08-17-speed-curve-add-point.png), [one-time intro](e2e/2026-08-17-speed-curve-intro.png), [Constant mode](e2e/2026-08-17-speed-constant-mode.png); post-review: [Ease In with the `speedAt`-sampled line, preview playing](e2e/2026-08-18-speed-curve-sampled-line.png) → [tapping the Current pill mid-playback locks Constant 0.8×](e2e/2026-08-18-speed-current-pill-mid-playback.png) |
+| Check                           | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Debug + release build           | `BUILD SUCCESSFUL`, exit 0, zero `e:`, zero `w:`                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| JVM unit tests                  | **522 tests, 0 failures** (up from 503)                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Instrumented / Compose tests    | **117 tests, 0 failures, 1 skipped** on Pixel_8 API 36 — the whole `connectedDebugAndroidTest` suite, not just the new class                                                                                                                                                                                                                                                                                                                                                                  |
+| Android Lint (`:app:lintDebug`) | 0 errors; 24 warnings, **identical to the pre-change baseline** (all dependency-version nags)                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Engine 2 "Inspect Code"         | **Not run** — cannot run on this machine; substituted per `STATIC_ANALYSIS.md` (lint + zero compiler warnings + Tier 3)                                                                                                                                                                                                                                                                                                                                                                       |
+| App run on emulator             | Pixel_8 API 36, full capture → trim → editor → curve → save → share flow                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Screenshots                     | [Custom mode after a drag](e2e/2026-08-17-speed-curve-editor.png), [before adding a point](e2e/2026-08-17-speed-curve-add-point.png), [one-time intro](e2e/2026-08-17-speed-curve-intro.png), [Constant mode](e2e/2026-08-17-speed-constant-mode.png); post-review: [Ease In with the `speedAt`-sampled line, preview playing](e2e/2026-08-18-speed-curve-sampled-line.png) → [tapping the Current pill mid-playback locks Constant 0.8×](e2e/2026-08-18-speed-current-pill-mid-playback.png) |
 
 **Predicted vs. actual output duration** (editor chip vs. the muxed `mvhd` duration of the saved MP4):
 
-| Shape | Predicted | Actual | Δ |
-|---|---|---|---|
-| Constant 2×, FORWARD *(the D-2 migration)* | 2.00 s | 2.04 s | 0.04 s |
-| Ease-In curve, FORWARD | 4.80 s | 4.81 s | 0.01 s |
-| Ease-In curve, FORWARD_THEN_REVERSE | 7.20 s | 7.26 s | 0.06 s |
+| Shape                                      | Predicted | Actual | Δ      |
+| ------------------------------------------ | --------- | ------ | ------ |
+| Constant 2×, FORWARD *(the D-2 migration)* | 2.00 s    | 2.04 s | 0.04 s |
+| Ease-In curve, FORWARD                     | 4.80 s    | 4.81 s | 0.01 s |
+| Ease-In curve, FORWARD_THEN_REVERSE        | 7.20 s    | 7.26 s | 0.06 s |
 
 Also verified on device, **after** the final round of fixes (the earlier on-device notes predated them
 and are not carried forward): the mode toggle leaves Constant mode byte-identical and its "Current
@@ -547,17 +547,17 @@ exactly the seam frame.
 Three changes requested while watching the build run on the emulator. All three are **reversals of
 earlier decisions**, recorded here rather than silently overwritten:
 
-| # | Change | Supersedes |
-|---|---|---|
-| R-7 | The mode is labelled **Custom**, not Curve | the original `[Constant] [Curve]` toggle copy |
-| R-8 | A point must be **removable from a visible control**, not only by long-press | §4.3, which made long-press the sole delete |
-| R-9 | **2 points minimum, 3 maximum** (`MAX_KEYS` 6 → 3) | the sign-off answer "6 total — 2 locked ends + 4 free" |
+| #   | Change                                                                       | Supersedes                                             |
+| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------ |
+| R-7 | The mode is labeled **Custom**, not Curve                                    | the original `[Constant] [Curve]` toggle copy          |
+| R-8 | A point must be **removable from a visible control**, not only by long-press | §4.3, which made long-press the sole delete            |
+| R-9 | **2 points minimum, 3 maximum** (`MAX_KEYS` 6 → 3)                           | the sign-off answer "6 total — 2 locked ends + 4 free" |
 
 **R-9 is the load-bearing one.** One free interior point means one bend. Consequences carried through:
 
 - **All four presets were re-authored** to fit 3 keys. `SLOW_FAST_SLOW` is unchanged in spirit (it *is*
   a 3-point shape). `EASE_IN` / `EASE_OUT` lose their multi-segment easing and become a single bend
-  placed off-centre — still the right feel, less finely shaped. `ACCELERATE_INTO_REVERSE` was made
+  placed off-center — still the right feel, less finely shaped. `ACCELERATE_INTO_REVERSE` was made
   deliberately **asymmetric** (out of the turn faster than into it); a symmetric version would have been
   indistinguishable from `SLOW_FAST_SLOW` at three points.
 - **The "too close to an existing key" guard in `insertKeyAt` is now unreachable through the UI** — an
@@ -578,16 +578,16 @@ longer translation) visible instead of silent.
 
 ## 9. Decision log
 
-| # | Decision | Rationale |
-|---|---|---|
-| D-1 | Curve domain = full loop timeline, normalized `0..1` | "Accelerate into Reverse" is inexpressible otherwise; matches the mock's axis; survives trim/mode/reps changes |
-| D-2 | Migrate to `setSpeed(SpeedProvider)`, delete `SpeedChangeEffect` | Mutual exclusion is **enforced** by `EditedMediaItem`'s constructor, not just documented; non-deprecated; one path instead of two; and the traced path (§2.1a) is a pre-decode timestamp remap, so it also drops a GL stage |
-| D-3 | Linear interpolation, sampled per source frame | `SpeedProvider` is piecewise-constant; per-frame is the finest observable step |
-| D-4 | `curve: SpeedCurve?`, `null` = constant | Every existing `tab.speed` consumer keeps working; Flatten is a one-line `copy` |
-| D-5 | Flatten = the **harmonic** mean (implemented; PRD draft said "weighted average") | It is the constant that plays the loop in the *same time*, so the length does not jump at the moment the user asks to simplify. A 0.5×→2× ramp arithmetic-averages to 1.25× but actually plays at 1.08×. Cross-checked against Media3's own `SpeedProviderUtil` in `SpeedCurveDurationTest`. The button is gone (R-4); the **Constant** tab carries the action |
-| D-6 | Preview via position poller + `setPlaybackSpeed` | `CompositionPlayer` would replace wiring that four production lessons paid for |
-| D-7 | Draw a polyline, not a spline | Do not render a curve the export will not reproduce |
-| D-8 | No playhead-crossing haptic | Loops forever → buzzes every ~2 s; a fault condition, not feedback |
-| D-9 | Tutorial = one sheet + one DataStore flag | Mirrors `hasCompletedOnboarding`; no coach-mark framework exists and none is worth building |
-| D-10 | Curve never invalidates `reversedFile` | Same invariant as `speed` and `filter` today — it is an effect, not a re-trim |
-| D-11 | Clip spans measure the reversed artifact; the duration chip derives from those same spans | Two independent derivations of "how long will this be" disagreed in practice — [Lesson 033](lessons_learned/033-derived-timeline-must-measure-its-artifacts.md) |
+| #    | Decision                                                                                  | Rationale                                                                                                                                                                                                                                                                                                                                                      |
+| ---- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-1  | Curve domain = full loop timeline, normalized `0..1`                                      | "Accelerate into Reverse" is inexpressible otherwise; matches the mock's axis; survives trim/mode/reps changes                                                                                                                                                                                                                                                 |
+| D-2  | Migrate to `setSpeed(SpeedProvider)`, delete `SpeedChangeEffect`                          | Mutual exclusion is **enforced** by `EditedMediaItem`'s constructor, not just documented; non-deprecated; one path instead of two; and the traced path (§2.1a) is a pre-decode timestamp remap, so it also drops a GL stage                                                                                                                                    |
+| D-3  | Linear interpolation, sampled per source frame                                            | `SpeedProvider` is piecewise-constant; per-frame is the finest observable step                                                                                                                                                                                                                                                                                 |
+| D-4  | `curve: SpeedCurve?`, `null` = constant                                                   | Every existing `tab.speed` consumer keeps working; Flatten is a one-line `copy`                                                                                                                                                                                                                                                                                |
+| D-5  | Flatten = the **harmonic** mean (implemented; PRD draft said "weighted average")          | It is the constant that plays the loop in the *same time*, so the length does not jump at the moment the user asks to simplify. A 0.5×→2× ramp arithmetic-averages to 1.25× but actually plays at 1.08×. Cross-checked against Media3's own `SpeedProviderUtil` in `SpeedCurveDurationTest`. The button is gone (R-4); the **Constant** tab carries the action |
+| D-6  | Preview via position poller + `setPlaybackSpeed`                                          | `CompositionPlayer` would replace wiring that four production lessons paid for                                                                                                                                                                                                                                                                                 |
+| D-7  | Draw a polyline, not a spline                                                             | Do not render a curve the export will not reproduce                                                                                                                                                                                                                                                                                                            |
+| D-8  | No playhead-crossing haptic                                                               | Loops forever → buzzes every ~2 s; a fault condition, not feedback                                                                                                                                                                                                                                                                                             |
+| D-9  | Tutorial = one sheet + one DataStore flag                                                 | Mirrors `hasCompletedOnboarding`; no coach-mark framework exists and none is worth building                                                                                                                                                                                                                                                                    |
+| D-10 | Curve never invalidates `reversedFile`                                                    | Same invariant as `speed` and `filter` today — it is an effect, not a re-trim                                                                                                                                                                                                                                                                                  |
+| D-11 | Clip spans measure the reversed artifact; the duration chip derives from those same spans | Two independent derivations of "how long will this be" disagreed in practice — [Lesson 033](lessons_learned/033-derived-timeline-must-measure-its-artifacts.md)                                                                                                                                                                                                |

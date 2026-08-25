@@ -23,11 +23,14 @@ keep the root from ever reading `.value`.**
 
 - Keep the collected flow as a **raw `State`** (no `by` delegate at root), so *constructing* it
   doesn't subscribe the root:
+
   ```kotlin
   val recordingElapsedState = viewModel.recordingElapsedMs.collectAsStateWithLifecycle() // State<Long>
   // NOTE: do NOT read recordingElapsedState.value anywhere in CameraScreen's body.
   ```
+
 - Change consumers to take **lambdas**, and read `.value` *inside* them:
+
   ```kotlin
   ShutterButton(
       isRecording = isRecording,
@@ -41,6 +44,7 @@ keep the root from ever reading `.value`.**
       text = { val ms = recordingElapsedState.value; "%02d:%02d / %s".format(ms/60000, (ms/1000)%60, capLabel) },
   )
   ```
+
 - **Draw-phase read is best:** invoking `progressFraction()` inside `Canvas(...) { drawArc(...) }`
   means a tick triggers only a **redraw**, not a recomposition, of the ring. The chip reads its
   lambda in composition (a `Text` needs a `String`), so it recomposes — but only the chip, which is

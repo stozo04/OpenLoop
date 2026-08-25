@@ -106,24 +106,24 @@ model: no extra permission, no network call, no new data-safety declaration.)*
 
 ### Other listing fields
 
-| Field | Value |
-|---|---|
-| App category | **Video Players & Editors** (alt: Photography) |
-| Tags | **all 5 slots must be filled** — pick the closest from Console's fixed picklist (the taxonomy isn't published anywhere, so this can only be done in Console). Aim at: boomerang / video loop / slow motion / video editor / camera |
-| Contact email | <gates.steven@gmail.com> |
-| Privacy policy URL | `https://stozo04.github.io/OpenLoop/privacy-policy.html` |
-| Website | `https://stozo04.github.io/OpenLoop/` — the landing page, **not** the GitHub repo. Added Issue #121; it carries the brand token, a meta description and `SoftwareApplication` JSON-LD, and links on to both Play and GitHub |
+| Field              | Value                                                                                                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App category       | **Video Players & Editors** (alt: Photography)                                                                                                                                                                                     |
+| Tags               | **all 5 slots must be filled** — pick the closest from Console's fixed picklist (the taxonomy isn't published anywhere, so this can only be done in Console). Aim at: boomerang / video loop / slow motion / video editor / camera |
+| Contact email      | <gates.steven@gmail.com>                                                                                                                                                                                                           |
+| Privacy policy URL | `https://stozo04.github.io/OpenLoop/privacy-policy.html`                                                                                                                                                                           |
+| Website            | `https://stozo04.github.io/OpenLoop/` — the landing page, **not** the GitHub repo. Added Issue #121; it carries the brand token, a meta description and `SoftwareApplication` JSON-LD, and links on to both Play and GitHub        |
 
 ---
 
 ## Graphic assets — exact specs
 
-| Asset | Required? | Spec | In repo |
-|---|---|---|---|
-| **App icon** | Yes | **512 × 512 px**, **24-bit PNG (no alpha)**, ≤ **1024 KB**. **No baked corners** — as of **2026-03-31**, Play auto-applies a 30% corner radius at display time. Ship a square. | [`play_store_icon_512.png`](play_store_icon_512.png) |
-| **Feature graphic** | **Yes (required to publish)** | **1024 × 500 px**, JPEG or **24-bit PNG (no alpha)**. Keep critical content off dead-center — Play overlays a promo-video play button there when a video is attached. | [`main-image.png`](main-image.png) |
-| **Phone screenshots** | Yes — **min 2**, max 8 | JPEG or 24-bit PNG (no alpha). Each side **320–3840 px**, and a side may not exceed **2×** the other. **Recommended: 4–8 portrait shots at 1080 × 1920 px** (OpenLoop is a portrait app). | — (capture during device QA) |
-| 7" / 10" tablet screenshots | Optional | Only if you market tablet support; otherwise skip. | — |
+| Asset                       | Required?                     | Spec                                                                                                                                                                                      | In repo                                              |
+| --------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| **App icon**                | Yes                           | **512 × 512 px**, **24-bit PNG (no alpha)**, ≤ **1024 KB**. **No baked corners** — as of **2026-03-31**, Play auto-applies a 30% corner radius at display time. Ship a square.            | [`play_store_icon_512.png`](play_store_icon_512.png) |
+| **Feature graphic**         | **Yes (required to publish)** | **1024 × 500 px**, JPEG or **24-bit PNG (no alpha)**. Keep critical content off dead-center — Play overlays a promo-video play button there when a video is attached.                     | [`main-image.png`](main-image.png)                   |
+| **Phone screenshots**       | Yes — **min 2**, max 8        | JPEG or 24-bit PNG (no alpha). Each side **320–3840 px**, and a side may not exceed **2×** the other. **Recommended: 4–8 portrait shots at 1080 × 1920 px** (OpenLoop is a portrait app). | — (capture during device QA)                         |
+| 7" / 10" tablet screenshots | Optional                      | Only if you market tablet support; otherwise skip.                                                                                                                                        | —                                                    |
 
 > Phone screenshots are the only image assets that need the device — capture them during your QA pass
 > (see below). The icon and feature graphic are versioned in this folder; re-export them if the brand
@@ -134,7 +134,7 @@ model: no extra permission, no network call, no new data-safety declaration.)*
 ## Screenshot capture checklist (do during the device QA pass)
 
 Capture these in **portrait at 1080 × 1920** (a clean emulator or a phone). **Four or more is the
-real target, not the 2-shot publish minimum** — 4+ is what unlocks Play's large-format promotional
+real target, not the two-screenshot publishing minimum** — 4+ is what unlocks Play's large-format promotional
 placements.
 
 - [ ] **Camera viewfinder** — the shutter + 30s framing (the core capture screen).

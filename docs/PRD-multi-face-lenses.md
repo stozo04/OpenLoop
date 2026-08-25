@@ -15,7 +15,7 @@ friends — get one broccoli and one bare face, and the bare face is whoever the
 less prominent. That is the opposite of how a lens is used with a kid: the whole point is that
 *both* of you are broccoli.
 
-The single-face behaviour is a deliberate, documented choice, not an accident:
+The single-face behavior is a deliberate, documented choice, not an accident:
 
 - `PRD-camera-lenses.md` §5.1 — "single-face (… the most prominent face only — correct for
   selfies)". Correct for *solo* selfies; wrong for the two-person case that lenses invite.
@@ -38,15 +38,15 @@ knows a face exists, so nothing downstream changes.
 
 ## 2. Decisions (owner, 2026-08-25)
 
-| # | Decision | Choice | Why |
-|---|----------|--------|-----|
-| D1 | Face cap | **Two** faces (`MAX_TRACKED_FACES = 2`), a single constant. | The stated need. A third face is a group photo, not a selfie; per-face cost in the detector and two extra draw passes per face per output are cheap at 2 and unbounded at "all". Raising it later is a one-line change *because* every piece is keyed by face. |
-| D2 | Which two, when there are more | **Locked slots + largest fills the gap.** A face already tracked keeps its slot for as long as ML Kit keeps its tracking id; a free slot goes to the largest untracked face. | Keeps the existing "the lens does not hop between people" guarantee. Re-ranking every frame by size would flicker the lens between two similar-sized faces. |
-| D3 | Drop-out hold | **Per face**, same `HOLD_MS = 350`. Each tracked face rides out its own blinks and blurred frames independently. | One person turning away must not blink the other person's lens off. |
-| D4 | Same lens for everyone | **Yes** — the active lens draws on every tracked face, stickers and character features alike. No per-face lens selection. | The request. Per-face lenses would need a picker that knows which face is which; out of scope. |
-| D5 | Physics and mouth easing | **Per face, keyed by tracking id.** A face that leaves takes its springs with it; a new face starts at rest. | Otherwise one spring is driven by two heads (§1). Stays dimensionless and once-per-frame exactly as today (`stepWobbles` doc, points 1–3). |
-| D6 | Draw order | Tracked faces draw in slot order (slot 0 first). | Two faces' art rarely overlaps; when it does, the older lock paints underneath. Deterministic and identical on preview and recording — good enough; not worth a z-sort on face size. |
-| D7 | `MIN_FACE_SIZE` | **Unchanged at 0.15.** | It gates *bystanders*; a second person leaning into a selfie is well above 15 % of the frame width. Lowering it is a separate tuning question (§7 Q2). |
+| #   | Decision                       | Choice                                                                                                                                                                       | Why                                                                                                                                                                                                                                                            |
+| --- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Face cap                       | **Two** faces (`MAX_TRACKED_FACES = 2`), a single constant.                                                                                                                  | The stated need. A third face is a group photo, not a selfie; per-face cost in the detector and two extra draw passes per face per output are cheap at 2 and unbounded at "all". Raising it later is a one-line change *because* every piece is keyed by face. |
+| D2  | Which two, when there are more | **Locked slots + largest fills the gap.** A face already tracked keeps its slot for as long as ML Kit keeps its tracking id; a free slot goes to the largest untracked face. | Keeps the existing "the lens does not hop between people" guarantee. Re-ranking every frame by size would flicker the lens between two similar-sized faces.                                                                                                    |
+| D3  | Drop-out hold                  | **Per face**, same `HOLD_MS = 350`. Each tracked face rides out its own blinks and blurred frames independently.                                                             | One person turning away must not blink the other person's lens off.                                                                                                                                                                                            |
+| D4  | Same lens for everyone         | **Yes** — the active lens draws on every tracked face, stickers and character features alike. No per-face lens selection.                                                    | The request. Per-face lenses would need a picker that knows which face is which; out of scope.                                                                                                                                                                 |
+| D5  | Physics and mouth easing       | **Per face, keyed by tracking id.** A face that leaves takes its springs with it; a new face starts at rest.                                                                 | Otherwise one spring is driven by two heads (§1). Stays dimensionless and once-per-frame exactly as today (`stepWobbles` doc, points 1–3).                                                                                                                     |
+| D6  | Draw order                     | Tracked faces draw in slot order (slot 0 first).                                                                                                                             | Two faces' art rarely overlaps; when it does, the older lock paints underneath. Deterministic and identical on preview and recording — good enough; not worth a z-sort on face size.                                                                           |
+| D7  | `MIN_FACE_SIZE`                | **Unchanged at 0.15.**                                                                                                                                                       | It gates *bystanders*; a second person leaning into a selfie is well above 15 % of the frame width. Lowering it is a separate tuning question (§7 Q2).                                                                                                         |
 
 ---
 
@@ -104,7 +104,7 @@ the ML Kit glue in front of it. ML Kit does the detection of several faces alrea
 stop throwing the others away. Faces whose landmarks are missing (profile views) are skipped
 exactly as today, per face.
 
-**Id churn (found in review).** When ML Kit loses a face for a frame or two it often re-detects it
+**ID churn (found in review).** When ML Kit loses a face for a frame or two it often re-detects it
 under a *new* tracking id. The old id is still held, so naively the same person would wear two
 lenses for up to `HOLD_MS` — and with both slots full the new id would be locked out until the
 hold expired. The single-face tracker never had this problem because a fresh detection always won
@@ -194,7 +194,7 @@ clip; one person leaves → other unaffected; third person enters → ignored; s
 1. **Cap of two** (D1) — confirmed. `MAX_TRACKED_FACES` is the one constant to change.
 2. **`MIN_FACE_SIZE`** (D7) — stays at 0.15 for this PR; tune on device if a toddler at arm's
    length drops out.
-3. **Slot behaviour** (D2) — "locked slots + largest fills the gap" confirmed over "always the
+3. **Slot behavior** (D2) — "locked slots + largest fills the gap" confirmed over "always the
    two largest".
 
 ---

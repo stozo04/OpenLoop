@@ -23,6 +23,7 @@ Two distinct test-infrastructure facts cost time this session:
 - **In `androidTest`, write real fakes inline (or construct real objects); don't reach for mockk.**
   The build set has Compose UI test + `test.ext.junit` + Espresso, but no `mockk-android`. Minimal
   hand fakes are fine and live in the test file:
+
   ```kotlin
   private class NoopPreferencesRepository : UserPreferencesRepository {
       override val hasCompletedOnboarding: Flow<Boolean> = MutableStateFlow(true)
@@ -30,6 +31,7 @@ Two distinct test-infrastructure facts cost time this session:
   }
   // CameraManager(ApplicationProvider.getApplicationContext()) — constructible; binds nothing until startCamera().
   ```
+
   (If a future instrumented test genuinely needs mocking, that requires adding
   `androidTestImplementation(libs.mockk.android)` — a deliberate dependency change, not a given.)
 

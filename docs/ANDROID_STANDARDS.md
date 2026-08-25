@@ -191,7 +191,7 @@ Generic CameraX guidance (CameraX over Camera2, lifecycle binding, `PreviewView`
 
 ### Current Requirements (verified 2026-08-22 against the live page)
 
-**Target API level.** Per the [Target API level requirements page](https://developer.android.com/google/play/requirements/target-sdk) (page stamped *last updated 2026-08-14*, read **2026-08-22**): **from August 31, 2026, new apps and app updates must target API 36 (Android 16) or higher**; an extension to **November 1, 2026** can be requested in Play Console. Existing apps must target at least **API 35** to remain available to new users on newer devices. (Wear OS and Automotive stay at 35, TV and XR at 34 — not relevant to OpenLoop.) This paragraph is a dated snapshot — re-read the page before each release rather than trusting it.
+**Target API level.** Per the [Target API level requirements page](https://developer.android.com/google/play/requirements/target-sdk) (page stamped *last updated 2026-08-14*, read **2026-08-22**): **from August 31, 2026, new apps and app updates must target API 36 (Android 16) or higher**; an extension to **November 1, 2026,** can be requested in Play Console. Existing apps must target at least **API 35** to remain available to new users on newer devices. (Wear OS and Automotive stay at 35, TV and XR at 34 — not relevant to OpenLoop.) This paragraph is a dated snapshot — re-read the page before each release rather than trusting it.
 
 > **OpenLoop status — satisfied ([Issue #7](https://github.com/stozo04/OpenLoop/issues/7)):** the app targets **API 36** (`app/build.gradle.kts`: `targetSdk` 36, `compileSdk` 37, `minSdk` 26) — already at the floor that takes effect 2026-08-31, so no bump is due. Native libraries are 16 KB page-aligned (CameraX/Media3 upgraded, uncompressed packaging). Behavior changes: [Android 16 behavior changes](https://developer.android.com/about/versions/16/behavior-changes-16) and §11 below.
 
@@ -263,19 +263,19 @@ These rules are **in force** — OpenLoop targets **API 36** (see §8). Each was
 
 ## Quick Reference Links
 
-| Topic | Google Documentation |
-|-------|---------------------|
-| Architecture Guide | <https://developer.android.com/topic/architecture> |
-| Architecture Recommendations | <https://developer.android.com/topic/architecture/recommendations> |
-| Jetpack Compose Performance | <https://developer.android.com/develop/ui/compose/performance/bestpractices> |
-| Coroutines Best Practices | <https://developer.android.com/kotlin/coroutines/coroutines-best-practices> |
-| DataStore | <https://developer.android.com/topic/libraries/architecture/datastore> |
-| CameraX Overview | <https://developer.android.com/media/camera/camerax> |
-| Testing Fundamentals | <https://developer.android.com/training/testing/fundamentals> |
-| Accessibility | <https://developer.android.com/guide/topics/ui/accessibility> |
-| Core App Quality | <https://developer.android.com/docs/quality-guidelines/core-app-quality> |
-| Play Store Target SDK | <https://developer.android.com/google/play/requirements/target-sdk> |
-| Android 16 Behavior Changes (targeting) | <https://developer.android.com/about/versions/16/behavior-changes-16> |
-| Android 16 Behavior Changes (all apps) | <https://developer.android.com/about/versions/16/behavior-changes-all> |
-| Kotlin Flows | <https://developer.android.com/kotlin/flow> |
-| ViewModel | <https://developer.android.com/topic/libraries/architecture/viewmodel> |
+| Topic                                   | Google Documentation                                                         |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| Architecture Guide                      | <https://developer.android.com/topic/architecture>                           |
+| Architecture Recommendations            | <https://developer.android.com/topic/architecture/recommendations>           |
+| Jetpack Compose Performance             | <https://developer.android.com/develop/ui/compose/performance/bestpractices> |
+| Coroutines Best Practices               | <https://developer.android.com/kotlin/coroutines/coroutines-best-practices>  |
+| DataStore                               | <https://developer.android.com/topic/libraries/architecture/datastore>       |
+| CameraX Overview                        | <https://developer.android.com/media/camera/camerax>                         |
+| Testing Fundamentals                    | <https://developer.android.com/training/testing/fundamentals>                |
+| Accessibility                           | <https://developer.android.com/guide/topics/ui/accessibility>                |
+| Core App Quality                        | <https://developer.android.com/docs/quality-guidelines/core-app-quality>     |
+| Play Store Target SDK                   | <https://developer.android.com/google/play/requirements/target-sdk>          |
+| Android 16 Behavior Changes (targeting) | <https://developer.android.com/about/versions/16/behavior-changes-16>        |
+| Android 16 Behavior Changes (all apps)  | <https://developer.android.com/about/versions/16/behavior-changes-all>       |
+| Kotlin Flows                            | <https://developer.android.com/kotlin/flow>                                  |
+| ViewModel                               | <https://developer.android.com/topic/libraries/architecture/viewmodel>       |

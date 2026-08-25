@@ -13,6 +13,7 @@
 ## Pattern
 
 - **Don't mock `File`.** Use a real directory via JUnit's `TemporaryFolder` rule and stub the `Context` getters to return it:
+
   ```kotlin
   @get:Rule val tempFolder = TemporaryFolder()
   // in @Before:
@@ -21,11 +22,13 @@
   every { context.cacheDir } returns cacheDir
   every { context.filesDir } returns filesDir
   ```
+
   File logic then runs against the real filesystem (fast, no Android needed) and assertions can check real `exists()`/paths.
 
 - **Match the real signature.** For a function returning a value, use `returns <value>` (e.g. `returns null`), never `just Runs`. For a Kotlin function-type callback, capture with `slot<(T) -> Unit>()` and invoke via `slot.captured.invoke(event)`.
 
 - **One scheduler.** When a test needs virtual time, bind `runTest` to the rule's dispatcher so they share a scheduler, and prefer `advanceUntilIdle()` over `advanceTimeBy(n)` (the latter does not run tasks scheduled at exactly `now + n`):
+
   ```kotlin
   fun `auto-stop fires only after the delay`() = runTest(mainDispatcherRule.testDispatcher) {
       // start the capture, then advance virtual time past the timer

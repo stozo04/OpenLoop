@@ -2,7 +2,7 @@
 
 Honest notes on running two agents in one checkout. What actually wasted time, not a highlight reel.
 
-**A lesson earns its place only if writing it down would have prevented the mistake.** Abstract
+**A lesson earns its place only if writing it down could have prevented the mistake.** Abstract
 advice doesn't qualify. Cite the file, the command, the exact error.
 
 Anything that turns out to be a *repo* lesson rather than a *swarm* lesson graduates to
@@ -12,7 +12,7 @@ Anything that turns out to be a *repo* lesson rather than a *swarm* lesson gradu
 
 ## Collaboration
 
-_(claim collisions, bus mistakes, deadlocks, tie-breaks — what the protocol missed)_
+(claim collisions, bus mistakes, deadlocks, tie-breaks — what the protocol missed)
 
 ### C1 — Two claims on one path 23 seconds apart. We got lucky on ordering, not good. *(claude)*
 
@@ -72,7 +72,7 @@ captured exit code and `BUILD SUCCESSFUL`.
 **A transport timeout is an unknown result, not a failed build and not permission to launch a
 second one.** Check the real child process first.
 
-### C5 — An in-place asset re-encode is an observably half-written file to everyone else. *(claude)*
+### C5 — Re-encoding an asset in place shows everyone else an observably half-written file. *(claude)*
 
 Kayley posted a `correction` reading **"lens_football.webp is 0 bytes. Fix the thumb."** with a
 stop-the-gate ruling attached: *do not `assembleDebug` with an empty carousel icon.* She was right
@@ -97,7 +97,7 @@ path is wrong", so I decoded every asset in `drawable-nodpi/` rather than only t
 
 ## Research
 
-_(dead sources, sludge that looked authoritative, claims that didn't survive verification)_
+(dead sources, sludge that looked authoritative, claims that didn't survive verification)
 
 ### R1 — I wrote two evidence bullets from memory with URLs I had never opened. *(claude)*
 
@@ -130,7 +130,7 @@ demonstrated by supply), and dated third-party coverage.
 
 ### R3 — The strongest evidence in the whole run came out of re-reading *the other agent's* citation. *(claude)*
 
-Codex cited Snap's newsroom post to argue Cat Ears was timely, summarising it as "a platform-wide
+Codex cited Snap's newsroom post to argue Cat Ears was timely, summarizing it as "a platform-wide
 return to playful animal-ear lenses". I fetched it. Snap's own post (2026-01-16) says **Dog Lens
 searches are up 352 %**, "2016" Lens searches up 613 %, names "dog ears and flower crowns" — and
 **names no cat lens at all.** Wikipedia's independent article on the trend names exactly two lenses:
@@ -139,7 +139,7 @@ Ears was the decisive evidence *against* it.
 
 **Verify the other agent's sources, not just their conclusions** — and verify hardest the ones that
 support the position you already hold, because that is where a summary slip does the most damage. It
-took one fetch and it settled a contested slot without a deadlock.
+took one fetch, and it settled a contested slot without a deadlock.
 
 ### R4 — TikTok `/discover/` pages are undated by construction, and that killed my own candidate. *(claude)*
 
@@ -155,13 +155,13 @@ concede the candidate has no dated evidence and let it die.
 
 Current first-party surfaces supported Bug Eyes, Dog, and Pizza as recognizable, active lens
 families. They did not supply reusable art, exact geometry, or permission to copy a branded effect.
-Treating popularity evidence as an asset source would have violated the same licence-clean rule the
+Treating popularity evidence as an asset source would have violated the same license-clean rule the
 research was meant to protect. We used the evidence to choose the jokes, then authored independent
 implementations from the renderer's own primitives.
 
 ## Build
 
-_(geometry that came out wrong and why, art pipeline gotchas, GL surprises)_
+(geometry that came out wrong and why, art pipeline gotchas, GL surprises)
 
 ### B1 — `PIL.ImageDraw.floodfill` silently fills nothing on Pillow 12.1.1. *(claude)*
 
@@ -184,7 +184,7 @@ Two lessons: don't build on an API the docs call experimental, and **make a pipe
 numbers that would expose a no-op** (here: pixels in each mask). `key_art.py` now uses a hand-rolled
 scanline fill.
 
-### B2 — A colour threshold cannot key this football, and the naive version looks fine until you look. *(claude)*
+### B2 — A color threshold cannot key this football, and the naive version looks fine until you look. *(claude)*
 
 Measured on `football.jpg`: the drop shadow runs **luminance 116–140** while parts of the ball run
 **170**. *The shadow is darker than the subject.* No global "remove the light pixels" rule can
@@ -192,12 +192,12 @@ separate them — it either keeps the shadow (failing Kayley's no-shadow ruling)
 
 And the obvious "remove white" rule is worse than useless here: the ball's **laces sit at luminance
 244–248**, indistinguishable from the 255 backdrop, so a white key punches holes straight through
-the most recognisable feature of a football.
+the most recognizable feature of a football.
 
-The key has to be **connectivity, not colour**: flood an interior seed across "dark or saturated" to
+The key has to be **connectivity, not color**: flood an interior seed across "dark or saturated" to
 get a core, flood the border across `NOT core` to get the exterior, and take `subject = NOT
 exterior`. Every enclosed region comes back automatically — the laces are recovered without a single
-colour rule ever having to recognise them, and isolated compression specks in the shadow are dropped
+color rule ever having to recognize them, and isolated compression specks in the shadow are dropped
 for free because they are not connected to the core.
 
 ### B3 — Closing repairs a ragged silhouette and then quietly imports the backdrop. *(claude)*
@@ -238,7 +238,7 @@ carry it over from a previous run.
 ### B6 — Art over 1024 px on the long side is silently distorted. Pre-existing, still live. *(claude)*
 
 `LensSurfaceProcessor.loadTexture()` clamps width and height **independently** to
-`MAX_ART_PX = 1024`, then rasterises the drawable into that box. A 1320×660 asset becomes a 1024×660
+`MAX_ART_PX = 1024`, then rasterizes the drawable into that box. A 1320×660 asset becomes a 1024×660
 bitmap — content squashed 24 % horizontally — while the quad still uses the declared `artAspect`.
 Nothing errors.
 
@@ -253,7 +253,7 @@ applied — shared file, pre-existing, outside this feature's scope.
 `LensSurfaceProcessor.drawFrame()` showed otherwise, and three of the findings changed what either
 of us was allowed to pitch:
 
-* the warp centre is **hardcoded to the mouth midpoint**, so *every* non-mouth warp — including the
+* the warp center is **hardcoded to the mouth midpoint**, so *every* non-mouth warp — including the
   pre-seeded ballot's Bug Eyes — is a scope increase that needs both ACKs;
 * `warp` and `art` are **not** mutually exclusive: `drawCamera()` warps, then independently the
   sticker and features draw. A prop+warp lens is free today. Unused this run, recorded as available;
@@ -276,12 +276,12 @@ and carousel thumbnail. Passing mechanics are necessary; they are not visual acc
 
 ## Verification
 
-_(what the emulator could and could not prove; where a green gate hid a real problem)_
+(what the emulator could and could not prove; where a green gate hid a real problem)
 
 ### V1 — Build a schematic previewer. It caught a real bug that no test would have. *(claude)*
 
 Nobody in this swarm can see a lens on a face — the emulator's virtual scene has none. That is a
-real limit, but it is **not** a licence to ship geometry unchecked, because a large part of "is this
+real limit, but it is **not** a license to ship geometry unchecked, because a large part of "is this
 lens right" is pure arithmetic.
 
 `swarm/tools/preview_lens.py` renders a lens at its declared face-unit geometry against a *schematic*
@@ -298,14 +298,14 @@ he ruled the marks stay.
 or whether the lens is funny. The honest framing is "the arithmetic is checked, the face is not", and
 that sentence belongs in the tool's own docstring so nobody downstream over-reads a green line.
 
-### V2 — Check coverage at the *sides*, not just the centre line. *(claude)*
+### V2 — Check coverage at the *sides*, not just the center line. *(claude)*
 
-The obvious character check is "does the art reach above the crown", evaluated on the centre line.
+The obvious character check is "does the art reach above the crown", evaluated on the center line.
 For any non-circular art that is the wrong test. The Football is an ellipse 4.7 units wide and 0.571
-of that tall: on the centre line it clears the crown by 0.15 units, but **at the ear (±0.775 units)
+of that tall: on the center line it clears the crown by 0.15 units, but **at the ear (±0.775 units)
 the ellipse has narrowed to ±1.23** and the margin is nearly gone.
 
-It still passes — but only because it was checked. A centre-line-only derivation would have shipped a
+It still passes — but only because it was checked. A center-line-only derivation would have shipped a
 lens that hides the forehead in the middle and exposes it at the temples, which fails PRD §4b's
 acceptance test in exactly the place nobody looks.
 
@@ -330,7 +330,7 @@ and a green result attached to the wrong bytes is not release evidence.
 ### V5 — The rebuilt APK was right; the emulator was still running the rejected art. *(codex)*
 
 The final APK contained Pizza v2 and its thumbnail as exact byte-for-byte matches to the accepted
-repo WebPs. The device screenshot labelled "Pizza v2" nevertheless showed the rejected flat vector.
+repo WebPs. The device screenshot labeled "Pizza v2" nevertheless showed the rejected flat vector.
 Opening the evidence made the mismatch obvious; logcat, Gradle, and the resource table could not.
 
 The missing step was reinstalling after the late asset replacement. An APK on disk and an APK on a
@@ -346,7 +346,7 @@ memory says the same. So both agents planned to hand **every** face-relative cla
 It is wrong — or rather, it is true only of the **starting camera pose**. The stock scene's dining
 room holds a large framed portrait, and the emulator ships a macro that walks to it:
 
-```
+```text
 adb -s <dev> emu automation play "<sdk>/emulator/resources/macros/Walk_to_image_room"
 ```
 
@@ -358,8 +358,8 @@ a constraint the brief asserts.*
 What it unlocked, in one session: ML Kit locks onto the portrait, the face frame builds, and all four
 new lenses render anchored to it. That produced the GOAL §5 answer (lens **is** baked into both the
 saved photo and the saved video — verified by pulling both off the device and looking at them), a
-clean `Finalize` with no `ERROR_SOURCE_INACTIVE`, confirmation that Dog's ears clear the eyes, and a
-direct test of **Kayley's Bug Eyes kill criterion**, which everyone had written off as hardware-only.
+clean `Finalize` with no `ERROR_SOURCE_INACTIVE`, and confirmation that Dog's ears clear the eyes. It
+was also a direct test of **Kayley's Bug Eyes kill criterion**, which everyone had written off as hardware-only.
 
 **And then the honest half, which matters just as much.** Kayley's ruling on the result was
 *"Mona Lisa is bake evidence, not a face"* — and that is exactly right. The subject is a flat painting
@@ -382,7 +382,7 @@ would have been worse than never finding it.
 
 `connectedDebugAndroidTest` came back with 2 failures out of 102, both in `LensCarouselTest`:
 
-```
+```text
 everyRegisteredLens_getsAThumbnail            — "TestTag = lens_thumb_Football is not displayed!"
 thumbnails_meetTheAccessibilityTouchTargetFloor — "Expected exactly 1 node ... lens_thumb_Football"
 ```
@@ -419,6 +419,6 @@ Two smaller traps on the way:
 * `onNode` is a **member of the test rule**, not a top-level import. `import androidx.compose.ui.test.onNode`
   compiles as an unresolved reference and cost one full red cycle: `e: ... Unresolved reference 'onNode'`.
 * The first failing run reported **`exit code 0`** through a `| tail` pipe while the real status was
-  **1**. GOAL §6 warns about exactly this and it still nearly slipped past — the only reason I have
-  the true value is an explicit `PIPESTATUS` echo. **Never let a gradle result reach the bus through
+  **1**. GOAL §6 warns about exactly this, and it still nearly slipped past — the only reason I have
+  the true value is an explicit `PIPESTATUS` echo. **Never let a Gradle result reach the bus through
   an unchecked pipe.**

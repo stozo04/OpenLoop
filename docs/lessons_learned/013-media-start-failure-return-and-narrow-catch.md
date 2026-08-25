@@ -45,6 +45,7 @@ Media3 `Transformer` and `MediaCodec` work):
 
 1. **Capture and check the return.** If it signals "couldn't start" (`null` here), recover
    *before* spinning up dependent coroutines/timers, and `return`:
+
    ```kotlin
    fun startBurstCapture(cameraManager: CameraManager) {
        val recording = cameraManager.startRecording(outputFile) { event -> /* … */ }
@@ -59,6 +60,7 @@ Media3 `Transformer` and `MediaCodec` work):
 
 2. **Catch only the documented synchronous throwable; let the rest propagate.** Kotlin has no
    multi-catch, so use one block per type (delegating to a shared recovery fn):
+
    ```kotlin
    try {
        // … prepareRecording → withAudioEnabled → start …

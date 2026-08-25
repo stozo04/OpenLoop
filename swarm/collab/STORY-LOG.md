@@ -1,23 +1,26 @@
 # Story log — OpenLoop AR lens swarm (2026-08-15)
 
 Source article to rewrite later (wider audience, Play Store is live):
-https://x.com/sgates2011/status/2087240138342420480
+<https://x.com/sgates2011/status/2087240138342420480>
 "Two Agents, One Codebase" — Vellum Reach. This run is the same protocol on a shipped Android app.
 
 Do not write the article until Steven asks. Collect bumps, images, quotes.
 
 ## Cast
+
 - Claude Code + Codex: peer builders, same checkout (not worktrees this time)
 - Kayley AR: live judge on the bus (not a paste-relay)
 - Steven: owner, AFK, watching bus-follow.html
 
 ## Locked four
+
 Football (character, Wilson/NFL stay) + Bug Eyes (two-circle warp) + Dog (ears+snout, no tongue) + Pizza Face (original art)
 
 ## Bumps (so far)
+
 - 16:11 Viewer contract: Kayley put headline/oneSentence/WORKING ON at top level; page did not render them. Steven made renderer merge both placements.
 - 16:16 football.jpg is a 1320x1320 lossy WebP with NO alpha and a baked gray shadow bottom-right. Key-to-alpha is mandatory.
-- 16:23 Warp centre is hardcoded to the mouth. Bug Eyes is a scope increase. One circle can melt the nose. Steven: trending beats cheap — two-circle shader is in scope if one circle fails. Must stay generic WarpSpec, not a Bug Eyes branch. No regressions on Big Mouth.
+- 16:23 Warp center is hardcoded to the mouth. Bug Eyes is a scope increase. One circle can melt the nose. Steven: trending beats cheap — two-circle shader is in scope if one circle fails. Must stay generic WarpSpec, not a Bug Eyes branch. No regressions on Big Mouth.
 - 16:30 bus-follow.html frozen at 16:14. Watcher was not running. Steven only saw Kayley. Started `node swarm/tools/render-bus.mjs --watch`. 12 messages appeared.
 - 16:34 Codex Cat Ears "timeliness" source (Snap 2026-is-the-new-2016) names only Dog Lens (+352%). Claude caught it. Prop slot flipped to Dog.
 - 16:34 Claude almost cited emoji stats from memory with unopened URLs; caught himself and rewrote. Keep that as an honesty beat.
@@ -25,25 +28,30 @@ Football (character, Wilson/NFL stay) + Bug Eyes (two-circle warp) + Dog (ears+s
 - This run is ONE working tree, not the article's git worktrees. Claim/release is the isolation. Different failure mode than Vellum Reach.
 
 ## Images to grab later
+
 - football.jpg shadow (bottom-right puddle)
 - bus-follow.html before/after watcher
 - Snap 2026 Flashback page (Dog vs Cat)
 - Play Store listing for io.github.stozo04.openloop
 
 ## Quotes
+
 - Steven: "catchy, funny that people will love and want to share"
 - Steven: "dont do cheap if the bug eyes is a good effect"
 - Steven: "do not be afraid to create something"
 - Steven: "abstraction... I would hate to have each lens specially coded"
 
 ## Decision
+
 Steven 16:41 CT: kill Vellum Reach as the public story. OpenLoop on Google Play replaces it. Wider audience. Write after lenses ship.
 
 ## Photo plan
+
 Steven 16:42: stills along the way. Target: million-reader piece, million-user app.
 Assets: swarm/collab/story-assets/
+
 - bus-follow-1642.html (both ACKed, ownership split accepted)
-- football shadow still (box /workspace/football.png -> story-assets/football-shadow.png)
+- football shadow still (box /workspace/football.png → story-assets/football-shadow.png)
 Capture on material beats: first Football art, first red test, first hardware shot.
 
 - 16:56 Football keyed. Shadow gone. Honest left-tip clip in source photo. Pizza v1 killed as clip-art.
@@ -58,15 +66,16 @@ Capture on material beats: first Football art, first red test, first hardware sh
 
 Counted off the bus files 2026-08-15 ~17:41 CT. One writer per file. Steven has 0 posts (AFK).
 
-| Agent | Bus posts |
-|---|---|
-| Codex | 50 |
-| Claude | 31 |
-| Kayley | 22 |
-| Steven | 0 |
-| **Total** | **103** |
+| Agent     | Bus posts |
+| --------- | --------- |
+| Codex     | 50        |
+| Claude    | 31        |
+| Kayley    | 22        |
+| Steven    | 0         |
+| **Total** | **103**   |
 
 ### Lines to keep
+
 - Claude, after checking Codex's Cat Ears cite: "I verified your Cat Ears source and it is actually first-party evidence for Dog"
 - Claude withdraws a crossed Lens.kt claim: "yours was first, you keep it"
 - Kayley, mid-write thumb: "lens_football.webp is 0 bytes. Fix the thumb." Claude: "Thumb is NOT empty - you caught it mid-write."
@@ -96,18 +105,14 @@ Counted off the bus files 2026-08-15 ~17:41 CT. One writer per file. Steven has 
 
 - 18:25 Claude posted done on the old whole pizza, 30 seconds after Steven killed it. pizza-slice.jpg is 123RF. Kayley: not done, do not encode.
 
-- 18:27 Steven replaced pizza-slice.jpg (229KB 123RF -> 438KB clean Exif JPEG). Kayley accepted. Codex to key.
+- 18:27 Steven replaced pizza-slice.jpg (229KB 123RF → 438KB clean Exif JPEG). Kayley accepted. Codex to key.
 
 - 18:34 Codex usage-capped until Aug 20 10:44. Kayley flipped Pizza ownership to Claude. Slice still the job.
 
 - 18:34 Codex usage-capped until Aug 20 10:44. Kayley flipped Pizza to Claude. Two-agent swarm.
 
-
 - 18:36 Steven: Football and Bug Eyes look great in the emulator. Pizza still the leftover.
-
 
 - 18:50 Claude: pizza slice keyed, unit/lint green. Connected suite emulator crash, re-running, not calling it environmental.
 
-
 - 19:14 Pizza slice done. Connected crash was environmental on clean re-run. Kayley accepted. Watch expired: waiting on Steven hardware + commit.
-

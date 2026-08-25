@@ -38,10 +38,12 @@ duration drifted from its window.
 
 - **Measure a produced artifact before laying a derived timeline over it.** If a stage encodes a file,
   read that file's duration back; do not re-use the parameters you asked it to produce.
+
   ```kotlin
   val reversedMs = reversedFile?.let { withContext(Dispatchers.IO) { videoDurationMsOf(it) } }
   val spans = loopClipSpans(specs, windowMs, seamMs, reversedMs)   // measured, not assumed
   ```
+
   Keep the fallback explicit (`null` → use the window) so a not-yet-generated artifact still lays out.
 
 - **A number shown to the user and the number the pipeline produces must come from one formula.** The
@@ -62,11 +64,13 @@ duration drifted from its window.
   anything holding a clip layout should use `loopOutputDurationMs`.
 - On-device check that actually catches it — compare the editor's prediction to the muxed `mvhd`
   duration, for **all three** shapes (a forward-only pass will not reproduce it):
-  | shape | predicted | actual |
-  |---|---|---|
-  | Constant 2×, FORWARD | 2.0 s | 2.04 s |
-  | Ease-In curve, FORWARD | 4.80 s | 4.81 s |
-  | Ease-In curve, FORWARD_THEN_REVERSE | 7.20 s | 7.26 s |
+
+  | shape                               | predicted | actual |
+  | ----------------------------------- | --------- | ------ |
+  | Constant 2×, FORWARD                | 2.0 s     | 2.04 s |
+  | Ease-In curve, FORWARD              | 4.80 s    | 4.81 s |
+  | Ease-In curve, FORWARD_THEN_REVERSE | 7.20 s    | 7.26 s |
+
 - Regression tests: `LoopClipSpanTest."a short reversed clip shortens only the reversed span"` and
   `"output duration follows the measured layout, so the chip cannot over-promise"`.
 

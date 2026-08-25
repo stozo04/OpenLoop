@@ -312,8 +312,8 @@ orphan scratch captures in `filesDir/scratch/` (parent doc D-8).
 
 - **`VideoReverser`** body: ~250 lines of Kotlin, very close to the sisik.eu
   reference. Add unit tests with a small fixture MP4 — assert duration
-  matches input within ±1 frame and frame sequence is reversed (sample first
-  - last frames, compare via histogram).
+  matches input within ±1 frame and frame sequence is reversed (sample the first
+  and last frames, compare via histogram).
 - **Wiring into `VideoProcessor`:** ~30 lines (cache lookup, fallback to
   generation, pass result to Composition).
 - **Wiring into the editor preview:** ~50 lines (loading shimmer state,

@@ -4,13 +4,13 @@ Everything needed to publish **OpenLoop** (`io.github.stozo04.openloop`) to Goog
 themselves live in the Play Console (web), so each doc here is the **source-of-truth text to paste
 in**. Keep these in sync if the app's behavior changes.
 
-| Doc | What it's for | Where it goes in the Console |
-|---|---|---|
-| [`privacy-policy.md`](privacy-policy.md) + [`../privacy-policy.html`](../privacy-policy.html) | Privacy policy (live at the Pages URL) | App content → Privacy policy + store listing |
-| [`data-safety.md`](data-safety.md) | Data safety answers (Firebase Analytics + Crashlytics **declared** — not "no data collected") | App content → Data safety |
-| [`content-rating.md`](content-rating.md) | IARC questionnaire answers (expected: Everyone/PEGI 3) | App content → Content ratings |
-| [`store-listing.md`](store-listing.md) | Title, descriptions, asset specs, screenshot checklist | Store presence → Main store listing |
-| [`release-signing-and-aab.md`](release-signing-and-aab.md) | Generate the upload key + build the signed `.aab` | Release → upload bundle |
+| Doc                                                                                           | What it's for                                                                                 | Where it goes in the Console                 |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| [`privacy-policy.md`](privacy-policy.md) + [`../privacy-policy.html`](../privacy-policy.html) | Privacy policy (live at the Pages URL)                                                        | App content → Privacy policy + store listing |
+| [`data-safety.md`](data-safety.md)                                                            | Data safety answers (Firebase Analytics + Crashlytics **declared** — not "no data collected") | App content → Data safety                    |
+| [`content-rating.md`](content-rating.md)                                                      | IARC questionnaire answers (expected: Everyone/PEGI 3)                                        | App content → Content ratings                |
+| [`store-listing.md`](store-listing.md)                                                        | Title, descriptions, asset specs, screenshot checklist                                        | Store presence → Main store listing          |
+| [`release-signing-and-aab.md`](release-signing-and-aab.md)                                    | Generate the upload key + build the signed `.aab`                                             | Release → upload bundle                      |
 
 ---
 

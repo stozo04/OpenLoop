@@ -3,7 +3,7 @@
 ## The rule that replaced three bugs
 
 **Do not position a face overlay from a bounding box plus tuned offsets, a roll angle, and a mirror
-flag.** That is three error sources stacked on magic numbers, and it does not generalise. Build a
+flag.** That is three error sources stacked on magic numbers, and it does not generalize. Build a
 coordinate frame out of the subject's own landmarks instead:
 
 * **origin** — the eye midpoint.

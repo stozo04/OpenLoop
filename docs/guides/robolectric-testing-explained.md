@@ -15,13 +15,13 @@ Testing strategy and pyramid: [`../TEST_COVERAGE.md`](../TEST_COVERAGE.md).
 
 ## Which of the three test types to use
 
-| | Plain JUnit (`test/`) | **Robolectric** (`test/`) | Instrumented (`androidTest/`) |
-|---|---|---|---|
-| Runs on | Laptop JVM | Laptop JVM | Device / emulator |
-| Speed | ms | tens–hundreds of ms | seconds (build + install) |
-| Android APIs | No | **Yes — simulated** | Yes — **real** |
-| Fake an OS version | No | **Yes — `@Config(sdk=[…])`** | No |
-| Real pixels / codecs / camera | No | **No** | **Yes** |
+|                               | Plain JUnit (`test/`) | **Robolectric** (`test/`)    | Instrumented (`androidTest/`) |
+| ----------------------------- | --------------------- | ---------------------------- | ----------------------------- |
+| Runs on                       | Laptop JVM            | Laptop JVM                   | Device / emulator             |
+| Speed                         | ms                    | tens–hundreds of ms          | seconds (build + install)     |
+| Android APIs                  | No                    | **Yes — simulated**          | Yes — **real**                |
+| Fake an OS version            | No                    | **Yes — `@Config(sdk=[…])`** | No                            |
+| Real pixels / codecs / camera | No                    | **No**                       | **Yes**                       |
 
 1. **Touches zero Android APIs** (math, parsing, state transitions) → **plain JUnit**.
 2. **Touches the framework, but you only care about the objects and branching it produces** — did it
@@ -36,12 +36,12 @@ Testing strategy and pyramid: [`../TEST_COVERAGE.md`](../TEST_COVERAGE.md).
 
 Faking these produces green tests that prove nothing:
 
-| Code | Why it stays on a device |
-|---|---|
-| `media/VideoReverser.kt`, `VideoProcessor.kt`, `MediaCodecLifecycle.kt`, `ReverseOutputValidator.kt` | Real `MediaCodec` + Media3 Transformer. Robolectric's `MediaCodec` shadow **encodes nothing**, so there would be no output loop to validate. |
-| `camera/CameraManager.kt` | Real CameraX + camera hardware. |
-| `MediaMetadataRetriever` paths (`VideoStorageRepositoryImpl` thumbnails/duration, `VideoImporterImpl.probeDurationMs`) | Native frame decode; no real frames under Robolectric. |
-| `LoopifyingScreenshotTest`, `media/LoopifyingBenchmarkTest.kt` | Real pixels / real performance numbers. |
+| Code                                                                                                                   | Why it stays on a device                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `media/VideoReverser.kt`, `VideoProcessor.kt`, `MediaCodecLifecycle.kt`, `ReverseOutputValidator.kt`                   | Real `MediaCodec` + Media3 Transformer. Robolectric's `MediaCodec` shadow **encodes nothing**, so there would be no output loop to validate. |
+| `camera/CameraManager.kt`                                                                                              | Real CameraX + camera hardware.                                                                                                              |
+| `MediaMetadataRetriever` paths (`VideoStorageRepositoryImpl` thumbnails/duration, `VideoImporterImpl.probeDurationMs`) | Native frame decode; no real frames under Robolectric.                                                                                       |
+| `LoopifyingScreenshotTest`, `media/LoopifyingBenchmarkTest.kt`                                                         | Real pixels / real performance numbers.                                                                                                      |
 
 This is the same vacuous-pass trap as Lesson 011 (`zipalign` reporting OK on compressed libs) and
 Lesson 023 (a zero-sample mux exiting "cleanly"): the check runs, stays green, and verifies nothing.
@@ -60,8 +60,8 @@ and all `OpenLoopViewModel` state-transition tests.
   `targetSdk` (36) only — which would have missed the Android-14 crash entirely.
 - **SDK 36 needs JDK 21.** Robolectric loads Google's `android-all` jar for SDK 36, compiled with
   Java 21; a JDK-17 launcher cannot load it. `app/build.gradle.kts` pins the test launcher to 21 for
-  the CLI — set Android Studio's **Gradle JDK to 21+** as well. A class-version / "unsupported
-  major.minor" failure at startup is always this.
+  the CLI — set Android Studio's **Gradle JDK to 21+** as well. A class-version or "unsupported
+  major-minor version" failure at startup is always this.
 - **Resources need `isIncludeAndroidResources = true`.** Already set; check it first if `getString`
   starts returning nothing.
 - **`src/test/` only.** Robolectric, `mockk`, and the JVM fakes are invisible to `src/androidTest/`

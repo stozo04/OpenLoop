@@ -34,19 +34,19 @@ run them with `pwsh <skill>/scripts/<name>.ps1 ...`. The app package is
   `pwsh <repo>\.claude\skills\run-e2e-pixel-sweep\scripts\create-api34-avd.ps1`.
   This is also the **4th and final device** in the `run-e2e-pixel-sweep` repeatable sweep.
 - A JDK for the build: `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"`.
-- You're at the repo root for gradle. If the working dir has drifted, call gradle with an explicit
+- You're at the repo root for Gradle. If the working dir has drifted, call Gradle with an explicit
   project dir: `& "<repo>\gradlew.bat" -p "<repo>" ...`.
 
 ## OEM regression lanes (when the bug is OEM-specific)
 
 See **`run-e2e-pixel-sweep` → "OEM regression lanes"** for the full matrix. Quick reference:
 
-| OEM / issue | Headless on emulator? | Command |
-|-------------|----------------------|---------|
-| Android 14 FGS crash | ✅ | Cold-boot `Pixel_8_API34`, capture→save or import sweep |
-| Samsung identity logic | ✅ | `./gradlew :app:testDebugUnitTest --tests DeviceMediaHintsOemRobolectricTest` |
-| Samsung vendor codecs | ❌ | `pwsh …/samsung-rtl-sweep.ps1` after Samsung RTL RDB connect |
-| LG `start failed` fallback | ✅ (injected) | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` via `adb shell am instrument` |
+| OEM / issue                | Headless on emulator?  | Command                                                                                                     |
+| -------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Android 14 FGS crash       | ✅                      | Cold-boot `Pixel_8_API34`, capture→save or import sweep                                                     |
+| Samsung identity logic     | ✅                      | `./gradlew :app:testDebugUnitTest --tests DeviceMediaHintsOemRobolectricTest`                               |
+| Samsung vendor codecs      | ❌                      | `pwsh …/samsung-rtl-sweep.ps1` after Samsung RTL RDB connect                                                |
+| LG `start failed` fallback | ✅ (injected)           | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` via `adb shell am instrument` |
 
 Stock emulators **cannot** spoof Samsung/LG `Build.MANUFACTURER` — verified 2026-06-22 (`-prop` ignored).
 
@@ -58,6 +58,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 adb -s $Serial install -r -g "<repo>\app\build\outputs\apk\debug\app-debug.apk"   # -g grants runtime perms
 adb -s $Serial shell pm grant io.github.stozo04.openloop android.permission.CAMERA
 ```
+
 `gradlew :app:installDebug` can fail with a stale "device not found" serial — prefer
 `assembleDebug` then `adb install` as above. Record versionName/versionCode for the report
 (read `app/build.gradle*` or `adb shell dumpsys package io.github.stozo04.openloop | findstr version`).
@@ -87,6 +88,7 @@ content-desc, entities decoded, taps the element center). **Do not rely on scree
 image API rejects them after a per-session limit; the uiautomator dump is the reliable eyes.
 
 Steps:
+
 1. **Record** a clip: tap the shutter (~`540,2155` on 1080×2400), wait ~3–4 s, tap again to stop.
    Lands on the **Trim** screen.
 2. **Trim tab** — change the trim window by dragging a handle. The handles are touchy:
@@ -120,6 +122,7 @@ signature catalog (`<skill>/references/logcat-signatures.md`) before moving on.
 ```powershell
 pwsh <skill>/scripts/scan-logcat.ps1 -LogFile <the captured logcat file>
 ```
+
 This prints a count table (CRASH / TIMEOUT / CHURN classes) plus the reverse-pipeline terminal
 events and the render-worker outcome. Any nonzero **CRASH** row is a hard finding. **CHURN** rows
 (reclaim pressure, dead-thread races, codec-component count) are advisory — a high

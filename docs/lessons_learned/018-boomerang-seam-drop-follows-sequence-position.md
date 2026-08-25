@@ -16,12 +16,12 @@ That was correct *by coincidence* — "the reversed clip" and "the second clip" 
 
 Slice 03 makes direction user-selectable, and the coincidence breaks two ways:
 
-| mode | sequence | needs drop on | the identity-based code did… |
-|------|----------|---------------|------------------------------|
-| `FORWARD` | `[fwd]` | nothing | nothing ✓ |
-| `REVERSE` | `[rev]` | **nothing (no seam)** | dropped the lone reversed clip → **lost a real frame ✗** |
-| `FORWARD_THEN_REVERSE` | `[fwd, rev]` | rev (2nd) | dropped rev ✓ |
-| `REVERSE_THEN_FORWARD` | `[rev, fwd]` | **fwd (2nd)** | dropped rev (1st) → **wrong clip; real seam left in ✗** |
+| mode                   | sequence     | needs drop on         | the identity-based code did…                             |
+| ---------------------- | ------------ | --------------------- | -------------------------------------------------------- |
+| `FORWARD`              | `[fwd]`      | nothing               | nothing ✓                                                |
+| `REVERSE`              | `[rev]`      | **nothing (no seam)** | dropped the lone reversed clip → **lost a real frame ✗** |
+| `FORWARD_THEN_REVERSE` | `[fwd, rev]` | rev (2nd)             | dropped rev ✓                                            |
+| `REVERSE_THEN_FORWARD` | `[rev, fwd]` | **fwd (2nd)**         | dropped rev (1st) → **wrong clip; real seam left in ✗**  |
 
 The same trap returns with repetitions (slice 05): `[fwd, rev, fwd, rev]` has a duplicate at *every*
 internal turn — including the cycle boundary `rev→fwd` the slice-02 code never dropped.
