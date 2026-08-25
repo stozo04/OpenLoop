@@ -197,8 +197,9 @@ clip; one person leaves → other unaffected; third person enters → ignored; s
    call-site.
 5. Review pass (adversarial): id-churn ghost lens found and fixed; hold logic moved into
    `FaceRoster` so it is JVM-tested.
-6. Docs: this PRD, `PRD-camera-lenses.md` §5.1 note, `docs/README.md` PRD table, `CLAUDE.md`
-   source-layout map (two new load-bearing files), lesson if the review surfaces one.
+6. Docs: this PRD, `docs/README.md` PRD table, `CLAUDE.md` source-layout map (two new
+   load-bearing files), lesson if the review surfaces one. (`PRD-camera-lenses.md` §5.1 still
+   reads "single-face"; a superseded-by note pointing here is a follow-up — see the PR.)
 7. Definition of Done gate.
 
 ## 9. References
