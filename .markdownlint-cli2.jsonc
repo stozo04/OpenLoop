@@ -23,7 +23,6 @@
   "ignores": [
     "**/node_modules/**",
     "**/build/**",
-    "**/.git/**",
-    "HEY_CLAUDE_ITS_ME.md"
+    "**/.git/**"
   ]
 }
