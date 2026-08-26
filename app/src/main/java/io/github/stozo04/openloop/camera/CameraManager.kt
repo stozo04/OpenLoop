@@ -138,7 +138,7 @@ class CameraManager(private val context: Context) {
                 Log.i(
                     TAG,
                     "Camera bound (lens=${if (lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"}) " +
-                        "build=flick-spin-v3-activity"
+                        "build=flick-spin-v4-velocity"
                 )
 
                 onCameraReady()

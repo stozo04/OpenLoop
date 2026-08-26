@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
-import android.view.GestureDetector
 import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -153,64 +152,78 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Activity-level flick capture — the deepest of the three layers
-     * (`docs/PRD-lens-interactions.md` §3.1). Six instrumented Fold logcats (2026-08-26) showed
-     * viewfinder touches reaching neither `PinchZoomLayout` nor, apparently, the Compose pointer
-     * pipeline. [dispatchTouchEvent] is the first code in the app the framework hands ANY window
-     * touch to, before Compose and before any view — if its probe line stays silent, touches are
-     * not entering the app at all. Observe-only: the detector never consumes, and
-     * `CameraManager.flickLens` both no-ops when no camera is bound (editor flings are dropped
-     * there) and debounces duplicates when another capture layer also delivers the same gesture.
+     * (`docs/PRD-lens-interactions.md` §3.1). [dispatchTouchEvent] is the first code in the app
+     * the framework hands ANY window touch to, before Compose and before any view. Seven
+     * instrumented Fold logcats (2026-08-26) drove it down here: viewfinder touches reached
+     * neither `PinchZoomLayout` nor the Compose pointer probe, and a `GestureDetector` at this
+     * level still produced nothing while a plain button tap demonstrably arrived. So the
+     * classification is now done by hand — a raw [android.view.VelocityTracker], no opaque
+     * detector, no silent path: every DOWN and every UP logs with its measured velocity, and an
+     * UP that was single-finger and faster than the platform's fling minimum IS a flick.
+     * Observe-only (never consumes); `CameraManager.flickLens` no-ops when no camera is bound
+     * (editor flings die there) and debounces duplicates when another capture layer also
+     * delivers the same gesture.
      */
-    private val activityFlickDetector by lazy {
-        GestureDetector(
-            this,
-            object : GestureDetector.SimpleOnGestureListener() {
-                override fun onDown(e: MotionEvent): Boolean = true
+    private var flickVelocityTracker: android.view.VelocityTracker? = null
 
-                override fun onFling(
-                    e1: MotionEvent?,
-                    e2: MotionEvent,
-                    velocityX: Float,
-                    velocityY: Float,
-                ): Boolean {
-                    val down = e1 ?: return false
-                    Log.i(FLICK_TAG, "Activity fling v=($velocityX, $velocityY)")
-                    // The viewfinder fills the window edge-to-edge, so window coordinates ARE
-                    // (to within the insets the huge quad shrugs off) PinchZoomLayout coordinates.
-                    val decor = window.decorView
-                    cameraManager.flickLens(
-                        ViewFlick(
-                            downX = down.x,
-                            downY = down.y,
-                            velocityX = velocityX,
-                            velocityY = velocityY,
-                            viewWidth = decor.width.toFloat(),
-                            viewHeight = decor.height.toFloat(),
-                        ),
-                    )
-                    return false // observe only — never steal from Compose or the views
-                }
-            },
-        )
-    }
-
-    /** One-shot: proves in logcat that touches enter the app's window at all. */
-    private var loggedFirstWindowTouch = false
-
-    /** A stream that ever grew a second finger is a pinch; the flick detector sits it out. */
+    /** A stream that ever grew a second finger is a pinch; the flick capture sits it out. */
     private var windowStreamSawMultiTouch = false
 
+    private var windowDownX = 0f
+    private var windowDownY = 0f
+
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            windowStreamSawMultiTouch = false
-            if (!loggedFirstWindowTouch) {
-                loggedFirstWindowTouch = true
-                Log.i(FLICK_TAG, "First touch entered Activity dispatch at (${ev.x}, ${ev.y})")
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                windowStreamSawMultiTouch = false
+                windowDownX = ev.x
+                windowDownY = ev.y
+                flickVelocityTracker?.recycle()
+                flickVelocityTracker = android.view.VelocityTracker.obtain().also { it.addMovement(ev) }
+                Log.i(FLICK_TAG, "touch DOWN at (${ev.x}, ${ev.y})")
             }
-        }
-        if (ev.pointerCount > 1) windowStreamSawMultiTouch = true
-        if (::cameraManager.isInitialized && !windowStreamSawMultiTouch) {
-            activityFlickDetector.onTouchEvent(ev)
+            MotionEvent.ACTION_POINTER_DOWN -> windowStreamSawMultiTouch = true
+            MotionEvent.ACTION_MOVE -> flickVelocityTracker?.addMovement(ev)
+            MotionEvent.ACTION_UP -> {
+                val tracker = flickVelocityTracker
+                if (tracker != null) {
+                    tracker.addMovement(ev)
+                    tracker.computeCurrentVelocity(1000)
+                    val velocityX = tracker.xVelocity
+                    val velocityY = tracker.yVelocity
+                    val speed = kotlin.math.hypot(velocityX, velocityY)
+                    val minFling =
+                        android.view.ViewConfiguration.get(this).scaledMinimumFlingVelocity.toFloat()
+                    Log.i(
+                        FLICK_TAG,
+                        "touch UP at (${ev.x}, ${ev.y}) v=($velocityX, $velocityY) " +
+                            "speed=$speed min=$minFling multi=$windowStreamSawMultiTouch",
+                    )
+                    if (!windowStreamSawMultiTouch && speed >= minFling &&
+                        ::cameraManager.isInitialized
+                    ) {
+                        // The viewfinder fills the window edge-to-edge, so window coordinates
+                        // ARE (to within insets the huge quad shrugs off) the layout's own.
+                        val decor = window.decorView
+                        cameraManager.flickLens(
+                            ViewFlick(
+                                downX = windowDownX,
+                                downY = windowDownY,
+                                velocityX = velocityX,
+                                velocityY = velocityY,
+                                viewWidth = decor.width.toFloat(),
+                                viewHeight = decor.height.toFloat(),
+                            ),
+                        )
+                    }
+                    tracker.recycle()
+                    flickVelocityTracker = null
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                flickVelocityTracker?.recycle()
+                flickVelocityTracker = null
+            }
         }
         return super.dispatchTouchEvent(ev)
     }
