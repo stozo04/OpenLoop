@@ -239,6 +239,14 @@ class CameraManager(private val context: Context) {
      * device.
      */
     fun flickLens(flick: ViewFlick) {
+        // Logged BEFORE any guard, so hardware where the fling never arrives (the Lesson 025
+        // failure class) is distinguishable from a flick that arrived with nothing to hit — the
+        // Fold logcat of 2026-08-26 could not tell those apart.
+        Log.i(
+            TAG,
+            "Flick gesture (view) at=(${flick.downX}, ${flick.downY}) " +
+                "v=(${flick.velocityX}, ${flick.velocityY}) bound=${camera != null}",
+        )
         if (camera == null) return
         lensProcessor.submitFlick(
             flick,

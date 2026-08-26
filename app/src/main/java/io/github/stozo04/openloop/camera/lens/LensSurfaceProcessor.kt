@@ -306,7 +306,12 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         roster: List<FaceSnapshot>,
         input: InputSurfaceState,
     ) {
-        if (lens == null || roster.isEmpty()) return
+        if (lens == null || roster.isEmpty()) {
+            // Every consumed flick logs exactly once — hit, miss, or nothing-to-hit — so the
+            // logcat always answers "did the gesture get this far, and what stopped it".
+            Log.i(TAG, "Flick ignored | lens=${lens?.name} faces=${roster.size}")
+            return
+        }
         val frameAspect = input.width.toFloat() / input.height.toFloat()
         val mapped = LensTouchMath.viewToBuffer(
             pending.flick,
