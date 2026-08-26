@@ -8,7 +8,7 @@ Not every lesson costs the same to relearn, so they are tiered:
 
 | Tier                               | Which             | How to read                                                                                                                                                                                                                                                                                              |
 | ---------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Core — always read in full**     | **008, 011–039**  | Hard-won, device- and repo-specific. Samsung/Exynos encoder ordering, green corruption from a mismatched encoder Surface, zero-sample muxes that exit "cleanly", FGS constants added in 35 not 34, the `mockk<File>` NPE. **None of this is in any model's training data and each one cost a real bug.** |
+| **Core — always read in full**     | **008, 011–040**  | Hard-won, device- and repo-specific. Samsung/Exynos encoder ordering, green corruption from a mismatched encoder Surface, zero-sample muxes that exit "cleanly", FGS constants added in 35 not 34, the `mockk<File>` NPE. **None of this is in any model's training data and each one cost a real bug.** |
 | **Baseline — skim the index rows** | 001–007, 009, 010 | Generic Android/Compose hygiene now largely held by Android Lint, the Tier 3 CI checks, and IDE inspections. Open the file only when touching that exact area. Note 005 is historical — it argues for API 35; the app already targets 36.                                                                |
 
 Skimming the baseline rows instead of reading all ten files saves ~700 lines per session with no
@@ -66,6 +66,7 @@ Each lesson follows the same shape:
 | 037     | [A per-identity hold must handle the detector re-labeling the same thing (id churn)](./037-per-identity-hold-must-survive-id-churn.md)                                                                                                               | Multi-face lenses review                        |
 | 038     | [An inspection is only as honest as its scope; gate on what git tracks, and sweep before every PR](./038-inspect-scope-and-the-pre-pr-sweep.md)                                                                                                      | Inspect Code export (82,752 items)              |
 | 039     | [A logcat export is only as good as its window: check its span before reading anything into an absence](./039-logcat-export-window-and-absence-of-evidence.md)                                                                                       | Lens flick chase (three deleted capture layers) |
+| 040     | [A new native/JNI dependency is not verified until the release APK has run: R8 failures are invisible in debug](./040-run-the-release-apk-when-a-native-dependency-lands.md)                                                                         | Hand-flick lenses (Flogger under R8)            |
 
 ## Adding a new lesson
 

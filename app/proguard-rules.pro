@@ -15,3 +15,15 @@
 # must keep it whole. Protobuf-lite is its wire format and is reflected on the same way.
 -keep class com.google.mediapipe.** { *; }
 -keep class com.google.protobuf.** { *; }
+# MediaPipe's framework references two proto classes that tasks-core 1.0.0 does not ship — graph
+# profiling and graph templates, neither on the hand-landmarker path. Verbatim from
+# release/missing_rules.txt, the same shape as the review-ktx rule above.
+-dontwarn com.google.mediapipe.proto.CalculatorProfileProto$CalculatorProfile
+-dontwarn com.google.mediapipe.proto.GraphTemplateProto$CalculatorGraphTemplate
+# MediaPipe logs through Flogger, whose FluentLogger.forEnclosingClass() finds its caller by
+# walking the stack and matching class NAMES. Obfuscated, that lookup throws
+# "IllegalStateException: no caller found on the stack for: <renamed FluentLogger>" inside
+# Graph.<clinit> — measured on the release build, 2026-08-26 — so Flogger keeps its names and
+# its frames (kept methods are not inlined away).
+-keep class com.google.common.flogger.** { *; }
+-keepnames class com.google.common.flogger.**

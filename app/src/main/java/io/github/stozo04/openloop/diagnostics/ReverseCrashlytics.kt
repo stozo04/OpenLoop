@@ -156,6 +156,25 @@ internal object ReverseCrashlytics {
         }
     }
 
+    /**
+     * The MediaPipe hand landmarker could not be created (`docs/PRD-lens-hand-flick.md`): the lens
+     * still works and only the hand verb is off, so this is non-fatal — but the population that
+     * hits it (a native lib missing for an ABI, an obfuscation regression in a static initializer)
+     * must be visible in aggregate rather than silently degraded.
+     */
+    fun reportHandTrackerUnavailable(cause: Throwable) {
+        val crashlytics = crashlyticsOrNull() ?: return
+        val keys = CustomKeysAndValues.Builder()
+            .putString("hand_failure_kind", cause.javaClass.simpleName.take(1024))
+            .build()
+        runCatching {
+            crashlytics.log("hand_tracker_unavailable: ${cause.javaClass.simpleName}")
+            crashlytics.recordException(cause, keys)
+        }.onFailure { e ->
+            Log.w(TAG, "Crashlytics recordException failed", e)
+        }
+    }
+
     fun supportReportForShare(
         versionName: String,
         versionCode: Int,

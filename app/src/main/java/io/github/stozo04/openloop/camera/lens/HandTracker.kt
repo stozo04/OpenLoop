@@ -11,6 +11,7 @@ import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import java.util.concurrent.Executor
 
 /**
@@ -131,13 +132,25 @@ class HandTracker(
         landmarker = try {
             HandLandmarker.createFromOptions(appContext, options)
         } catch (error: MediaPipeException) {
-            // The documented creation failure (model missing, unsupported device). The lens still
-            // works; only the hand verb is off — a novelty must never take the camera with it.
-            Log.w(TAG, "Hand landmarker unavailable; hand flicks disabled", error)
-            null
+            // The documented creation failure (model missing, unsupported device).
+            unavailable(error)
+        } catch (error: LinkageError) {
+            // The JVM's own failure class for "the library could not come up": a native lib absent
+            // for this ABI (UnsatisfiedLinkError) or a static initializer that threw
+            // (ExceptionInInitializerError — MediaPipe's Flogger did exactly that under R8 before
+            // proguard-rules.pro kept it, 2026-08-26). Not a catch-all: a bug in our own code still
+            // propagates.
+            unavailable(error)
         }
         lastSubmittedMs = Long.MIN_VALUE
         Log.i(TAG, "Hand tracking ${if (landmarker != null) "on" else "unavailable"}")
+    }
+
+    /** The lens still works; only the hand verb is off — a novelty must never take the camera with it. */
+    private fun unavailable(error: Throwable): HandLandmarker? {
+        Log.w(TAG, "Hand landmarker unavailable; hand flicks disabled", error)
+        ReverseCrashlytics.reportHandTrackerUnavailable(error)
+        return null
     }
 
     /** Executor thread. */

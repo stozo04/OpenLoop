@@ -62,6 +62,15 @@ viewfinder touch at all (§7's capture note) — and D1 makes that question moot
   read the palm-forward hand as its mirror image, so "index" was the pinky; irrelevant here —
   contact is any landmark and velocity is the palm centroid.)
 * **No lens / a `NONE` lens:** `Hand tracking off`, no detector instantiated (D5).
+* **Release build (R8) on the emulator:** the first release APK crashed inside
+  `HandLandmarker.createFromOptions` → `Graph.<clinit>` with Flogger's
+  `IllegalStateException: no caller found on the stack for: sn1` — Flogger finds its caller by
+  matching class *names* on the stack, which obfuscation breaks. Fixed by keeping
+  `com.google.common.flogger.**` (plus the two `-dontwarn` proto classes R8 listed); re-verified:
+  `Hand tracking on` → `Hand detected` on the release APK with identical landmarks. Belt and
+  braces: `HandTracker.open` now survives `MediaPipeException` and `LinkageError` (native lib
+  missing for an ABI, a static initializer that throws) by turning the hand verb off, logging, and
+  reporting a Crashlytics non-fatal — the lens never takes the camera with it.
 * **Process stability:** the app's PID changed several times during the emulator session with no
   crash record anywhere; the events buffer showed `am_kill … stop <pkg>` + `next-top-activity`
   restarts — Android Studio deploying while the owner built, not the app.
