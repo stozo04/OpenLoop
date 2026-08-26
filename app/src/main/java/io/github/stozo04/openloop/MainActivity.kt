@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -77,6 +79,7 @@ import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.review.ReviewManager
 import com.google.android.play.core.review.ReviewManagerFactory
 import io.github.stozo04.openloop.camera.CameraManager
+import io.github.stozo04.openloop.camera.lens.ViewFlick
 import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
 import io.github.stozo04.openloop.data.VideoStorageRepositoryImpl
@@ -147,6 +150,70 @@ class MainActivity : ComponentActivity() {
         )
     }
     private lateinit var cameraManager: CameraManager
+
+    /**
+     * Activity-level flick capture — the deepest of the three layers
+     * (`docs/PRD-lens-interactions.md` §3.1). Six instrumented Fold logcats (2026-08-26) showed
+     * viewfinder touches reaching neither `PinchZoomLayout` nor, apparently, the Compose pointer
+     * pipeline. [dispatchTouchEvent] is the first code in the app the framework hands ANY window
+     * touch to, before Compose and before any view — if its probe line stays silent, touches are
+     * not entering the app at all. Observe-only: the detector never consumes, and
+     * `CameraManager.flickLens` both no-ops when no camera is bound (editor flings are dropped
+     * there) and debounces duplicates when another capture layer also delivers the same gesture.
+     */
+    private val activityFlickDetector by lazy {
+        GestureDetector(
+            this,
+            object : GestureDetector.SimpleOnGestureListener() {
+                override fun onDown(e: MotionEvent): Boolean = true
+
+                override fun onFling(
+                    e1: MotionEvent?,
+                    e2: MotionEvent,
+                    velocityX: Float,
+                    velocityY: Float,
+                ): Boolean {
+                    val down = e1 ?: return false
+                    Log.i(FLICK_TAG, "Activity fling v=($velocityX, $velocityY)")
+                    // The viewfinder fills the window edge-to-edge, so window coordinates ARE
+                    // (to within the insets the huge quad shrugs off) PinchZoomLayout coordinates.
+                    val decor = window.decorView
+                    cameraManager.flickLens(
+                        ViewFlick(
+                            downX = down.x,
+                            downY = down.y,
+                            velocityX = velocityX,
+                            velocityY = velocityY,
+                            viewWidth = decor.width.toFloat(),
+                            viewHeight = decor.height.toFloat(),
+                        ),
+                    )
+                    return false // observe only — never steal from Compose or the views
+                }
+            },
+        )
+    }
+
+    /** One-shot: proves in logcat that touches enter the app's window at all. */
+    private var loggedFirstWindowTouch = false
+
+    /** A stream that ever grew a second finger is a pinch; the flick detector sits it out. */
+    private var windowStreamSawMultiTouch = false
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            windowStreamSawMultiTouch = false
+            if (!loggedFirstWindowTouch) {
+                loggedFirstWindowTouch = true
+                Log.i(FLICK_TAG, "First touch entered Activity dispatch at (${ev.x}, ${ev.y})")
+            }
+        }
+        if (ev.pointerCount > 1) windowStreamSawMultiTouch = true
+        if (::cameraManager.isInitialized && !windowStreamSawMultiTouch) {
+            activityFlickDetector.onTouchEvent(ev)
+        }
+        return super.dispatchTouchEvent(ev)
+    }
 
     /** Play in-app updates (FLEXIBLE). Built in [onCreate]; released in [onDestroy]. */
     private lateinit var appUpdateController: AppUpdateController
@@ -595,6 +662,9 @@ private const val KEY_DEFERRED_SHARE_PATH = "openloop.deferredSharePath"
 private const val KEY_DEFERRED_SHARE_SHOW_SAVED = "openloop.deferredShareShowSaved"
 
 private const val TAG = "MainActivity"
+
+/** The activity-level flick capture's own tag, so one logcat filter shows the whole chain. */
+private const val FLICK_TAG = "OpenLoopFlick"
 
 /** Storage permission is needed only on Android 9 and lower when publishing to MediaStore. */
 internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {
