@@ -151,6 +151,20 @@ immediately (verified `HandLandmarker` signature). No rotated-bitmap allocation:
 in as an option, and the landmarks come back in the upright image — the frame `FaceTracker`
 already normalizes against.
 
+**Per-frame memory (measured 2026-08-26, Pixel_8 AVD, 640×480):** every analyzed frame costs
+three 1.2 MB buffers — the `toBitmap()` copy (ours), and the bitmap **plus** a direct `ByteBuffer`
+that MediaPipe allocates to echo the input image back in the result (`HandLandmarker$1` →
+`AndroidPacketGetter.getBitmapFromRgba`, read from the bytecode). MediaPipe copies our bitmap
+into its packet synchronously inside `detectAsync` and never closes either `MPImage`, so
+`HandTracker` recycles both with `use` — native heap alloc went from ~107 MB to ~91 MB (PSS
+89–110 → 80–82 MB) on the AVD, and on the Fold, where the GC runs every ~4 s rather than 4×/s,
+that is 25–67 frames × 2.4 MB no longer held between collections. The GC *cadence* did not move
+(126 vs 123 GCs per 30 s): it is driven by MediaPipe's direct buffer, which is dropped on its
+floor, not ours — a lower hand frame rate is the only lever left, and the pause it buys back is
+~1–5 ms every few seconds. Zero-copy (`OUTPUT_IMAGE_FORMAT_RGBA_8888` → `ByteBufferImageBuilder`
+on plane 0) stays off the table while faces need the stream in YUV; CameraX's
+convert-into-an-existing-bitmap path is `@RestrictTo`.
+
 * **Timestamps** — `imageInfo.timestamp` (ns → ms), monotonic per MediaPipe's LIVE_STREAM contract.
   Velocity is computed from `HandLandmarkerResult.timestampMs()` deltas, never arrival time.
 * **Front camera** — nothing special. The analysis image is un-mirrored for faces and hands alike;
@@ -266,13 +280,14 @@ The Shades pull-down from the old backlog is now a drag verb away, with no new d
 
 ## 8. Risks
 
-| #   | Risk                                                                    | Mitigation                                                                                                                                               |
-| --- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1  | Hand inference too slow on mid-range phones → laggy or missed waves     | KEEP_ONLY_LATEST drops frames gracefully; velocity uses real timestamps so it stays correct at any rate; CPU/GPU delegate is a one-line switch; measure. |
-| R2  | Landmark jitter → phantom velocity spikes                               | Palm centroid (5-point mean), the speed threshold, and `maxAngularVelocity` cap it three ways.                                                           |
-| R3  | Hand over the face drops ML Kit's face → ball vanishes mid-wave         | 350 ms roster hold; if QA shows it's not enough, raise the hold only while a hand is in frame.                                                           |
-| R4  | +19 MB on arm64                                                         | Owner call, stated up front (§3.1). Model could move to Play Asset Delivery later; not v1.                                                               |
-| R5  | `toBitmap()` cost on the analyzer thread starves face detection         | Measure first; fallback is `ByteBufferImageBuilder` on the Y plane only (the model wants RGB, so this is a last resort) or every-other-frame hands.      |
+| #   | Risk                                                                    | Mitigation                                                                                                                                                           |
+| --- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | Hand inference too slow on mid-range phones → laggy or missed waves     | KEEP_ONLY_LATEST drops frames gracefully; velocity uses real timestamps so it stays correct at any rate; CPU/GPU delegate is a one-line switch; measure.             |
+| R2  | Landmark jitter → phantom velocity spikes                               | Palm centroid (5-point mean), the speed threshold, and `maxAngularVelocity` cap it three ways.                                                                       |
+| R3  | Hand over the face drops ML Kit's face → ball vanishes mid-wave         | 350 ms roster hold; if QA shows it's not enough, raise the hold only while a hand is in frame.                                                                       |
+| R4  | +19 MB on arm64                                                         | Owner call, stated up front (§3.1). Model could move to Play Asset Delivery later; not v1.                                                                           |
+| R5  | `toBitmap()` cost on the analyzer thread starves face detection         | Measure first; fallback is `ByteBufferImageBuilder` on the Y plane only (the model wants RGB, so this is a last resort) or every-other-frame hands.                  |
+| R6  | Per-frame bitmaps churn the GC / bloat native heap on mid-range phones  | Both bitmaps recycled the moment MediaPipe is done with them (§3.2, measured). The remaining churn is MediaPipe's own direct buffer; lever: every-other-frame hands. |
 
 ## 9. Open questions (none block sign-off)
 

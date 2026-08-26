@@ -54,7 +54,12 @@ class HandTracker(
     @Volatile
     private var wanted = false
 
-    /** Result thread only: the appear/vanish edges, logged once each so QA can see the tracker work. */
+    /**
+     * The appear/vanish edges, logged once each so QA can see the tracker work. Written on the
+     * result thread; cleared on the executor thread at teardown (after the landmarker is closed,
+     * so no result races it) — otherwise the first hand after a lens switch would log nothing.
+     */
+    @Volatile
     private var handVisible = false
 
     /**
@@ -80,12 +85,18 @@ class HandTracker(
         // invisible. The clock restarts with the landmarker on every rebind ([reset]).
         if (timestampMs <= lastSubmittedMs) return
         lastSubmittedMs = timestampMs
-        // ponytail: a fresh 1.2 MB bitmap per frame; pool it if allocation shows up in a trace.
+        // A fresh 1.2 MB bitmap per frame is the floor: CameraX's convert-into-an-existing-bitmap
+        // path is @RestrictTo, and the zero-copy route (RGBA_8888 analysis output straight into a
+        // ByteBufferImageBuilder) needs the shared stream to stop being the YUV that ML Kit's
+        // fromMediaImage wants. MediaPipe copies the pixels into its own packet inside detectAsync
+        // (AndroidPacketCreator.createImage, synchronous — verified by bytecode and by detection
+        // surviving the recycle) and never closes the MPImage, so `use` recycles it on return
+        // instead of leaving one native bitmap per frame for the GC to find.
         val image = BitmapImageBuilder(imageProxy.toBitmap()).build()
         val options = ImageProcessingOptions.builder()
             .setRotationDegrees(imageProxy.imageInfo.rotationDegrees)
             .build()
-        detector.detectAsync(image, options, timestampMs)
+        image.use { detector.detectAsync(it, options, timestampMs) }
     }
 
     /**
@@ -125,7 +136,10 @@ class HandTracker(
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumHands(1)
             .setResultListener { result, image ->
-                if (startedIn == epoch) publish(result, image.width, image.height)
+                // MediaPipe echoes the input back as a brand-new bitmap per result (plus a
+                // same-size direct ByteBuffer it drops on the floor — that one is its GC churn,
+                // not ours). Only the dimensions are wanted; recycle the bitmap on the way out.
+                image.use { if (startedIn == epoch) publish(result, it.width, it.height) }
             }
             .setErrorListener { error -> Log.w(TAG, "Hand landmarker failed", error) }
             .build()
@@ -159,6 +173,7 @@ class HandTracker(
         epoch++
         landmarker = null
         detector.close()
+        handVisible = false
         onHand(null)
         Log.i(TAG, "Hand tracking off")
     }
