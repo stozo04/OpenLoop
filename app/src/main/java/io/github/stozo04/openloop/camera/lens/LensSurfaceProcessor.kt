@@ -114,8 +114,14 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     /** Hand → spin impulse decisions (`docs/PRD-lens-hand-flick.md` §3.3). Touched only on glThread. */
     private val handFlick = HandFlick()
 
-    /** This frame's spin-capable quads for [handFlick], rebuilt per frame; reused to avoid churn. */
+    /** The spin-capable quads for [handFlick], rebuilt per new snapshot; reused to avoid churn. */
     private val handTargets = ArrayList<HandFlick.Target>()
+
+    /**
+     * The [hand] that [applyHand] evaluated last. The detector publishes at a fraction of the
+     * renderer's rate, so most frames see the snapshot they already answered. GL thread only.
+     */
+    private var evaluatedHand: HandSnapshot? = null
 
     private val surfaceTextureMatrix = FloatArray(MATRIX_SIZE)
     private val outputTextureMatrix = FloatArray(MATRIX_SIZE)
@@ -303,6 +309,10 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
      */
     private fun applyHand(lens: Lens?, roster: List<FaceSnapshot>, input: InputSurfaceState) {
         val snapshot = hand
+        // One evaluation per snapshot: rebuilding every quad for HandFlick to discard the repeat
+        // (its own identity check) was two thirds of this method's work at 30 fps.
+        if (snapshot === evaluatedHand) return
+        evaluatedHand = snapshot
         val frameAspect = input.width.toFloat() / input.height.toFloat()
         handTargets.clear()
         if (snapshot != null && lens != null) {

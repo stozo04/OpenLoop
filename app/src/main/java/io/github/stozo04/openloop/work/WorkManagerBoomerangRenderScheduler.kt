@@ -39,6 +39,9 @@ class WorkManagerBoomerangRenderScheduler(
             .addTag(WORK_TAG)
             .build()
         workNames[workRequest.id] = request.uniqueWorkName
+        // A retry of a render the user cancelled reuses the unique name (the scratch survives the
+        // cancel). Forget the old cancel here, or the retry's own genuine FAILED would read as it.
+        cancelledWorkNames -= request.uniqueWorkName
         workManager.enqueueUniqueWork(
             request.uniqueWorkName,
             ExistingWorkPolicy.KEEP,

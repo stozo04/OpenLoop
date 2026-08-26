@@ -124,7 +124,9 @@ nondeterminism is one your users share. If it is, the test was reporting a produ
 - A test that **passes in isolation but fails in the full suite** is order/timing-dependent; re-running
   it alone proves nothing. Reproduce with the whole suite (`--rerun-tasks`, several times) and count.
 - Never "fix" this class of flake by widening the assertion (accepting FAILED) or adding a retry —
-  that relocates the fragility. Remove the dependence on internals.
+  that relocates the fragility. Remove the dependence on internals. The one exception is the third
+  shape above: when the *app* issued the cancel, production code maps FAILED to the cancel and the
+  test asserts that outcome — the code changed, not the assertion.
 - A failure in a module the change never touched: verify against a clean checkout of `main` before
   suspecting your own diff (here `main` was green, which correctly redirected the search to *timing*,
   not *behavior*).

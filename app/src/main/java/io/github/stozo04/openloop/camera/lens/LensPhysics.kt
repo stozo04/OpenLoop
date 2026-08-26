@@ -221,11 +221,8 @@ object LensPhysics {
         if (state == Spin.REST) return state
         val dt = dtSeconds.coerceIn(0f, MAX_STEP_SECONDS)
         if (dt <= 0f) return state
-        val decayed = if (spec.frictionHalfLifeSeconds > 0f) {
-            state.velocity * 0.5f.pow(dt / spec.frictionHalfLifeSeconds)
-        } else {
-            0f
-        }
+        // Friction is the same half-life integrator as ease(), aimed at zero velocity.
+        val decayed = ease(state.velocity, 0f, dt, spec.frictionHalfLifeSeconds)
         if (abs(decayed) >= SPIN_LANDING_VELOCITY) {
             return Spin(state.angleRadians + decayed * dt, decayed)
         }

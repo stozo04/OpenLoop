@@ -18,6 +18,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -107,16 +108,46 @@ class RenderCancellationRobolectricTest {
         )
     }
 
-    /** Stands in for [BoomerangRenderWorker]: signals it started, then parks until canceled. */
+    @Test
+    fun retryAfterCancel_reportsItsOwnFailure() {
+        val workManager = WorkManager.getInstance(context)
+        val scheduler = WorkManagerBoomerangRenderScheduler(workManager)
+        val request = renderRequest()
+
+        val cancelled = scheduler.enqueue(request)
+        assertTrue(workerStarted.await(5, TimeUnit.SECONDS))
+        scheduler.cancelRenderWork(request.scratch.uuid)
+        assertEquals(
+            BoomerangRenderWorkResult.Cancelled,
+            runBlocking { withTimeout(5.seconds) { scheduler.observeResult(cancelled).first() } },
+        )
+
+        // Save again on the same scratch: the retry reuses the unique work name. Its genuine
+        // failure must surface as a Failure, not be read as the earlier cancel.
+        val retry = scheduler.enqueue(request)
+        val result = runBlocking { withTimeout(5.seconds) { scheduler.observeResult(retry).first() } }
+        assertTrue("retry must report its own failure, was $result", result is BoomerangRenderWorkResult.Failure)
+    }
+
+    /**
+     * Stands in for [BoomerangRenderWorker]: the first worker signals it started, then parks until
+     * canceled; any later one (a retry of the same scratch) fails outright.
+     */
     private class ParkedWorkerFactory(private val started: CountDownLatch) : WorkerFactory() {
+        private val created = AtomicInteger()
+
         override fun createWorker(
             appContext: Context,
             workerClassName: String,
             workerParameters: WorkerParameters,
-        ): ListenableWorker = object : CoroutineWorker(appContext, workerParameters) {
-            override suspend fun doWork(): Result {
-                started.countDown()
-                awaitCancellation()
+        ): ListenableWorker {
+            val first = created.getAndIncrement() == 0
+            return object : CoroutineWorker(appContext, workerParameters) {
+                override suspend fun doWork(): Result {
+                    if (!first) return Result.failure()
+                    started.countDown()
+                    awaitCancellation()
+                }
             }
         }
     }

@@ -13,6 +13,7 @@ import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * MediaPipe Hand Landmarker glue in front of [HandFlick] — the hand-tracking sibling of
@@ -25,7 +26,9 @@ import java.util.concurrent.Executor
  * MediaPipe's own thread and go out through [onHand] as a latest-wins write, like faces.
  *
  * Alive only while a lens that can be flicked is active ([setEnabled]): every other lens, and no
- * lens, pays nothing for this (PRD D5).
+ * lens, pays nothing for this (PRD D5). The landmarker itself is built by the first frame that
+ * needs it ([submit]) and dropped on every rebind ([reset]) and on disable, so a gallery
+ * round-trip or a lens flip costs one 7.8 MB model load, not two.
  */
 class HandTracker(
     context: Context,
@@ -44,15 +47,31 @@ class HandTracker(
     private var lastSubmittedMs = Long.MIN_VALUE
 
     /**
-     * Bumped on every teardown so a result still in flight from the old landmarker is dropped
-     * instead of resurrecting a hand from the previous bind — the same epoch idea as
-     * [FaceTracker]. Written on the executor thread, read on the result thread, hence volatile.
+     * Bumped on every [reset] and every teardown so a result still in flight from the old
+     * landmarker is dropped instead of resurrecting a hand from the previous bind — the same epoch
+     * idea as [FaceTracker]. Bumped on the main thread ([reset]) and the executor thread
+     * ([closeLandmarker]), read on the result thread, hence atomic.
      */
-    @Volatile
-    private var epoch = 0
+    private val epoch = AtomicInteger()
 
     @Volatile
     private var wanted = false
+
+    /**
+     * Set once [open] has failed. The documented failures (model missing, native lib absent for
+     * this ABI, a static initializer that threw) are permanent for the process, so retrying on
+     * every frame or lens toggle would only spam Crashlytics. Executor thread only.
+     */
+    private var broken = false
+
+    /**
+     * Timestamp of the frame MediaPipe is still working on, or [NO_FRAME]. MediaPipe ignores a
+     * frame handed to it while it is busy (its documented LIVE_STREAM contract), so converting
+     * that frame first is pure waste on the thread ML Kit shares. Written on the executor thread,
+     * cleared on the result thread, hence volatile.
+     */
+    @Volatile
+    private var inFlightMs = NO_FRAME
 
     /**
      * The appear/vanish edges, logged once each so QA can see the tracker work. Written on the
@@ -64,13 +83,13 @@ class HandTracker(
 
     /**
      * Main thread. Turns hand tracking on or off. Creating the landmarker loads a 7.8 MB model,
-     * so that happens on [executor], never here; the first frames after enabling simply see no
-     * hand yet.
+     * so that happens on [executor] from the first frame that needs it, never here; the first
+     * frames after enabling simply see no hand yet.
      */
     fun setEnabled(enabled: Boolean) {
         if (wanted == enabled) return
         wanted = enabled
-        executor.execute { if (enabled) open() else closeLandmarker() }
+        if (!enabled) executor.execute { closeLandmarker() }
     }
 
     /**
@@ -79,11 +98,17 @@ class HandTracker(
      * immediately. Never closes the proxy — that stays the face tracker's job.
      */
     fun submit(imageProxy: ImageProxy) {
+        if (landmarker == null && wanted) open()
         val detector = landmarker ?: return
         val timestampMs = imageProxy.imageInfo.timestamp / NANOS_PER_MILLISECOND
         // A repeated or backwards timestamp would make MediaPipe throw; skipping the frame is
         // invisible. The clock restarts with the landmarker on every rebind ([reset]).
         if (timestampMs <= lastSubmittedMs) return
+        // Nothing to gain from a frame MediaPipe would ignore: skip the conversion while a result
+        // is outstanding. The stall bound is the escape hatch should a callback never come — hand
+        // tracking may degrade to "a few frames late", never to "off for good".
+        val busySince = inFlightMs
+        if (busySince != NO_FRAME && timestampMs - busySince < STALL_MS) return
         lastSubmittedMs = timestampMs
         // A fresh 1.2 MB bitmap per frame is the floor: CameraX's convert-into-an-existing-bitmap
         // path is @RestrictTo, and the zero-copy route (RGBA_8888 analysis output straight into a
@@ -96,22 +121,22 @@ class HandTracker(
         val options = ImageProcessingOptions.builder()
             .setRotationDegrees(imageProxy.imageInfo.rotationDegrees)
             .build()
+        inFlightMs = timestampMs
         image.use { detector.detectAsync(it, options, timestampMs) }
     }
 
     /**
-     * Forgets the hand and restarts the landmarker's clock. Call on every rebind, like
-     * [FaceTracker.reset]: a different sensor's timestamps may run behind the last one's, and a
-     * hand from the previous bind must not linger. Main thread.
+     * Forgets the hand and drops the landmarker; the next [submit] builds a fresh one on the new
+     * bind's clock. Call on every rebind, like [FaceTracker.reset]: a different sensor's
+     * timestamps may run behind the last one's, and a hand from the previous bind must not
+     * linger. The epoch bump is synchronous, so a result of the old landmarker that lands between
+     * this call and the executor's teardown is dropped instead of overwriting the null. Main
+     * thread.
      */
     fun reset() {
+        epoch.incrementAndGet()
         onHand(null)
-        executor.execute {
-            if (landmarker != null) {
-                closeLandmarker()
-                open()
-            }
-        }
+        executor.execute { closeLandmarker() }
     }
 
     /** Releases the landmarker. Main thread; the work lands on [executor] before it shuts down. */
@@ -122,8 +147,8 @@ class HandTracker(
 
     /** Executor thread. */
     private fun open() {
-        if (landmarker != null || !wanted) return
-        val startedIn = epoch
+        if (landmarker != null || !wanted || broken) return
+        val startedIn = epoch.get()
         val options = HandLandmarker.HandLandmarkerOptions.builder()
             .setBaseOptions(
                 BaseOptions.builder()
@@ -139,9 +164,13 @@ class HandTracker(
                 // MediaPipe echoes the input back as a brand-new bitmap per result (plus a
                 // same-size direct ByteBuffer it drops on the floor — that one is its GC churn,
                 // not ours). Only the dimensions are wanted; recycle the bitmap on the way out.
-                image.use { if (startedIn == epoch) publish(result, it.width, it.height) }
+                inFlightMs = NO_FRAME
+                image.use { if (startedIn == epoch.get()) publish(result, it.width, it.height) }
             }
-            .setErrorListener { error -> Log.w(TAG, "Hand landmarker failed", error) }
+            .setErrorListener { error ->
+                inFlightMs = NO_FRAME
+                Log.w(TAG, "Hand landmarker failed", error)
+            }
             .build()
         landmarker = try {
             HandLandmarker.createFromOptions(appContext, options)
@@ -157,6 +186,7 @@ class HandTracker(
             unavailable(error)
         }
         lastSubmittedMs = Long.MIN_VALUE
+        inFlightMs = NO_FRAME
         Log.i(TAG, "Hand tracking ${if (landmarker != null) "on" else "unavailable"}")
     }
 
@@ -164,13 +194,14 @@ class HandTracker(
     private fun unavailable(error: Throwable): HandLandmarker? {
         Log.w(TAG, "Hand landmarker unavailable; hand flicks disabled", error)
         ReverseCrashlytics.reportHandTrackerUnavailable(error)
+        broken = true
         return null
     }
 
     /** Executor thread. */
     private fun closeLandmarker() {
         val detector = landmarker ?: return
-        epoch++
+        epoch.incrementAndGet()
         landmarker = null
         detector.close()
         handVisible = false
@@ -229,5 +260,14 @@ class HandTracker(
         const val NANOS_PER_MILLISECOND = 1_000_000L
 
         const val INDEX_TIP = 8
+
+        /** No frame outstanding at MediaPipe. */
+        const val NO_FRAME = Long.MIN_VALUE
+
+        /**
+         * A result older than this is presumed lost and the gate reopens. CPU inference on a
+         * 640x480 frame is tens of milliseconds; anything past this is a stall, not a slow frame.
+         */
+        const val STALL_MS = 500L
     }
 }

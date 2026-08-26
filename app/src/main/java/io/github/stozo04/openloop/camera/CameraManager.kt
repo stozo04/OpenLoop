@@ -125,8 +125,11 @@ class CameraManager(private val context: Context) {
                     .also { analysis ->
                         // One stream, two detectors (PRD-lens-hand-flick §3.2): the hand tracker
                         // takes its copy of the frame first, then ML Kit owns — and closes — the
-                        // proxy exactly as before. Hand submit is try-caught so toBitmap() or
-                        // detectAsync failures never prevent the face path from closing the proxy.
+                        // proxy exactly as before. A failed hand submit (toBitmap(), detectAsync)
+                        // is logged and the frame skipped; the finally hands the proxy to the face
+                        // path even when something worse than an Exception escapes (an OOM in the
+                        // bitmap copy), because an unclosed proxy under KEEP_ONLY_LATEST stalls
+                        // the whole analysis stream until the next bind.
                         analysis.setAnalyzer(
                             cameraExecutor,
                             ImageAnalysis.Analyzer { proxy ->
@@ -134,15 +137,17 @@ class CameraManager(private val context: Context) {
                                     handTracker.submit(proxy)
                                 } catch (exc: Exception) {
                                     Log.w(TAG, "Hand tracker submit failed; hand tracking skipped this frame", exc)
+                                } finally {
+                                    faceTracker.analyze(proxy)
                                 }
-                                faceTracker.analyze(proxy)
                             },
                         )
                     }
 
                 // A lens flip lands here without releaseCamera(); the roster must not carry the
                 // other sensor's faces into this bind (see FaceTracker.reset), and the hand
-                // tracker's clock restarts with the new sensor's timestamps.
+                // tracker drops its landmarker so the first frame of this bind rebuilds it on the
+                // new sensor's clock.
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
                 faceTracker.reset()
