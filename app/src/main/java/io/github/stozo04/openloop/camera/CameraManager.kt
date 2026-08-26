@@ -129,9 +129,13 @@ class CameraManager(private val context: Context) {
                     analysis = analysis,
                 )
                 attachZoomObserver()
+                // The build marker suffix is the stale-APK tripwire (Lesson 012's environment
+                // notes): a logcat whose bind lines lack it was made by a build without the
+                // flick feature, whatever the checkout says.
                 Log.i(
                     TAG,
-                    "Camera bound (lens=${if (lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"})"
+                    "Camera bound (lens=${if (lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"}) " +
+                        "build=flick-spin-v1"
                 )
 
                 onCameraReady()

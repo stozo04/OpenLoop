@@ -2,6 +2,7 @@ package io.github.stozo04.openloop.camera
 
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -59,6 +60,13 @@ class PinchZoomLayout @JvmOverloads constructor(
                 velocityX: Float,
                 velocityY: Float,
             ): Boolean {
+                // Before any guard, so a fling the guards drop is still visible in logcat — the
+                // Fold sessions of 2026-08-26 died silently somewhere in this chain.
+                Log.i(
+                    TAG,
+                    "Fling detected v=($velocityX, $velocityY) " +
+                        "pinch=$pinchInStream hasDown=${e1 != null}",
+                )
                 // A pinch that released into a fast single-finger lift must stay a pinch.
                 if (pinchInStream) return false
                 // Hit-testing happens on the DOWN position (Lesson 035: everything later is a
@@ -82,8 +90,17 @@ class PinchZoomLayout @JvmOverloads constructor(
     /** Whether the touch stream that is currently down ever became a pinch. */
     private var pinchInStream = false
 
+    /** One-shot: proves in logcat that touch dispatch reaches this layout at all. */
+    private var loggedFirstTouch = false
+
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) pinchInStream = false
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            pinchInStream = false
+            if (!loggedFirstTouch) {
+                loggedFirstTouch = true
+                Log.i(TAG, "First touch reached PinchZoomLayout at (${event.x}, ${event.y})")
+            }
+        }
         if (event.pointerCount >= 2 || scaleDetector.isInProgress) {
             pinchInStream = true
             scaleDetector.onTouchEvent(event)
@@ -126,6 +143,11 @@ class PinchZoomLayout @JvmOverloads constructor(
         super.performClick()
         // The viewfinder has no tap action today (tap-to-focus would hook in here).
         return true
+    }
+
+    private companion object {
+        /** Same tag CameraScreen's pinch wiring logs under, so one filter shows the whole story. */
+        const val TAG = "OpenLoopPinchZoom"
     }
 }
 
