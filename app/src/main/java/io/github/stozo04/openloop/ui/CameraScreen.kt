@@ -354,6 +354,9 @@ fun CameraScreen(
                         cameraManager.onPinchZoomEnd()
                         onPinchEnd.value()
                     },
+                    // A single-finger fling flicks the lens (PRD-lens-interactions). Fire and
+                    // forget: the renderer decides on its own thread whether anything was hit.
+                    onFling = { cameraManager.flickLens(it) },
                 )
             },
         )

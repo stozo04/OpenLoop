@@ -135,6 +135,10 @@ enum class LensAnchorPoint { FACE, LEFT_EYE, RIGHT_EYE, MOUTH }
  *   [LensPhysics]. Null is rigid, which is every lens that does not hang off the face.
  * @param mouthOpen non-null makes this layer grow and shrink as the subject opens their mouth.
  *   Null means a fixed size, which is every layer that is not coming *out* of a mouth.
+ * @param spin non-null makes this layer flickable: a fling across it spins it about its own
+ *   center, landing back on a whole revolution — see [LensPhysics.spinStep] and
+ *   `docs/PRD-lens-interactions.md`. Null ignores flicks, which is every layer today but
+ *   Football's ball.
  */
 data class LensPlacement(
     val widthInUnits: Float,
@@ -144,6 +148,7 @@ data class LensPlacement(
     val anchor: LensAnchorPoint = LensAnchorPoint.FACE,
     val wobble: WobbleSpec? = null,
     val mouthOpen: MouthOpenSpec? = null,
+    val spin: SpinSpec? = null,
 )
 
 /**
@@ -313,6 +318,7 @@ object LensAnchor {
         frameAspect: Float,
         wobbleRadians: Float = 0f,
         openFraction: Float = 1f,
+        spinRadians: Float = 0f,
     ): StickerQuad {
         // Screen y is down, so this is the clockwise-positive rotation used everywhere else —
         // same convention as LensSurfaceProcessor.writeStickerCorners.
@@ -341,8 +347,11 @@ object LensAnchor {
             centerY = fromSquareY(centerSquareY, frameAspect),
             halfWidth = halfWidth,
             halfHeight = fromSquareY(halfWidth * placement.artAspect, frameAspect),
-            // The sticker's own "right" is the face's "right", turned by the wobble.
-            rotationRadians = atan2(rightY, rightX),
+            // The sticker's own "right" is the face's "right", turned by the wobble. The spin
+            // adds on top of the final rotation ONLY — unlike the wobble it does not turn the
+            // offset vector, so the art twirls about its own center rather than orbiting its
+            // anchor (a flicked ball spins in place; a swung tongue hangs from its root).
+            rotationRadians = atan2(rightY, rightX) + spinRadians,
         )
     }
 

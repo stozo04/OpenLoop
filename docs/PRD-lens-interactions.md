@@ -1,6 +1,6 @@
 # PRD — Lens Interactions (flick a lens, it spins)
 
-**Status:** Draft — awaiting owner sign-off
+**Status:** Approved (owner, 2026-08-26) — building
 **Owner:** Steven Gates
 **Date:** 2026-08-26
 **Proposed branch:** `feature/lens-interactions`
@@ -134,8 +134,10 @@ data class Spin(val angleRadians: Float, val velocity: Float)
   touched — `ω += gain * cross(r, v) / max(|r|, R_MIN)²`, with `r` the vector from the quad center
   to the touch point and `v` the flick velocity, both in face units (square space). Flick the top
   of the ball rightward and it spins clockwise; flick the bottom rightward and it spins the other
-  way; flick harder and it spins faster. `R_MIN` (~0.3 units) keeps a dead-center flick from
-  dividing by zero — it spins in the flick's cross direction at a sane rate. The result is clamped
+  way; flick harder and it spins faster. `R_MIN` (~0.3 units) keeps a near-center flick from
+  dividing toward infinity; an exactly dead-center flick has zero torque and does nothing, which
+  is the physically honest outcome (you cannot spin a wheel by pushing through its axle). The
+  result is clamped
   to `maxAngularVelocity`. A flick landing on an already-spinning layer **adds** its impulse, so
   repeated flicks pump it up (to the cap) or brake it.
 * **Decay** (`spinStep`): exponential half-life on the velocity — the same frame-rate-independent
@@ -194,7 +196,7 @@ safety properties so retuning cannot weaken them.
 * `FaceTracker`, `FaceRoster`, ML Kit options, the analysis aspect pin — untouched.
 * No persistence, no settings, no UI chrome. The interaction is discoverable by doing.
 
-## 4. Decisions proposed (owner to confirm at sign-off)
+## 4. Decisions (confirmed at sign-off, owner, 2026-08-26)
 
 | #   | Question                          | Proposal                                                                                                                                                                                                                                                                                            |
 | --- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

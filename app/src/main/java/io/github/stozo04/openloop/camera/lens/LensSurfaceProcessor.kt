@@ -26,6 +26,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.Executor
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -100,10 +101,19 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     private val stickerTextures = HashMap<Int, Int>()
 
     /**
-     * Per-face wobble springs and eased mouth. Touched only on glThread, stepped once per frame in
-     * [drawFrame] before the output loop — see [LensMotion] for why that ordering matters.
+     * Per-face wobble springs, flick spins and eased mouth. Touched only on glThread, stepped once
+     * per frame in [drawFrame] before the output loop — see [LensMotion] for why that ordering
+     * matters.
      */
     private val motion = LensMotion()
+
+    /**
+     * The newest un-consumed flick, handed across from the UI thread ([submitFlick]) and taken by
+     * the GL thread at the top of the next frame — the same one-slot volatile shape as
+     * [activeLens] / [faces]. A flick landing one frame late is invisible; a second flick before
+     * the next frame replaces the first rather than queueing (nobody can flick twice in 33 ms).
+     */
+    private val pendingFlick = AtomicReference<PendingFlick?>(null)
 
     private val surfaceTextureMatrix = FloatArray(MATRIX_SIZE)
     private val outputTextureMatrix = FloatArray(MATRIX_SIZE)
@@ -151,6 +161,16 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         faces = snapshots
     }
 
+    /**
+     * Hands a viewfinder fling to the GL thread, which maps it into the buffer, hit-tests it
+     * against the spin-capable sticker quads and — on a hit — spins that layer
+     * (`docs/PRD-lens-interactions.md` §3.3). Safe from any thread; a miss costs one log line.
+     */
+    fun submitFlick(flick: ViewFlick, rotationDegrees: Int, mirrored: Boolean) {
+        if (released) return
+        pendingFlick.set(PendingFlick(flick, rotationDegrees, mirrored))
+    }
+
     /** Tears down the GL thread. The processor is unusable afterward. */
     fun release() {
         released = true
@@ -178,7 +198,13 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
                 setDefaultBufferSize(request.resolution.width, request.resolution.height)
                 setOnFrameAvailableListener({ drawFrame() }, glHandler)
             }
-            val state = InputSurfaceState(textureId, surfaceTexture, Surface(surfaceTexture))
+            val state = InputSurfaceState(
+                textureId,
+                surfaceTexture,
+                Surface(surfaceTexture),
+                width = request.resolution.width,
+                height = request.resolution.height,
+            )
 
             // Deliberately do NOT tear down the previous input here. CameraX owns the surface it
             // was handed until it fires that request's result callback, and releasing early — then
@@ -237,6 +263,10 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         val lens = activeLens
         val roster = faces
 
+        // A flick lands between frames; consume it here so its impulse is in the state the step
+        // below advances — one frame of latency at most, invisible at 30 fps.
+        pendingFlick.getAndSet(null)?.let { applyFlick(it, lens, roster, input) }
+
         // Physics advances ONCE per frame, here, before the per-output loop. Stepping it inside the
         // loop would run the simulation once per output — the preview and the recording would each
         // see a differently-advanced spring, and with two outputs attached the tongue would swing at
@@ -264,6 +294,74 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         }
     }
 
+    /**
+     * Maps a flick into the camera buffer and lands it on the topmost spin-capable layer it hit
+     * (`docs/PRD-lens-interactions.md` §3.3). Runs on the GL thread against the same quads the
+     * next draw will use. One log line per flick — hit or miss — is the diagnostic that turns the
+     * whole view→buffer mapping into arithmetic on a device (the §3.2 mitigation).
+     */
+    private fun applyFlick(
+        pending: PendingFlick,
+        lens: Lens?,
+        roster: List<FaceSnapshot>,
+        input: InputSurfaceState,
+    ) {
+        if (lens == null || roster.isEmpty()) return
+        val frameAspect = input.width.toFloat() / input.height.toFloat()
+        val mapped = LensTouchMath.viewToBuffer(
+            pending.flick,
+            bufferWidth = input.width.toFloat(),
+            bufferHeight = input.height.toFloat(),
+            rotationDegrees = pending.rotationDegrees,
+            mirrored = pending.mirrored,
+        ) ?: return
+
+        // Later slots and later layers draw on top, so hit-test both in reverse: the thing the
+        // user sees under their finger wins. First hit consumes the flick.
+        for (tracked in roster.asReversed()) {
+            val snapshot = LensAnchor.reframe(tracked, frameAspect)
+            val faceFrame = LensAnchor.faceFrame(snapshot, frameAspect) ?: continue
+            val faceMotion = motion.forFace(tracked.trackingId)
+            for (index in lens.art.indices.reversed()) {
+                val art = lens.art[index]
+                if (art.placement.spin == null) continue
+                val quad = LensAnchor.sticker(
+                    snapshot,
+                    faceFrame,
+                    art.placement,
+                    frameAspect,
+                    wobbleRadians = faceMotion?.wobbleAngles?.getOrNull(index) ?: 0f,
+                    openFraction = faceMotion?.openFraction ?: 0f,
+                    spinRadians = faceMotion?.spinAngles?.getOrNull(index) ?: 0f,
+                )
+                if (!LensHitTest.contains(quad, mapped.x, mapped.y, frameAspect)) continue
+
+                // Lever and velocity in face units, square space — the dimensionless currency
+                // every LensPhysics drive uses (same flick, same spin, at any distance).
+                motion.flick(
+                    lens = lens,
+                    trackingId = tracked.trackingId,
+                    layerIndex = index,
+                    leverX = (mapped.x - quad.centerX) / faceFrame.unit,
+                    leverY = LensAnchor.toSquareY(mapped.y - quad.centerY, frameAspect) / faceFrame.unit,
+                    velocityX = mapped.velocityX / faceFrame.unit,
+                    velocityY = LensAnchor.toSquareY(mapped.velocityY, frameAspect) / faceFrame.unit,
+                )
+                Log.i(
+                    TAG,
+                    "Flick HIT face=${tracked.trackingId} layer=$index " +
+                        "at=(${mapped.x}, ${mapped.y}) center=(${quad.centerX}, ${quad.centerY})",
+                )
+                return
+            }
+        }
+        Log.i(
+            TAG,
+            "Flick miss at=(${mapped.x}, ${mapped.y}) rotation=${pending.rotationDegrees} " +
+                "mirrored=${pending.mirrored} faces=${roster.size}",
+        )
+    }
+
     /** Composites the whole lens — every sticker layer, then the features — onto one face. */
     private fun drawLensOnFace(
         lens: Lens,
@@ -278,6 +376,7 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         val faceFrame = LensAnchor.faceFrame(snapshot, frameAspect) ?: return
         val faceMotion = motion.forFace(tracked.trackingId)
         val wobbles = faceMotion?.wobbleAngles
+        val spins = faceMotion?.spinAngles
         val openFraction = faceMotion?.openFraction ?: 0f
 
         // Layers paint in catalogue order, so a lens controls its own stacking — Twisted
@@ -290,10 +389,16 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
                 frameAspect = frameAspect,
                 wobbleRadians = wobbles?.getOrElse(index) { 0f } ?: 0f,
                 openFraction = openFraction,
+                spinRadians = spins?.getOrElse(index) { 0f } ?: 0f,
             )
         }
         // Character lenses paste the subject's own eyes and mouth back on top of the art, so
         // the vegetable does the acting. Must come after the sticker, which is opaque.
+        //
+        // Not while a flicked layer is mid-spin (PRD-lens-interactions D2): the ball spins bare,
+        // and because every spin lands on a whole revolution, the features snap back on the
+        // landing frame exactly where they vanished. A deliberate snap, not a fade.
+        if (faceMotion?.isSpinning == true) return
         val layout = lens.features ?: return
         LensAnchor.features(snapshot, faceFrame, layout, frameAspect).forEach { feature ->
             drawFeature(cameraTextureId, feature, frameAspect)
@@ -329,12 +434,13 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         frameAspect: Float,
         wobbleRadians: Float,
         openFraction: Float,
+        spinRadians: Float,
     ) {
         val texture = stickerTextures.getOrPut(art.drawableRes) { loadTexture(art.drawableRes) }
         if (texture == 0) return
 
         val quad = LensAnchor.sticker(
-            face, faceFrame, art.placement, frameAspect, wobbleRadians, openFraction,
+            face, faceFrame, art.placement, frameAspect, wobbleRadians, openFraction, spinRadians,
         )
         // A fully-retracted layer has no pixels; skip the draw call entirely.
         if (quad.halfWidth <= 0f || quad.halfHeight <= 0f) return
@@ -623,6 +729,9 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         val textureId: Int,
         val surfaceTexture: SurfaceTexture,
         val surface: Surface,
+        /** The camera buffer's own size — the canonical space flicks are hit-tested in. */
+        val width: Int,
+        val height: Int,
     ) {
         var released = false
             private set
@@ -636,6 +745,13 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             GLES20.glDeleteTextures(1, intArrayOf(textureId), 0)
         }
     }
+
+    /** One un-consumed viewfinder fling plus the transform facts needed to map it. */
+    private class PendingFlick(
+        val flick: ViewFlick,
+        val rotationDegrees: Int,
+        val mirrored: Boolean,
+    )
 
     private companion object {
         const val TAG = "OpenLoopLens"

@@ -233,4 +233,209 @@ class LensPhysicsTest {
         assertEquals(swung, LensPhysics.step(swung, Float.NaN, frame, tongue))
         assertEquals(swung, LensPhysics.step(swung, Float.POSITIVE_INFINITY, frame, tongue))
     }
+
+    // ================================================================ the flick spin
+    // PRD-lens-interactions §3.4. Like the wobble above, the JVM is the primary verification:
+    // the emulator's poster face can show a spin happening, but only these properties prove the
+    // impulse direction, the cap, and that every spin lands on an exact whole revolution.
+
+    private val twoPi = (2.0 * Math.PI).toFloat()
+
+    /** The spec Football ships. */
+    private val football = Lens.Football.art.first().placement.spin!!
+
+    /** Steps a spin to REST (or gives up), returning every intermediate state. */
+    private fun spinOut(start: LensPhysics.Spin, spec: SpinSpec = football): List<LensPhysics.Spin> {
+        val states = mutableListOf(start)
+        var current = start
+        repeat(1000) {
+            if (current == LensPhysics.Spin.REST) return states
+            current = LensPhysics.spinStep(current, frame, spec)
+            states.add(current)
+        }
+        return states
+    }
+
+    private fun flick(velocityX: Float, leverY: Float = -1f): LensPhysics.Spin =
+        LensPhysics.spinImpulse(
+            LensPhysics.Spin.REST,
+            leverX = 0f,
+            leverY = leverY,
+            velocityX = velocityX,
+            velocityY = 0f,
+            spec = football,
+        )
+
+    @Test
+    fun flickingTheTopOfTheBallRightward_spinsItClockwise() {
+        // y is down, so the top of the ball is negative leverY, and clockwise is positive angle —
+        // the renderer's own convention (LensAnchor.sticker).
+        assertTrue(flick(velocityX = 4f, leverY = -1f).velocity > 0f)
+    }
+
+    @Test
+    fun flickingTheBottomOfTheBallRightward_spinsItTheOtherWay() {
+        assertTrue(flick(velocityX = 4f, leverY = 1f).velocity < 0f)
+    }
+
+    @Test
+    fun aHarderFlick_spinsFasterAndTravelsFurther() {
+        val soft = flick(velocityX = 2f)
+        val hard = flick(velocityX = 6f)
+        assertTrue(abs(hard.velocity) > abs(soft.velocity))
+
+        val softTravel = spinOut(soft).maxOf { abs(it.angleRadians) }
+        val hardTravel = spinOut(hard).maxOf { abs(it.angleRadians) }
+        assertTrue("harder flick must travel further", hardTravel > softTravel)
+    }
+
+    @Test
+    fun aSecondFlickAddsItsImpulse_soRepeatedFlicksPumpTheSpinUp() {
+        val once = flick(velocityX = 3f)
+        val twice = LensPhysics.spinImpulse(once, 0f, -1f, 3f, 0f, football)
+
+        assertTrue(twice.velocity > once.velocity)
+    }
+
+    @Test
+    fun theVelocityCapHoldsUnderAnAbsurdFling() {
+        val flung = flick(velocityX = 100_000f)
+
+        assertEquals(football.maxAngularVelocity, flung.velocity, tolerance)
+    }
+
+    @Test
+    fun frictionHalvesTheSpeedInItsHalfLife_atAnyFrameRate() {
+        // The half-life form is exactly frame-rate independent: the same wall-clock time must
+        // yield the same velocity whether it was stepped at 30 or 60 fps.
+        val start = LensPhysics.Spin(angleRadians = 0f, velocity = 20f)
+        val halfLife = football.frictionHalfLifeSeconds
+
+        var at30 = start
+        repeat(30) { at30 = LensPhysics.spinStep(at30, halfLife / 30f, football) }
+        var at60 = start
+        repeat(60) { at60 = LensPhysics.spinStep(at60, halfLife / 60f, football) }
+
+        assertEquals(10f, at30.velocity, 1e-2f)
+        assertEquals(at30.velocity, at60.velocity, 1e-2f)
+    }
+
+    @Test
+    fun everySpinLandsOnAnExactWholeRevolution() {
+        // The load-bearing landing guarantee (owner decision D2): the features reappear exactly
+        // where they vanished only because the angle always comes home to a multiple of 2π.
+        for (velocity in floatArrayOf(1f, 3f, 7.5f, -4f, 18f, -25f)) {
+            val states = spinOut(LensPhysics.Spin(0f, velocity))
+            assertEquals("a spin at $velocity rad/s must land", LensPhysics.Spin.REST, states.last())
+
+            // The last angle before the snap to REST sits within a whisker of a whole turn.
+            val beforeRest = states[states.size - 2].angleRadians
+            val offTarget = abs(beforeRest - Math.round(beforeRest / twoPi) * twoPi)
+            assertTrue("landed $offTarget rad off a whole revolution", offTarget < 5e-3f)
+        }
+    }
+
+    @Test
+    fun theLandingNeverUnwinds_moreThanHalfATurn() {
+        for (velocity in floatArrayOf(2f, 5f, 13f)) {
+            val states = spinOut(LensPhysics.Spin(0f, velocity))
+            val peak = states.maxOf { it.angleRadians }
+            val landedAt = states[states.size - 2].angleRadians
+            assertTrue(
+                "landing gave back ${peak - landedAt} rad",
+                peak - landedAt <= Math.PI.toFloat() + tolerance,
+            )
+        }
+    }
+
+    @Test
+    fun theLandingGlides_itNeverTeleportsTheAngle() {
+        val states = spinOut(LensPhysics.Spin(0f, 9f))
+        states.zipWithNext { a, b ->
+            // REST's angle 0 stands for the whole revolution it landed on; measure that hop mod 2π.
+            val hop = abs(b.angleRadians - a.angleRadians)
+            val hopModTurn = minOf(hop % twoPi, twoPi - hop % twoPi)
+            assertTrue("angle jumped $hopModTurn rad in one frame", hopModTurn < 1f)
+        }
+    }
+
+    @Test
+    fun aFlickNearTheDeadCenter_cannotBlowUp() {
+        // The lever floor bounds the torque division; a tiny lever means a tiny cross product, so
+        // the spin comes out small and finite, never infinite.
+        val nudged = LensPhysics.spinImpulse(
+            LensPhysics.Spin.REST,
+            leverX = 0f, leverY = -0.01f, velocityX = 8f, velocityY = 0f,
+            spec = football,
+        )
+
+        assertTrue(nudged.velocity.isFinite())
+        assertTrue(abs(nudged.velocity) <= football.maxAngularVelocity)
+    }
+
+    @Test
+    fun anExactlyDeadCenterFlick_hasNoTorque() {
+        val through = LensPhysics.spinImpulse(
+            LensPhysics.Spin.REST,
+            leverX = 0f, leverY = 0f, velocityX = 8f, velocityY = 0f,
+            spec = football,
+        )
+
+        assertEquals(0f, through.velocity, tolerance)
+    }
+
+    @Test
+    fun aGarbledFlick_leavesTheSpinUntouched() {
+        val spinning = LensPhysics.Spin(1f, 6f)
+
+        assertEquals(spinning, LensPhysics.spinImpulse(spinning, Float.NaN, 0f, 1f, 1f, football))
+        assertEquals(
+            spinning,
+            LensPhysics.spinImpulse(spinning, 0f, 1f, Float.POSITIVE_INFINITY, 0f, football),
+        )
+    }
+
+    @Test
+    fun aLongFrameGap_cannotTeleportTheSpin() {
+        val stalled = LensPhysics.spinStep(LensPhysics.Spin(0f, 20f), dtSeconds = 5f, football)
+
+        assertTrue(stalled.angleRadians.isFinite())
+        assertTrue(
+            "one clamped step can advance at most maxVelocity × MAX_STEP",
+            abs(stalled.angleRadians) <= football.maxAngularVelocity * LensPhysics.MAX_STEP_SECONDS + tolerance,
+        )
+    }
+
+    @Test
+    fun aZeroOrNegativeStep_changesNothing() {
+        val spinning = LensPhysics.Spin(0.5f, 4f)
+
+        assertEquals(spinning, LensPhysics.spinStep(spinning, 0f, football))
+        assertEquals(spinning, LensPhysics.spinStep(spinning, -0.02f, football))
+    }
+
+    @Test
+    fun everyShippedSpinSpecLands_andACommonFlickTravelsAboutOneRevolution() {
+        // Catalogue-driven like the wobble check: a new lens with a runaway spin spec fails here
+        // rather than on a phone. The travel band pins the tuning INTENT (PRD §3.4: comfortable
+        // flick ≈ one revolution) loosely enough that feel-tuning stays a one-line edit.
+        Lens.entries.flatMap { it.art }.mapNotNull { it.placement.spin }.forEach { spec ->
+            assertTrue("$spec needs positive gain", spec.gain > 0f)
+            assertTrue("$spec needs a positive half-life", spec.frictionHalfLifeSeconds > 0f)
+            assertTrue("$spec needs a positive cap", spec.maxAngularVelocity > 0f)
+
+            val comfortable = LensPhysics.spinImpulse(
+                LensPhysics.Spin.REST,
+                leverX = 0f, leverY = -1f, velocityX = 5f, velocityY = 0f,
+                spec = spec,
+            )
+            val states = spinOut(comfortable, spec)
+            assertEquals("$spec never lands", LensPhysics.Spin.REST, states.last())
+            val revolutions = states.maxOf { abs(it.angleRadians) } / twoPi
+            assertTrue("$spec travels $revolutions rev on a comfortable flick", revolutions in 0.5f..2.5f)
+
+            val flung = spinOut(LensPhysics.Spin(0f, spec.maxAngularVelocity), spec)
+            assertEquals("$spec never lands from its cap", LensPhysics.Spin.REST, flung.last())
+        }
+    }
 }

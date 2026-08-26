@@ -263,4 +263,119 @@ class LensMotionTest {
         assertTrue("the mouth did not restart from shut", after!!.openFraction > 0.9f)
         assertTrue("the spring carried on rather than resetting to rest", motion.swingOf(1) != 0f)
     }
+
+    // ---------------------------------------------------------------- the flick spin
+    // PRD-lens-interactions: LensPhysicsTest proves one spin behaves; this section proves the
+    // per-face bookkeeping — the flick lands on one person, the isSpinning gate that hides a
+    // character's features rises and falls with it, and every eviction rule the wobble obeys.
+
+    private val football = Lens.Football
+
+    private fun LensMotion.flickBall(id: Int) =
+        flick(football, trackingId = id, layerIndex = 0, leverX = 0f, leverY = -1f, velocityX = 5f, velocityY = 0f)
+
+    private fun LensMotion.spinOf(id: Int): Float = forFace(id)!!.spinAngles[0]
+
+    @Test
+    fun aFlick_spinsOnlyTheFaceItLandedOn() {
+        val motion = LensMotion()
+        motion.run(football, frames = 2) { listOf(face(1, centerX = 0.3f), face(2, centerX = 0.7f)) }
+
+        motion.flickBall(id = 1)
+        motion.run(football, frames = 3, startNs = 3L * frameNs) {
+            listOf(face(1, centerX = 0.3f), face(2, centerX = 0.7f))
+        }
+
+        assertTrue("the flicked ball must be turning", motion.spinOf(1) != 0f)
+        assertEquals("the other face's ball must not move", 0f, motion.spinOf(2), tolerance)
+        assertTrue(motion.forFace(1)!!.isSpinning)
+        assertTrue(!motion.forFace(2)!!.isSpinning)
+    }
+
+    @Test
+    fun theSpinLands_andTheFeatureGateDropsOnTheLandingFrame() {
+        val motion = LensMotion()
+        motion.run(football, frames = 2) { listOf(face(1)) }
+        motion.flickBall(id = 1)
+
+        // isSpinning is up from the flick (features hide immediately)...
+        motion.run(football, frames = 1, startNs = 3L * frameNs) { listOf(face(1)) }
+        assertTrue(motion.forFace(1)!!.isSpinning)
+
+        // ...and after the spin plays out it must land: gate down, angle exactly home.
+        motion.run(football, frames = 300, startNs = 4L * frameNs) { listOf(face(1)) }
+        assertTrue("the spin must land", !motion.forFace(1)!!.isSpinning)
+        assertEquals("landed square on its tracked orientation", 0f, motion.spinOf(1), tolerance)
+    }
+
+    @Test
+    fun aFlickOnALayerWithNoSpinSpec_doesNothing() {
+        val motion = LensMotion()
+        motion.run(tongue, frames = 2) { listOf(face(1)) }
+
+        motion.flick(tongue, trackingId = 1, layerIndex = 0, leverX = 0f, leverY = -1f, velocityX = 5f, velocityY = 0f)
+        motion.run(tongue, frames = 2, startNs = 3L * frameNs) { listOf(face(1)) }
+
+        assertTrue(!motion.forFace(1)!!.isSpinning)
+        assertEquals(0f, motion.forFace(1)!!.spinAngles.max(), tolerance)
+    }
+
+    @Test
+    fun changingLens_clearsTheSpin() {
+        val motion = LensMotion()
+        motion.run(football, frames = 2) { listOf(face(1)) }
+        motion.flickBall(id = 1)
+        motion.run(football, frames = 2, startNs = 3L * frameNs) { listOf(face(1)) }
+        assertTrue(motion.forFace(1)!!.isSpinning)
+
+        motion.step(Lens.Broccoli, listOf(face(1)), 5L * frameNs)
+
+        assertTrue("a spin cannot carry over to another lens's layers", !motion.forFace(1)!!.isSpinning)
+    }
+
+    @Test
+    fun aFaceThatLeaves_takesItsSpinWithIt() {
+        val motion = LensMotion()
+        val stamp = motion.run(football, frames = 2) { listOf(face(1)) }
+        motion.flickBall(id = 1)
+        motion.step(football, listOf(face(1)), stamp)
+        assertTrue(motion.forFace(1)!!.isSpinning)
+
+        motion.step(football, emptyList(), stamp + frameNs)
+        motion.step(football, listOf(face(1)), stamp + 2 * frameNs)
+
+        assertTrue("a returning id starts with a still ball", !motion.forFace(1)!!.isSpinning)
+        assertEquals(0f, motion.spinOf(1), tolerance)
+    }
+
+    @Test
+    fun aFaceRelabelledByTheDetector_keepsItsSpin_throughTheRoster() {
+        // The Lesson 037 boundary, with a spin instead of a spring: a blink that relabels the
+        // person must not stop their ball mid-air or snap their features back early.
+        val roster = FaceRoster(maxFaces = 2, holdMs = 350L)
+        val motion = LensMotion()
+        var stamp = frameNs
+        var nowMs = 0L
+        fun frame(sightings: List<FaceRoster.Sighting>) {
+            motion.step(football, roster.update(sightings, nowMs), stamp)
+            stamp += frameNs
+            nowMs += 33
+        }
+
+        repeat(3) { frame(listOf(FaceRoster.Sighting(face(1), 10f))) }
+        motion.flickBall(id = 1)
+        frame(listOf(FaceRoster.Sighting(face(1), 10f)))
+        assertTrue(motion.forFace(1)!!.isSpinning)
+        val angleBefore = motion.spinOf(1)
+
+        // Dropped frame, then the same person under a new id.
+        frame(emptyList())
+        frame(listOf(FaceRoster.Sighting(face(7), 10f)))
+
+        val after = motion.forFace(1)
+        assertNotNull("still keyed by the original id", after)
+        assertNull("no state for the detector's new label", motion.forFace(7))
+        assertTrue("the ball is still turning", after!!.isSpinning)
+        assertTrue("the angle carried on rather than resetting", motion.spinOf(1) != angleBefore)
+    }
 }

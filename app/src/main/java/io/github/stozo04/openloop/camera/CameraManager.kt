@@ -29,6 +29,7 @@ import androidx.lifecycle.Observer
 import io.github.stozo04.openloop.camera.lens.FaceTracker
 import io.github.stozo04.openloop.camera.lens.Lens
 import io.github.stozo04.openloop.camera.lens.LensSurfaceProcessor
+import io.github.stozo04.openloop.camera.lens.ViewFlick
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executor
@@ -224,6 +225,27 @@ class CameraManager(private val context: Context) {
 
     /** Whether a [Camera] handle is currently bound — safe to gate pinch gestures on this alone. */
     fun isCameraBound(): Boolean = camera != null
+
+    /**
+     * Forwards a viewfinder fling to the lens renderer, which maps, hit-tests and (maybe) spins
+     * on its own thread (`docs/PRD-lens-interactions.md` §3.3). Like [setLens], this never touches
+     * capture state, so a flick mid-recording is as safe as a lens switch mid-recording.
+     *
+     * The mirror flag is the one place the flick path leans on lens facing: `PreviewView` mirrors
+     * the front camera's preview *after* the effect (measured in Lesson 032), so a front-camera
+     * touch must un-mirror to land in the buffer. Lesson 032 forbids inferring a mirror for
+     * *drawing* — the face frame made that unnecessary — but a touch has no anatomy to derive
+     * from; the per-flick hit/miss log in the renderer is what keeps this assumption visible on
+     * device.
+     */
+    fun flickLens(flick: ViewFlick) {
+        if (camera == null) return
+        lensProcessor.submitFlick(
+            flick,
+            rotationDegrees = faceTracker.lastRotationDegrees,
+            mirrored = currentLensFacing == CameraSelector.LENS_FACING_FRONT,
+        )
+    }
 
     /**
      * Device-reported zoom bounds and live ratio. Prefer CameraX [ZoomState] when its [LiveData.value]

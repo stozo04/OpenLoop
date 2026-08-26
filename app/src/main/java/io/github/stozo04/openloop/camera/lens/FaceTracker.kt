@@ -47,6 +47,20 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
     @Volatile
     private var epoch = 0
 
+    /**
+     * The last frame's rotation between the camera buffer and the upright display image.
+     *
+     * Consumed by the flick mapping ([LensTouchMath] via `CameraManager.flickLens`): the analysis
+     * and effect streams are both un-rotated sensor buffers pinned to the same 4:3 shape
+     * (`CameraManager`'s aspect note), so the rotation ML Kit is handed here is also the rotation
+     * `PreviewView` undoes when it displays the effect output. Written on the analyzer's executor,
+     * read on the main thread, hence volatile; 0 until the first frame, which only matters for a
+     * flick thrown before anything is on screen to flick.
+     */
+    @Volatile
+    var lastRotationDegrees: Int = 0
+        private set
+
     private val detector = FaceDetection.getClient(
         FaceDetectorOptions.Builder()
             // FAST over ACCURATE: this runs per preview frame, and a lens that lags is worse than
@@ -72,6 +86,7 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
         }
 
         val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+        lastRotationDegrees = rotationDegrees
         // ML Kit reports coordinates in the *rotated* image, so normalize against the rotated
         // dimensions — not the buffer's. Getting this backwards is a 90°-off lens on every phone
         // held upright.

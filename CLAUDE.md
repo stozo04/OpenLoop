@@ -113,7 +113,9 @@ io.github.stozo04.openloop/
 │       ├── Lens.kt              # The catalogue. Nothing outside this file names an individual lens
 │       ├── LensAnchor.kt        # Pure face-frame placement math (JVM-tested: LensAnchorTest)
 │       ├── LensSurfaceProcessor.kt  # The ONE CameraEffect: EGL + 3 GL programs, sticker/feature draw per face
-│       ├── LensMotion.kt        # Per-face wobble springs + eased mouth, stepped once per frame (JVM-tested)
+│       ├── LensMotion.kt        # Per-face wobble springs + flick spins + eased mouth, stepped once per frame (JVM-tested)
+│       ├── LensTouchMath.kt     # Pure view-touch → effect-buffer flick mapping (JVM-tested) — docs/PRD-lens-interactions.md
+│       ├── LensHitTest.kt       # Pure point-in-rotated-quad "did the flick land on a sticker" (JVM-tested)
 │       ├── FaceRoster.kt        # Pure slot rule + per-face hold + id-churn adoption (JVM-tested) — docs/PRD-multi-face-lenses.md
 │       └── FaceTracker.kt       # ML Kit (stable API) ImageAnalysis.Analyzer → List<FaceSnapshot> (up to 2)
 ├── data/                        # UserPreferencesRepository (DataStore), VideoStorageRepository, VideoImporter

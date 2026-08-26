@@ -225,6 +225,20 @@ enum class Lens(
                     // Centered just below the eye line so the ellipse reaches +1.34 over the crown
                     // and -1.86 under the chin.
                     upInUnits = -0.26f,
+                    // The first flickable layer (docs/PRD-lens-interactions.md): a fling across
+                    // the ball spins it about its own center and it always lands back on a whole
+                    // revolution, with the composited eyes and mouth hidden mid-spin (D2).
+                    //
+                    // Tuning arithmetic, not magic: total travel ≈ ω₀ × halfLife / ln 2 ≈ 0.87 × ω₀
+                    // radians. A comfortable flick (≈5 units/s at a ≈1-unit lever) lands ≈1.25
+                    // revolutions at this gain; the cap bounds the hardest fling at ≈3.5. The
+                    // catalogue-driven LensPhysicsTest pins these as properties, so the feel can
+                    // be retuned here freely without weakening the guarantees.
+                    spin = SpinSpec(
+                        gain = 1.8f,
+                        frictionHalfLifeSeconds = 0.6f,
+                        maxAngularVelocity = 25f,
+                    ),
                 ),
             ),
         ),
