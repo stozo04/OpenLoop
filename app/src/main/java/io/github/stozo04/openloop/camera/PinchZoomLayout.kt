@@ -93,6 +93,17 @@ class PinchZoomLayout @JvmOverloads constructor(
     /** One-shot: proves in logcat that touch dispatch reaches this layout at all. */
     private var loggedFirstTouch = false
 
+    /** One-shot at the absolute entry point, above interception — the deepest dispatch probe. */
+    private var loggedFirstDispatch = false
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN && !loggedFirstDispatch) {
+            loggedFirstDispatch = true
+            Log.i(TAG, "First touch entered dispatchTouchEvent at (${event.x}, ${event.y})")
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             pinchInStream = false

@@ -3,6 +3,7 @@ package io.github.stozo04.openloop.ui
 import androidx.activity.compose.BackHandler
 import android.graphics.Bitmap
 import android.util.Log
+import android.view.ViewConfiguration
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -14,6 +15,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -59,6 +62,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -90,6 +97,7 @@ import io.github.stozo04.openloop.camera.PinchZoomCallbacks
 import io.github.stozo04.openloop.camera.PinchZoomLayout
 import io.github.stozo04.openloop.camera.formatZoomRatioForChip
 import io.github.stozo04.openloop.camera.lens.Lens
+import io.github.stozo04.openloop.camera.lens.ViewFlick
 import io.github.stozo04.openloop.media.BOOTH_FRAME_COUNT
 import io.github.stozo04.openloop.media.cropToBoothSquare
 import io.github.stozo04.openloop.ui.components.LensCarousel
@@ -331,6 +339,20 @@ fun CameraScreen(
         }
     }
 
+    // Compose-side flick capture (PRD-lens-interactions §3.1's fallback, promoted to primary on
+    // Fold-class hardware). Four instrumented Fold logcats (2026-08-26) showed the branch build
+    // running and NOT ONE touch entering PinchZoomLayout — while Lesson 025's own record shows
+    // single-finger events DO reach the Compose pointer system over the preview (only the second
+    // pointer vanished there). So the flick watches from this node's own modifier: Initial pass,
+    // never consuming, so the interop dispatch and the pinch intercept are untouched. If both
+    // layers ever deliver the same gesture, CameraManager.flickLens debounces the duplicate.
+    // Lesson 034: the pointerInput key never changes, so the callback goes through
+    // rememberUpdatedState and only aliases are captured.
+    val latestOnFling by rememberUpdatedState<(ViewFlick) -> Unit> { cameraManager.flickLens(it) }
+    val minFlingVelocityPxPerSec = remember {
+        ViewConfiguration.get(context).scaledMinimumFlingVelocity.toFloat()
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -339,7 +361,50 @@ fun CameraScreen(
         // 1. Camera viewfinder inside [PinchZoomLayout] — View-layer pinch intercept (Fold-safe).
         AndroidView(
             factory = { pinchHost },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(
+                            requireUnconsumed = false,
+                            pass = PointerEventPass.Initial,
+                        )
+                        val velocityTracker = VelocityTracker()
+                        velocityTracker.addPosition(down.uptimeMillis, down.position)
+                        var sawSecondFinger = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (event.changes.size > 1) sawSecondFinger = true
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            if (change.changedToUpIgnoreConsumed()) {
+                                val velocity = velocityTracker.calculateVelocity()
+                                val speed = kotlin.math.hypot(velocity.x, velocity.y)
+                                // One line per completed single-finger gesture: the Compose
+                                // half of the flick chain's diagnostics.
+                                Log.i(
+                                    PINCH_LOG_TAG,
+                                    "Compose flick probe: v=(${velocity.x}, ${velocity.y}) " +
+                                        "speed=$speed min=$minFlingVelocityPxPerSec " +
+                                        "twoFingers=$sawSecondFinger",
+                                )
+                                if (!sawSecondFinger && speed >= minFlingVelocityPxPerSec) {
+                                    latestOnFling(
+                                        ViewFlick(
+                                            downX = down.position.x,
+                                            downY = down.position.y,
+                                            velocityX = velocity.x,
+                                            velocityY = velocity.y,
+                                            viewWidth = size.width.toFloat(),
+                                            viewHeight = size.height.toFloat(),
+                                        ),
+                                    )
+                                }
+                                break
+                            }
+                        }
+                    }
+                },
             update = { host ->
                 host.callbacks = PinchZoomCallbacks(
                     isBound = { cameraManager.isCameraBound() },

@@ -1,6 +1,7 @@
 package io.github.stozo04.openloop.camera
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraEffect
@@ -63,6 +64,8 @@ class CameraManager(private val context: Context) {
     private var pinchSessionPeakRatio: Float? = null
     /** One-shot: enforce PRD D3's 1.0x default on the FIRST ZoomState emission after each bind. */
     private var resetToDefaultOnNextEmission = false
+    /** When the last flick was forwarded — collapses duplicate delivery from both capture layers. */
+    private var lastFlickUptimeMs = 0L
 
     /** Live zoom snapshot for the UI; `null` while no camera is bound. */
     private val _zoomUi = MutableStateFlow<ZoomUi?>(null)
@@ -251,6 +254,14 @@ class CameraManager(private val context: Context) {
             "Flick gesture (view) at=(${flick.downX}, ${flick.downY}) " +
                 "v=(${flick.velocityX}, ${flick.velocityY}) bound=${camera != null}",
         )
+        // Two capture layers watch the same touches (the Compose probe and PinchZoomLayout's
+        // detector); when a device delivers to both, one physical flick must stay one impulse.
+        val now = SystemClock.uptimeMillis()
+        if (now - lastFlickUptimeMs < FLICK_DEBOUNCE_MS) {
+            Log.i(TAG, "Flick debounced (duplicate capture layer)")
+            return
+        }
+        lastFlickUptimeMs = now
         if (camera == null) return
         lensProcessor.submitFlick(
             flick,
@@ -473,6 +484,12 @@ class CameraManager(private val context: Context) {
 
     companion object {
         private const val TAG = "OpenLoopCameraManager"
+
+        /**
+         * Two deliveries of one physical gesture arrive within a frame or two of each other;
+         * two deliberate flicks cannot land this close. 150 ms separates the cases with margin.
+         */
+        private const val FLICK_DEBOUNCE_MS = 150L
     }
 }
 
