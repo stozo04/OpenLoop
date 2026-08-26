@@ -125,11 +125,16 @@ class CameraManager(private val context: Context) {
                     .also { analysis ->
                         // One stream, two detectors (PRD-lens-hand-flick §3.2): the hand tracker
                         // takes its copy of the frame first, then ML Kit owns — and closes — the
-                        // proxy exactly as before.
+                        // proxy exactly as before. Hand submit is try-caught so toBitmap() or
+                        // detectAsync failures never prevent the face path from closing the proxy.
                         analysis.setAnalyzer(
                             cameraExecutor,
                             ImageAnalysis.Analyzer { proxy ->
-                                handTracker.submit(proxy)
+                                try {
+                                    handTracker.submit(proxy)
+                                } catch (exc: Exception) {
+                                    Log.w(TAG, "Hand tracker submit failed; hand tracking skipped this frame", exc)
+                                }
                                 faceTracker.analyze(proxy)
                             },
                         )
