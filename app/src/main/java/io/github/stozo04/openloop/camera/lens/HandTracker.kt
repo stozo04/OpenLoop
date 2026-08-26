@@ -98,7 +98,10 @@ class HandTracker(
      * immediately. Never closes the proxy — that stays the face tracker's job.
      */
     fun submit(imageProxy: ImageProxy) {
-        if (landmarker == null && wanted) open()
+        if (landmarker == null && wanted) {
+            executor.execute { open() }
+            return
+        }
         val detector = landmarker ?: return
         val timestampMs = imageProxy.imageInfo.timestamp / NANOS_PER_MILLISECOND
         // A repeated or backwards timestamp would make MediaPipe throw; skipping the frame is
