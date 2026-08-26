@@ -89,6 +89,12 @@ class PinchZoomLayout @JvmOverloads constructor(
             scaleDetector.onTouchEvent(event)
             return true // steal the stream; subsequent events land in onTouchEvent
         }
+        // A child may own the single-finger stream outright (PreviewView consumes it on some
+        // hardware — the same Lesson 025 pipeline quirk that forced pinch into this hook), and
+        // then interception is the ONLY place that sees these events. Feed the fling detector
+        // here, observing without stealing; proven on the Fold 2026-08-26, where the
+        // onTouchEvent-only wiring below never saw a single event.
+        flingDetector.onTouchEvent(event)
         return false
     }
 
@@ -96,9 +102,13 @@ class PinchZoomLayout @JvmOverloads constructor(
         // When no child consumed ACTION_DOWN this view is the touch target and interception is
         // never consulted again — a pinch must still mark the stream here.
         if (event.pointerCount >= 2 || scaleDetector.isInProgress) pinchInStream = true
-        // Single-finger stream feeds the fling detector; the moment a second finger arrives the
-        // stream stops feeding it, and the onFling guard drops any fling it had half-tracked.
-        if (!pinchInStream) flingDetector.onTouchEvent(event)
+        // Complete the fling detector's stream for the self-target topology. The DOWN always
+        // passed through onInterceptTouchEvent first and was fed there, so it is skipped here —
+        // each event reaches the detector exactly once on either topology. A second finger stops
+        // the feeding, and the onFling guard drops any fling it had half-tracked.
+        if (!pinchInStream && event.actionMasked != MotionEvent.ACTION_DOWN) {
+            flingDetector.onTouchEvent(event)
+        }
         scaleDetector.onTouchEvent(event)
         // Accessibility contract for a touch-handling view (ClickableViewAccessibility): a
         // completed single-finger tap must route through performClick(). After a pinch the final
