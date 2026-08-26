@@ -13,8 +13,9 @@
 
 Lenses track the face and animate themselves (wobble springs, mouth-open reveal), but the user
 cannot **touch** them. The owner's ask: with the Football lens on your face and the front camera up,
-flick the ball with a finger and it **spins** — a harder flick spins it faster, and friction brings
-it back to rest. The spin must appear in the live preview *and* be baked into the recording (and
+flick the ball with a finger and it **spins** — a harder flick spins it faster and further, and it
+always lands back exactly where it started: one or two clean revolutions, then your eyes and mouth
+snap back onto the ball. The spin must appear in the live preview *and* be baked into the recording (and
 into a photo-mode capture), exactly like every other lens behavior.
 
 The owner's second ruling shapes the design more than the first: this is not a football feature.
@@ -26,14 +27,14 @@ per-layer spec, not a new architecture.
 
 ## 2. Constraints (inherited, unchanged)
 
-| #  | Constraint                                                            | Consequence                                                                                          |
-| -- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| C1 | One `CameraEffect`, attached every bind, never rebound (Lesson 031)   | The spin is renderer state read per frame — a field write away from the touch, never a rebind.       |
-| C2 | The lens is baked into the recording (parent PRD §5.4)                | The spin is part of [`LensMotion`]'s per-frame step, so it lands in the `.mp4` by construction.      |
-| C3 | Physics is pure and JVM-tested (`LensPhysics`, parent PRD §14.4)      | Spin math is pure Kotlin; the emulator proves bind/render/record, the JVM proves the physics.        |
-| C4 | Nothing outside `Lens.kt` names an individual lens                    | Spin is a per-layer opt-in spec in the catalogue; the renderer, tracker and UI stay lens-agnostic.   |
-| C5 | Multi-face: all per-face state keyed by canonical tracking id (D5/037) | A flick spins the face it landed on; the other face's lens is untouched.                             |
-| C6 | Touch over the `PreviewView` goes through the parent intercept (025)  | The flick detector lives in [`PinchZoomLayout`]'s stream, not a Compose overlay or a touch listener. |
+| #   | Constraint                                                             | Consequence                                                                                          |
+| --- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| C1  | One `CameraEffect`, attached every bind, never rebound (Lesson 031)    | The spin is renderer state read per frame — a field write away from the touch, never a rebind.       |
+| C2  | The lens is baked into the recording (parent PRD §5.4)                 | The spin is part of [`LensMotion`]'s per-frame step, so it lands in the `.mp4` by construction.      |
+| C3  | Physics is pure and JVM-tested (`LensPhysics`, parent PRD §14.4)       | Spin math is pure Kotlin; the emulator proves bind/render/record, the JVM proves the physics.        |
+| C4  | Nothing outside `Lens.kt` names an individual lens                     | Spin is a per-layer opt-in spec in the catalogue; the renderer, tracker and UI stay lens-agnostic.   |
+| C5  | Multi-face: all per-face state keyed by canonical tracking id (D5/037) | A flick spins the face it landed on; the other face's lens is untouched.                             |
+| C6  | Touch over the `PreviewView` goes through the parent intercept (025)   | The flick detector lives in [`PinchZoomLayout`]'s stream, not a Compose overlay or a touch listener. |
 
 ## 3. Design
 
@@ -139,10 +140,14 @@ data class Spin(val angleRadians: Float, val velocity: Float)
   repeated flicks pump it up (to the cap) or brake it.
 * **Decay** (`spinStep`): exponential half-life on the velocity — the same frame-rate-independent
   form as `LensPhysics.ease`, with the same `MAX_STEP_SECONDS` clamp so a dropped frame cannot
-  teleport the angle. The angle accumulates; below a small velocity floor the spin snaps to done
-  (velocity zero) so the art comes to a true rest instead of creeping forever. The **angle eases
-  back to zero after the spin dies** over a few hundred ms, so the lens returns to its tracked
-  orientation rather than freezing at an arbitrary tilt.
+  teleport the angle. The angle accumulates while the velocity bleeds off.
+* **Landing** (owner ruling, 2026-08-26): the spin **always ends on a whole revolution.** When the
+  velocity drops below a small floor, the angle eases to the **nearest multiple of 2π** over
+  ~150 ms — a correction of at most half a turn, in whichever direction is shorter — so the art
+  lands squarely back in its tracked orientation and never freezes at a tilt or visibly unwinds.
+  Total travel under exponential decay is `ω₀ × halfLife / ln 2` (~0.87 s of effective time at a
+  0.6 s half-life), so the gain is tuned to put a comfortable flick at ~one full revolution and a
+  hard flick at two; the velocity cap bounds the hardest possible fling at ~three.
 * **State lives in `LensMotion.FaceMotion`**, keyed per layer per face, stepped once per frame
   before the output loop (the double-step rule in `LensMotion`'s header applies verbatim), evicted
   with the face, cleared on lens change. Recording and preview therefore see the identical spin —
@@ -155,14 +160,23 @@ data class Spin(val angleRadians: Float, val velocity: Float)
 about the anchor; a spinning ball twirls in place, a hanging tongue swings from its root — the two
 compose). Zero is bit-identical to today, the same guarantee the wobble parameter made.
 
+**The features hide while the ball is airborne.** A character lens's composited eyes and mouth are
+skipped for a face while any of that face's layers is mid-spin, and drawn again from the landing
+frame on — the ball spins as a bare football **in front of** the head (the art is opaque and drawn
+over the face, exactly as it always is), and the face snaps back onto it when it lands. The gate is
+one boolean the spin state already knows (`isSpinning`), read where `drawLensOnFace` already
+branches on `lens.features`; because the landing is always a whole revolution, the features
+reappear in exactly the position they vanished from. A deliberate **snap**, not a fade — the pop
+of the face coming back is part of the joke.
+
 ### 3.6 Catalogue — the Football opts in
 
 ```kotlin
 // Lens.Football's art layer gains:
 spin = SpinSpec(
-    gain = …,                        // tuned so a comfortable flick ≈ 1–2 rev/s
-    frictionHalfLifeSeconds = 0.6f,  // visibly slows within a second, settles in ~2–3
-    maxAngularVelocity = 25f,        // ~4 rev/s — fast enough to be funny, slow enough to read
+    gain = …,                        // tuned so a comfortable flick travels ≈ 1 full revolution
+    frictionHalfLifeSeconds = 0.6f,  // whole gesture plays out in ~1–2 s, then the landing ease
+    maxAngularVelocity = 25f,        // caps the hardest fling at ~3 revolutions total (§3.4)
 )
 ```
 
@@ -178,19 +192,18 @@ safety properties so retuning cannot weaken them.
   flicking mid-recording is as safe as switching lenses mid-recording, and gets the same guard
   test.
 * `FaceTracker`, `FaceRoster`, ML Kit options, the analysis aspect pin — untouched.
-* The features (the subject's composited eyes and mouth on a character) **do not spin** — see D2.
 * No persistence, no settings, no UI chrome. The interaction is discoverable by doing.
 
 ## 4. Decisions proposed (owner to confirm at sign-off)
 
-| #  | Question                          | Proposal                                                                                                                                                                                                                                                                                          |
-| -- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1 | Spin axis (owner delegated)       | **In-plane** — the ball twirls flat like a fidget spinner, direction set by where and which way you flick (the torque model). A 3D spiral or end-over-end tumble needs texture animation or a mesh this renderer deliberately does not have (parent PRD §14.1's honest scope line). Recorded as-is. |
-| D2 | Do character features spin too?   | **No.** Your real eyes and mouth stay put while the ball whirls behind them — that contrast *is* the joke, it keeps the subject recognizable mid-spin, and it falls out of the architecture for free (features are drawn from the face frame, not the art quad).                                    |
-| D3 | Which lenses get spin in v1?      | **Football only.** One lens proves the pipeline; the catalogue pattern makes each further lens a one-line opt-in once the feel is tuned.                                                                                                                                                            |
-| D4 | Flick during recording?           | **Allowed** — it is the headline use ("flick mid-loop, the boomerang plays the spin forever"). Guarded by the same never-touches-capture-state test as lens switching.                                                                                                                              |
-| D5 | Drag-to-rotate / hold?            | **Not in v1.** Flick is the verb. A drag gesture is a natural later interaction (stretch), and lands in the same pipeline.                                                                                                                                                                          |
-| D6 | Accessibility                     | The spin is decorative (no information or function depends on it), so no alternative input path is required; the tap/`performClick` contract and all existing targets are unchanged. Revisit if an interaction ever gates a *capability*.                                                           |
+| #   | Question                          | Proposal                                                                                                                                                                                                                                                                                            |
+| --- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Spin axis (owner delegated)       | **In-plane** — the ball twirls flat like a fidget spinner, direction set by where and which way you flick (the torque model). A 3D spiral or end-over-end tumble needs texture animation or a mesh this renderer deliberately does not have (parent PRD §14.1's honest scope line). Recorded as-is. |
+| D2  | Eyes and mouth during the spin?   | **Decided (owner, 2026-08-26): they hide while the ball spins and snap back the moment it lands.** Mid-spin the ball reads as a bare spinning football in front of the head; because the spin always lands on a whole revolution (§3.4), the features reappear exactly where they vanished.         |
+| D3  | Which lenses get spin in v1?      | **Football only.** One lens proves the pipeline; the catalogue pattern makes each further lens a one-line opt-in once the feel is tuned.                                                                                                                                                            |
+| D4  | Flick during recording?           | **Allowed** — it is the headline use ("flick mid-loop, the boomerang plays the spin forever"). Guarded by the same never-touches-capture-state test as lens switching.                                                                                                                              |
+| D5  | Drag-to-rotate / hold?            | **Not in v1.** Flick is the verb. A drag gesture is a natural later interaction (stretch), and lands in the same pipeline.                                                                                                                                                                          |
+| D6  | Accessibility                     | The spin is decorative (no information or function depends on it), so no alternative input path is required; the tap/`performClick` contract and all existing targets are unchanged. Revisit if an interaction ever gates a *capability*.                                                           |
 
 ## 5. The framework contract (what "stretch" and "throw" reuse)
 
@@ -204,8 +217,10 @@ design blocks it, and the hit-test + impulse handoff are its first two pieces.
 
 ## 6. Success criteria
 
-1. Front camera, Football on, flick the ball: it spins in the direction flicked; a harder flick
-   spins faster; it slows and settles back to normal tracking within a few seconds.
+1. Front camera, Football on, flick the ball: it spins in the direction flicked — about one full
+   revolution on a comfortable flick, two on a hard one — stays in front of the head throughout,
+   always lands back in its tracked orientation on a whole revolution, and the eyes and mouth
+   (hidden while it spins) snap back on the landing frame.
 2. The spin is in the **saved video** when flicked mid-recording, and in a photo-mode capture
    taken mid-spin. Preview and recording show the identical motion.
 3. Flicking mid-recording never finalizes, corrupts, or rebinds (Lesson 031 checklist stays
@@ -221,19 +236,22 @@ design blocks it, and the hit-test + impulse handoff are its first two pieces.
 ## 7. Test plan (per `docs/TEST_COVERAGE.md`)
 
 * **JVM — `LensPhysicsTest` additions:** impulse direction follows the cross product (top-right
-  flick vs bottom-right flick spin opposite ways); harder flick → faster spin; the cap holds under
-  an absurd velocity; friction halves the speed in its half-life at any frame rate; a
-  `MAX_STEP_SECONDS` gap cannot jump the angle; the settle eases the angle to exactly zero; a
-  dead-center flick spins at a finite rate.
+  flick vs bottom-right flick spin opposite ways); harder flick → faster spin and more travel; the
+  cap holds under an absurd velocity; friction halves the speed in its half-life at any frame
+  rate; a `MAX_STEP_SECONDS` gap cannot jump the angle; **the landing is exact** — every spin, at
+  every strength and frame rate, ends on a whole revolution (angle a multiple of 2π, within
+  epsilon) with a correction of at most half a turn; `isSpinning` is true from impulse to landing
+  and false after; a dead-center flick spins at a finite rate.
 * **JVM — `LensTouchMathTest`:** view→output mapping per rotation quadrant and mirror state, with
   asymmetric expectations (Lesson 032 — a round trip proves nothing about direction); velocity
   maps through the same transform as position; the mapped velocity is dimensionless in face units.
 * **JVM — `LensHitTestTest`:** point-in-rotated-quad in square space on a non-square frame;
   topmost layer wins; slot order picks the right face when quads overlap; a miss consumes the
   flick.
-* **JVM — `LensMotionTest` additions:** spin is per face (flicking A never spins B); state evicts
-  with the face and survives id churn through the roster (the Lesson 037 boundary test gains a
-  spin assertion); lens change clears it.
+* **JVM — `LensMotionTest` additions:** spin is per face (flicking A never spins B); the
+  feature-suppression flag is up for exactly the spinning face and drops on its landing frame;
+  state evicts with the face and survives id churn through the roster (the Lesson 037 boundary
+  test gains a spin assertion); lens change clears it.
 * **JVM — ViewModel:** the flick path never touches capture state (sibling of the lens-switch
   guard).
 * **Instrumented / emulator:** poster face + `adb`-injected swipe across the detected face — the
@@ -246,13 +264,13 @@ design blocks it, and the hit-test + impulse handoff are its first two pieces.
 
 ## 8. Risks
 
-| #  | Risk                                                                                             | Mitigation                                                                                                                                                            |
-| -- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R1 | Coordinate mapping is wrong on some rotation/mirror combination — flicks miss or spin backwards | The §3.2 triple: pure math + asymmetric JVM tests + per-flick geometry log; emulator poster turns verification into arithmetic before hardware ever sees it.           |
-| R2 | Fling events fail to arrive over `PreviewView` on some OEM (the Lesson 025 class)               | Detector sits in `PinchZoomLayout`'s already-proven stream — the one wiring that survived the Fold. Hardware spot-check stays in the plan.                             |
-| R3 | The flick fights the pinch or steals taps                                                        | Pinch interception runs first and marks the stream; fling threshold separates taps; explicit instrumented cases for both.                                              |
-| R4 | Spin state + wobble + mouth-open compose into something ugly                                     | Football has no wobble and no mouth-open layer — v1 composes with nothing. The composition rule (spin about center, after wobble) is still defined and JVM-tested now. |
-| R5 | The feel is wrong (too twitchy, too slow)                                                        | All three numbers live in one `SpinSpec` in `Lens.kt`; properties are pinned by test, feel is a one-line owner tune (the §14.5 pattern).                               |
+| #   | Risk                                                                                             | Mitigation                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | Coordinate mapping is wrong on some rotation/mirror combination — flicks miss or spin backwards  | The §3.2 triple: pure math + asymmetric JVM tests + per-flick geometry log; emulator poster turns verification into arithmetic before hardware ever sees it.           |
+| R2  | Fling events fail to arrive over `PreviewView` on some OEM (the Lesson 025 class)                | Detector sits in `PinchZoomLayout`'s already-proven stream — the one wiring that survived the Fold. Hardware spot-check stays in the plan.                             |
+| R3  | The flick fights the pinch or steals taps                                                        | Pinch interception runs first and marks the stream; fling threshold separates taps; explicit instrumented cases for both.                                              |
+| R4  | Spin state + wobble + mouth-open compose into something ugly                                     | Football has no wobble and no mouth-open layer — v1 composes with nothing. The composition rule (spin about center, after wobble) is still defined and JVM-tested now. |
+| R5  | The feel is wrong (too twitchy, too slow)                                                        | All three numbers live in one `SpinSpec` in `Lens.kt`; properties are pinned by test, feel is a one-line owner tune (the §14.5 pattern).                               |
 
 ## 9. Open questions
 
