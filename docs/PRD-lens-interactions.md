@@ -215,6 +215,17 @@ once-per-frame/per-face/recordable guarantees are shared and already paid for. "
 back" is explicitly a later PRD — it needs a departure-and-return path model — but nothing in this
 design blocks it, and the hit-test + impulse handoff are its first two pieces.
 
+**Follow-up backlog — file as a GitHub issue once v1 ships (owner, 2026-08-26):**
+
+* **Shades: pull them down the nose, off, and back on — with your hands.** Fully AR: the *hand in
+  the camera image* grabs the glasses, not a finger on the screen. That is the first interaction
+  needing a hand tracker — ML Kit face detection sees no hands — so it means adopting MediaPipe
+  Hand Landmarker (`tasks-vision`, Apache 2.0: license-clean under the parent PRD's C1/C3, but a
+  real new dependency with native libs and its own APK cost, so it gets its own PRD). A cheaper
+  stepping stone that reuses this PRD's pipeline unchanged: *touch*-drag the shades down/off (a
+  drag verb plus a translation offset in the face frame), which de-risks the placement math
+  before hands enter the picture.
+
 ## 6. Success criteria
 
 1. Front camera, Football on, flick the ball: it spins in the direction flicked — about one full
