@@ -45,6 +45,14 @@ import org.robolectric.RobolectricTestRunner
  * Do **not** go back to gating this on a no-op `Configuration.setExecutor`: that left the test's
  * premise resting on a dropped `WorkerWrapper` runnable staying dropped, and it intermittently
  * resolved the WorkSpec to FAILED instead of CANCELLED (~1 in 5 full-suite runs, 2026-08-07).
+ *
+ * Even with the worker genuinely parked, WorkManager's own stop path still resolves the WorkSpec to
+ * FAILED once in a while (the pre-PR sweep of 2026-08-26 caught it again on the same code). That
+ * is a race inside WorkManager between the app's cancel and the worker's cancellation, and a user
+ * would hit it too — so the contract under test is the **scheduler's** outcome, which maps a
+ * FAILED-after-our-own-cancel to [BoomerangRenderWorkResult.Cancelled]
+ * ([WorkManagerBoomerangRenderScheduler.cancelRenderWork]). The raw WorkSpec state is asserted
+ * only as *finished*; which label WorkManager chose is exactly what the scheduler exists to absorb.
  */
 @RunWith(RobolectricTestRunner::class)
 class RenderCancellationRobolectricTest {
@@ -83,12 +91,20 @@ class RenderCancellationRobolectricTest {
             workManager.stateOf(workId).isFinished,
         )
 
-        workManager.cancelUniqueWork(request.uniqueWorkName).result.get()
-        assertEquals(WorkInfo.State.CANCELLED, workManager.stateOf(workId))
+        // Through the scheduler's own cancel — the path a user's "Cancel" tap takes — so the
+        // scheduler knows this cancel is its own (see the class KDoc).
+        scheduler.cancelRenderWork(request.scratch.uuid)
 
-        // observeResult maps the CANCELLED WorkInfo through renderWorkResultOf and surfaces it.
+        // observeResult surfaces the terminal outcome; the cancel above must read as Cancelled
+        // whether WorkManager filed the WorkSpec as CANCELLED or lost its race and wrote FAILED.
         val result = runBlocking { withTimeout(5.seconds) { scheduler.observeResult(workId).first() } }
         assertEquals(BoomerangRenderWorkResult.Cancelled, result)
+        val finalState = workManager.stateOf(workId)
+        assertTrue("work must be finished after cancel, was $finalState", finalState.isFinished)
+        assertTrue(
+            "a cancel must never resolve as success, was $finalState",
+            finalState != WorkInfo.State.SUCCEEDED,
+        )
     }
 
     /** Stands in for [BoomerangRenderWorker]: signals it started, then parks until canceled. */

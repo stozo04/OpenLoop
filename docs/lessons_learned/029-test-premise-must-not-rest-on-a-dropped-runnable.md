@@ -88,6 +88,29 @@ awaitReverseSettled { fakeVideoProcessor.ensureReversedCount == 1 }   // enforce
 assertEquals(1, fakeVideoProcessor.ensureReversedCount)
 ```
 
+## The third shape: the race is inside the library, so model the intent in your own code
+
+> Added 2026-08-26 (hand-flick lenses PR). The parked-worker fix above held for 19 days, then the
+> pre-PR sweep produced `expected:<CANCELLED> but was:<FAILED>` again — same test, same premise,
+> the worker demonstrably RUNNING when cancelled.
+
+With the premise enforced, the remaining flake was WorkManager's own: its stop path races the
+worker's cancellation and occasionally resolves an app-cancelled WorkSpec to `FAILED`. No test
+setup can remove a race that lives in the library — and a **user** hits the same race: a Cancel
+tap that lands on `FAILED` would have shown "Save failed" and filed a Crashlytics non-fatal.
+
+So the fix moved into production code, where the intent is known:
+`WorkManagerBoomerangRenderScheduler.cancelRenderWork` records the unique name it cancelled, and
+`renderWorkResultOf(state, data, cancelledByApp)` maps a `FAILED` that follows the app's own cancel
+to `Cancelled`. The Robolectric test now drives the scheduler's cancel and asserts the scheduler's
+outcome — the contract the app actually depends on — and asserts the raw WorkSpec only as
+*finished* and *not succeeded*. That is not widening the assertion: `FAILED` no longer passes
+because the test looks the other way; it passes because the code turns it into the right answer,
+and `RenderWorkResultMappingTest` pins that mapping.
+
+The general rule: when a flake survives a correctly enforced premise, ask whether the
+nondeterminism is one your users share. If it is, the test was reporting a product bug.
+
 ## Detection checklist
 
 - Grep test configs for no-op executors / swallowed runnables:
