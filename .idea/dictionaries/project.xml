@@ -142,6 +142,7 @@
       <w>firebasecrashlytics</w>
       <w>firebaserc</w>
       <w>flatnonzero</w>
+      <w>flickable</w>
       <w>floodfill</w>
       <w>fold</w>
       <w>foldable</w>
@@ -171,6 +172,7 @@
       <w>grayscale</w>
       <w>grazie</w>
       <w>grotesk</w>
+      <w>handlandmarker</w>
       <w>hapticfeedback</w>
       <w>haudi</w>
       <w>headless</w>
@@ -191,6 +193,7 @@
       <w>jank</w>
       <w>jarsigner</w>
       <w>javac</w>
+      <w>javap</w>
       <w>jayden</w>
       <w>jbr</w>
       <w>jetpack</w>
@@ -222,6 +225,7 @@
       <w>lensed</w>
       <w>letterboxing</w>
       <w>libimage</w>
+      <w>libmediapipe</w>
       <w>libwebp</w>
       <w>lifecycle</w>
       <w>lifecycles</w>
@@ -230,6 +234,7 @@
       <w>listicles</w>
       <w>localappdata</w>
       <w>logcat</w>
+      <w>logcats</w>
       <w>loopable</w>
       <w>loopifies</w>
       <w>loopify</w>
@@ -253,6 +258,7 @@
       <w>mcla</w>
       <w>media3</w>
       <w>mediacodec</w>
+      <w>mediapipe</w>
       <w>mediatek</w>
       <w>mediump</w>
       <w>millis</w>

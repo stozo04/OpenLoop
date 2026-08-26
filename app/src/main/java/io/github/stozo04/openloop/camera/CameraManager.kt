@@ -1,7 +1,6 @@
 package io.github.stozo04.openloop.camera
 
 import android.content.Context
-import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraEffect
@@ -28,9 +27,9 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import io.github.stozo04.openloop.camera.lens.FaceTracker
+import io.github.stozo04.openloop.camera.lens.HandTracker
 import io.github.stozo04.openloop.camera.lens.Lens
 import io.github.stozo04.openloop.camera.lens.LensSurfaceProcessor
-import io.github.stozo04.openloop.camera.lens.ViewFlick
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executor
@@ -56,6 +55,13 @@ class CameraManager(private val context: Context) {
      */
     private val lensProcessor = LensSurfaceProcessor(context)
     private val faceTracker = FaceTracker(lensProcessor::setFaces)
+
+    /**
+     * Hand tracking for the flick verb (`docs/PRD-lens-hand-flick.md`). Shares [cameraExecutor]
+     * with the face tracker so its create/submit/close all happen on one thread, and is alive only
+     * while a flickable lens is active — see [setLens].
+     */
+    private val handTracker = HandTracker(context, cameraExecutor, lensProcessor::setHand)
     private var zoomStateObserver: Observer<ZoomState>? = null
     private var observedZoomState: LiveData<ZoomState>? = null
     /** Per-pinch anchor ratio — avoids stale [ZoomState] reads during a fast scale stream. */
@@ -64,8 +70,6 @@ class CameraManager(private val context: Context) {
     private var pinchSessionPeakRatio: Float? = null
     /** One-shot: enforce PRD D3's 1.0x default on the FIRST ZoomState emission after each bind. */
     private var resetToDefaultOnNextEmission = false
-    /** When the last flick was forwarded — collapses duplicate delivery from both capture layers. */
-    private var lastFlickUptimeMs = 0L
 
     /** Live zoom snapshot for the UI; `null` while no camera is bound. */
     private val _zoomUi = MutableStateFlow<ZoomUi?>(null)
@@ -118,13 +122,26 @@ class CameraManager(private val context: Context) {
                             .build()
                     )
                     .build()
-                    .also { it.setAnalyzer(cameraExecutor, faceTracker) }
+                    .also { analysis ->
+                        // One stream, two detectors (PRD-lens-hand-flick §3.2): the hand tracker
+                        // takes its copy of the frame first, then ML Kit owns — and closes — the
+                        // proxy exactly as before.
+                        analysis.setAnalyzer(
+                            cameraExecutor,
+                            ImageAnalysis.Analyzer { proxy ->
+                                handTracker.submit(proxy)
+                                faceTracker.analyze(proxy)
+                            },
+                        )
+                    }
 
                 // A lens flip lands here without releaseCamera(); the roster must not carry the
-                // other sensor's faces into this bind (see FaceTracker.reset).
+                // other sensor's faces into this bind (see FaceTracker.reset), and the hand
+                // tracker's clock restarts with the new sensor's timestamps.
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
                 faceTracker.reset()
+                handTracker.reset()
                 camera = bindWithLensEffect(
                     lifecycleOwner = lifecycleOwner,
                     cameraSelector = cameraSelector,
@@ -138,7 +155,7 @@ class CameraManager(private val context: Context) {
                 Log.i(
                     TAG,
                     "Camera bound (lens=${if (lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"}) " +
-                        "build=flick-spin-v4-velocity"
+                        "build=hand-flick-v1"
                 )
 
                 onCameraReady()
@@ -228,47 +245,13 @@ class CameraManager(private val context: Context) {
      */
     fun setLens(lens: Lens?) {
         lensProcessor.setLens(lens)
+        // The hand tracker exists only for a lens something can be flicked on (PRD D5) — every
+        // other lens, and no lens, never pays for the second detector.
+        handTracker.setEnabled(lens?.isFlickable == true)
     }
 
     /** Whether a [Camera] handle is currently bound — safe to gate pinch gestures on this alone. */
     fun isCameraBound(): Boolean = camera != null
-
-    /**
-     * Forwards a viewfinder fling to the lens renderer, which maps, hit-tests and (maybe) spins
-     * on its own thread (`docs/PRD-lens-interactions.md` §3.3). Like [setLens], this never touches
-     * capture state, so a flick mid-recording is as safe as a lens switch mid-recording.
-     *
-     * The mirror flag is the one place the flick path leans on lens facing: `PreviewView` mirrors
-     * the front camera's preview *after* the effect (measured in Lesson 032), so a front-camera
-     * touch must un-mirror to land in the buffer. Lesson 032 forbids inferring a mirror for
-     * *drawing* — the face frame made that unnecessary — but a touch has no anatomy to derive
-     * from; the per-flick hit/miss log in the renderer is what keeps this assumption visible on
-     * device.
-     */
-    fun flickLens(flick: ViewFlick) {
-        // Logged BEFORE any guard, so hardware where the fling never arrives (the Lesson 025
-        // failure class) is distinguishable from a flick that arrived with nothing to hit — the
-        // Fold logcat of 2026-08-26 could not tell those apart.
-        Log.i(
-            TAG,
-            "Flick gesture (view) at=(${flick.downX}, ${flick.downY}) " +
-                "v=(${flick.velocityX}, ${flick.velocityY}) bound=${camera != null}",
-        )
-        // Two capture layers watch the same touches (the Compose probe and PinchZoomLayout's
-        // detector); when a device delivers to both, one physical flick must stay one impulse.
-        val now = SystemClock.uptimeMillis()
-        if (now - lastFlickUptimeMs < FLICK_DEBOUNCE_MS) {
-            Log.i(TAG, "Flick debounced (duplicate capture layer)")
-            return
-        }
-        lastFlickUptimeMs = now
-        if (camera == null) return
-        lensProcessor.submitFlick(
-            flick,
-            rotationDegrees = faceTracker.lastRotationDegrees,
-            mirrored = currentLensFacing == CameraSelector.LENS_FACING_FRONT,
-        )
-    }
 
     /**
      * Device-reported zoom bounds and live ratio. Prefer CameraX [ZoomState] when its [LiveData.value]
@@ -466,6 +449,7 @@ class CameraManager(private val context: Context) {
             // 350 ms — drop them so the next bind starts with a clean viewfinder.
             cameraProvider?.unbindAll()
             faceTracker.reset()
+            handTracker.reset()
             videoCapture = null
             camera = null
         } catch (exc: Exception) {
@@ -476,7 +460,9 @@ class CameraManager(private val context: Context) {
     fun shutdown() {
         releaseCamera()
         // The lens renderer outlives individual binds (it must — see bindWithLensEffect), so it is
-        // torn down here rather than in releaseCamera().
+        // torn down here rather than in releaseCamera(). The hand tracker's close lands on
+        // cameraExecutor ahead of the shutdown below, which still drains queued work.
+        handTracker.close()
         faceTracker.close()
         lensProcessor.release()
         cameraExecutor.shutdown()
@@ -484,12 +470,6 @@ class CameraManager(private val context: Context) {
 
     companion object {
         private const val TAG = "OpenLoopCameraManager"
-
-        /**
-         * Two deliveries of one physical gesture arrive within a frame or two of each other;
-         * two deliberate flicks cannot land this close. 150 ms separates the cases with margin.
-         */
-        private const val FLICK_DEBOUNCE_MS = 150L
     }
 }
 

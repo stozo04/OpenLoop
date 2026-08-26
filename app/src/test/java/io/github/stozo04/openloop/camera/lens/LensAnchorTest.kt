@@ -345,6 +345,18 @@ class LensAnchorTest {
     // ---------------------------------------------------------------- re-framing between streams
 
     @Test
+    fun reframeY_isThePerPointFormOfReframe() {
+        val analysis = face(eyeY = 0.25f, sourceAspect = 16f / 9f)
+        val reframed = LensAnchor.reframe(analysis, targetAspect = 4f / 3f)
+
+        assertEquals(reframed.leftEyeY, LensAnchor.reframeY(analysis.leftEyeY, 16f / 9f, 4f / 3f), tolerance)
+        assertEquals(reframed.mouthLeftY, LensAnchor.reframeY(analysis.mouthLeftY, 16f / 9f, 4f / 3f), tolerance)
+        // Same shape, or a degenerate one: the point passes through.
+        assertEquals(0.25f, LensAnchor.reframeY(0.25f, frameAspect, frameAspect), tolerance)
+        assertEquals(0.25f, LensAnchor.reframeY(0.25f, 0f, frameAspect), tolerance)
+    }
+
+    @Test
     fun reframe_ontoTheSameShape_changesNothing() {
         val original = face(sourceAspect = frameAspect)
 

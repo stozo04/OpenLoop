@@ -148,11 +148,15 @@ object LensPhysics {
      *   plays out in a few of these, then the landing ease takes over.
      * @param maxAngularVelocity hard cap, rad/s — an absurd fling or a garbled velocity can never
      *   make the art an unwatchable blur, the same job [WobbleSpec.limitRadians] does for swings.
+     * @param minHandSpeed face units per second a hand touching the art must move to count as a
+     *   flick ([HandFlick]); slower is a hand resting on it. A face unit is eye line to mouth, so
+     *   3 is roughly 20 cm/s — a wave clears it, a hand adjusting hair does not.
      */
     data class SpinSpec(
         val gain: Float,
         val frictionHalfLifeSeconds: Float,
         val maxAngularVelocity: Float,
+        val minHandSpeed: Float,
     )
 
     /**

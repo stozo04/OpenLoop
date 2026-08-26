@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
-import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -78,7 +77,6 @@ import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.review.ReviewManager
 import com.google.android.play.core.review.ReviewManagerFactory
 import io.github.stozo04.openloop.camera.CameraManager
-import io.github.stozo04.openloop.camera.lens.ViewFlick
 import io.github.stozo04.openloop.data.UserPreferencesRepositoryImpl
 import io.github.stozo04.openloop.data.VideoImporterImpl
 import io.github.stozo04.openloop.data.VideoStorageRepositoryImpl
@@ -149,84 +147,6 @@ class MainActivity : ComponentActivity() {
         )
     }
     private lateinit var cameraManager: CameraManager
-
-    /**
-     * Activity-level flick capture — the deepest of the three layers
-     * (`docs/PRD-lens-interactions.md` §3.1). [dispatchTouchEvent] is the first code in the app
-     * the framework hands ANY window touch to, before Compose and before any view. Seven
-     * instrumented Fold logcats (2026-08-26) drove it down here: viewfinder touches reached
-     * neither `PinchZoomLayout` nor the Compose pointer probe, and a `GestureDetector` at this
-     * level still produced nothing while a plain button tap demonstrably arrived. So the
-     * classification is now done by hand — a raw [android.view.VelocityTracker], no opaque
-     * detector, no silent path: every DOWN and every UP logs with its measured velocity, and an
-     * UP that was single-finger and faster than the platform's fling minimum IS a flick.
-     * Observe-only (never consumes); `CameraManager.flickLens` no-ops when no camera is bound
-     * (editor flings die there) and debounces duplicates when another capture layer also
-     * delivers the same gesture.
-     */
-    private var flickVelocityTracker: android.view.VelocityTracker? = null
-
-    /** A stream that ever grew a second finger is a pinch; the flick capture sits it out. */
-    private var windowStreamSawMultiTouch = false
-
-    private var windowDownX = 0f
-    private var windowDownY = 0f
-
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                windowStreamSawMultiTouch = false
-                windowDownX = ev.x
-                windowDownY = ev.y
-                flickVelocityTracker?.recycle()
-                flickVelocityTracker = android.view.VelocityTracker.obtain().also { it.addMovement(ev) }
-                Log.i(FLICK_TAG, "touch DOWN at (${ev.x}, ${ev.y})")
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> windowStreamSawMultiTouch = true
-            MotionEvent.ACTION_MOVE -> flickVelocityTracker?.addMovement(ev)
-            MotionEvent.ACTION_UP -> {
-                val tracker = flickVelocityTracker
-                if (tracker != null) {
-                    tracker.addMovement(ev)
-                    tracker.computeCurrentVelocity(1000)
-                    val velocityX = tracker.xVelocity
-                    val velocityY = tracker.yVelocity
-                    val speed = kotlin.math.hypot(velocityX, velocityY)
-                    val minFling =
-                        android.view.ViewConfiguration.get(this).scaledMinimumFlingVelocity.toFloat()
-                    Log.i(
-                        FLICK_TAG,
-                        "touch UP at (${ev.x}, ${ev.y}) v=($velocityX, $velocityY) " +
-                            "speed=$speed min=$minFling multi=$windowStreamSawMultiTouch",
-                    )
-                    if (!windowStreamSawMultiTouch && speed >= minFling &&
-                        ::cameraManager.isInitialized
-                    ) {
-                        // The viewfinder fills the window edge-to-edge, so window coordinates
-                        // ARE (to within insets the huge quad shrugs off) the layout's own.
-                        val decor = window.decorView
-                        cameraManager.flickLens(
-                            ViewFlick(
-                                downX = windowDownX,
-                                downY = windowDownY,
-                                velocityX = velocityX,
-                                velocityY = velocityY,
-                                viewWidth = decor.width.toFloat(),
-                                viewHeight = decor.height.toFloat(),
-                            ),
-                        )
-                    }
-                    tracker.recycle()
-                    flickVelocityTracker = null
-                }
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                flickVelocityTracker?.recycle()
-                flickVelocityTracker = null
-            }
-        }
-        return super.dispatchTouchEvent(ev)
-    }
 
     /** Play in-app updates (FLEXIBLE). Built in [onCreate]; released in [onDestroy]. */
     private lateinit var appUpdateController: AppUpdateController
@@ -675,9 +595,6 @@ private const val KEY_DEFERRED_SHARE_PATH = "openloop.deferredSharePath"
 private const val KEY_DEFERRED_SHARE_SHOW_SAVED = "openloop.deferredShareShowSaved"
 
 private const val TAG = "MainActivity"
-
-/** The activity-level flick capture's own tag, so one logcat filter shows the whole chain. */
-private const val FLICK_TAG = "OpenLoopFlick"
 
 /** Storage permission is needed only on Android 9 and lower when publishing to MediaStore. */
 internal fun requiredCapturePermissions(sdkInt: Int): List<String> = buildList {

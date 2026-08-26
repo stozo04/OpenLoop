@@ -1,6 +1,6 @@
 # PRD — Lens Interactions (flick a lens, it spins)
 
-**Status:** Approved (owner, 2026-08-26) — building
+**Status:** Superseded in part (owner, 2026-08-26) — the trigger is *hand velocity near the sticker*, not a touchscreen fling: [`PRD-lens-hand-flick.md`](PRD-lens-hand-flick.md) keeps §3.3–3.6 (hit-test, physics, rendering, catalogue) and replaces §3.1–3.2 (gesture capture, view→buffer mapping), whose code was removed. Kept as the design record for the parts that shipped.
 **Owner:** Steven Gates
 **Date:** 2026-08-26
 **Proposed branch:** `feature/lens-interactions`

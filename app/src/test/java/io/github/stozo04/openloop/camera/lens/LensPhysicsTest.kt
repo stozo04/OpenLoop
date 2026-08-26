@@ -416,6 +416,20 @@ class LensPhysicsTest {
 
     @Test
     fun everyShippedSpinSpecLands_andACommonFlickTravelsAboutOneRevolution() {
+        // The interaction question is answered per lens (owner rule 2026-08-26) and must match
+        // the layers: a SPIN lens with nothing to spin is dead, a NONE lens with a spin spec is a
+        // decision made by omission. Either way this fails before a phone sees it.
+        Lens.entries.forEach { lens ->
+            val declaredSpin = lens.interaction == LensInteraction.SPIN
+            assertEquals("$lens: interaction must match its layers", declaredSpin, lens.art.any { it.placement.spin != null })
+            assertEquals("$lens: isFlickable is the declared decision", declaredSpin, lens.isFlickable)
+        }
+        assertEquals(
+            "the lenses the owner asked for (2026-08-26)",
+            setOf(Lens.Broccoli, Lens.PizzaFace, Lens.Football),
+            Lens.entries.filter { it.isFlickable }.toSet(),
+        )
+
         // Catalogue-driven like the wobble check: a new lens with a runaway spin spec fails here
         // rather than on a phone. The travel band pins the tuning INTENT (PRD §3.4: comfortable
         // flick ≈ one revolution) loosely enough that feel-tuning stays a one-line edit.
@@ -423,6 +437,9 @@ class LensPhysicsTest {
             assertTrue("$spec needs positive gain", spec.gain > 0f)
             assertTrue("$spec needs a positive half-life", spec.frictionHalfLifeSeconds > 0f)
             assertTrue("$spec needs a positive cap", spec.maxAngularVelocity > 0f)
+            // A zero threshold would let a hand resting on the art spin it from detector jitter;
+            // an absurd one would make the verb unreachable. Face units/s — a wave is ~5–9.
+            assertTrue("$spec needs a hand-speed threshold a wave can clear", spec.minHandSpeed in 0.5f..8f)
 
             val comfortable = LensPhysics.spinImpulse(
                 LensPhysics.Spin.REST,

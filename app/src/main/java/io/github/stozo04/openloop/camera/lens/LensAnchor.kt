@@ -135,10 +135,10 @@ enum class LensAnchorPoint { FACE, LEFT_EYE, RIGHT_EYE, MOUTH }
  *   [LensPhysics]. Null is rigid, which is every lens that does not hang off the face.
  * @param mouthOpen non-null makes this layer grow and shrink as the subject opens their mouth.
  *   Null means a fixed size, which is every layer that is not coming *out* of a mouth.
- * @param spin non-null makes this layer flickable: a fling across it spins it about its own
+ * @param spin non-null makes this layer flickable: a hand waved across it spins it about its own
  *   center, landing back on a whole revolution — see [LensPhysics.spinStep] and
- *   `docs/PRD-lens-interactions.md`. Null ignores flicks, which is every layer today but
- *   Football's ball.
+ *   `docs/PRD-lens-hand-flick.md`. Null ignores hands. Which lenses carry one is the
+ *   [Lens.interaction] decision, and the two must agree.
  */
 data class LensPlacement(
     val widthInUnits: Float,
@@ -576,15 +576,22 @@ object LensAnchor {
     fun reframe(face: FaceSnapshot, targetAspect: Float): FaceSnapshot {
         val sourceAspect = face.sourceAspect
         if (sourceAspect <= 0f || targetAspect <= 0f || targetAspect == sourceAspect) return face
-        val ratio = targetAspect / sourceAspect
-        fun rescale(y: Float) = 0.5f + (y - 0.5f) * ratio
 
         return face.copy(
-            leftEyeY = rescale(face.leftEyeY),
-            rightEyeY = rescale(face.rightEyeY),
-            mouthLeftY = rescale(face.mouthLeftY),
-            mouthRightY = rescale(face.mouthRightY),
+            leftEyeY = reframeY(face.leftEyeY, sourceAspect, targetAspect),
+            rightEyeY = reframeY(face.rightEyeY, sourceAspect, targetAspect),
+            mouthLeftY = reframeY(face.mouthLeftY, sourceAspect, targetAspect),
+            mouthRightY = reframeY(face.mouthRightY, sourceAspect, targetAspect),
             sourceAspect = targetAspect,
         )
+    }
+
+    /**
+     * The per-point form of [reframe]: one normalized y measured on a [sourceAspect] stream,
+     * re-framed onto a [targetAspect] stream. x passes through unchanged (see [reframe]'s model).
+     */
+    fun reframeY(y: Float, sourceAspect: Float, targetAspect: Float): Float {
+        if (sourceAspect <= 0f || targetAspect <= 0f || targetAspect == sourceAspect) return y
+        return 0.5f + (y - 0.5f) * (targetAspect / sourceAspect)
     }
 }

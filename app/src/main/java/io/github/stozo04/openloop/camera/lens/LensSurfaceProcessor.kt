@@ -26,7 +26,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.util.concurrent.Executor
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -46,9 +45,10 @@ import kotlin.math.sin
  *
  * ## Threading
  *
- * All GL work happens on [glThread]. [setLens] and [setFaces] are called from other threads (the
- * UI, and ML Kit's result callback); both are `@Volatile` reads on the GL side — a lens or roster
- * that lands one frame late is invisible, and a lock here would stall the camera.
+ * All GL work happens on [glThread]. [setLens], [setFaces] and [setHand] are called from other
+ * threads (the UI, ML Kit's and MediaPipe's result callbacks); all are `@Volatile` reads on the GL
+ * side — a lens, roster or hand that lands one frame late is invisible, and a lock here would
+ * stall the camera.
  *
  * ## Several faces
  *
@@ -107,13 +107,15 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
      */
     private val motion = LensMotion()
 
-    /**
-     * The newest un-consumed flick, handed across from the UI thread ([submitFlick]) and taken by
-     * the GL thread at the top of the next frame — the same one-slot volatile shape as
-     * [activeLens] / [faces]. A flick landing one frame late is invisible; a second flick before
-     * the next frame replaces the first rather than queueing (nobody can flick twice in 33 ms).
-     */
-    private val pendingFlick = AtomicReference<PendingFlick?>(null)
+    /** The newest hand from [HandTracker], or `null` while none is in frame — latest wins, like [faces]. */
+    @Volatile
+    private var hand: HandSnapshot? = null
+
+    /** Hand → spin impulse decisions (`docs/PRD-lens-hand-flick.md` §3.3). Touched only on glThread. */
+    private val handFlick = HandFlick()
+
+    /** This frame's spin-capable quads for [handFlick], rebuilt per frame; reused to avoid churn. */
+    private val handTargets = ArrayList<HandFlick.Target>()
 
     private val surfaceTextureMatrix = FloatArray(MATRIX_SIZE)
     private val outputTextureMatrix = FloatArray(MATRIX_SIZE)
@@ -162,13 +164,11 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     }
 
     /**
-     * Hands a viewfinder fling to the GL thread, which maps it into the buffer, hit-tests it
-     * against the spin-capable sticker quads and — on a hit — spins that layer
-     * (`docs/PRD-lens-interactions.md` §3.3). Safe from any thread; a miss costs one log line.
+     * Publishes the newest hand (or `null` when none is in frame). The GL thread reads it at the
+     * top of each frame and decides whether it flicked a sticker — see [applyHand].
      */
-    fun submitFlick(flick: ViewFlick, rotationDegrees: Int, mirrored: Boolean) {
-        if (released) return
-        pendingFlick.set(PendingFlick(flick, rotationDegrees, mirrored))
+    fun setHand(snapshot: HandSnapshot?) {
+        hand = snapshot
     }
 
     /** Tears down the GL thread. The processor is unusable afterward. */
@@ -263,9 +263,9 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
         val lens = activeLens
         val roster = faces
 
-        // A flick lands between frames; consume it here so its impulse is in the state the step
-        // below advances — one frame of latency at most, invisible at 30 fps.
-        pendingFlick.getAndSet(null)?.let { applyFlick(it, lens, roster, input) }
+        // A hand flick is decided here, against the quads this frame will draw, so its impulse is
+        // in the state the step below advances — one frame of latency at most, invisible at 30 fps.
+        applyHand(lens, roster, input)
 
         // Physics advances ONCE per frame, here, before the per-output loop. Stepping it inside the
         // loop would run the simulation once per output — the preview and the recording would each
@@ -295,75 +295,65 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
     }
 
     /**
-     * Maps a flick into the camera buffer and lands it on the topmost spin-capable layer it hit
-     * (`docs/PRD-lens-interactions.md` §3.3). Runs on the GL thread against the same quads the
-     * next draw will use. One log line per flick — hit or miss — is the diagnostic that turns the
-     * whole view→buffer mapping into arithmetic on a device (the §3.2 mitigation).
+     * Lets this frame's hand flick the topmost spin-capable layer it is moving across
+     * (`docs/PRD-lens-hand-flick.md` §3.3). Runs on the GL thread against the same quads the draw
+     * below will use — spin angle included, so a ball mid-spin is hit where it actually is. The
+     * hand already lives in the buffer's space ([HandTracker]), so there is no mapping to get
+     * wrong; the one log line per impulse is the hardware-QA currency.
      */
-    private fun applyFlick(
-        pending: PendingFlick,
-        lens: Lens?,
-        roster: List<FaceSnapshot>,
-        input: InputSurfaceState,
-    ) {
-        if (lens == null || roster.isEmpty()) {
-            // Every consumed flick logs exactly once — hit, miss, or nothing-to-hit — so the
-            // logcat always answers "did the gesture get this far, and what stopped it".
-            Log.i(TAG, "Flick ignored | lens=${lens?.name} faces=${roster.size}")
-            return
-        }
+    private fun applyHand(lens: Lens?, roster: List<FaceSnapshot>, input: InputSurfaceState) {
+        val snapshot = hand
         val frameAspect = input.width.toFloat() / input.height.toFloat()
-        val mapped = LensTouchMath.viewToBuffer(
-            pending.flick,
-            bufferWidth = input.width.toFloat(),
-            bufferHeight = input.height.toFloat(),
-            rotationDegrees = pending.rotationDegrees,
-            mirrored = pending.mirrored,
-        ) ?: return
-
-        // Later slots and later layers draw on top, so hit-test both in reverse: the thing the
-        // user sees under their finger wins. First hit consumes the flick.
-        for (tracked in roster.asReversed()) {
-            val snapshot = LensAnchor.reframe(tracked, frameAspect)
-            val faceFrame = LensAnchor.faceFrame(snapshot, frameAspect) ?: continue
-            val faceMotion = motion.forFace(tracked.trackingId)
-            for (index in lens.art.indices.reversed()) {
-                val art = lens.art[index]
-                if (art.placement.spin == null) continue
-                val quad = LensAnchor.sticker(
-                    snapshot,
-                    faceFrame,
-                    art.placement,
-                    frameAspect,
-                    wobbleRadians = faceMotion?.wobbleAngles?.getOrNull(index) ?: 0f,
-                    openFraction = faceMotion?.openFraction ?: 0f,
-                    spinRadians = faceMotion?.spinAngles?.getOrNull(index) ?: 0f,
-                )
-                if (!LensHitTest.contains(quad, mapped.x, mapped.y, frameAspect)) continue
-
-                // Lever and velocity in face units, square space — the dimensionless currency
-                // every LensPhysics drive uses (same flick, same spin, at any distance).
-                motion.flick(
-                    lens = lens,
-                    trackingId = tracked.trackingId,
-                    layerIndex = index,
-                    leverX = (mapped.x - quad.centerX) / faceFrame.unit,
-                    leverY = LensAnchor.toSquareY(mapped.y - quad.centerY, frameAspect) / faceFrame.unit,
-                    velocityX = mapped.velocityX / faceFrame.unit,
-                    velocityY = LensAnchor.toSquareY(mapped.velocityY, frameAspect) / faceFrame.unit,
-                )
-                Log.i(
-                    TAG,
-                    "Flick HIT face=${tracked.trackingId} layer=$index " +
-                        "at=(${mapped.x}, ${mapped.y}) center=(${quad.centerX}, ${quad.centerY})",
-                )
-                return
+        handTargets.clear()
+        if (snapshot != null && lens != null) {
+            // Later slots and later layers draw on top, so list both in reverse: the thing the
+            // user sees under their hand wins. First hit takes the flick.
+            for (tracked in roster.asReversed()) {
+                val face = LensAnchor.reframe(tracked, frameAspect)
+                val faceFrame = LensAnchor.faceFrame(face, frameAspect) ?: continue
+                val faceMotion = motion.forFace(tracked.trackingId)
+                for (index in lens.art.indices.reversed()) {
+                    val art = lens.art[index]
+                    val spin = art.placement.spin ?: continue
+                    val quad = LensAnchor.sticker(
+                        face,
+                        faceFrame,
+                        art.placement,
+                        frameAspect,
+                        wobbleRadians = faceMotion?.wobbleAngles?.getOrNull(index) ?: 0f,
+                        openFraction = faceMotion?.openFraction ?: 0f,
+                        spinRadians = faceMotion?.spinAngles?.getOrNull(index) ?: 0f,
+                    )
+                    handTargets.add(
+                        HandFlick.Target(
+                            trackingId = tracked.trackingId,
+                            layerIndex = index,
+                            quad = quad,
+                            faceUnit = faceFrame.unit,
+                            minHandSpeed = spin.minHandSpeed,
+                        ),
+                    )
+                }
             }
         }
+        val impulse = handFlick.evaluate(snapshot, handTargets, frameAspect) ?: return
+        if (lens == null) return
+        // Lever and velocity arrive in face units, square space — the dimensionless currency
+        // every LensPhysics drive uses (same wave, same spin, at any distance).
+        motion.flick(
+            lens = lens,
+            trackingId = impulse.trackingId,
+            layerIndex = impulse.layerIndex,
+            leverX = impulse.leverX,
+            leverY = impulse.leverY,
+            velocityX = impulse.velocityX,
+            velocityY = impulse.velocityY,
+        )
         Log.i(
             TAG,
-            "Flick miss at=(${mapped.x}, ${mapped.y}) rotation=${pending.rotationDegrees} " +
-                "mirrored=${pending.mirrored} faces=${roster.size}",
+            "Hand HIT face=${impulse.trackingId} layer=${impulse.layerIndex} " +
+                "speed=${impulse.speed} lever=(${impulse.leverX}, ${impulse.leverY}) " +
+                "v=(${impulse.velocityX}, ${impulse.velocityY})",
         )
     }
 
@@ -750,13 +740,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
             GLES20.glDeleteTextures(1, intArrayOf(textureId), 0)
         }
     }
-
-    /** One un-consumed viewfinder fling plus the transform facts needed to map it. */
-    private class PendingFlick(
-        val flick: ViewFlick,
-        val rotationDegrees: Int,
-        val mirrored: Boolean,
-    )
 
     private companion object {
         const val TAG = "OpenLoopLens"
