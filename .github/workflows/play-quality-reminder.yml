@@ -1,0 +1,45 @@
+name: Play technical quality reminder
+
+# Monthly reminder to read the Play Console numbers that Play enforces from Feb 2027 — memory
+# usage, bitmap memory usage, code optimization (docs/play-store/README.md → Technical quality
+# requirements; audit in Issue #148). Play only alerts once a threshold is already crossed, and
+# nothing in the repo can read Android vitals, so a human has to look. Opens one issue per month,
+# starting 2027-02; before that the run is a no-op. `workflow_dispatch` files one on demand.
+
+on:
+  schedule:
+    - cron: "0 14 1 * *" # 1st of every month, 14:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the monthly check issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          month="$(date -u +%Y-%m)"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%Y%m)" -lt 202702 ]; then
+            echo "Enforcement starts Feb 2027 — nothing to do for $month."
+            exit 0
+          fi
+          gh issue create \
+            --title "Play technical quality check — $month" \
+            --label documentation \
+            --body "$(cat <<'EOF'
+          Monthly Play Console read (enforced from Feb 2027; checklist and thresholds in `docs/play-store/README.md` → *Technical quality requirements*; audit in #148).
+
+          - [ ] Monitor and improve → Android vitals → Overview → *Memory*: **Memory usage (anonymous RSS and swap)** P90 per process state under the app thresholds for every RAM bucket
+          - [ ] Same page: **Bitmap memory usage** P90 under 200 MB (user-perceived services, background) / 400 MB (cached)
+          - [ ] P90 / P50 below 3.5× on both rows (Play's leak signal)
+          - [ ] Test and release → App bundle explorer → live bundle → *App optimization* is **High**
+          - [ ] Numbers pasted below; anything red gets its own issue before the next release
+
+          Close when done.
+          EOF
+          )"

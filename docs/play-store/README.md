@@ -48,6 +48,29 @@ in**. Keep these in sync if the app's behavior changes.
 
 ---
 
+## Technical quality requirements (enforced Feb / Apr 2027)
+
+Play's [technical quality requirements](https://support.google.com/googleplay/android-developer/answer/17492799)
+gained three memory/code rules and one sign-in rule on 2026-08-26 ([announcement](https://android-developers.googleblog.com/2026/08/app-quality-memory-optimization-secure-onboarding.html)).
+Missing one costs store visibility and publishing capabilities. The audit and its follow-ups live in
+[Issue #148](https://github.com/stozo04/OpenLoop/issues/148); this is the standing checklist.
+
+| Rule (P90 over 28 days, phones + tablets)                                              | Threshold for **apps**                                                                      | OpenLoop                                                                                                                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Code optimization (Feb 2027) — apps with > 10 MB DEX                                   | ≥ 25 % optimization, obfuscation **and** shrinking                                          | ✅ Bundle 48: 97 / 97 / 97 %, R8 full mode (App bundle explorer → *App optimization*). Release DEX is 8.6 MB, likely below the scope floor anyway.  |
+| Memory usage, anonymous RSS + swap (Feb 2027)                                          | 4 GB tier: 2 GB foreground / 1 GB user-perceived services / 1 GB background; scales by tier | ⚠️ No vitals data yet (install base too small). Measure locally — Issue #148 item 2.                                                               |
+| Bitmap memory usage (Feb 2027)                                                         | 200 MB user-perceived services & background, 400 MB cached; none in foreground              | ⚠️ Trim filmstrip holds full-res frames — Issue #148 item 1.                                                                                       |
+| Zero-tap sign-in restoration (Apr 2027) — apps with any user sign-in                   | Restore sign-in on a new device via the Restore Credentials API                             | ✅ N/A — no accounts or sign-in. Activates the day sign-in is added.                                                                                |
+
+**Before every release, and monthly from Feb 2027:** Play Console → Monitor and improve → Android vitals →
+Overview → *Memory* rows (*Memory usage (anonymous RSS and swap)*, *Bitmap memory usage*) — P90 per
+process state under the numbers above, and P90 / P50 below 3.5× (Play's leak signal). Then App bundle
+explorer → the live bundle → *App optimization* stays *High*. Reproduce the optimization number locally
+with `./gradlew :app:analyzeReleaseR8Config` (`app/build/reports/r8/r8-config-analyzer-release.html`);
+its percentages are a pre-optimization keep-rule proxy, Play's are the compliance figure.
+
+---
+
 ## Notes
 
 - **GitHub URLs** point at `github.com/stozo04/OpenLoop` (the repo's current name). It was formerly
