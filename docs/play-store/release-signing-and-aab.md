@@ -48,6 +48,13 @@ keyPassword=********
 
 ## 3. Build the signed AAB
 
+**Every release starts with the Play technical quality check** — the standing checklist in
+[README → Technical quality requirements](README.md#technical-quality-requirements-enforced-feb--apr-2027):
+Android vitals *Memory* rows under threshold (P90 per process state, P90/P50 below 3.5×) and the live
+bundle's *App optimization* still *High*. Do it **before** the version bump, paste the numbers into the
+bump PR, and stop the release if a row is red. A monthly reminder issue does the same from Feb 2027
+(`.github/workflows/play-quality-reminder.yml`).
+
 ```bash
 # Windows: $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 ./gradlew :app:bundleRelease

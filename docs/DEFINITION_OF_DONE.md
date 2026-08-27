@@ -59,6 +59,12 @@ Verify the things a build alone doesn't prove. Example for this app — **16 KB 
 # .so lines must read "(OK)" at 16384-multiple offsets — NOT "(OK - compressed)"
 ```
 
+**Release bumps (`chore/release-<version>`) carry one more check:** the Play technical quality
+checklist in [`play-store/README.md`](play-store/README.md#technical-quality-requirements-enforced-feb--apr-2027)
+— Android vitals *Memory* rows under Play's thresholds and the live bundle's *App optimization* still
+*High* — with the numbers pasted into the PR. Play enforces those thresholds from Feb 2027 with
+reduced visibility and publishing capabilities; a red row is a release blocker, same as a failing test.
+
 ### 3. Static analysis — code inspection (Android Studio "Inspect Code", headless)
 
 Reproduce both Inspect Code engines and clear them. Full design + severity rules: **[`docs/STATIC_ANALYSIS.md`](STATIC_ANALYSIS.md)**.
@@ -139,6 +145,7 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] Baseline green before changes (clean assembleDebug)
 - [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
+- [ ] Release bump only: Play technical quality check done (vitals Memory rows under threshold, bundle App optimization High) — numbers pasted here
 - [ ] `.\scripts\pre-pr-sweep.ps1` GREEN on the final commit: build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown + tables + links + cspell + JSON all zero (receipt: build/sweep-receipt.json)
 - [ ] Inspect Code (Engine 2) export parsed to 0 hard findings — or the PR says it was SKIPPED and why
 - [ ] Play-facing docs aligned (owner rule, 2026-08-24): permission/telemetry/storage changes → data-safety.md + privacy policy (md + html, new effective date); lens/feature changes → store-listing.md (+ docs/index.html, root README.md)
