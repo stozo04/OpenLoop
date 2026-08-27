@@ -27,6 +27,7 @@ benchmark = "1.5.0-rc01"
 playAppUpdate = "2.1.0"
 playReview = "2.0.2"
 mlkitFaceDetection = "16.1.7"
+mediapipeTasksVision = "1.0.0"
 
 
 [libraries]
@@ -103,6 +104,11 @@ play-review-ktx = { group = "com.google.android.play", name = "review-ktx", vers
 # STABLE face-detection API, not the beta face-mesh one; landmark mode already gives the eyes and
 # mouth corners LensAnchor needs. Bundled model: no Play-services round trip on first use.
 mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFaceDetection" }
+
+# MediaPipe Hand Landmarker — the hand that flicks a lens (docs/PRD-lens-hand-flick.md). Hands only;
+# faces stay on ML Kit (D2). Published on Google Maven, not Central. tasks-core 1.0.0's native lib was
+# measured 16 KB-aligned on every ABI before adoption (Lesson 011); the release sweep re-checks it.
+mediapipe-tasks-vision = { group = "com.google.mediapipe", name = "tasks-vision", version.ref = "mediapipeTasksVision" }
 
 
 [plugins]

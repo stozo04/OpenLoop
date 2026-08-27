@@ -27,6 +27,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import io.github.stozo04.openloop.camera.lens.FaceTracker
+import io.github.stozo04.openloop.camera.lens.HandTracker
 import io.github.stozo04.openloop.camera.lens.Lens
 import io.github.stozo04.openloop.camera.lens.LensSurfaceProcessor
 import java.io.File
@@ -54,6 +55,13 @@ class CameraManager(private val context: Context) {
      */
     private val lensProcessor = LensSurfaceProcessor(context)
     private val faceTracker = FaceTracker(lensProcessor::setFaces)
+
+    /**
+     * Hand tracking for the flick verb (`docs/PRD-lens-hand-flick.md`). Shares [cameraExecutor]
+     * with the face tracker so its create/submit/close all happen on one thread, and is alive only
+     * while a flickable lens is active — see [setLens].
+     */
+    private val handTracker = HandTracker(context, cameraExecutor, lensProcessor::setHand)
     private var zoomStateObserver: Observer<ZoomState>? = null
     private var observedZoomState: LiveData<ZoomState>? = null
     /** Per-pinch anchor ratio — avoids stale [ZoomState] reads during a fast scale stream. */
@@ -114,13 +122,36 @@ class CameraManager(private val context: Context) {
                             .build()
                     )
                     .build()
-                    .also { it.setAnalyzer(cameraExecutor, faceTracker) }
+                    .also { analysis ->
+                        // One stream, two detectors (PRD-lens-hand-flick §3.2): the hand tracker
+                        // takes its copy of the frame first, then ML Kit owns — and closes — the
+                        // proxy exactly as before. A failed hand submit (toBitmap(), detectAsync)
+                        // is logged and the frame skipped; the finally hands the proxy to the face
+                        // path even when something worse than an Exception escapes (an OOM in the
+                        // bitmap copy), because an unclosed proxy under KEEP_ONLY_LATEST stalls
+                        // the whole analysis stream until the next bind.
+                        analysis.setAnalyzer(
+                            cameraExecutor,
+                            ImageAnalysis.Analyzer { proxy ->
+                                try {
+                                    handTracker.submit(proxy)
+                                } catch (exc: Exception) {
+                                    Log.w(TAG, "Hand tracker submit failed; hand tracking skipped this frame", exc)
+                                } finally {
+                                    faceTracker.analyze(proxy)
+                                }
+                            },
+                        )
+                    }
 
                 // A lens flip lands here without releaseCamera(); the roster must not carry the
-                // other sensor's faces into this bind (see FaceTracker.reset).
+                // other sensor's faces into this bind (see FaceTracker.reset), and the hand
+                // tracker drops its landmarker so the first frame of this bind rebuilds it on the
+                // new sensor's clock.
                 cameraProvider?.unbindAll()
                 detachZoomObserver()
                 faceTracker.reset()
+                handTracker.reset()
                 camera = bindWithLensEffect(
                     lifecycleOwner = lifecycleOwner,
                     cameraSelector = cameraSelector,
@@ -128,9 +159,13 @@ class CameraManager(private val context: Context) {
                     analysis = analysis,
                 )
                 attachZoomObserver()
+                // The build marker suffix is the stale-APK tripwire (Lesson 012's environment
+                // notes): a logcat whose bind lines lack it was made by a build without the
+                // flick feature, whatever the checkout says.
                 Log.i(
                     TAG,
-                    "Camera bound (lens=${if (lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"})"
+                    "Camera bound (lens=${if (lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"}) " +
+                        "build=hand-flick-v1"
                 )
 
                 onCameraReady()
@@ -220,6 +255,9 @@ class CameraManager(private val context: Context) {
      */
     fun setLens(lens: Lens?) {
         lensProcessor.setLens(lens)
+        // The hand tracker exists only for a lens something can be flicked on (PRD D5) — every
+        // other lens, and no lens, never pays for the second detector.
+        handTracker.setEnabled(lens?.isFlickable == true)
     }
 
     /** Whether a [Camera] handle is currently bound — safe to gate pinch gestures on this alone. */
@@ -421,6 +459,7 @@ class CameraManager(private val context: Context) {
             // 350 ms — drop them so the next bind starts with a clean viewfinder.
             cameraProvider?.unbindAll()
             faceTracker.reset()
+            handTracker.reset()
             videoCapture = null
             camera = null
         } catch (exc: Exception) {
@@ -431,7 +470,9 @@ class CameraManager(private val context: Context) {
     fun shutdown() {
         releaseCamera()
         // The lens renderer outlives individual binds (it must — see bindWithLensEffect), so it is
-        // torn down here rather than in releaseCamera().
+        // torn down here rather than in releaseCamera(). The hand tracker's close lands on
+        // cameraExecutor ahead of the shutdown below, which still drains queued work.
+        handTracker.close()
         faceTracker.close()
         lensProcessor.release()
         cameraExecutor.shutdown()

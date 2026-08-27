@@ -25,7 +25,7 @@ Order of operations at session start:
 
 1. Read this `CLAUDE.md` (already in context).
 2. Read `docs/lessons_learned/README.md` — it explains the two tiers and carries the index.
-3. Read **every core lesson in full: 008 and 011–038.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
+3. Read **every core lesson in full: 008 and 011–040.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
 4. **Skim the index rows for the baseline lessons (001–007, 009, 010)** — generic Android/Compose hygiene now largely held by Lint, CI, and IDE inspections. Open one only when the work actually touches that area.
 5. Proceed with the user's request.
 
@@ -113,7 +113,10 @@ io.github.stozo04.openloop/
 │       ├── Lens.kt              # The catalogue. Nothing outside this file names an individual lens
 │       ├── LensAnchor.kt        # Pure face-frame placement math (JVM-tested: LensAnchorTest)
 │       ├── LensSurfaceProcessor.kt  # The ONE CameraEffect: EGL + 3 GL programs, sticker/feature draw per face
-│       ├── LensMotion.kt        # Per-face wobble springs + eased mouth, stepped once per frame (JVM-tested)
+│       ├── LensMotion.kt        # Per-face wobble springs + flick spins + eased mouth, stepped once per frame (JVM-tested)
+│       ├── HandFlick.kt         # Pure "hand velocity near sticker" → spin impulse (JVM-tested) — docs/PRD-lens-hand-flick.md
+│       ├── HandTracker.kt       # MediaPipe Hand Landmarker glue on the SAME ImageAnalysis stream; alive only for a flickable lens
+│       ├── LensHitTest.kt       # Pure point-in-rotated-quad "did the hand land on a sticker" (JVM-tested)
 │       ├── FaceRoster.kt        # Pure slot rule + per-face hold + id-churn adoption (JVM-tested) — docs/PRD-multi-face-lenses.md
 │       └── FaceTracker.kt       # ML Kit (stable API) ImageAnalysis.Analyzer → List<FaceSnapshot> (up to 2)
 ├── data/                        # UserPreferencesRepository (DataStore), VideoStorageRepository, VideoImporter

@@ -279,6 +279,10 @@ dependencies {
     // ML Kit face detection — camera lenses (docs/PRD-camera-lenses.md)
     implementation(libs.mlkit.face.detection)
 
+    // MediaPipe hand landmarks — wave at a lens to flick it (docs/PRD-lens-hand-flick.md).
+    // Model: src/main/assets/hand_landmarker.task (7.8 MB, Apache 2.0).
+    implementation(libs.mediapipe.tasks.vision)
+
     // WorkManager — long-running Loopifying export survives backgrounding (Issue #40)
     implementation(libs.androidx.work.runtime.ktx)
 

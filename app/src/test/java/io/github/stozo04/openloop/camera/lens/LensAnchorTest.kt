@@ -345,6 +345,18 @@ class LensAnchorTest {
     // ---------------------------------------------------------------- re-framing between streams
 
     @Test
+    fun reframeY_isThePerPointFormOfReframe() {
+        val analysis = face(eyeY = 0.25f, sourceAspect = 16f / 9f)
+        val reframed = LensAnchor.reframe(analysis, targetAspect = 4f / 3f)
+
+        assertEquals(reframed.leftEyeY, LensAnchor.reframeY(analysis.leftEyeY, 16f / 9f, 4f / 3f), tolerance)
+        assertEquals(reframed.mouthLeftY, LensAnchor.reframeY(analysis.mouthLeftY, 16f / 9f, 4f / 3f), tolerance)
+        // Same shape, or a degenerate one: the point passes through.
+        assertEquals(0.25f, LensAnchor.reframeY(0.25f, frameAspect, frameAspect), tolerance)
+        assertEquals(0.25f, LensAnchor.reframeY(0.25f, 0f, frameAspect), tolerance)
+    }
+
+    @Test
     fun reframe_ontoTheSameShape_changesNothing() {
         val original = face(sourceAspect = frameAspect)
 
@@ -1190,5 +1202,49 @@ class LensAnchorTest {
 
         assertEquals(atan2(frame.rightY, frame.rightX), quad.rotationRadians, tolerance)
         assertNotNull(quad)
+    }
+
+    // ---------------------------------------------------------------- the flick spin
+
+    @Test
+    fun aSpinOfZero_isBitIdenticalToTheRigidPlacement() {
+        // The same guarantee the wobble parameter made when it arrived: every non-spinning lens
+        // renders exactly as before the parameter existed.
+        val frame = frameOf(face())
+
+        assertEquals(
+            LensAnchor.sticker(face(), frame, hat, frameAspect),
+            LensAnchor.sticker(face(), frame, hat, frameAspect, spinRadians = 0f),
+        )
+    }
+
+    @Test
+    fun theSpin_turnsTheArtAboutItsOwnCenter_notItsAnchor() {
+        // Unlike the wobble (which swings the offset vector too, so a tongue hangs from its
+        // root), a spun quad must keep its center pinned and only its rotation moves — a flicked
+        // ball twirls in place (PRD-lens-interactions §3.5).
+        val frame = frameOf(face())
+        val rigid = LensAnchor.sticker(face(), frame, hat, frameAspect)
+        val spun = LensAnchor.sticker(face(), frame, hat, frameAspect, spinRadians = 1.2f)
+
+        assertEquals(rigid.centerX, spun.centerX, tolerance)
+        assertEquals(rigid.centerY, spun.centerY, tolerance)
+        assertEquals(rigid.halfWidth, spun.halfWidth, tolerance)
+        assertEquals(rigid.halfHeight, spun.halfHeight, tolerance)
+        assertEquals(rigid.rotationRadians + 1.2f, spun.rotationRadians, tolerance)
+    }
+
+    @Test
+    fun spinAndWobble_compose_theSpinAddsOnTopOfTheSwungRotation() {
+        val frame = frameOf(face())
+        val swung = LensAnchor.sticker(face(), frame, hat, frameAspect, wobbleRadians = 0.2f)
+        val both = LensAnchor.sticker(
+            face(), frame, hat, frameAspect, wobbleRadians = 0.2f, spinRadians = 0.7f,
+        )
+
+        // The wobble decides where the quad sits; the spin only turns it there.
+        assertEquals(swung.centerX, both.centerX, tolerance)
+        assertEquals(swung.centerY, both.centerY, tolerance)
+        assertEquals(swung.rotationRadians + 0.7f, both.rotationRadians, tolerance)
     }
 }

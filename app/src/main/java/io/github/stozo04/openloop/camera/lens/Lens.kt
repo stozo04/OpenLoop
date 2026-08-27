@@ -10,6 +10,16 @@ import io.github.stozo04.openloop.R
  * `LensSurfaceProcessor`, `CameraManager`, or the UI names an individual lens — the carousel
  * renders `Lens.entries` and the renderer just walks [art] and [features].
  *
+ * ## Adding a lens — the questions every entry answers
+ *
+ * 1. **Prop or character?** [features] null or not (`docs/PRD-camera-lenses.md` §4b).
+ * 2. **Does the user interact with it?** [interaction] — required, no default (owner rule,
+ *    2026-08-26). A head-sized character spins well under a hand wave; a pair of shades or a
+ *    tongue does not. Answer on purpose: `SPIN` needs a layer carrying a [SpinSpec]
+ *    ([SPIN_ON_A_HEAD] is the tuned one), `NONE` must carry none — `LensPhysicsTest` pins the
+ *    declaration to the layers so the two cannot drift apart.
+ * 3. **The numbers** — the table below, measured, never nudged.
+ *
  * ## Reading the numbers
  *
  * Every measurement is in **face units**, where one unit is the subject's eye-to-mouth distance
@@ -50,6 +60,8 @@ import io.github.stozo04.openloop.R
  */
 enum class Lens(
     val displayName: String,
+    /** The interaction question, answered per lens — see the header. No default on purpose. */
+    val interaction: LensInteraction,
     @param:DrawableRes val thumbnailRes: Int,
     /**
      * The art layers, drawn in list order — later layers paint over earlier ones.
@@ -80,6 +92,7 @@ enum class Lens(
      */
     Broccoli(
         displayName = "Broccoli",
+        interaction = LensInteraction.SPIN,
         thumbnailRes = R.drawable.lens_broccoli,
         art = listOf(
             LensArt(
@@ -97,6 +110,8 @@ enum class Lens(
                     // field. Raising it 0.22 clears the crown by +0.13 and needs NO resize: the
                     // stalk still hangs 1.91 units below the chin (it had 2.13 to give away).
                     upInUnits = -1.20f,
+                    // Owner call 2026-08-26: the vegetable spins too (PRD-lens-hand-flick D3).
+                    spin = SPIN_ON_A_HEAD,
                 ),
             ),
         ),
@@ -120,6 +135,8 @@ enum class Lens(
      */
     Sunglasses(
         displayName = "Shades",
+        // A prop on the eyes; spinning it would spin it off the face. Drag-down is the backlog verb.
+        interaction = LensInteraction.NONE,
         thumbnailRes = R.drawable.lens_sunglasses,
         art = listOf(
             LensArt(
@@ -155,6 +172,7 @@ enum class Lens(
      */
     PizzaFace(
         displayName = "Pizza Face",
+        interaction = LensInteraction.SPIN,
         thumbnailRes = R.drawable.lens_pizza,
         art = listOf(
             LensArt(
@@ -171,6 +189,8 @@ enum class Lens(
                     artAspect = 0.949f,
                     // Drops the wedge so the crust sits above the brow and the tip falls past the chin.
                     upInUnits = -0.55f,
+                    // Owner call 2026-08-26: the slice spins too (PRD-lens-hand-flick D3).
+                    spin = SPIN_ON_A_HEAD,
                 ),
             ),
         ),
@@ -206,6 +226,7 @@ enum class Lens(
      */
     Football(
         displayName = "Football",
+        interaction = LensInteraction.SPIN,
         thumbnailRes = R.drawable.lens_football,
         art = listOf(
             LensArt(
@@ -225,6 +246,10 @@ enum class Lens(
                     // Centered just below the eye line so the ellipse reaches +1.34 over the crown
                     // and -1.86 under the chin.
                     upInUnits = -0.26f,
+                    // The first flickable layer (docs/PRD-lens-hand-flick.md): wave a hand past
+                    // the ball and it spins about its own center, always landing back on a whole
+                    // revolution, with the composited eyes and mouth hidden mid-spin (D2).
+                    spin = SPIN_ON_A_HEAD,
                 ),
             ),
         ),
@@ -270,6 +295,8 @@ enum class Lens(
      */
     Dog(
         displayName = "Dog",
+        // Ears, nose and tongue on the subject's own face — a spin would tear the parts off it.
+        interaction = LensInteraction.NONE,
         thumbnailRes = R.drawable.lens_dog,
         art = listOf(
             LensArt(
@@ -337,6 +364,8 @@ enum class Lens(
      */
     TwistedTongue(
         displayName = "Twisted Tongue",
+        // Eyeballs and a hanging tongue: they wobble on their own; spinning them reads as a glitch.
+        interaction = LensInteraction.NONE,
         thumbnailRes = R.drawable.lens_twisted_tongue,
         art = listOf(
             LensArt(
@@ -444,6 +473,8 @@ enum class Lens(
      */
     Elvis(
         displayName = "Elvis",
+        // A wig and shades worn on the real face — nothing here is a thing you would spin.
+        interaction = LensInteraction.NONE,
         thumbnailRes = R.drawable.lens_elvis,
         art = listOf(
             // Hair with integrated sideburns (U-wig with face hole), drawn first.
@@ -472,7 +503,48 @@ enum class Lens(
             ),
         ),
     ),
+    ;
+
+    /**
+     * Whether a hand can flick this lens — the one switch that turns the hand tracker on
+     * (`docs/PRD-lens-hand-flick.md` D5). Reads the declared [interaction]; `LensPhysicsTest`
+     * guarantees a `SPIN` lens really carries a spin-capable layer, so nothing outside this file
+     * ever names a lens.
+     */
+    val isFlickable: Boolean
+        get() = interaction == LensInteraction.SPIN
 }
+
+/**
+ * The interaction question every lens answers (owner rule, 2026-08-26): some art makes sense to
+ * spin under a hand wave and some does not, so the decision is made per lens, on purpose, never
+ * by omission — which is why [Lens.interaction] has no default.
+ */
+enum class LensInteraction {
+    /** The lens only tracks the face. */
+    NONE,
+
+    /** A hand waved across the lens spins its spin-capable layer — `docs/PRD-lens-hand-flick.md`. */
+    SPIN,
+}
+
+/**
+ * The one tuned spin for a head-sized character layer (Football, Broccoli, Pizza Face). Shared on
+ * purpose: the three quads are 4–5.6 face units wide, so one feel fits all and a retune is one
+ * edit.
+ *
+ * Tuning arithmetic, not magic: total travel ≈ ω₀ × halfLife / ln 2 ≈ 0.87 × ω₀ radians. A
+ * comfortable wave (≈7 units/s at a ≈2-unit lever) lands ≈0.9 revolutions at this gain, a fast one
+ * ≈2; the cap bounds the hardest at ≈3.5. `minHandSpeed` is ≈20 cm/s: a wave clears it, a hand
+ * adjusting hair does not (PRD §3.3). The catalogue-driven `LensPhysicsTest` pins these as
+ * properties, so the feel can be retuned here freely without weakening the guarantees.
+ */
+private val SPIN_ON_A_HEAD = SpinSpec(
+    gain = 1.8f,
+    frictionHalfLifeSeconds = 0.6f,
+    maxAngularVelocity = 25f,
+    minHandSpeed = 3f,
+)
 
 /** A lens's sticker: the drawable to composite and where it sits in the face frame. */
 data class LensArt(

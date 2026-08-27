@@ -121,6 +121,11 @@ Starting with ML Kit face-detection means **one dependency, stable API, no beta 
 delta**. If Big Mouth later proves it needs a real mesh, that's the moment to add MediaPipe — and
 then ML Kit comes out. Don't ship both.
 
+> **Superseded 2026-08-26 — [`PRD-lens-hand-flick.md`](PRD-lens-hand-flick.md) D2, mission-control
+> decision 17.** The app now ships both vendors: ML Kit stays the face tracker (every `LensAnchor`
+> number is calibrated on its landmarks) and MediaPipe `tasks-vision` tracks **hands only**. "Don't
+> ship both" was about two *face* trackers and still holds for faces.
+
 Run it on an `ImageAnalysis` use case with `STRATEGY_KEEP_ONLY_LATEST`, `PERFORMANCE_MODE_FAST`,
 single-face (`CONTOUR_MODE` is computed for the most prominent face only — correct for selfies).
 

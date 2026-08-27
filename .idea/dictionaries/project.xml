@@ -69,6 +69,7 @@
       <w>checkmark</w>
       <w>chipsets</w>
       <w>claude</w>
+      <w>clinit</w>
       <w>cmdline</w>
       <w>codeberg</w>
       <w>codelab</w>
@@ -142,6 +143,7 @@
       <w>firebasecrashlytics</w>
       <w>firebaserc</w>
       <w>flatnonzero</w>
+      <w>flickable</w>
       <w>floodfill</w>
       <w>fold</w>
       <w>foldable</w>
@@ -171,6 +173,7 @@
       <w>grayscale</w>
       <w>grazie</w>
       <w>grotesk</w>
+      <w>handlandmarker</w>
       <w>hapticfeedback</w>
       <w>haudi</w>
       <w>headless</w>
@@ -179,6 +182,7 @@
       <w>heredocs</w>
       <w>hyperlapse</w>
       <w>iarc</w>
+      <w>ignorewarnings</w>
       <w>inpaint</w>
       <w>inpainting</w>
       <w>interp</w>
@@ -191,6 +195,7 @@
       <w>jank</w>
       <w>jarsigner</w>
       <w>javac</w>
+      <w>javap</w>
       <w>jayden</w>
       <w>jbr</w>
       <w>jetpack</w>
@@ -200,6 +205,7 @@
       <w>kalog</w>
       <w>kayden</w>
       <w>kayley</w>
+      <w>keepnames</w>
       <w>keepradius</w>
       <w>keyalg</w>
       <w>keyevent</w>
@@ -222,6 +228,7 @@
       <w>lensed</w>
       <w>letterboxing</w>
       <w>libimage</w>
+      <w>libmediapipe</w>
       <w>libwebp</w>
       <w>lifecycle</w>
       <w>lifecycles</w>
@@ -230,6 +237,7 @@
       <w>listicles</w>
       <w>localappdata</w>
       <w>logcat</w>
+      <w>logcats</w>
       <w>loopable</w>
       <w>loopifies</w>
       <w>loopify</w>
@@ -253,6 +261,7 @@
       <w>mcla</w>
       <w>media3</w>
       <w>mediacodec</w>
+      <w>mediapipe</w>
       <w>mediatek</w>
       <w>mediump</w>
       <w>millis</w>
@@ -402,6 +411,7 @@
       <w>techrt</w>
       <w>telehealth</w>
       <w>testtag</w>
+      <w>tflite</w>
       <w>threebutton</w>
       <w>thresholded</w>
       <w>toggleable</w>
@@ -424,8 +434,10 @@
       <w>undropped</w>
       <w>unfindable</w>
       <w>unlensed</w>
+      <w>unminified</w>
       <w>unmockk</w>
       <w>unparseable</w>
+      <w>unrotated</w>
       <w>unrouted</w>
       <w>unshowable</w>
       <w>unspaced</w>

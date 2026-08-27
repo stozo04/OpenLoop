@@ -85,6 +85,8 @@ Read the actual counts (`tests=".." failures=".." errors=".."` in `app/build/...
 
 This is the step that separates "should work" from "works." Automated tests miss crashes-on-launch, missing/mislabeled assets, and layout breakage. Boot an emulator, install the APK, launch the app, and capture a screenshot as **proof**.
 
+**Which APK:** debug is the default. When the change adds or bumps a dependency that ships native code, JNI, reflection, or a logging framework, run the **release** APK too and drive the code path that dependency serves — `assembleRelease` proves R8 compiled, not what it removed or renamed, and the first hand-tracking release build crashed on a lens tap that debug handled fine (Lesson 040).
+
 ```text
 EMU=<sdk>/emulator/emulator.exe ; ADB=<sdk>/platform-tools/adb.exe
 "$EMU" -avd <name> -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect &

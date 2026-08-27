@@ -101,8 +101,9 @@ PERMISSIONS
 Made for people who just want to point, tap, and loop.
 ```
 
-*(~1,900 chars — well under the 4,000 limit. Face detection is on-device ML Kit with a bundled
-model: no extra permission, no network call, no new data-safety declaration.)*
+*(~1,900 chars — well under the 4,000 limit. Face detection (ML Kit) and hand detection for the
+flickable lenses (MediaPipe Hand Landmarker, `docs/PRD-lens-hand-flick.md`) are both on-device with
+bundled models: no extra permission, no network call, no new data-safety declaration.)*
 
 ### Other listing fields
 

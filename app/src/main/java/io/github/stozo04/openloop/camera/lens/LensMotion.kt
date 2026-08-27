@@ -39,13 +39,32 @@ class LensMotion(
             internal set
 
         /**
+         * This frame's flick-spin angle per art layer, index-aligned with the lens's art. Zero
+         * for every layer that is not mid-spin. Reused, like [wobbleAngles].
+         */
+        var spinAngles = FloatArray(layerCount)
+            internal set
+
+        /**
          * Eased mouth openness, `0f`..`1f`. The detector's raw value jitters frame to frame; easing
          * it is what turns a twitchy number into an animation.
          */
         var openFraction = 0f
             internal set
 
+        /**
+         * True while any layer is mid-spin — up from the flick that starts it until the landing
+         * frame. The renderer hides a character's composited features behind this
+         * (PRD-lens-interactions D2): the ball spins bare, and because every spin lands on a
+         * whole revolution, the features snap back exactly where they vanished.
+         */
+        val isSpinning: Boolean
+            get() = spins.isNotEmpty()
+
         internal val wobbles = HashMap<Int, LensPhysics.Wobble>()
+
+        /** Live spins by layer index; a landed spin is evicted, so presence means spinning. */
+        internal val spins = HashMap<Int, LensPhysics.Spin>()
 
         /** Previous frame's snapshot — what a spring step measures its pivot shift from. */
         internal var previousFace: FaceSnapshot? = null
@@ -72,10 +91,11 @@ class LensMotion(
      */
     fun step(lens: Lens?, snapshots: List<FaceSnapshot>, timestampNs: Long) {
         if (lens !== this.lens) {
-            // Springs belong to the lens's layers, so they cannot carry over; the eased mouth
-            // describes the *subject* and survives the switch, as it always has.
+            // Springs and spins belong to the lens's layers, so they cannot carry over; the eased
+            // mouth describes the *subject* and survives the switch, as it always has.
             faces.values.forEach { motion ->
                 motion.wobbles.clear()
+                motion.spins.clear()
                 motion.previousFace = null
             }
             this.lens = lens
@@ -111,6 +131,37 @@ class LensMotion(
     /** The animation for one face after [step], or `null` if that face was not in the roster. */
     fun forFace(trackingId: Int): FaceMotion? = faces[trackingId]
 
+    /**
+     * Lands a flick on one layer of one face — the renderer calls this after its hit-test, on the
+     * GL thread between frames (`docs/PRD-lens-interactions.md` §3.3).
+     *
+     * [leverX]/[leverY] and [velocityX]/[velocityY] are in face units, square space — see
+     * [LensPhysics.spinImpulse] for the torque model. A layer with no [LensPlacement.spin] spec
+     * ignores the flick. The impulse lands in the state map only; [spinAngles][FaceMotion.spinAngles]
+     * picks it up on the next [step], one frame later — invisible, and the same latency every
+     * other input to this class already has.
+     */
+    fun flick(
+        lens: Lens,
+        trackingId: Int,
+        layerIndex: Int,
+        leverX: Float,
+        leverY: Float,
+        velocityX: Float,
+        velocityY: Float,
+    ) {
+        val spec = lens.art.getOrNull(layerIndex)?.placement?.spin ?: return
+        val motion = faces.getOrPut(trackingId) { FaceMotion(lens.art.size) }
+        motion.spins[layerIndex] = LensPhysics.spinImpulse(
+            state = motion.spins[layerIndex] ?: LensPhysics.Spin.REST,
+            leverX = leverX,
+            leverY = leverY,
+            velocityX = velocityX,
+            velocityY = velocityY,
+            spec = spec,
+        )
+    }
+
     /** Drops every face's state — the renderer's release path. */
     fun clear() {
         faces.clear()
@@ -125,6 +176,7 @@ class LensMotion(
         dtSeconds: Float,
     ) {
         if (motion.wobbleAngles.size != layers.size) motion.wobbleAngles = FloatArray(layers.size)
+        if (motion.spinAngles.size != layers.size) motion.spinAngles = FloatArray(layers.size)
 
         // Same clamped dt as the spring, so a dropped frame cannot make the reveal jump either.
         motion.openFraction = LensPhysics.ease(
@@ -148,16 +200,45 @@ class LensMotion(
             val spec = art.placement.wobble
             if (spec == null) {
                 motion.wobbleAngles[index] = 0f
-                return@forEachIndexed
+            } else {
+                val stepped = LensPhysics.step(
+                    state = motion.wobbles[index] ?: LensPhysics.Wobble.REST,
+                    pivotShiftInUnits = shift,
+                    dtSeconds = dtSeconds,
+                    spec = spec,
+                )
+                motion.wobbles[index] = stepped
+                motion.wobbleAngles[index] = stepped.offsetRadians
             }
-            val stepped = LensPhysics.step(
-                state = motion.wobbles[index] ?: LensPhysics.Wobble.REST,
-                pivotShiftInUnits = shift,
-                dtSeconds = dtSeconds,
-                spec = spec,
-            )
-            motion.wobbles[index] = stepped
-            motion.wobbleAngles[index] = stepped.offsetRadians
+
+            stepSpin(motion, index, art.placement.spin, dtSeconds)
+        }
+    }
+
+    /**
+     * Advances one layer's flick spin. A spin that lands ([LensPhysics.Spin.REST]) is evicted
+     * from the map, which is what drops [FaceMotion.isSpinning] on the landing frame — the
+     * renderer reads that to bring a character's features back (PRD-lens-interactions D2).
+     */
+    private fun stepSpin(
+        motion: FaceMotion,
+        index: Int,
+        spec: LensPhysics.SpinSpec?,
+        dtSeconds: Float,
+    ) {
+        val state = if (spec == null) null else motion.spins[index]
+        if (spec == null || state == null) {
+            if (spec == null) motion.spins.remove(index)
+            motion.spinAngles[index] = 0f
+            return
+        }
+        val stepped = LensPhysics.spinStep(state, dtSeconds, spec)
+        if (stepped == LensPhysics.Spin.REST) {
+            motion.spins.remove(index)
+            motion.spinAngles[index] = 0f
+        } else {
+            motion.spins[index] = stepped
+            motion.spinAngles[index] = stepped.angleRadians
         }
     }
 

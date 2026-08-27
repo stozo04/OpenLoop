@@ -47,6 +47,27 @@ class RenderWorkResultMappingTest {
     }
 
     @Test
+    fun `FAILED after the app's own cancel is the cancel, whatever WorkManager labelled it`() {
+        // WorkManager's stop path can resolve an app-cancelled running worker as FAILED (the
+        // Lesson 029 race). The user tapped Cancel; they must land back in the editor, not on
+        // SaveFailed with a Crashlytics beacon.
+        val data = Data.Builder()
+            .putString(BoomerangRenderWorkerKeys.FAILURE_REASON, "whatever the corpse says")
+            .build()
+
+        assertEquals(
+            BoomerangRenderWorkResult.Cancelled,
+            renderWorkResultOf(WorkInfo.State.FAILED, data, cancelledByApp = true),
+        )
+        // The flag only reinterprets FAILED — a success is still a success.
+        val success = Data.Builder().putString(BoomerangRenderWorkerKeys.OUTPUT_FILE_PATH, "/tmp/x.mp4").build()
+        assertTrue(
+            renderWorkResultOf(WorkInfo.State.SUCCEEDED, success, cancelledByApp = true)
+                is BoomerangRenderWorkResult.Success,
+        )
+    }
+
+    @Test
     fun `SUCCEEDED with output path maps to Success`() {
         val data = Data.Builder()
             .putString(BoomerangRenderWorkerKeys.OUTPUT_FILE_PATH, "/files/videos/boom_1_from_2.mp4")
