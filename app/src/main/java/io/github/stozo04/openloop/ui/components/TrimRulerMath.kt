@@ -68,11 +68,20 @@ internal fun trimRulerLabelTimesMs(durationMs: Long, edgeClearance: Float): List
     return labels
 }
 
-/** Trim readout with hundredths — `2.30s`. The range pill and the handles' `stateDescription`. */
-internal fun formatTrimClock(ms: Long): String = formatTrimSeconds(ms, decimals = 2)
+/** Trim readout with hundredths — `2.30s`. The range pill and the handles' visible value. */
+internal fun formatTrimClock(ms: Long): String = "${formatTrimSecondsValue(ms, decimals = 2)}s"
 
 /** Ruler tick with tenths — `2.0s`. Every tick, whole-second or the true end, reads the same way. */
-internal fun formatTrimRulerLabel(ms: Long): String = formatTrimSeconds(ms, decimals = 1)
+internal fun formatTrimRulerLabel(ms: Long): String = "${formatTrimSecondsValue(ms, decimals = 1)}s"
 
-private fun formatTrimSeconds(ms: Long, decimals: Int): String =
-    String.format(Locale.US, "%.${decimals}fs", ms.coerceAtLeast(0L) / 1000.0)
+/**
+ * [formatTrimClock]'s number with the unit left off — `2.30` — as the argument for the spoken
+ * `trim_handle_state_description` / `trim_range_content_description` ("2.30 seconds"). A screen
+ * reader can voice a bare `s` as the letter, so the spoken form spells the unit out while the
+ * visible pill and handles keep `2.30s`. Both route through [formatTrimSecondsValue], so the
+ * number a user sees and the number TalkBack says cannot disagree.
+ */
+internal fun formatTrimClockValue(ms: Long): String = formatTrimSecondsValue(ms, decimals = 2)
+
+private fun formatTrimSecondsValue(ms: Long, decimals: Int): String =
+    String.format(Locale.US, "%.${decimals}f", ms.coerceAtLeast(0L) / 1000.0)

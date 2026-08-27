@@ -139,6 +139,18 @@ class TrimRulerMathTest {
     }
 
     @Test
+    fun `the spoken value is the pill's number with the unit left for the resource to spell out`() {
+        // TalkBack reads the handles and the pill through trim_handle_state_description /
+        // trim_range_content_description ("0.40 seconds"), because a TTS engine can voice the bare
+        // "s" of "0.40s" as the letter. The spoken number must never drift from the visible one.
+        assertEquals("0.40", formatTrimClockValue(OpenLoopViewModel.MIN_TRIM_DURATION.inWholeMilliseconds))
+        assertEquals("0.00", formatTrimClockValue(-5L))
+        for (ms in longArrayOf(0L, 335L, 1_234L, 2_300L, 6_000L, 30_000L, 65_460L)) {
+            assertEquals("spoken and visible must agree at $ms ms", formatTrimClock(ms), formatTrimClockValue(ms) + "s")
+        }
+    }
+
+    @Test
     fun `seconds-only readouts rest on the configured clip ceiling staying under a minute`() {
         // Raising MAX_RECORDING (or IMPORT_MAX_DURATION) past 60 s means formatTrimClock /
         // formatTrimRulerLabel must grow a minutes field back — see the KDoc on MAX_RECORDING.

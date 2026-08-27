@@ -64,6 +64,17 @@ Modifier.semantics { contentDescription = context.getString(R.string.camera_zoom
 | Debug-report **subject** lines                       | They route a support mail to the maintainer; they are not app UI. The chooser *title* beside them **is** localized |
 | Numeric readouts (`2.30s`, `2.3x`, `48%`)            | Values, not copy. The phrasing around them (`"%1$s times speed"`) is a resource                                    |
 
+**The numeric readouts are the one row to revisit if translation is ever turned on.**
+`TrimRulerMath.kt` formats with `Locale.US`, so a German reader sees `2.30s` where the locale calls
+for `2,30s` — the decimal separator is a locale property, not a value. Deliberate today, and not a
+regression (the readouts were `Locale.US` before issue #154 too), but it is the single place the
+separator would have to follow the configuration.
+
+The **unit** is already split out. A screen reader can voice the `s` of `0.40s` as the letter, so the
+trim handles and the range pill speak through `trim_handle_state_description` /
+`trim_range_content_description` (`"%1$s seconds"`) while the visible pill keeps `0.40s`. The
+argument is `formatTrimClockValue` — the same number, unit stripped — so the two cannot drift.
+
 ## Turning translation on (Play Console — owner action, not a code change)
 
 1. **Grow users → Translations → App strings → Get started.**

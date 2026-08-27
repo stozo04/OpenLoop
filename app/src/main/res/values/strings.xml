@@ -140,6 +140,11 @@
     <string name="trim_section_title">TRIM YOUR VIDEO</string>
     <string name="trim_handle_start">Trim start</string>
     <string name="trim_handle_end">Trim end</string>
+    <!-- Spoken forms only: the visible pill and handles show "2.30s", but a screen reader can voice
+         a bare "s" as the letter, so TalkBack gets the unit spelled out. %1$s / %2$s are the same
+         numbers the pill shows, unit stripped (formatTrimClockValue in TrimRulerMath.kt). -->
+    <string name="trim_handle_state_description">%1$s seconds</string>
+    <string name="trim_range_content_description">%1$s seconds to %2$s seconds</string>
 
     <!-- Discard-clip dialog, shared by Trim and the editor (only the dismiss verb differs). -->
     <string name="discard_dialog_title">Discard this clip?</string>
