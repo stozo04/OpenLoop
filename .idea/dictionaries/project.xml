@@ -230,6 +230,7 @@
       <w>libimage</w>
       <w>libmediapipe</w>
       <w>libwebp</w>
+      <w>libx</w>
       <w>lifecycle</w>
       <w>lifecycles</w>
       <w>lifecyclescope</w>
@@ -254,6 +255,7 @@
       <w>macroblock</w>
       <w>macroblocks</w>
       <w>makedirs</w>
+      <w>malloced</w>
       <w>mappability</w>
       <w>markdownlint</w>
       <w>matcap</w>
@@ -410,6 +412,7 @@
       <w>techbloat</w>
       <w>techrt</w>
       <w>telehealth</w>
+      <w>testsrc</w>
       <w>testtag</w>
       <w>tflite</w>
       <w>threebutton</w>
