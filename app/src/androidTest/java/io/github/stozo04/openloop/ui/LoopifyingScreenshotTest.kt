@@ -2,6 +2,7 @@ package io.github.stozo04.openloop.ui
 
 import android.Manifest
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.Environment
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
@@ -36,9 +37,17 @@ class LoopifyingScreenshotTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
+    // The manifest requests WRITE_EXTERNAL_STORAGE only up to API 28 (maxSdkVersion="28"); from
+    // API 29 scoped storage lets the app create its own file under Download/ with no permission,
+    // and granting a permission the package never requested throws
+    // SecurityException("Error granting runtime permission") on Android 14 (Pixel_8_API34 lane).
     @get:Rule
     val grantStorageRule: GrantPermissionRule = GrantPermissionRule.grant(
-        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        *if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            emptyArray()
+        },
     )
 
     @Test
