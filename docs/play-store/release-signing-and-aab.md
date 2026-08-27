@@ -67,6 +67,44 @@ local checks, not for upload).
    and add yourself as a tester to install via the opt-in link.
 3. Promote to **Production** once you've verified on-device.
 
+## 5. Tag the release on GitHub
+
+**Every public Play release gets a matching GitHub release.** Not to distribute binaries — for the
+tag. Crashlytics reports crashes against `versionName` (e.g. `1.0.48`), and without a tag there is
+no way to check out the code that shipped it.
+
+Cut it from the merge commit of the `chore/release-<version>` bump — the exact tree
+`:app:bundleRelease` was built from:
+
+```powershell
+# right after the bump merges — write this sha down, it is what you build the AAB from
+git fetch origin && git rev-parse origin/main
+
+# after the .aab is uploaded to Play
+gh release create v1.0.NN --target <that-sha> --generate-notes
+```
+
+- **Tag at upload time, not when the rollout finishes.** Internal-testing crashes report the same
+  `versionName`, so the tag has to exist before the test track does. A staged rollout doesn't
+  change what a tag means — it names the code, not the audience.
+- **`--target` is not optional.** Without it `gh` tags whatever the default branch points at *now*,
+  and main routinely moves between the bump merge and the release going out. Pin the recorded sha.
+- **Play rejected the build?** Bump `versionCode`, upload again, cut a new tag. Stale tags are cheap.
+- **First release only:** `--generate-notes` needs a previous tag to diff against, so the very first
+  one spans the whole repo history. Pass `-n "..."` by hand that once; every release after it
+  generates its own notes from the merged PRs.
+
+### Never attach the AAB or a locally built APK
+
+The local build is signed with the **upload key**; Play re-signs with the **app signing key** and
+distributes that. Android requires an update to match the installed app's signing key, so an APK
+downloaded from a GitHub release cannot update a Play install — or the reverse — without a full
+uninstall. That forks the install base permanently.
+
+If a downloadable APK is ever wanted, the compatible artifact is the Play-signed **universal APK**
+from *Play Console → Release → App bundle explorer → Downloads*, which carries the app signing key.
+Default: attach nothing. The release is the tag plus its notes.
+
 ## Notes
 
 - **`versionCode` must increase every upload** (`app/build.gradle.kts` → `defaultConfig.versionCode`;
