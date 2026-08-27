@@ -3,6 +3,9 @@ package io.github.stozo04.openloop.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -85,7 +88,7 @@ class TrimScreenTest {
     fun rangePill_reflectsTheTrimmedWindow() {
         setContent(durationMs = 5_000L, startMs = 1_000L, endMs = 4_000L)
         composeTestRule.onNodeWithTag("trim_range_label").assertIsDisplayed()
-        composeTestRule.onNodeWithText("00:01.0  —  00:04.0").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1.00s  —  4.00s").assertIsDisplayed()
     }
 
     @Test
@@ -120,6 +123,26 @@ class TrimScreenTest {
             .assertRangeInfoEquals(ProgressBarRangeInfo(0f, 0f..4_000f))
         composeTestRule.onNodeWithContentDescription("Trim end")
             .assertRangeInfoEquals(ProgressBarRangeInfo(4_000f, 0f..4_000f))
+    }
+
+    /**
+     * The spoken forms spell the unit out. `0.00s` is fine to read but a TTS engine can voice the
+     * trailing `s` as the letter, so the semantics say "0.00 seconds" while the pill and handles
+     * still *show* the compact `0.00s`. A test cannot drive TalkBack itself, so this pins the
+     * semantics TalkBack reads from.
+     */
+    @Test
+    fun trimReadouts_speakTheUnitInsteadOfABareS() {
+        setContent(durationMs = 4_000L, startMs = 0L, endMs = 4_000L)
+
+        composeTestRule.onNodeWithContentDescription("Trim start")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "0.00 seconds"))
+        composeTestRule.onNodeWithContentDescription("Trim end")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "4.00 seconds"))
+        // The pill's em-dash is visual shorthand; spoken it becomes "to".
+        composeTestRule.onNodeWithContentDescription("0.00 seconds to 4.00 seconds").assertIsDisplayed()
+        // …and the visible text is unchanged by any of that.
+        composeTestRule.onNodeWithText("0.00s  —  4.00s").assertIsDisplayed()
     }
 
     @Test

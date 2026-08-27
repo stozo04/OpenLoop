@@ -310,7 +310,7 @@ class OpenLoopViewModel(
     /**
      * Elapsed recording time in milliseconds, driven by the capture timer while in
      * [OpenLoopUiState.Recording]. The UI reads this to draw the shutter progress ring and the
-     * `00:00 / 00:30` countdown chip. It re-emits roughly every [TICK_DURATION] and is reset to 0
+     * `0s / 30s` countdown chip. It re-emits roughly every [TICK_DURATION] and is reset to 0
      * whenever a capture stops. Value is clamped to [MAX_RECORDING].
      */
     private val _recordingElapsedMs = MutableStateFlow(0L)
@@ -1760,7 +1760,13 @@ class OpenLoopViewModel(
      * Context → repositories, keeping this Factory and the ViewModel Context-free.
      */
     companion object {
-        /** Hard cap on a single burst capture; recording auto-finalizes at this elapsed time. */
+        /**
+         * Hard cap on a single burst capture; recording auto-finalizes at this elapsed time.
+         *
+         * Every Trim readout (`formatTrimClock` / `formatTrimRulerLabel` in `TrimRulerMath.kt`) shows
+         * seconds only because of this cap (issue #154). Raise it — or [IMPORT_MAX_DURATION] — past
+         * 60 s and those formatters need a minutes field back; `TrimRulerMathTest` pins the ceiling.
+         */
         val MAX_RECORDING = 30.seconds
 
         /** Elapsed-time emit cadence (~30 fps) for a smooth progress ring without over-emitting. */

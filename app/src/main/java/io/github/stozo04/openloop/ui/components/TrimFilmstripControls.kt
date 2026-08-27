@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -73,7 +75,6 @@ import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -91,7 +92,7 @@ private enum class TrimDragTarget { NONE, START, END }
 
 /**
  * Trim panel matching the reference mock: caption, time ruler, filmstrip with dimmed-outside
- * selection, lime handles, and a centered range pill (`00:02.3 — 00:10.8`).
+ * selection, lime handles, and a centered range pill (`2.30s — 10.80s`; formats in TrimRulerMath.kt).
  */
 @Composable
 fun TrimFilmstripControls(
@@ -148,14 +149,6 @@ fun TrimFilmstripControls(
     }
 }
 
-/** `00:02.3` style clock for trim readouts (minutes + seconds with one decimal). */
-fun formatTrimClock(ms: Long): String {
-    val totalSeconds = ms / 1000.0
-    val minutes = (totalSeconds / 60.0).toInt()
-    val seconds = totalSeconds - minutes * 60.0
-    return String.format(Locale.US, "%02d:%04.1f", minutes, seconds)
-}
-
 @Composable
 private fun TimelineRuler(
     durationMs: Long,
@@ -171,68 +164,80 @@ private fun TimelineRuler(
     val safeDurationMs = durationMs.coerceAtLeast(1L)
     val majorIntervalMs = trimRulerMajorIntervalMs(safeDurationMs)
     val minorIntervalMs = trimRulerMinorIntervalMs(majorIntervalMs)
-    val labelTimesMs = trimRulerLabelTimesMs(safeDurationMs)
 
-    Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-        val labelY = labelTextSizePx + 2f
-        val tickTop = height * 0.55f
-        val tickBottom = height * 0.95f
+    // drawWithCache, not Canvas: the three Paints, the measureText and the label list are built
+    // once per (rail size, duration) instead of on every draw pass. Nothing invalidates this node
+    // per frame today — the ruler redraws only when the clip or the layout changes — but these are
+    // objects created purely for drawing, which is the case drawWithCache exists for, and it means
+    // a later animation over the rail cannot silently turn them into per-frame allocations.
+    Spacer(
+        modifier = modifier.drawWithCache {
+            val labelY = labelTextSizePx + 2f
+            val tickTop = size.height * 0.55f
+            val tickBottom = size.height * 0.95f
 
-        // Left/right edge labels pin to the rail so "00:00" / end don't clip off-canvas.
-        val centerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = labelColor.toArgb()
-            textSize = labelTextSizePx
-            textAlign = Paint.Align.CENTER
-        }
-        val leftPaint = Paint(centerPaint).apply { textAlign = Paint.Align.LEFT }
-        val rightPaint = Paint(centerPaint).apply { textAlign = Paint.Align.RIGHT }
-
-        fun xFor(timeMs: Long): Float =
-            (timeMs.toFloat() / safeDurationMs).coerceIn(0f, 1f) * width
-
-        for (timeMs in labelTimesMs) {
-            val x = xFor(timeMs)
-            drawLine(
-                color = majorTickColor,
-                start = Offset(x, tickTop),
-                end = Offset(x, tickBottom),
-                strokeWidth = 2f,
-            )
-            val paint = when (timeMs) {
-                0L -> leftPaint
-                safeDurationMs -> rightPaint
-                else -> centerPaint
+            // Left/right edge labels pin to the rail so "0.0s" / end don't clip off-canvas.
+            val centerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = labelColor.toArgb()
+                textSize = labelTextSizePx
+                textAlign = Paint.Align.CENTER
             }
-            val label = if (timeMs == safeDurationMs) {
-                formatTrimRulerEndLabel(timeMs)
-            } else {
-                formatTrimRulerLabel(timeMs)
-            }
-            drawContext.canvas.nativeCanvas.drawText(label, x, labelY, paint)
-        }
+            val leftPaint = Paint(centerPaint).apply { textAlign = Paint.Align.LEFT }
+            val rightPaint = Paint(centerPaint).apply { textAlign = Paint.Align.RIGHT }
 
-        val minorCount = (safeDurationMs / minorIntervalMs).toInt()
-        for (i in 0..minorCount) {
-            val timeMs = i * minorIntervalMs
-            if (labelTimesMs.any { abs(it - timeMs) < minorIntervalMs / 2 }) continue
-            val x = xFor(timeMs)
-            drawLine(
-                color = minorTickColor,
-                start = Offset(x, tickTop + (tickBottom - tickTop) * 0.4f),
-                end = Offset(x, tickBottom),
-                strokeWidth = 1f,
+            // The end label is the widest on the rail; keep 1.5 of it clear beside each edge label.
+            val edgeClearance = trimRulerEdgeClearance(
+                labelWidthPx = centerPaint.measureText(formatTrimRulerLabel(safeDurationMs)),
+                railWidthPx = size.width,
             )
-        }
+            val labelTimesMs = trimRulerLabelTimesMs(safeDurationMs, edgeClearance)
 
-        drawLine(
-            color = minorTickColor,
-            start = Offset(0f, tickTop + 2f),
-            end = Offset(width, tickTop + 2f),
-            strokeWidth = 1f,
-        )
-    }
+            fun xFor(timeMs: Long, width: Float): Float =
+                (timeMs.toFloat() / safeDurationMs).coerceIn(0f, 1f) * width
+
+            onDrawBehind {
+                val width = size.width
+
+                for (timeMs in labelTimesMs) {
+                    val x = xFor(timeMs, width)
+                    drawLine(
+                        color = majorTickColor,
+                        start = Offset(x, tickTop),
+                        end = Offset(x, tickBottom),
+                        strokeWidth = 2f,
+                    )
+                    val paint = when (timeMs) {
+                        0L -> leftPaint
+                        safeDurationMs -> rightPaint
+                        else -> centerPaint
+                    }
+                    drawContext.canvas.nativeCanvas.drawText(
+                        formatTrimRulerLabel(timeMs), x, labelY, paint,
+                    )
+                }
+
+                val minorCount = (safeDurationMs / minorIntervalMs).toInt()
+                for (i in 0..minorCount) {
+                    val timeMs = i * minorIntervalMs
+                    if (labelTimesMs.any { abs(it - timeMs) < minorIntervalMs / 2 }) continue
+                    val x = xFor(timeMs, width)
+                    drawLine(
+                        color = minorTickColor,
+                        start = Offset(x, tickTop + (tickBottom - tickTop) * 0.4f),
+                        end = Offset(x, tickBottom),
+                        strokeWidth = 1f,
+                    )
+                }
+
+                drawLine(
+                    color = minorTickColor,
+                    start = Offset(0f, tickTop + 2f),
+                    end = Offset(width, tickTop + 2f),
+                    strokeWidth = 1f,
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -242,6 +247,13 @@ private fun TrimRangePill(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(percent = 50)
+    // The em-dash and the bare "s" are visual shorthand; spoken, they become "to" and "seconds".
+    // Hoisted because semantics {} is not a composable scope (docs/guides/localization.md).
+    val spokenRange = stringResource(
+        R.string.trim_range_content_description,
+        formatTrimClockValue(startMs),
+        formatTrimClockValue(endMs),
+    )
     Text(
         text = "${formatTrimClock(startMs)}  —  ${formatTrimClock(endMs)}",
         color = Color.White,
@@ -251,6 +263,7 @@ private fun TrimRangePill(
             .clip(shape)
             .background(OverlayScrim)
             .padding(horizontal = 18.dp, vertical = 8.dp)
+            .semantics { contentDescription = spokenRange }
             .testTag("trim_range_label"),
     )
 }
@@ -510,6 +523,12 @@ private fun TrimDragHandle(
 ) {
     val density = LocalDensity.current
     val touchPadPx = ((touchWidthPx - visualWidthPx) / 2f).roundToInt()
+    // The handle's spoken position. Same number as the pill, unit spelled out — see
+    // formatTrimClockValue. Hoisted because semantics {} is not a composable scope.
+    val spokenValue = stringResource(
+        R.string.trim_handle_state_description,
+        formatTrimClockValue(valueMs),
+    )
 
     Box(
         modifier = Modifier
@@ -523,7 +542,7 @@ private fun TrimDragHandle(
             .height(with(density) { touchWidthPx.toDp() })
             .semantics(mergeDescendants = true) {
                 contentDescription = label
-                stateDescription = formatTrimClock(valueMs)
+                stateDescription = spokenValue
                 progressBarRangeInfo = ProgressBarRangeInfo(valueMs.toFloat(), rangeMs)
                 setProgress { target -> onSetValueMs(target.roundToLong()); true }
             }
