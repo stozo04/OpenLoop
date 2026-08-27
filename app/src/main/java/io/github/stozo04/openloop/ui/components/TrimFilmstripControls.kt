@@ -282,10 +282,14 @@ private fun FilmstripTrimSelector(
         val frameCount = (trackPx / with(density) { 48.dp.toPx() })
             .roundToInt()
             .coerceIn(FILMSTRIP_FRAME_MIN, FILMSTRIP_FRAME_MAX)
+        val stripTopPx = with(density) { 4.dp.toPx() }.roundToInt()
+        val stripHeightPx = with(density) { FILMSTRIP_HEIGHT.toPx() }.roundToInt()
+        // Each tile is weight(1f) of the track × the strip height — the decode target (Issue #149).
+        val tileWidthPx = (trackPx / frameCount).roundToInt()
 
-        val frames by produceState(emptyList(), sourceFile, durationMs, frameCount) {
+        val frames by produceState(emptyList(), sourceFile, durationMs, frameCount, tileWidthPx) {
             value = withContext(Dispatchers.IO) {
-                extractTrimFilmstripFrames(sourceFile, durationMs, frameCount)
+                extractTrimFilmstripFrames(sourceFile, durationMs, frameCount, tileWidthPx, stripHeightPx)
             }
         }
 
@@ -309,8 +313,6 @@ private fun FilmstripTrimSelector(
 
         val selectionStart = positionPx(startMs)
         val selectionEnd = positionPx(endMs).coerceAtLeast(selectionStart + 1f)
-        val stripTopPx = with(density) { 4.dp.toPx() }.roundToInt()
-        val stripHeightPx = with(density) { FILMSTRIP_HEIGHT.toPx() }.roundToInt()
 
         // ── Thumbnail row ──
         Row(
