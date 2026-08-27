@@ -53,13 +53,16 @@ class TrimRulerMathTest {
 
     @Test
     fun `penultimate major tick is dropped when it would crowd the end label`() {
-        // 2.0 s sits 200 ms from the right-pinned end — keep only the true end.
+        // 2.0 s sits at 91 % of the rail, under the right-pinned end — keep only the true end.
         assertEquals(listOf(0L, 1_000L, 2_200L), trimRulerLabelTimesMs(2_200L))
         assertEquals("2.2s", formatTrimRulerLabel(2_200L))
-        // Exactly half a second of clearance is enough to keep it.
+        // 20 % of the rail between them is plenty — keep it.
         assertEquals(listOf(0L, 1_000L, 2_000L, 2_500L), trimRulerLabelTimesMs(2_500L))
-        // A 30.4 s import (cap + grace) drops the 30 s tick the same way.
-        assertEquals(listOf(0L, 10_000L, 20_000L, 30_400L), trimRulerLabelTimesMs(30_400L))
+        // Clearance scales with the clip: a 31 s import (cap + grace) drops its 30 s tick, which sits
+        // at 97 % of the rail — a fixed-ms rule kept it and drew "30.0s" under "31.0s".
+        assertEquals(listOf(0L, 10_000L, 20_000L, 31_000L), trimRulerLabelTimesMs(31_000L))
+        // The emulator-drift clip from the PR screenshot: "60.0s" at 92 % must not sit under "65.5s".
+        assertEquals(listOf(0L, 15_000L, 30_000L, 45_000L, 65_460L), trimRulerLabelTimesMs(65_460L))
     }
 
     @Test
@@ -87,7 +90,7 @@ class TrimRulerMathTest {
     }
 
     @Test
-    fun `seconds-only readouts are safe because no clip can reach a minute`() {
+    fun `seconds-only readouts rest on the configured clip ceiling staying under a minute`() {
         // Raising MAX_RECORDING (or IMPORT_MAX_DURATION) past 60 s means formatTrimClock /
         // formatTrimRulerLabel must grow a minutes field back — see the KDoc on MAX_RECORDING.
         val longestClip = OpenLoopViewModel.IMPORT_MAX_DURATION + OpenLoopViewModel.IMPORT_DURATION_GRACE
@@ -96,6 +99,8 @@ class TrimRulerMathTest {
             longestClip < 60.seconds,
         )
         assertTrue(OpenLoopViewModel.MAX_RECORDING <= OpenLoopViewModel.IMPORT_MAX_DURATION)
+        // A capture that drifts past the cap (tick-based timer on a starved emulator) still reads.
+        assertEquals("65.46s", formatTrimClock(65_460L))
     }
 
     @Test
