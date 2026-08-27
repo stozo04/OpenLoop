@@ -73,7 +73,6 @@ import io.github.stozo04.openloop.ui.theme.TimerTextStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -91,7 +90,7 @@ private enum class TrimDragTarget { NONE, START, END }
 
 /**
  * Trim panel matching the reference mock: caption, time ruler, filmstrip with dimmed-outside
- * selection, lime handles, and a centered range pill (`00:02.3 — 00:10.8`).
+ * selection, lime handles, and a centered range pill (`2.30s — 10.80s`; formats in TrimRulerMath.kt).
  */
 @Composable
 fun TrimFilmstripControls(
@@ -148,14 +147,6 @@ fun TrimFilmstripControls(
     }
 }
 
-/** `00:02.3` style clock for trim readouts (minutes + seconds with one decimal). */
-fun formatTrimClock(ms: Long): String {
-    val totalSeconds = ms / 1000.0
-    val minutes = (totalSeconds / 60.0).toInt()
-    val seconds = totalSeconds - minutes * 60.0
-    return String.format(Locale.US, "%02d:%04.1f", minutes, seconds)
-}
-
 @Composable
 private fun TimelineRuler(
     durationMs: Long,
@@ -180,7 +171,7 @@ private fun TimelineRuler(
         val tickTop = height * 0.55f
         val tickBottom = height * 0.95f
 
-        // Left/right edge labels pin to the rail so "00:00" / end don't clip off-canvas.
+        // Left/right edge labels pin to the rail so "0.0s" / end don't clip off-canvas.
         val centerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = labelColor.toArgb()
             textSize = labelTextSizePx
@@ -205,12 +196,7 @@ private fun TimelineRuler(
                 safeDurationMs -> rightPaint
                 else -> centerPaint
             }
-            val label = if (timeMs == safeDurationMs) {
-                formatTrimRulerEndLabel(timeMs)
-            } else {
-                formatTrimRulerLabel(timeMs)
-            }
-            drawContext.canvas.nativeCanvas.drawText(label, x, labelY, paint)
+            drawContext.canvas.nativeCanvas.drawText(formatTrimRulerLabel(timeMs), x, labelY, paint)
         }
 
         val minorCount = (safeDurationMs / minorIntervalMs).toInt()

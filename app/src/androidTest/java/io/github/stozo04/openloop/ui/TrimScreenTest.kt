@@ -85,7 +85,7 @@ class TrimScreenTest {
     fun rangePill_reflectsTheTrimmedWindow() {
         setContent(durationMs = 5_000L, startMs = 1_000L, endMs = 4_000L)
         composeTestRule.onNodeWithTag("trim_range_label").assertIsDisplayed()
-        composeTestRule.onNodeWithText("00:01.0  —  00:04.0").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1.00s  —  4.00s").assertIsDisplayed()
     }
 
     @Test

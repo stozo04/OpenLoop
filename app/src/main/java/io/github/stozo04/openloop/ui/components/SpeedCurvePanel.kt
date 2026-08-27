@@ -80,7 +80,7 @@ private val TIME_AXIS_HEIGHT = 16.dp
 /** Half a `labelSmall` line, so a marker's baseline centers on its guideline rather than hanging below it. */
 private val AXIS_LABEL_HALF_HEIGHT = 7.dp
 
-/** Approximate width of a `mm:ss` tick label, used to center it on its tick. */
+/** Approximate width of a `12.0s` tick label, used to center it on its tick. */
 private val TIME_LABEL_WIDTH = 44.dp
 
 /**
@@ -674,16 +674,11 @@ private fun TimeAxisLabels(
         val labelWidthPx = with(density) { TIME_LABEL_WIDTH.toPx() }
         val usableWidth = (constraints.maxWidth - insetPx * 2f).coerceAtLeast(1f)
 
-        times.forEachIndexed { index, timeMs ->
+        times.forEach { timeMs ->
             val fraction = (timeMs.toFloat() / loopDurationMs.toFloat()).coerceIn(0f, 1f)
             Text(
-                // The last tick carries a decimal, matching the Trim ruler: an 8.6 s loop should not
-                // round its own end to "00:09".
-                text = if (index == times.lastIndex) {
-                    formatTrimRulerEndLabel(timeMs)
-                } else {
-                    formatTrimRulerLabel(timeMs)
-                },
+                // Same tenths format as the Trim ruler, so an 8.6 s loop ends at "8.6s", not "9.0s".
+                text = formatTrimRulerLabel(timeMs),
                 color = TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,

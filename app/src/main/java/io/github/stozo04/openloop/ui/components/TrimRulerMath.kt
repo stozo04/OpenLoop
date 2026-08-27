@@ -5,7 +5,13 @@ import java.util.Locale
 /**
  * Pure timeline-ruler math for the Trim filmstrip, kept free of Compose/Android imports so it is
  * JVM-testable. The ruler must span exactly `[0, durationMs]` — the same domain as the filmstrip
- * handles — otherwise short clips show a padded end label (e.g. `00:05` on a 2.6 s video).
+ * handles — otherwise short clips show a padded end label (e.g. `5.0s` on a 2.6 s video).
+ *
+ * Every trim time on screen — the range pill, the handle `stateDescription`, the ruler ticks, the
+ * speed graph's axis — is formatted here as **seconds only**. Both entry points cap a clip at
+ * `OpenLoopViewModel.MAX_RECORDING` (30 s, plus `IMPORT_DURATION_GRACE` for imports), so a minutes
+ * field could never be non-zero and its width goes to sub-second precision instead (issue #154).
+ * `TrimRulerMathTest` pins that cap: raise it past 60 s and these formatters need minutes back.
  */
 
 /** Major label spacing, scaled to clip length so short captures still get useful ticks. */
@@ -24,43 +30,36 @@ internal fun trimRulerMinorIntervalMs(majorIntervalMs: Long): Long = when {
 }
 
 /**
+ * An intermediate label closer than this to the end is dropped, so a 2.2 s clip does not draw
+ * `2.0s` on top of the right-pinned `2.2s`. Half a second is exactly what the previous
+ * whole-second collision rule amounted to for ticks that always sit on whole seconds.
+ */
+private const val RULER_END_LABEL_CLEARANCE_MS = 500L
+
+/**
  * Label times in ms for the ruler. Always includes `0` and [durationMs]; intermediate labels land
- * on major-interval multiples whose rounded `mm:ss` text would not collide with the end's
- * rounded second (so a 2.2 s clip does not draw a whole-second `"00:02"` next to end `"00:02.2"`).
+ * on major-interval multiples at least [RULER_END_LABEL_CLEARANCE_MS] short of the end.
  */
 internal fun trimRulerLabelTimesMs(durationMs: Long): List<Long> {
     val safe = durationMs.coerceAtLeast(0L)
     if (safe == 0L) return listOf(0L)
 
     val major = trimRulerMajorIntervalMs(safe)
-    val endRounded = formatTrimRulerLabel(safe)
     val labels = mutableListOf(0L)
     var t = major
-    while (t < safe) {
-        if (formatTrimRulerLabel(t) != endRounded) {
-            labels.add(t)
-        }
+    while (safe - t >= RULER_END_LABEL_CLEARANCE_MS) {
+        labels.add(t)
         t += major
     }
     labels.add(safe)
     return labels
 }
 
-/** `mm:ss` label for intermediate ticks; rounds to the nearest whole second. */
-internal fun formatTrimRulerLabel(ms: Long): String {
-    val totalSeconds = ((ms.coerceAtLeast(0L) + 500L) / 1_000L)
-    val minutes = totalSeconds / 60L
-    val seconds = totalSeconds % 60L
-    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
-}
+/** Trim readout with hundredths — `2.30s`. The range pill and the handles' `stateDescription`. */
+internal fun formatTrimClock(ms: Long): String = formatTrimSeconds(ms, decimals = 2)
 
-/**
- * End-of-ruler label with one decimal — same shape as the range pill (`formatTrimClock`) so a
- * 2.6 s clip reads `00:02.6` instead of a rounded `00:03`.
- */
-internal fun formatTrimRulerEndLabel(ms: Long): String {
-    val totalSeconds = ms.coerceAtLeast(0L) / 1000.0
-    val minutes = (totalSeconds / 60.0).toInt()
-    val seconds = totalSeconds - minutes * 60.0
-    return String.format(Locale.US, "%02d:%04.1f", minutes, seconds)
-}
+/** Ruler tick with tenths — `2.0s`. Every tick, whole-second or the true end, reads the same way. */
+internal fun formatTrimRulerLabel(ms: Long): String = formatTrimSeconds(ms, decimals = 1)
+
+private fun formatTrimSeconds(ms: Long, decimals: Int): String =
+    String.format(Locale.US, "%.${decimals}fs", ms.coerceAtLeast(0L) / 1000.0)

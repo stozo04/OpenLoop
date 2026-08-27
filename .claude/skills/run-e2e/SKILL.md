@@ -95,8 +95,8 @@ Steps:
    - First switch off gesture nav so an edge drag doesn't fire Android's back gesture (which pops
      "Discard this clip?"): `adb -s $Serial shell cmd overlay enable com.android.internal.systemui.navbar.threebutton`.
    - Use a **slow** drag (~1200–1400 ms) landing squarely on the handle row; fast swipes are read
-     as flings and ignored. Confirm the duration label changed (e.g. `00:00.0 – 00:04.1` →
-     `– 00:02.7`). If a "Discard this clip?" dialog appears, tap **Keep** and retry inset from the edge.
+     as flings and ignored. Confirm the duration label changed (e.g. `0.00s — 4.10s` →
+     `— 2.70s`). If a "Discard this clip?" dialog appears, tap **Keep** and retry inset from the edge.
    - If the handle won't grab after a few tries, that's itself a finding (see the known trim-handle
      bug) — note it and move on; don't burn the whole run fighting it.
 3. **Speed tab** — the speed control is a **SeekBar** ("Playback speed"); the 0.5x/1x/2x are tick
