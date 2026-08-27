@@ -162,7 +162,6 @@ private fun TimelineRuler(
     val safeDurationMs = durationMs.coerceAtLeast(1L)
     val majorIntervalMs = trimRulerMajorIntervalMs(safeDurationMs)
     val minorIntervalMs = trimRulerMinorIntervalMs(majorIntervalMs)
-    val labelTimesMs = trimRulerLabelTimesMs(safeDurationMs)
 
     Canvas(modifier = modifier) {
         val width = size.width
@@ -179,6 +178,13 @@ private fun TimelineRuler(
         }
         val leftPaint = Paint(centerPaint).apply { textAlign = Paint.Align.LEFT }
         val rightPaint = Paint(centerPaint).apply { textAlign = Paint.Align.RIGHT }
+
+        // The end label is the widest on the rail; keep 1.5 of it clear beside each edge label.
+        val edgeClearance = trimRulerEdgeClearance(
+            labelWidthPx = centerPaint.measureText(formatTrimRulerLabel(safeDurationMs)),
+            railWidthPx = width,
+        )
+        val labelTimesMs = trimRulerLabelTimesMs(safeDurationMs, edgeClearance)
 
         fun xFor(timeMs: Long): Float =
             (timeMs.toFloat() / safeDurationMs).coerceIn(0f, 1f) * width

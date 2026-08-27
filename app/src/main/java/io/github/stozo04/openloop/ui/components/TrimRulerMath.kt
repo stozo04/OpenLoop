@@ -16,44 +16,52 @@ import java.util.Locale
  * it past 60 s and these formatters need minutes back.
  */
 
-/** Major label spacing, scaled to clip length so short captures still get useful ticks. */
+/**
+ * Labelled-tick spacing. Every second up to 10 s — the length of most boomerang captures — then
+ * the coarsest step that still keeps about ten labels on the rail: a 360 dp phone fits ten
+ * `10.0s`-wide labels at 11 sp and no more. The 1 s resolution survives as minor ticks on the
+ * longer clips ([trimRulerMinorIntervalMs]).
+ */
 internal fun trimRulerMajorIntervalMs(durationMs: Long): Long = when {
-    durationMs <= 5_000L -> 1_000L
-    durationMs <= 15_000L -> 5_000L
-    durationMs <= 60_000L -> 10_000L
-    else -> 15_000L
+    durationMs <= 10_000L -> 1_000L
+    durationMs <= 20_000L -> 2_000L
+    durationMs <= 60_000L -> 5_000L
+    else -> 10_000L
 }
 
-/** Minor tick spacing under a given major interval. */
+/** Minor tick spacing under a given major interval; never coarser than one second. */
 internal fun trimRulerMinorIntervalMs(majorIntervalMs: Long): Long = when {
     majorIntervalMs <= 1_000L -> 250L
-    majorIntervalMs <= 5_000L -> 500L
+    majorIntervalMs <= 2_000L -> 500L
     else -> 1_000L
 }
 
 /**
- * An intermediate label closer than this fraction of the clip to the end is dropped, so it never
- * draws on top of the right-pinned end label — `2.0s` on a 2.2 s clip, `30.0s` on a 31 s import.
- * The ruler fills the screen width, so "too close" is a share of the duration, not a fixed number
- * of ms: 15 % clears a ~5-character label on a 360 dp phone with room to spare.
+ * The share of the rail beside each edge label that an intermediate label must stay out of. The
+ * edge labels are pinned to the rail ends and the intermediate ones are centred on their ticks,
+ * so the two touch when the tick is 1.5 label widths from the edge. Callers measure the widest
+ * label on their rail (the end label) and pass real pixels — a guessed percentage either drops
+ * `7.0s` beside `7.8s` on a phone where it fits, or draws `60.0s` under `65.5s` where it doesn't.
  */
-private const val RULER_END_LABEL_CLEARANCE_PERCENT = 15L
+internal fun trimRulerEdgeClearance(labelWidthPx: Float, railWidthPx: Float): Float =
+    if (railWidthPx <= 0f) 0f else 1.5f * labelWidthPx / railWidthPx
 
 /**
- * Label times in ms for the ruler. Always includes `0` and [durationMs]; intermediate labels land
- * on major-interval multiples at least [RULER_END_LABEL_CLEARANCE_PERCENT] of the clip short of
- * the end.
+ * Label times in ms for the ruler. Always includes `0` and [durationMs] — the end label is the
+ * clip's true length, never a rounded-up bucket. Intermediate labels sit on major-interval
+ * multiples, minus any that would land within [edgeClearance] (a fraction of the rail, from
+ * [trimRulerEdgeClearance]) of either pinned edge label.
  */
-internal fun trimRulerLabelTimesMs(durationMs: Long): List<Long> {
+internal fun trimRulerLabelTimesMs(durationMs: Long, edgeClearance: Float): List<Long> {
     val safe = durationMs.coerceAtLeast(0L)
     if (safe == 0L) return listOf(0L)
 
     val major = trimRulerMajorIntervalMs(safe)
-    val clearance = safe * RULER_END_LABEL_CLEARANCE_PERCENT / 100L
+    val clearanceMs = (safe * edgeClearance.coerceIn(0f, 1f)).toLong()
     val labels = mutableListOf(0L)
     var t = major
-    while (safe - t >= clearance) {
-        labels.add(t)
+    while (t <= safe - clearanceMs) {
+        if (t >= clearanceMs) labels.add(t)
         t += major
     }
     labels.add(safe)

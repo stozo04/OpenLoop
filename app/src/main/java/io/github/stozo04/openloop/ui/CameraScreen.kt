@@ -206,11 +206,10 @@ fun CameraScreen(
         }
     }
 
-    // Static cap label ("00:30") for the countdown chip — independent of elapsed time.
-    val capLabel = "%02d:%02d".format(
-        OpenLoopViewModel.MAX_RECORDING.inWholeMinutes,
-        OpenLoopViewModel.MAX_RECORDING.inWholeSeconds % 60
-    )
+    // Static cap label ("30s") for the countdown chip — independent of elapsed time. Seconds only,
+    // like every Trim readout (issue #154): the cap is under a minute, so a minutes field is dead
+    // width. Raise MAX_RECORDING past 60 s and this needs minutes back too.
+    val capLabel = "${OpenLoopViewModel.MAX_RECORDING.inWholeSeconds}s"
 
     // Zoom state for the ratio chip. Same REC-1 shape as the elapsed flow above: raw State, no
     // `.value` read at the screen root — during a pinch the ratio updates every frame, and the read
@@ -395,8 +394,8 @@ fun CameraScreen(
             RecordingCountdownChip(
                 visible = isRecording,
                 text = {
-                    val ms = recordingElapsedState.value
-                    "%02d:%02d / %s".format(ms / 60_000, (ms / 1000) % 60, capLabel)
+                    // Whole seconds, floored: a live counter that flickers tenths at ~30 fps is noise.
+                    "${recordingElapsedState.value / 1_000}s / $capLabel"
                 },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -1263,7 +1262,7 @@ fun BoothSwapHintChip(
 }
 
 /**
- * Top-center countdown chip shown only while recording: monospaced `MM:SS / 00:30` on a glass
+ * Top-center countdown chip shown only while recording: monospaced `5s / 30s` on a glass
  * surface (OverlayScrim 80% over a OverlayWhite 20% base). Renders nothing when [visible] is false,
  * so the visibility rule itself is testable (mirrors [OpenLoopUiState.Onboarding]'s hoisted pattern).
  *

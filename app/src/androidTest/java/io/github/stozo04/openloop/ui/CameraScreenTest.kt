@@ -119,12 +119,12 @@ class CameraScreenTest {
         composeTestRule.onNodeWithTag("progress_ring").assertIsDisplayed()
     }
 
-    // ── Countdown chip: hidden in idle, shows the supplied MM:SS / 00:30 text while recording ──
+    // ── Countdown chip: hidden in idle, shows the supplied "5s / 30s" text while recording ──
 
     @Test
     fun countdownChip_isHidden_whenNotRecording() {
         composeTestRule.setContent {
-            RecordingCountdownChip(visible = false, text = { "00:05 / 00:30" })
+            RecordingCountdownChip(visible = false, text = { "5s / 30s" })
         }
         composeTestRule.onNodeWithTag("countdown_chip").assertDoesNotExist()
     }
@@ -132,10 +132,10 @@ class CameraScreenTest {
     @Test
     fun countdownChip_showsElapsedAndCapText_whenRecording() {
         composeTestRule.setContent {
-            RecordingCountdownChip(visible = true, text = { "00:05 / 00:30" })
+            RecordingCountdownChip(visible = true, text = { "5s / 30s" })
         }
         composeTestRule.onNodeWithTag("countdown_chip").assertIsDisplayed()
-        composeTestRule.onNodeWithText("00:05 / 00:30").assertIsDisplayed()
+        composeTestRule.onNodeWithText("5s / 30s").assertIsDisplayed()
     }
 
     // ── Home button: meets the 48dp minimum touch target (WARNING-3) ──

@@ -666,13 +666,15 @@ private fun TimeAxisLabels(
         Spacer(modifier.height(TIME_AXIS_HEIGHT))
         return
     }
-    val times = remember(loopDurationMs) { trimRulerLabelTimesMs(loopDurationMs) }
     val density = LocalDensity.current
 
     BoxWithConstraints(modifier = modifier.height(TIME_AXIS_HEIGHT)) {
         val insetPx = with(density) { GRAPH_INSET.toPx() }
         val labelWidthPx = with(density) { TIME_LABEL_WIDTH.toPx() }
         val usableWidth = (constraints.maxWidth - insetPx * 2f).coerceAtLeast(1f)
+        val times = remember(loopDurationMs, usableWidth) {
+            trimRulerLabelTimesMs(loopDurationMs, trimRulerEdgeClearance(labelWidthPx, usableWidth))
+        }
 
         times.forEach { timeMs ->
             val fraction = (timeMs.toFloat() / loopDurationMs.toFloat()).coerceIn(0f, 1f)
