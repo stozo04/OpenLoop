@@ -44,19 +44,25 @@ function Get-EvidenceDir {
 }
 
 function Resolve-Serial([string]$s) {
-  if ($s) { return $s }
-  if ($env:VERIFY_SERIAL) { return $env:VERIFY_SERIAL }
-  $adb = Get-Adb
-  $lines = & $adb devices
-  $emus = @($lines | Where-Object { $_ -match 'emulator-\d+\s+device' } | ForEach-Object { ($_ -split '\s+')[0] })
-  if ($emus.Count -eq 1) { return $emus[0] }
-  if ($emus.Count -gt 1) { throw "Multiple emulators: $($emus -join ', '). Set VERIFY_SERIAL." }
-  $devs = @($lines | Where-Object { $_ -match '\s+device$' -and $_ -notmatch 'emulator-' } | ForEach-Object { ($_ -split '\s+')[0] })
-  if ($devs.Count -ge 1) {
-    if ($env:VERIFY_ALLOW_DEVICE -eq '1') { return $devs[0] }
-    throw "Physical device $($devs[0]) attached. Refusing to drive it. Start an emulator, or set VERIFY_ALLOW_DEVICE=1 and VERIFY_SERIAL."
+  if ($s) { $resolved = $s }
+  elseif ($env:VERIFY_SERIAL) { $resolved = $env:VERIFY_SERIAL }
+  else {
+    $adb = Get-Adb
+    $lines = & $adb devices
+    $emus = @($lines | Where-Object { $_ -match 'emulator-\d+\s+device' } | ForEach-Object { ($_ -split '\s+')[0] })
+    if ($emus.Count -eq 1) { return $emus[0] }
+    if ($emus.Count -gt 1) { throw "Multiple emulators: $($emus -join ', '). Set VERIFY_SERIAL." }
+    $devs = @($lines | Where-Object { $_ -match '\s+device$' -and $_ -notmatch 'emulator-' } | ForEach-Object { ($_ -split '\s+')[0] })
+    if ($devs.Count -ge 1) {
+      if ($env:VERIFY_ALLOW_DEVICE -eq '1') { return $devs[0] }
+      throw "Physical device $($devs[0]) attached. Refusing to drive it. Start an emulator, or set VERIFY_ALLOW_DEVICE=1 and VERIFY_SERIAL."
+    }
+    throw 'No emulator or device (adb devices). Start an AVD first.'
   }
-  throw 'No emulator or device (adb devices). Start an AVD first.'
+  if ($resolved -notmatch '^emulator-' -and $env:VERIFY_ALLOW_DEVICE -ne '1') {
+    throw "Serial $resolved is not an emulator. Set VERIFY_ALLOW_DEVICE=1 only for a dedicated test phone."
+  }
+  return $resolved
 }
 
 $Evidence = Get-EvidenceDir
@@ -129,11 +135,13 @@ switch ($Action) {
     & $Adb -s $Serial shell am start -n $Activity
     Start-Sleep -Seconds 2
     pwsh $PSCommandPath doctor -Serial $Serial
+    if ($LASTEXITCODE -ne 0) { throw "doctor failed after launch on $Serial" }
     break
   }
   'dump' {
     if (-not (Test-Path $Uiauto)) { throw "missing $Uiauto" }
     & pwsh $Uiauto -Action dump -Serial $Serial
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     break
   }
   'tap' {
