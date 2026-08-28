@@ -36,7 +36,7 @@ Ready when `control.ps1 doctor` prints `ok` and `control.ps1 dump` shows one of:
 - `Start recording` (camera, video mode)
 - `Grant Permission` (in-context camera permission)
 
-Debug APK path: `app/build/outputs/apk/debug/app-debug.apk`. Install with `adb install -r -g` (the `-g` grants runtime permissions; still grant CAMERA explicitly). `gradlew :app:installDebug` can fail with a stale serial — assemble then `adb install`, same as `run-e2e`.
+Debug APK path: `app/build/outputs/apk/debug/app-debug.apk`. Install with `adb install -r -g` (the `-g` grants runtime permissions; still grant CAMERA explicitly). `gradlew :app:installDebug` can fail with a stale serial — assemble then `adb install`, same as `run-e2e`. If `install -r` fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (Play or release already on the AVD), `control.ps1 launch` uninstalls `io.github.stozo04.openloop` and installs the debug APK. That wipe is expected; onboarding will show.
 
 If launch fails, stop. Do not tap some other OpenLoop build (`com.OpenLoop.app` is a ghost package — ignore it).
 

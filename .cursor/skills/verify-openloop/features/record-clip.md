@@ -26,10 +26,10 @@ Preconditions:
 - Evidence dir `record-clip/` created.
 
 - **Confirm idle camera.** `control.ps1 dump` → `Start recording`, `Gallery`, `Flip Camera`, `Lenses` or `Lenses and Photo Booth`.
-- **Start.** `control.ps1 tap -Label "Start recording"`. Wait ~3–4 s. Dump shows `Stop recording` and testTag `progress_ring` may be present.
-- **Stop.** `control.ps1 tap -Label "Stop recording"`. Wait for Trim. Dump shows `TRIM YOUR VIDEO` or `Trim` and `SAVE` (testTags `trim_screen`, `trim_save`).
+- **Start.** `control.ps1 tap -Label "Start recording"`. Wait ~3–4 s. Dump shows `Stop recording` and a timer such as `6s / 30s` (testTag `progress_ring` is not in the uiautomator dump).
+- **Stop.** `control.ps1 tap -Label "Stop recording"`. Wait for Trim. Dump shows `TRIM YOUR VIDEO` and `SAVE` (also tab labels `Trim` / `Speed` / `Loop` / `Filter`). testTags `trim_screen` / `trim_save` are not in the dump.
 - **Too-short (optional).** From idle camera, start and stop immediately. Dump still has `Start recording` and text `That was quick!`.
-- **Proof.** `idle.txt`, `recording.txt`, `trim.txt`. Trim on screen is the resulting state. Do not call this feature saved — that is [edit-and-save](./edit-and-save.md).
+- **Proof.** `dump-before.txt` (idle), `dump-after-start.txt`, `dump-after-stop.txt` (aliases: `idle.txt`, `recording.txt`, `trim.txt`). Trim on screen is the resulting state. Do not call this feature saved — that is [edit-and-save](./edit-and-save.md).
 
 ## Gotchas
 

@@ -81,8 +81,8 @@ switch ($Action) {
     $ver = & $Adb -s $Serial shell dumpsys package $Package
     $name = ($ver | Select-String 'versionName=' | Select-Object -First 1).ToString().Trim()
     $code = ($ver | Select-String 'versionCode=' | Select-Object -First 1).ToString().Trim()
-    $pid = (& $Adb -s $Serial shell pidof $Package 2>$null)
-    Write-Output "doctor: ok serial=$Serial $name $code pid=$pid apk=$path"
+    $packagePid = (& $Adb -s $Serial shell pidof $Package 2>$null)
+    Write-Output "doctor: ok serial=$Serial $name $code pid=$packagePid apk=$path"
     break
   }
   'grant-camera' {
@@ -102,8 +102,29 @@ switch ($Action) {
       if ($LASTEXITCODE -ne 0) { throw 'assembleDebug failed' }
       if (-not (Test-Path $Apk)) { throw "APK missing after build: $Apk" }
     }
-    & $Adb -s $Serial install -r -g $Apk
-    if ($LASTEXITCODE -ne 0) { throw 'adb install failed' }
+    $oldEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $installLines = & $Adb -s $Serial install -r -g $Apk 2>&1
+    $installCode = $LASTEXITCODE
+    $ErrorActionPreference = $oldEap
+    $installText = ($installLines | ForEach-Object { $_.ToString() }) -join "`n"
+    if ($installText) { Write-Output $installText }
+    if ($installCode -ne 0) {
+      if ($installText -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE') {
+        Write-Output "launch: signature mismatch on $Package; uninstalling then installing debug APK"
+        & $Adb -s $Serial uninstall $Package
+        if ($LASTEXITCODE -ne 0) { throw 'adb uninstall failed after signature mismatch' }
+        $ErrorActionPreference = 'Continue'
+        $retryLines = & $Adb -s $Serial install -g $Apk 2>&1
+        $retryCode = $LASTEXITCODE
+        $ErrorActionPreference = $oldEap
+        $retryText = ($retryLines | ForEach-Object { $_.ToString() }) -join "`n"
+        if ($retryText) { Write-Output $retryText }
+        if ($retryCode -ne 0) { throw "adb install failed after uninstall: $retryText" }
+      } else {
+        throw "adb install failed: $installText"
+      }
+    }
     & $Adb -s $Serial shell pm grant $Package android.permission.CAMERA
     & $Adb -s $Serial shell am start -n $Activity
     Start-Sleep -Seconds 2
