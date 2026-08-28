@@ -101,7 +101,7 @@ you're stopped here, waiting for a human review.
 
 ## Step 4 — Build the signed AAB
 
-- Build from that exact merge sha: `git switch --detach <mergeCommitOid>` (or use a worktree).
+- Build from that exact merge sha: `git switch --detach <merge-sha>` (or use a worktree).
 - `.\gradlew.bat :app:bundleRelease` (`JAVA_HOME` = Android Studio's bundled JBR, per
   `DEFINITION_OF_DONE.md`'s environment notes).
 - `jarsigner -verify -verbose app/build/outputs/bundle/release/app-release.aab` — must report
@@ -147,7 +147,7 @@ the owner.
 ## Step 7 (after Stop B clears) — cut the tag
 
 ```powershell
-.\scripts\tag-release.ps1 -Version <version> -Sha <mergeCommitOid> `
+.\scripts\tag-release.ps1 -Version <version> -Sha <merge-sha> `
   [-Title "<version> — <one-line highlight>"] `
   [-NotesFile docs/local/github-release-notes-<version>.md]   # omit to use --generate-notes (default)
 ```
@@ -171,7 +171,8 @@ Report both. Do not add a vitals/quality check here — see "Owner call" above.
 2. Never type, or ask the owner to type, `versionCode`/`versionName` — read them from
    `app/build.gradle.kts`.
 3. Never derive the merge sha from a branch name or `origin/main` — always resolve it from the
-   actual merged PR (`mergeCommitOid`).
+   actual merged PR (`gh pr view <n> --json mergeCommit --jq '.mergeCommit.oid'`). There is no
+   `mergeCommitOid` field; `gh` rejects it.
 4. Never gather or gate on Play vitals numbers — out of scope for this skill per the
    2026-08-28 owner call; the other docs still document them as a separate manual step.
 5. Never attach the `.aab`, an unsigned APK, or any binary to the GitHub release —

@@ -66,6 +66,10 @@ local checks, not for upload).
 
 > Sanity-check the signature: `jarsigner -verify -verbose app/build/outputs/bundle/release/app-release.aab`
 
+Then copy the bundle to **`releases/openloop-<version>-<versionCode>.aab`** — the local archive of
+what each version shipped (already gitignored by the blanket `*.aab` rule). `scripts/tag-release.ps1`
+warns when the bundle for the version being tagged is missing from there.
+
 ## 4. First upload
 
 1. In **Play Console → your app → Release → Setup → App integrity**, opt into **Play App Signing**
@@ -87,8 +91,8 @@ ancestor of `main` with a matching `versionName`, which a bare command (or the w
 target field) does not stop you from getting wrong:
 
 ```powershell
-# right after the bump merges — write this sha down, it is what you build the AAB from
-git fetch origin && git rev-parse origin/main
+# right after the bump merges — resolve the sha from the merged PR, never from main
+gh pr view <bump-pr-number> --json mergeCommit --jq '.mergeCommit.oid'
 
 # after the .aab is uploaded to Play
 .\scripts\tag-release.ps1 -Version 1.0.NN -Sha <that-sha> -Title "1.0.NN — <one-line highlight>"

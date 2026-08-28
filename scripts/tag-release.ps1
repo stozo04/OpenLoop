@@ -13,13 +13,25 @@
     that sha is on main, matches the versionName being tagged, and that the AAB built from it exists
     locally before creating the release.
 
-.PARAMETER Version    Tag name / versionName, e.g. "1.0.49" (no "v" prefix — matches 1.0.49, the
-                       first tag cut for this repo).
-.PARAMETER Sha         The chore/release-<version> bump's merge commit on main. Get it right after
-                       merging: git fetch origin && git rev-parse origin/main
-.PARAMETER Title       Release title. Defaults to the version.
-.PARAMETER NotesFile   Path to hand-written release notes. Omit to use `gh --generate-notes`
-                       (works once a previous tag exists to diff against — true from 1.0.49 on).
+.PARAMETER Version
+    Tag name / versionName, e.g. "1.0.49" (no "v" prefix — matches 1.0.49, the first tag cut for
+    this repo).
+
+.PARAMETER Sha
+    The chore/release-<version> bump's merge commit on main. Resolve it from the merged PR itself,
+    never from a branch:
+
+        gh pr view <n> --json mergeCommit --jq '.mergeCommit.oid'
+
+    git rev-parse origin/main is only correct if nothing else merged in the gap between the bump
+    PR and now — the exact race this script exists to close (see DESCRIPTION above).
+
+.PARAMETER Title
+    Release title. Defaults to the version.
+
+.PARAMETER NotesFile
+    Path to hand-written release notes. Omit to use `gh --generate-notes` (works once a previous
+    tag exists to diff against — true from 1.0.49 on).
 
 .EXAMPLE
     .\scripts\tag-release.ps1 -Version 1.0.50 -Sha abc1234... -Title "1.0.50 — Whatever shipped"
