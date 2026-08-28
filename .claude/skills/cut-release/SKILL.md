@@ -55,14 +55,15 @@ Don't assume you're starting at Step 1. Work out the stage first:
 
 1. Read current `versionCode`/`versionName` (`app/build.gradle.kts`) and the latest tag
    (`git tag --sort=-v:refname` or `gh release list`).
-2. Current `versionName` == latest tag → nothing in flight; a new release starts at **Step 1**.
-3. A `chore/release-<next-version>` branch/PR exists and is open → resume at **Step 2** or
+2. A `chore/release-<next-version>` branch/PR exists and is open → resume at **Step 2** or
    **Stop A**, depending on whether the sweep+PR already happened.
-4. That PR is merged but `releases/openloop-<next>-<code>.aab` doesn't exist locally → resume
+3. That PR is merged but `releases/openloop-<next>-<code>.aab` doesn't exist locally → resume
    at **Step 3/4** (capture the sha, build).
-5. The `.aab` exists but no tag matches its version → you're at **Stop B**, waiting on upload
+4. The `.aab` exists but no tag matches its version → you're at **Stop B**, waiting on upload
    confirmation. Do not tag.
-6. A tag exists for the current `versionName` → already done; say so and stop.
+5. A tag exists for the current `versionName` → already done; say so and stop.
+6. Current `versionName` == latest tag and no open release PR exists → nothing in flight; a new
+   release starts at **Step 1**.
 
 ## Step 1 — Bump the version
 
@@ -91,8 +92,8 @@ you're stopped here, waiting for a human review.
 
 ## Step 3 (after Stop A clears) — capture the real build sha
 
-- Confirm the merge: `gh pr view <n> --json state,mergedAt,mergeCommitOid`.
-- Use that `mergeCommitOid` — **not** `git rev-parse origin/main`. `origin/main` is only correct
+- Confirm the merge: `gh pr view <n> --json state,mergedAt,mergeCommit --jq '.mergeCommit.oid'`.
+- Use that merge commit sha — **not** `git rev-parse origin/main`. `origin/main` is only correct
   if nothing else merged in the gap between this PR and now, which is exactly the race this
   whole skill exists to close (the issue that prompted this skill: 1.0.49 was tagged against
   `main` by luck). This is a deliberate correction from the issue's own suggested command.
@@ -100,7 +101,7 @@ you're stopped here, waiting for a human review.
 
 ## Step 4 — Build the signed AAB
 
-- Build from that exact merge sha.
+- Build from that exact merge sha: `git switch --detach <mergeCommitOid>` (or use a worktree).
 - `.\gradlew.bat :app:bundleRelease` (`JAVA_HOME` = Android Studio's bundled JBR, per
   `DEFINITION_OF_DONE.md`'s environment notes).
 - `jarsigner -verify -verbose app/build/outputs/bundle/release/app-release.aab` — must report
@@ -114,26 +115,27 @@ you're stopped here, waiting for a human review.
   `git diff <prev-tag>..<sha> -- app/build.gradle.kts gradle/libs.versions.toml`.
 - New dependency shipping native code, JNI, or heavy reflection (MediaPipe, ML Kit modules,
   etc.) landed → [Lesson 040](../../../docs/lessons_learned/040-run-the-release-apk-when-a-native-dependency-lands.md)
-  applies: install the release APK (`:app:assembleRelease`, already built by the Step 2 sweep
-  on this same tree) on an emulator, drive the feature that dependency serves, confirm no
-  R8-only crash before handoff.
+  applies: build and install the release APK (`:app:assembleRelease`) on an emulator from the
+  merge sha, drive the feature that dependency serves, confirm no R8-only crash before handoff.
 - Nothing native/JNI landed → say so explicitly and skip. Don't run a device check that has
   nothing to verify.
 
 ## Step 6 — Draft release notes, then hand off
 
-Draft two things to `docs/local/release-notes-<version>.md` (gitignored — owner-only, never
-commit) — mirror the structure the owner hand-wrote for 1.0.49:
+Draft two separate files (gitignored — owner-only, never commit) — mirror the structure the
+owner hand-wrote for 1.0.49:
 
-1. **GitHub release notes** (technical) — from merged PRs since the previous tag
-   (`git log <prev-tag>..<sha> --oneline`, grouped by area). This is only the curated
-   alternative: `tag-release.ps1` defaults to `gh --generate-notes` in Step 7, which needs no
-   draft at all. Offer this file only in case the owner wants a hand-curated summary instead.
-2. **Play Console "What's new"** (user-facing) — short, plain bullets, feature-first, no
-   version numbers, no jargon. Mirror the voice of the 1.0.49 draft (three tight bullets); no
-   hardcoded character limit — keep it that tight, not padded to fill one.
+1. **GitHub release notes** (technical) — `docs/local/github-release-notes-<version>.md` — from
+   merged PRs since the previous tag (`git log <prev-tag>..<sha> --oneline`, grouped by area).
+   This is only the curated alternative: `tag-release.ps1` defaults to `gh --generate-notes` in
+   Step 7, which needs no draft at all. Offer this file only in case the owner wants a
+   hand-curated summary instead.
+2. **Play Console "What's new"** (user-facing) — `docs/local/play-notes-<version>.md` — short,
+   plain bullets, feature-first, no version numbers, no jargon. Mirror the voice of the 1.0.49
+   draft (three tight bullets); no hardcoded character limit — keep it that tight, not padded
+   to fill one.
 
-Hand the owner: the `.aab` path, the `jarsigner` verification result, and both drafts.
+Hand the owner: the `.aab` path, the `jarsigner` verification result, and both draft files.
 
 ## Stop B — wait for the Play upload (hard stop)
 
@@ -147,7 +149,7 @@ the owner.
 ```powershell
 .\scripts\tag-release.ps1 -Version <version> -Sha <mergeCommitOid> `
   [-Title "<version> — <one-line highlight>"] `
-  [-NotesFile docs/local/release-notes-<version>.md]   # omit to use --generate-notes (default)
+  [-NotesFile docs/local/github-release-notes-<version>.md]   # omit to use --generate-notes (default)
 ```
 
 The script re-verifies the sha is an ancestor of `main`, the tag doesn't already exist, and the
