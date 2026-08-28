@@ -81,25 +81,33 @@ tag. Crashlytics reports crashes against `versionName` (e.g. `1.0.48`), and with
 no way to check out the code that shipped it.
 
 Cut it from the merge commit of the `chore/release-<version>` bump — the exact tree
-`:app:bundleRelease` was built from:
+`:app:bundleRelease` was built from. Use `scripts/tag-release.ps1`, not a bare `gh release create` or
+the GitHub web UI's "Draft a new release" — the script refuses to tag anything that isn't a verified
+ancestor of `main` with a matching `versionName`, which a bare command (or the web UI's branch-name
+target field) does not stop you from getting wrong:
 
 ```powershell
 # right after the bump merges — write this sha down, it is what you build the AAB from
 git fetch origin && git rev-parse origin/main
 
 # after the .aab is uploaded to Play
-gh release create v1.0.NN --target <that-sha> --generate-notes
+.\scripts\tag-release.ps1 -Version 1.0.NN -Sha <that-sha> -Title "1.0.NN — <one-line highlight>"
 ```
+
+Tag names are **bare `1.0.NN`, no `v` prefix** — `1.0.49` was the first, and every tag after it
+follows the same convention.
 
 - **Tag at upload time, not when the rollout finishes.** Internal-testing crashes report the same
   `versionName`, so the tag has to exist before the test track does. A staged rollout doesn't
   change what a tag means — it names the code, not the audience.
-- **`--target` is not optional.** Without it `gh` tags whatever the default branch points at *now*,
-  and main routinely moves between the bump merge and the release going out. Pin the recorded sha.
+- **`-Sha` is not optional and the script enforces it.** Tagging `main` itself (the web UI's default)
+  tags whatever the default branch points at *at click time* — main routinely moves between the bump
+  merge and the release going out, and 1.0.49 was cut this way by luck (nothing had merged in the
+  gap). Always pass the recorded sha.
 - **Play rejected the build?** Bump `versionCode`, upload again, cut a new tag. Stale tags are cheap.
-- **First release only:** `--generate-notes` needs a previous tag to diff against, so the very first
-  one spans the whole repo history. Pass `-n "..."` by hand that once; every release after it
-  generates its own notes from the merged PRs.
+- **`-NotesFile` only needed for the odd release.** `--generate-notes` needs a previous tag to diff
+  against — true for every release from 1.0.50 on. 1.0.49 was the exception: the very first tag, hand-
+  written because there was nothing to diff against yet.
 
 ### Never attach the AAB or a locally built APK
 
