@@ -7,8 +7,10 @@ Gallery lists saved loops and stills in a grid. The user opens it from the camer
 - `gallery-open` opens from camera (`Gallery` / `camera_gallery`).
 - `gallery-empty` shows `NO LOOPS YET` and `Record your first loop to see it here!` plus import.
 - `gallery-play` opens a tile (`gallery_tile_<id>`) and plays.
+- `gallery-send` — preview `SEND` → share sheet; see [share-and-library](./share-and-library.md).
 - `gallery-back` returns via `Back to camera` (`gallery_back`).
 - `gallery-delete` uses selection + `Delete selected` (do not run this on the user's library).
+- Import entry points are owned by [import-video](./import-video.md) (not proven by merely opening Gallery).
 
 ## How to get to it (user POV)
 
@@ -33,5 +35,5 @@ Preconditions:
 
 - `gallery-delete` is destructive. Only delete clips this verification run created.
 - Photo preview uses `Captured photo` / `Close photo` (`gallery_photo_preview`). That is stills, not a loop.
-- Import picker is a system sheet. If you cannot complete import without a fixture file, mark `gallery-import` **verified-unreachable** with the missing asset (`google-pro-fold-video.mp4` is gitignored).
-- Opening Gallery is not proof a new save landed; count tiles or names before and after save.
+- Import picker details: [import-video](./import-video.md). If you cannot complete import without a fixture, mark it **verified-unreachable** there (`google-pro-fold-video.mp4` is often gitignored).
+- Opening Gallery is not proof a new save landed; count tiles or names before and after save ([share-and-library](./share-and-library.md)).

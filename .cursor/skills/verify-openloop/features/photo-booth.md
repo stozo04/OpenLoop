@@ -11,7 +11,7 @@ Photo booth is a self-driving 5-4-3-2-1 countdown, three stills, composited into
 
 ## How to get to it (user POV)
 
-- On the camera viewfinder, open lenses / Photo Booth (`Lenses and Photo Booth` / `lens_button`).
+- On the camera viewfinder, open the shared drawer (`Lenses and Photo Booth` / `lens_button`) — same entry as [lenses](./lenses.md).
 - Choose the Photo Booth tab. Pick Color or Black & White.
 - Tap the shutter (desc is `Start photo booth` while armed, not `Start recording`).
 

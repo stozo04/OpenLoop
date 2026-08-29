@@ -30,10 +30,33 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 Each feature file starts with an H1 title and one paragraph describing the user-visible behavior. It then uses exactly four H2 sections in this order: `Sub-features`, `How to get to it (user POV)`, `Driving it with control.ps1`, `Gotchas`.
 
+## Completeness gate (before claiming the map is current)
+
+Follow the **global** Cursor rule `feature-map-completeness` (all projects). OpenLoop specifics:
+
+1. **Inventory** from (in order): `app/src/main/res/values/strings.xml` section comments; tappable chrome in `CameraScreen` / `GalleryScreen` / `BoomerangEditorScreen` / `EditorBottomToolbar` / lens carousel; sealed `OpenLoopUiState` routes. Treat `docs/PRD-*.md` as **optional** extras — many features shipped before PRDs existed.
+2. **Diff** each item → `mapped` | `folded into <file>` | `missing` | `out of scope (why)`. Use [INVENTORY.md](./INVENTORY.md) when auditing.
+3. **Gate** — do not call this map complete while a shipped user-visible surface is still `missing`. Orchestrators ([edit-and-save](./edit-and-save.md)) require each named Edit surface to have its own file under **Edit (post-capture)** below.
+4. Show the user the remaining `missing` / `out of scope` list in the reply.
+
 ## Features
 
 - [Onboarding](./onboarding.md) — first launch, `LET'S GO!`, then camera.
 - [Record a clip](./record-clip.md) — shutter start/stop, land on Trim.
-- [Edit and save a loop](./edit-and-save.md) — Trim / Speed / Loop / Filter, then Save boomerang.
-- [Gallery](./gallery.md) — open from camera, play or empty state, back.
+- [Lenses](./lenses.md) — carousel, pick/clear, 1–2 face tracking, bake into capture.
+- [Photo capture](./photo-capture.md) — Camera mode stills (skip Trim/editor).
 - [Photo booth](./photo-booth.md) — arm booth, countdown ×3, strip.
+- [Pinch zoom](./pinch-zoom.md) — viewfinder pinch + zoom chip (gesture-fragile).
+- [Import a video](./import-video.md) — Photo Picker → Trim (then save into library).
+- [Gallery](./gallery.md) — open from camera, play or empty state, back, selection delete.
+- [Share and library](./share-and-library.md) — dual save (Gallery + Photos), share sheet, gallery SEND.
+
+### Edit (post-capture)
+
+- [Trim](./edit-trim.md) — in/out window, SAVE into editor, discard dialog.
+- [Speed](./edit-speed.md) — Constant slider + Custom curve / presets.
+- [Loop](./edit-loop.md) — direction chips, reverse / Loopifying, help.
+- [Filter (Looks)](./edit-filter.md) — look chips, preview, memory gate.
+- [Delete clip](./edit-delete.md) — toolbar Delete → discard session → camera.
+- [Save boomerang](./edit-save.md) — export / Creating.. → share + library handoff.
+- [Edit and save (full path)](./edit-and-save.md) — orchestrates the suite end-to-end (`run-e2e` scope).

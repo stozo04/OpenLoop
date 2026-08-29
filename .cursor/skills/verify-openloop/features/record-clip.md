@@ -35,6 +35,7 @@ Preconditions:
 
 - Shutter desc changes with mode: `Start recording` / `Stop recording` / `Take photo` / `Start photo booth`. Tap the wrong one and you are in stills or booth.
 - `run-e2e` used raw coordinates `540,2155` on 1080×2400. Prefer the desc; coordinates break on fold / density.
-- Import (`Import a video` / gallery empty `…or import one`) is a different entry into Trim. Do not count import as `record-clip`.
+- Import (`Import a video` / gallery empty `…or import one`) is a different entry into Trim — see [import-video](./import-video.md). Do not count import as `record-clip`.
+- Active [lenses](./lenses.md) bake into the recording; prove lens UI separately if that is the claim.
 - Permission rationale can sit on top of the shutter. Dump first.
 - Front/back flip (`Flip Camera`) does not by itself prove a recording.
