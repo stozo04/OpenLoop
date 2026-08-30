@@ -1,6 +1,6 @@
 name: Doc layout
 
-# Hard gate: new Markdown files must live under docs/ (except root README.md and CLAUDE.md).
+# Hard gate: new Markdown files must live under docs/ (except root README.md, CLAUDE.md, AGENTS.md).
 # Design: docs/README.md § Enforcement
 
 on:
@@ -42,7 +42,13 @@ jobs:
           VIOLATIONS=""
           for f in $ADDED; do
             case "$f" in
-              README.md|CLAUDE.md)
+              # Root tool-discovery entry points, not documentation. Every LLM harness looks for its
+              # own filename at the repo ROOT and nowhere else — Claude Code reads CLAUDE.md, Codex /
+              # Cursor / Copilot read AGENTS.md — so these cannot live under docs/ and still function.
+              # Both are two-line pointers at docs/OPERATING_INSTRUCTIONS.md and
+              # docs/OPENLOOP_INSTRUCTIONS.md, which hold the one shared copy of the instructions
+              # (owner instruction, 2026-08-30: one source of truth across multiple LLMs).
+              README.md|CLAUDE.md|AGENTS.md)
                 ;;
               docs/*)
                 ;;
@@ -67,7 +73,7 @@ jobs:
           done
 
           if [ -n "$VIOLATIONS" ]; then
-            echo "::error::New Markdown must live under docs/ (except root README.md and CLAUDE.md)."
+            echo "::error::New Markdown must live under docs/ (except root README.md, CLAUDE.md, AGENTS.md)."
             printf '%b' "$VIOLATIONS"
             exit 1
           fi

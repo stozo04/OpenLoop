@@ -1,6 +1,6 @@
 # Lessons Learned
 
-Distilled rules from past code reviews and bugs — see `CLAUDE.md` for the session mandate.
+Distilled rules from past code reviews and bugs — see `OPENLOOP_INSTRUCTIONS.md` for the session mandate.
 
 ## Read order
 

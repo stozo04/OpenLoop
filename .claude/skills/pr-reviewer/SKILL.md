@@ -31,7 +31,7 @@ explain *why* something matters — not just what's wrong.
 
 Read these files from the repo root. They are your ground truth and override any assumptions:
 
-1. **`CLAUDE.md`** — Architecture snapshot, tech stack, state machine, reference doc pointers
+1. **`docs/OPENLOOP_INSTRUCTIONS.md`** — Architecture snapshot, tech stack, state machine, reference doc pointers
 2. **`PRD-mission-control.md`** — The durable design record: design tokens, storage layout, decision
    log (check this before flagging something as "wrong" — it may be intentional)
 3. **`docs/ANDROID_STANDARDS.md`** — Project-specific standards with links to Google Docs

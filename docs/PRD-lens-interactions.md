@@ -82,7 +82,7 @@ Google's documented pattern is a `Matrix` built from the crop rect and rotation 
 ([Transform output](https://developer.android.com/media/camera/camerax/transform-output)); the
 CameraX view artifact also carries transform accessors on `PreviewView`. **Which source of truth
 each factor comes from is an implementation-time verification item** (web-search the current API
-docs again at build time, per `CLAUDE.md`), because this is precisely the class of question the
+docs again at build time, per `OPENLOOP_INSTRUCTIONS.md`), because this is precisely the class of question the
 parent PRD's R1 warned about. What is *not* negotiable is the shape of the mitigation, which is the
 house pattern that already killed R1 once:
 

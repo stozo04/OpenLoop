@@ -18,6 +18,83 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 
 ---
 
+## Markdown rules (non-negotiable)
+
+Every PR that adds or edits a `.md` file clears both of these **before the commit**, not after CI says no.
+Both have failed repeatedly in CI (PR #161 hit both at once), which is why they are their own gate.
+
+### M1. New Markdown lives under `docs/`
+
+**A brand-new `.md` file goes under `docs/`.** The only exceptions are the allowlist in
+[`docs/README.md` § Enforcement](README.md#enforcement) — root `README.md` / `CLAUDE.md` / `AGENTS.md`
+and the agent-harness paths (`.claude/`, `.cursor/`, `swarm/`, `twisted-tounge/*.md`). That list is the
+single source of truth; it is enforced by [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml)
+against `git diff --diff-filter=A`.
+
+- **Do not widen the allowlist to make your file fit.** Move the file into `docs/`. Widening the gate is
+  an owner decision, requested explicitly and justified in the PR — never a workaround for a red check.
+  (The one widening so far: root `AGENTS.md`, because each LLM harness auto-discovers only *its* filename
+  at the repo root. See M3.)
+- Editing an existing root `.md` is fine (the gate only sees *added* files) — but a doc that would be
+  new today belongs in `docs/` today.
+- Check yourself before committing:
+
+  ```powershell
+  git diff --name-only --diff-filter=A origin/main...HEAD -- '*.md'
+  ```
+
+### M2. Markdown is linted to zero locally, before the commit
+
+**Never let CI be the first thing that runs markdownlint.** The text gates (gate 3 below) are not a
+CI-only formality — run them locally on every doc change and fix to zero:
+
+```powershell
+npx markdownlint-cli2 --fix "**/*.md" "#node_modules"   # MD022/MD032/MD047 etc. are auto-fixable
+.\scripts\pre-pr-sweep.ps1 -DocsOnly                    # the receipt-producing gate for an all-.md PR
+```
+
+`-DocsOnly` is valid **only when every changed file is `.md`** (hook-enforced); one `.yml` or `.kt` in the
+diff means the full sweep. The three failures that keep recurring: **MD047** (file must end with exactly
+one newline), **MD022** (blank line above *and below* every heading), **MD032** (blank line around lists).
+
+### M3. Agent instructions live in one shared copy
+
+The owner drives this repo with several LLMs, so the instructions exist **once** (owner instruction,
+2026-08-30): [`docs/OPERATING_INSTRUCTIONS.md`](OPERATING_INSTRUCTIONS.md) (how to work here) and
+[`docs/OPENLOOP_INSTRUCTIONS.md`](OPENLOOP_INSTRUCTIONS.md) (what OpenLoop is). Root `CLAUDE.md` and
+`AGENTS.md` are byte-identical two-line pointers at those files and carry **no content of their own** —
+they exist only because each harness auto-discovers its own filename at the repo root.
+
+- **Never fork a per-tool copy** of an instruction file, and never paste content back into a root pointer.
+  Edit the `docs/` file; every LLM picks the change up.
+- Adding a harness that reads a different root filename? Add another two-line pointer *and* the
+  allowlist entry in `doc-layout.yml` + `docs/README.md` § Enforcement, in the same PR.
+
+### M4. Moved or renamed something? Grep the whole repo for stale references
+
+**Every move, rename, or delete leaves references behind, and they are not all links.** `markdown-link-check`
+only catches broken *relative link targets* — it does not catch a wrong heading anchor, a path in backticks,
+a path inside a `.yml` / `.kt` / `.ps1`, or prose that still describes the old layout. Those go stale
+silently and mislead the next reader (human or agent) for months.
+
+Before committing a move, grep for **both the old and the new name** across the whole tree:
+
+```powershell
+git grep -n "OldName"                       # every mention, not just Markdown links
+git grep -n "old/path/to/file.md"           # the path form too
+```
+
+Then fix, in this order:
+
+1. **Functional breaks first** — link targets and `#heading-anchors` that no longer resolve.
+   (Moving a file also rebases every *relative* link **inside** it: `docs/x.md` → `x.md` one level down.)
+2. **Statements that are now false** — allowlists, folder maps, file counts, "this file" self-references.
+3. **Prose pointers** that still resolve through an indirection can stay; a pointer that now names the
+   wrong thing cannot.
+
+Leave alone: historical records that were true when written (a PRD's "per X I searched…", a lessons-learned
+entry, a changelog). Those describe the past, not the current layout.
+
 ## The gate (run top to bottom)
 
 > **One command runs steps 1–4 and the text gates and enforces zero across the board:**
@@ -142,6 +219,10 @@ A command finishing is **not** a passed build. Confirm all three:
 
 ```text
 - [ ] Production zero-error rule honored: NO known failing test / compile / lint error left behind (pre-existing included), or escalated to the owner
+- [ ] M1 — every NEW `.md` in this PR is under `docs/` or the `docs/README.md` § Enforcement allowlist (checked with `git diff --diff-filter=A`); the doc-layout allowlist was NOT widened to fit a file
+- [ ] M2 — markdownlint run locally to 0 BEFORE the commit (not left for CI); MD047/MD022/MD032 clear
+- [ ] M3 — instruction changes went into the shared `docs/OPERATING_INSTRUCTIONS.md` / `docs/OPENLOOP_INSTRUCTIONS.md`; root `CLAUDE.md` / `AGENTS.md` are still content-free pointers, still byte-identical
+- [ ] M4 — anything moved/renamed/deleted was `git grep`-ed repo-wide under BOTH names; broken anchors, false statements (allowlists, folder maps, counts, "this file") and wrong pointers fixed — link-check alone is not this check
 - [ ] Baseline green before changes (clean assembleDebug)
 - [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))

@@ -73,7 +73,7 @@ standards.
 
 **Source:** <https://developer.android.com/media/camera/camerax>
 
-- [ ] Generic CameraX review done via the `android-skills:camerax` skill (`/android-skills:camerax`) — apply its guidance **except** its `MlKitAnalyzer` preference (`FaceTracker` is a deliberate manual analyzer; `CLAUDE.md` precedence). If the plugin is unavailable (e.g. a cloud runner), fall back to the two Google links in this section.
+- [ ] Generic CameraX review done via the `android-skills:camerax` skill (`/android-skills:camerax`) — apply its guidance **except** its `MlKitAnalyzer` preference (`FaceTracker` is a deliberate manual analyzer; `docs/OPENLOOP_INSTRUCTIONS.md` precedence). If the plugin is unavailable (e.g. a cloud runner), fall back to the two Google links in this section.
 - [ ] Repo CameraX rules hold (`ANDROID_STANDARDS.md` §5): single camera-bound call site (Lesson 012) · CameraX released when `PreviewView` leaves composition (022) · pinch via parent `onInterceptTouchEvent` (025) · `CameraEffect` attached once per bind, switched by uniform (031) · no timed `PreviewView.getBitmap()` after stop (036)
 
 **Source:** <https://developer.android.com/media/camera/camerax/architecture>

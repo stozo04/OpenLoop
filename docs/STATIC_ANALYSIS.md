@@ -248,7 +248,7 @@ broken references on `main`** (not introduced by this work):
 ### Doc layout gate — GitHub Actions (hard)
 
 **`.github/workflows/doc-layout.yml`** runs on every pull request. It fails if the PR **adds** any
-`*.md` file outside `docs/` (allowed exceptions: root `README.md`, `CLAUDE.md`). Policy:
+`*.md` file outside `docs/` (allowed exceptions: root `README.md`, `CLAUDE.md`, `AGENTS.md`). Policy:
 [`docs/README.md`](README.md) § Enforcement.
 
 ### Hosting Tier 3 — GitHub Actions (hard)

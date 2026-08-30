@@ -4,7 +4,7 @@ Durable reference for OpenLoop's testing lanes and media algorithms. Start here 
 repo-specific procedure rather than architecture specs.
 
 General Android/Kotlin/library concepts are **not** mirrored here — web-search
-`developer.android.com` instead (see `CLAUDE.md` → Critical Rule).
+`developer.android.com` instead (see `OPENLOOP_INSTRUCTIONS.md` → Critical Rule).
 
 | Guide                                                                  | When to read it                                                                                                                                                                    |
 | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

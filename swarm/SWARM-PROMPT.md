@@ -53,9 +53,9 @@ Missing? Create it once, then post a status.
 
 ## Required reading before you touch code
 
-Non-negotiable, in this order — `CLAUDE.md` mandates it and the lens work sits on top of it:
+Non-negotiable, in this order — `docs/OPENLOOP_INSTRUCTIONS.md` mandates it and the lens work sits on top of it:
 
-1. `CLAUDE.md` (repo root)
+1. `docs/OPENLOOP_INSTRUCTIONS.md` (the root `CLAUDE.md` / `AGENTS.md` point here)
 2. `docs/lessons_learned/README.md`, then **every core lesson in full: 008 and 011–032**.
    Skim the index rows for 001–007, 009, 010.
    **031** (attach the effect once, switch by uniform) and **032** (the tracker's frame is not the
