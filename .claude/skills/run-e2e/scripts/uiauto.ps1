@@ -16,7 +16,8 @@
 param(
   [Parameter(Mandatory = $true)][ValidateSet('dump', 'find', 'tap')][string]$Action,
   [string]$Label,
-  [string]$Serial
+  [string]$Serial,
+  [switch]$Exact
 )
 
 function Resolve-Serial([string]$s) {
@@ -63,11 +64,15 @@ if ($Action -eq 'dump') {
 }
 
 if (-not $Label) { Write-Error "-Label is required for '$Action'."; exit 1 }
-$match = $nodes | Where-Object {
-  $_.Bounds.Success -and (
-    $_.Text -like "*$Label*" -or $_.Desc -like "*$Label*"
-  )
-} | Select-Object -First 1
+$match = if ($Exact) {
+  $nodes | Where-Object {
+    $_.Bounds.Success -and ($_.Text -eq $Label -or $_.Desc -eq $Label)
+  } | Select-Object -First 1
+} else {
+  $nodes | Where-Object {
+    $_.Bounds.Success -and ($_.Text -like "*$Label*" -or $_.Desc -like "*$Label*")
+  } | Select-Object -First 1
+}
 
 if (-not $match) { Write-Error "No element matching '$Label'. Run -Action dump to see what's on screen."; exit 2 }
 

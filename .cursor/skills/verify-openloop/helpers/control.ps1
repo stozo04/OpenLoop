@@ -18,7 +18,8 @@ param(
   [ValidateSet('doctor', 'launch', 'dump', 'tap', 'cleanup', 'evidence-dir', 'grant-camera')]
   [string]$Action,
   [string]$Label,
-  [string]$Serial
+  [string]$Serial,
+  [switch]$Exact
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,7 +55,7 @@ function Resolve-Serial([string]$s) {
     if ($emus.Count -gt 1) { throw "Multiple emulators: $($emus -join ', '). Set VERIFY_SERIAL." }
     $devs = @($lines | Where-Object { $_ -match '\s+device$' -and $_ -notmatch 'emulator-' } | ForEach-Object { ($_ -split '\s+')[0] })
     if ($devs.Count -ge 1) {
-      if ($env:VERIFY_ALLOW_DEVICE -eq '1') { return $devs[0] }
+      if ($env:VERIFY_ALLOW_DEVICE -eq '1' -and $env:VERIFY_SERIAL) { return $devs[0] }
       throw "Physical device $($devs[0]) attached. Refusing to drive it. Start an emulator, or set VERIFY_ALLOW_DEVICE=1 and VERIFY_SERIAL."
     }
     throw 'No emulator or device (adb devices). Start an AVD first.'
@@ -147,7 +148,7 @@ switch ($Action) {
   'tap' {
     if (-not $Label) { throw '-Label is required for tap' }
     if (-not (Test-Path $Uiauto)) { throw "missing $Uiauto" }
-    & pwsh $Uiauto -Action tap -Label $Label -Serial $Serial
+    & pwsh $Uiauto -Action tap -Label $Label -Serial $Serial -Exact:$Exact
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     break
   }

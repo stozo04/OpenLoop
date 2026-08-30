@@ -25,7 +25,7 @@ Preconditions:
 - This run can wait through three countdowns (do not background the app).
 
 - **Open tray.** `control.ps1 tap -Label "Lenses"` or `Lenses and Photo Booth`. Dump: `lens_carousel` and/or `Photo Booth`.
-- **Arm.** `control.ps1 tap -Label "Photo Booth"`. Dump: `Color`, `Black & White` or `Black & White` as `camera_booth_black_white`. Pick Color (`booth_choice_colored`). Close chrome if needed (`Turn off photo booth` is the *off* control — do not tap it to start).
+- **Arm.** `control.ps1 tap -Label "Photo Booth" -Exact`. Dump: `Color`, `Black & White` or `Black & White` as `camera_booth_black_white`. Pick Color (`booth_choice_colored`). Close chrome if needed (`Turn off photo booth` is the *off* control — do not tap it to start).
 - **Idle shutter.** Dump shutter desc is `Start photo booth` (`boothArmed`).
 - **Start.** `control.ps1 tap -Label "Start photo booth"`. Dump shows a large digit (`booth_countdown_digit`) and `Shot 1 of 3` (`booth_shot_progress`). Optional `Swap lenses between shots`.
 - **Finish.** Wait for three captures. Resulting state is a strip / still preview, **not** `TRIM YOUR VIDEO`.
