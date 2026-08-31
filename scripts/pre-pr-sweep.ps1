@@ -128,25 +128,42 @@ if (-not $DocsOnly) {
         if (Test-Path $debugApk) {
             $adb = Join-Path $sdk "platform-tools/adb.exe"
             if (-not (Test-Path $adb)) { $adb = "adb" }
-            $installOut = & $adb install -r $debugApk 2>&1
-            $installOut | Add-Content $log
-            if ($LASTEXITCODE -ne 0) {
-                $script:loopStartError = "adb install -r failed: exit=$LASTEXITCODE"
-            } else {
-                try {
-                    if (Test-Path $loopLog) { Remove-Item $loopLog -Force }
-                    if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
-                    $script:loopProc = Start-Process -FilePath "python" -ArgumentList @(
-                        (Join-Path $root "scripts/run-verification-loops.py"),
-                        "--changed"
-                    ) -WorkingDirectory $root -PassThru -WindowStyle Hidden `
-                        -RedirectStandardOutput $loopLog -RedirectStandardError $loopErr -ErrorAction Stop
-                    if ($null -eq $script:loopProc) {
-                        $script:loopStartError = "Start-Process returned null (python may not be on PATH or redirect files may be locked)"
+            
+            # Resolve device serial using the loop's logic: VERIFY_SERIAL or unique online emulator
+            $loopSerial = $env:VERIFY_SERIAL
+            if (-not $loopSerial) {
+                $devicesOut = & $adb devices 2>&1
+                $onlineEmulators = @($devicesOut | Select-String -Pattern "^emulator-\d+\s+device$" | ForEach-Object { $_.Line.Split()[0] })
+                if ($onlineEmulators.Count -eq 1) {
+                    $loopSerial = $onlineEmulators[0]
+                } elseif ($onlineEmulators.Count -gt 1) {
+                    $script:loopStartError = "multiple online emulators and VERIFY_SERIAL unset: $($onlineEmulators -join ', ')"
+                } else {
+                    $script:loopStartError = "no online emulator and VERIFY_SERIAL unset"
+                }
+            }
+            
+            if (-not $loopStartError) {
+                $installOut = & $adb -s $loopSerial install -r $debugApk 2>&1
+                $installOut | Add-Content $log
+                if ($LASTEXITCODE -ne 0) {
+                    $script:loopStartError = "adb install -r -s $loopSerial failed: exit=$LASTEXITCODE"
+                } else {
+                    try {
+                        if (Test-Path $loopLog) { Remove-Item $loopLog -Force }
+                        if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
+                        $script:loopProc = Start-Process -FilePath "python" -ArgumentList @(
+                            (Join-Path $root "scripts/run-verification-loops.py"),
+                            "--changed"
+                        ) -WorkingDirectory $root -PassThru -WindowStyle Hidden `
+                            -RedirectStandardOutput $loopLog -RedirectStandardError $loopErr -ErrorAction Stop
+                        if ($null -eq $script:loopProc) {
+                            $script:loopStartError = "Start-Process returned null (python may not be on PATH or redirect files may be locked)"
+                        }
+                        Write-Host "== 5b. Verification loops — started in background (one emulator; overlapping remaining gates)" -ForegroundColor Cyan
+                    } catch {
+                        $script:loopStartError = $_.Exception.Message
                     }
-                    Write-Host "== 5b. Verification loops — started in background (one emulator; overlapping remaining gates)" -ForegroundColor Cyan
-                } catch {
-                    $script:loopStartError = $_.Exception.Message
                 }
             }
         }
