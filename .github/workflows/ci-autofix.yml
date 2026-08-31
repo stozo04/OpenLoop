@@ -1,0 +1,167 @@
+name: CI auto-fix
+
+# ============================================================================
+# Closes the loop on a red text-gate run: push -> CI fails -> Claude reads the failing log,
+# fixes it, pushes, and re-dispatches the gate so the PR goes green without a human round trip.
+#
+# GitHub never "notifies an agent" — the agent subscribes. `workflow_run` fires when another
+# workflow COMPLETES, which is the only trigger that can see a failure.
+#
+# Two GitHub rules shape everything below:
+#   1. A `workflow_run` workflow only fires when its file is on the DEFAULT branch, and it always
+#      starts from the default branch's code. The PR's branch must be checked out explicitly.
+#   2. A push made with GITHUB_TOKEN does NOT start a new workflow run (recursion guard). That
+#      kills the naive loop dead — the fix lands and the PR stays red — so the re-verify below is
+#      an explicit `workflow_dispatch`, which IS exempt from that rule.
+#
+# Scope is deliberately the TEXT gates only. Markdown, spelling, links and JSON have one correct
+# fix and no judgement in it. Build/lint/test failures must never be wired here: an agent that
+# gets a suite green by weakening a test is worse than a red build.
+#
+# The `workflows:` filter matches the other workflow's `name:` field, NOT its filename —
+# renaming "Static analysis (text gates)" silently switches this off.
+# ============================================================================
+
+on:
+  workflow_run:
+    workflows: ["Static analysis (text gates)"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run ID of the failed 'Static analysis (text gates)' run"
+        required: true
+      branch:
+        description: "Branch that run was on"
+        required: true
+
+permissions:
+  contents: write        # commit + push the fix
+  pull-requests: write   # comment when it gives up
+  actions: write         # read the failed run's log, and dispatch the re-verify run
+
+# One auto-fix at a time per branch; never cancel one mid-push.
+concurrency:
+  group: ci-autofix-${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  autofix:
+    # Only a genuine failure, and only a branch in this repo — a fork's head must never be
+    # checked out and pushed by a job holding this repo's write token.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # Never interpolate event data straight into a `run:` script — a branch name is attacker-shaped input.
+      BRANCH: ${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+      RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
+      TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id || github.event.inputs.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+          fetch-depth: 0
+
+      # Every guard is shell, and runs BEFORE the model: a loop should cost seconds, not tokens.
+      - name: Guards (stale push, attempt cap, open PR)
+        id: guards
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH" --quiet
+          tip=$(git rev-parse "origin/$BRANCH")
+
+          # Populate TRIGGER_SHA from the run metadata when workflow_dispatch left it empty.
+          trigger_sha="${TRIGGER_SHA:-}"
+          if [ -z "$trigger_sha" ]; then
+            trigger_sha=$(gh run view "$RUN_ID" --json headSha --jq .headSha)
+          fi
+
+          # A newer commit landed while the gate was running (the owner's Cursor tooling also
+          # pushes to open PR branches). That push gets its own run; fixing the old one is noise.
+          if [ "$trigger_sha" != "$tip" ]; then
+            echo "Branch moved on ($trigger_sha -> $tip); the newer push has its own run."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "trigger_sha=$trigger_sha" >> "$GITHUB_OUTPUT"
+
+          # The commit marker doubles as the attempt counter: two tries, then hand it to a human.
+          attempts=$(git log "origin/main..origin/$BRANCH" --grep "^ci(autofix):" --oneline | wc -l)
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ "$attempts" -ge 2 ]; then
+            echo "Already auto-fixed $attempts times on this branch; stopping."
+            if [ -n "$pr" ]; then
+              gh pr comment "$pr" --body "**CI auto-fix stopped.** Two auto-fix commits are already on this branch and [the gate]($RUN_URL) is still red — this failure needs a human."
+            fi
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "go=true" >> "$GITHUB_OUTPUT"
+
+      - name: Fix the failure with Claude
+        if: steps.guards.outputs.go == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            The "Static analysis (text gates)" workflow failed on branch `${{ env.BRANCH }}` of
+            stozo04/OpenLoop. Fix it and push. You are on that branch already.
+
+            1. Read the failure: `gh run view ${{ env.RUN_ID }} --log-failed`. Note WHICH step
+               failed — each step exits on its own failure, so the steps after it never ran and
+               that log is not a complete list of what is broken.
+            2. Find the root cause in the repo, not the symptom. A dead relative link usually
+               means a tracked file was deleted or moved, not that the link text is wrong — see
+               `docs/lessons_learned/041-deleting-a-tracked-asset-breaks-every-link-to-it.md`.
+               Prefer restoring or repointing over deleting the reference.
+            3. Make the MINIMAL fix. Never edit `.github/workflows/`, `cspell.json`, or
+               `.markdownlint-cli2.jsonc` to make a gate pass — fix the content the gate is
+               complaining about. Adding a genuinely new proper noun to `cspell.json` is the one
+               exception, and it must be followed by `python scripts/sync-ide-dictionary.py`.
+            4. Re-run EVERY gate locally before pushing, in the order and form listed under
+               "Tier 3" in `docs/STATIC_ANALYSIS.md`, exactly as
+               `.github/workflows/static-analysis.yml` runs them. All must be at zero. Fixing only
+               the reported step is how this loop burns its second attempt.
+            5. A file under `.claude/skills/`, `.cursor/skills/` or `.codex/skills/` exists as three
+               byte-identical copies (Definition of Done M5). Editing one means running
+               `python scripts/sync-harness-skills.py --fix --from <the harness you edited>` and
+               committing all three, or gate 6d turns the next run red.
+            6. Commit and push:
+               - `git config user.name "github-actions[bot]"` and
+                 `git config user.email "41898282+github-actions[bot]@users.noreply.github.com"`
+               - The subject MUST start with `ci(autofix): ` — it is the loop's attempt counter.
+                 Say which gate was red and what the real cause was.
+               - `git pull --rebase origin ${{ env.BRANCH }}` before pushing. If the push is
+                 rejected, rebase and retry ONCE; if it is rejected again, stop and comment on the
+                 PR instead.
+            7. If you cannot find a fix you are confident in, change nothing, comment on the PR
+               with what you found and why you stopped, and finish. A wrong patch that looks
+               authoritative is worse than a red check.
+
+            Never run `gh pr create`, never merge, never touch `main`.
+          claude_args: |
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
+            --max-turns 25
+            --model claude-sonnet-5
+
+      # The push above used GITHUB_TOKEN, so it started no new run (see the header). A
+      # workflow_dispatch is the documented exception, so ask for the gate explicitly.
+      - name: Re-run the gate on the fix
+        if: steps.guards.outputs.go == 'true'
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH" --quiet
+          if [ "$(git rev-parse "origin/$BRANCH")" = "${{ steps.guards.outputs.trigger_sha }}" ]; then
+            echo "No fix was pushed — nothing to re-verify."
+            exit 0
+          fi
+          gh workflow run static-analysis.yml --ref "$BRANCH"
+          echo "Dispatched the text gates against the fix on $BRANCH."

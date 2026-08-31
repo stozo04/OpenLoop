@@ -7,7 +7,7 @@ reverse video effect, and if not, what's the best alternative?"*
 
 > Verified against developer.android.com, the androidx/media GitHub, the Media3
 > 1.10 release blog post, the FFmpegKit retirement announcement, and a reference
-> open-source MediaCodec reverse implementation. **CLAUDE.md "do not trust your
+> open-source MediaCodec reverse implementation. **OPENLOOP_INSTRUCTIONS.md "do not trust your
 > training data" rule honored** — every claim below is cited.
 
 ---

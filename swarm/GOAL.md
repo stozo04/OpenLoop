@@ -198,7 +198,7 @@ isolation.
 - **Lesson 017** — no `mockk` in `androidTest`.
 - **Lesson 008** — real temp dirs for `File`, one shared `TestDispatcher`.
 
-Read the full core tier (008, 011–032) before touching code — `CLAUDE.md` requires it, and the
+Read the full core tier (008, 011–032) before touching code — `docs/OPENLOOP_INSTRUCTIONS.md` requires it, and the
 lens-specific ones above are not optional.
 
 ### 4.3 Tests you inherit for free

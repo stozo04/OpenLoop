@@ -26,7 +26,7 @@ docs/local/
 .kotlin/
 
 # IDE specific files. `.idea/` is per-machine EXCEPT the two folders shared through git so every
-# clone runs Inspect Code the same way: the "OpenLoop Tracked" scope (skips worktrees/build/vendor)
+# clone runs Inspect Code the same way: the "OpenLoop Tracked" scope (skips worktrees/build)
 # and the project spelling dictionary (generated from cspell.json — see docs/STATIC_ANALYSIS.md).
 .idea/*
 !.idea/scopes/
@@ -62,15 +62,6 @@ functions/.secret.local
 # (decisions.md, LESSONS.md, research-*.md) IS tracked; see swarm/README.md.
 swarm/collab/bus/*.jsonl
 swarm/bus-follow.html
-
-# Third-party AR reference material — DeepAR Studio projects used ONLY as a
-# reverse-engineering reference. OpenLoop is public under Apache 2.0 and we hold no
-# redistribution rights to these meshes, matcaps, normal maps or the compiled .deepar
-# bundle. The GUIDE we wrote from them IS tracked; the vendor assets are not.
-twisted-tounge/**
-!twisted-tounge/*.md
-!twisted-tounge/images/
-!twisted-tounge/images/**
 
 # android-skills scratch output, regenerated per run — see docs/guides/android-skills.md
 # .scratch/ = play-policy-insights workspace; tmp/ = r8-analyzer (tmp/r8analysis, tmp/keepradius)

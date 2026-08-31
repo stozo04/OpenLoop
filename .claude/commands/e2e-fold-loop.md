@@ -32,7 +32,7 @@ needed a mid-run fix doesn't count; the next iteration must confirm).
 
 ## Session bootstrap (context does not persist between sessions)
 
-1. Read `CLAUDE.md` (the `media/` package map is the pipeline overview) + skim
+1. Read `docs/OPENLOOP_INSTRUCTIONS.md` (the `media/` package map is the pipeline overview) + skim
    `docs/guides/reverse-video-research.md` and `docs/guides/oem-regression-testing.md`
    (media-pipeline / codec lanes).
 2. Read `.claude/skills/run-e2e-pixel-sweep/SKILL.md` — **it IS the mechanics** (the
@@ -42,7 +42,7 @@ needed a mid-run fix doesn't count; the next iteration must confirm).
    `main`. Never commit the video (gitignored).
 4. **Do not trust training data.** Before any claim about Android API behavior or any fix
    design, WebSearch `developer.android.com` scoped to the repo's actual versions (re-read the
-   table in `CLAUDE.md` / `gradle/libs.versions.toml` — currently targetSdk 36, Kotlin 2.3.21,
+   table in `docs/OPENLOOP_INSTRUCTIONS.md` / `gradle/libs.versions.toml` — currently targetSdk 36, Kotlin 2.3.21,
    Media3 1.10.1, CameraX 1.6.1). Pure-math fixes verified by device evidence in front of you
    are exempt; API usage is not.
 

@@ -1,8 +1,8 @@
 name: Static analysis (text gates)
 
 # CI backstop for the text half of the pre-PR sweep (scripts/pre-pr-sweep.ps1 gates 6–8): Markdown
-# structure, IDE-faithful table alignment, relative links, spelling over every tracked text file, JSON
-# validity, and the cspell ↔ IDE-dictionary sync. Every step is a HARD gate — the tree is at zero and
+# structure, IDE-faithful table alignment, relative links, harness skill-tree identity, spelling over
+# every tracked text file, JSON validity, and the cspell ↔ IDE-dictionary sync. Every step is a HARD gate — the tree is at zero and
 # there is no baseline, so a red step means the PR introduced it. Design: docs/STATIC_ANALYSIS.md.
 #
 # Deliberately whole-repo, not changed-files-only: with no baseline that is the only honest scope.
@@ -43,6 +43,18 @@ jobs:
             npx --yes markdown-link-check --config .markdown-link-check.json -q "$f" | tee -a link-check.log || dead=1
           done
           exit $dead
+
+      # The gates above check that text is well-formed; nothing here executed the Python the
+      # gates themselves run on. These self-checks are the only thing that fails when a script's
+      # LOGIC breaks - the class of bug that otherwise reaches a human reviewer with CI all green.
+      - name: Script self-checks (scripts/test-*.py)
+        run: |
+          set -o pipefail
+          for t in scripts/test-*.py; do echo "--- $t"; python "$t"; done
+
+      # Three harnesses, one set of skills. Drift is silent and leaves no copy authoritative.
+      - name: Harness skill trees byte-identical (0 drift)
+        run: python scripts/sync-harness-skills.py --check
 
       - name: cspell (0 unknown words)
         run: |

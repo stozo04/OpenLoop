@@ -6,7 +6,7 @@ through the official Claude Code plugin. The *what* and *why* — full triage, c
 pilot verdicts — is [`../PRD-android-skills.md`](../PRD-android-skills.md). This page is the *how*.
 
 **Precedence first:** where a Google skill disagrees with this repo's documented decisions, the
-repo wins — `CLAUDE.md` → "Google Android Skills — Precedence" lists the known collisions
+repo wins — `OPENLOOP_INSTRUCTIONS.md` → "Google Android Skills — Precedence" lists the known collisions
 (`navigation-3`, `camerax`'s `MlKitAnalyzer` preference, the AGP ceiling).
 
 ## How Claude knows the skills exist
@@ -47,7 +47,7 @@ run it with `PYTHONUTF8=1` set — the report writer emits emoji that cp1252 can
 
 The plugin belongs at **project** scope (`.claude/settings.json`, checked in), never user scope —
 user scope loads the 21 descriptions into every project on the machine, and the precedence guard
-in this repo's `CLAUDE.md` protects none of them.
+in this repo's `OPENLOOP_INSTRUCTIONS.md` protects none of them.
 
 **Fresh clone / new machine — the skills do not load by themselves.** The checked-in
 `extraKnownMarketplaces` entry makes the marketplace name resolve without a `/plugin marketplace add`,

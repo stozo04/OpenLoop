@@ -319,7 +319,7 @@ enum class Lens(
      * Twisted Tongue — bulging cartoon eyeballs and a long tongue lolling out of an open mouth.
      * Reverse-engineered from a DeepAR Studio project; the full derivation, the mapping from its
      * scene graph to these numbers, and what was deliberately dropped are in
-     * `twisted-tounge/GUIDE.md`.
+     * `docs/guides/porting-third-party-ar-effects.md`.
      *
      * **The first lens with parts on different anatomy.** Every lens before it is one quad on the
      * face's center line. This one cannot be: an eyeball has to sit on each *eye* and the tongue has

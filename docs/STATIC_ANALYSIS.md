@@ -135,7 +135,7 @@ sweep turn the export into a pass/fail over tracked files.
 1. **Scope first.** Code → Inspect Code → *Custom scope* → **OpenLoop Tracked**. The scope is
    committed at `.idea/scopes/OpenLoop_Tracked.xml` (`.gitignore` un-ignores `.idea/scopes/` and
    `.idea/dictionaries/` for exactly this). It excludes `.claude/worktrees/` (git worktrees — full
-   copies of the repo), build output, the gitignored DeepAR bundle, `docs/local/`, the swarm
+   copies of the repo), build output, `docs/local/`, the swarm
    message-bus logs and every other file git does not track. A "whole project" run once produced
    **82,752 items in a 9 GB export, 98 % of them phantom** (Lesson 038).
 2. **Export → HTML** into `build/inspect-export/` (gitignored). Don't put it at the repo root.
@@ -200,6 +200,8 @@ legacy hits; those were cleared on 2026-08-25 and the gate went hard.)
 | [`cspell`](https://cspell.org)                                         | `cspell.json`                    | "Typo" — over **every** tracked text file (Markdown, Kotlin, XML, scripts, configs), because the IDE spell-checks comments and string literals too. `words` is the single project dictionary; the IDE XML is generated from it             |
 | `scripts/sync-ide-dictionary.py --check`                               | `.idea/dictionaries/project.xml` | Keeps the IDE's project dictionary identical to `cspell.json`                                                                                                                                                                              |
 | JSON validity (`python -c json.loads`)                                 | —                                | "Compliance with JSON standard"                                                                                                                                                                                                            |
+| `scripts/sync-harness-skills.py --check`                               | —                                | Not an IDE inspection — the repo's own rule (DoD M5): `.claude/`, `.cursor/` and `.codex/` skill trees must be byte-identical                                                                                                              |
+| `scripts/test-*.py`                                                    | —                                | Not an IDE inspection either — the self-checks of the scripts the other gates run on, so a logic bug in one fails a gate instead of reaching review with CI green                                                                          |
 
 `markdownlint` still disables the opinionated prose rules IntelliJ doesn't flag (`MD013`
 line-length, `MD033` inline-HTML, `MD041` first-line-heading). `cspell` stays `en,en-GB` so test
@@ -248,13 +250,13 @@ broken references on `main`** (not introduced by this work):
 ### Doc layout gate — GitHub Actions (hard)
 
 **`.github/workflows/doc-layout.yml`** runs on every pull request. It fails if the PR **adds** any
-`*.md` file outside `docs/` (allowed exceptions: root `README.md`, `CLAUDE.md`). Policy:
+`*.md` file outside `docs/` (allowed exceptions: root `README.md`, `CLAUDE.md`, `AGENTS.md`). Policy:
 [`docs/README.md`](README.md) § Enforcement.
 
 ### Hosting Tier 3 — GitHub Actions (hard)
 
 Tier 3 runs in CI via **`.github/workflows/static-analysis.yml`** on every pull request (plus
-`workflow_dispatch`): `actions/checkout@v6`, `setup-node@v6`, `setup-python@v5`, then the same six
+`workflow_dispatch`): `actions/checkout@v6`, `setup-node@v6`, `setup-python@v5`, then the same
 checks as sweep gates 6–8 over the **whole tracked tree**. Every step is a **hard** gate — the tree
 is at zero, so a red step is something the PR introduced. The Gradle half of the sweep (build,
 lint, tests) is deliberately not in CI yet: it cannot be tried without pushing, and the receipt hook
@@ -274,3 +276,36 @@ already makes it a precondition of every PR. Adding it is a follow-up, not a gap
    skipped (the receipt's `inspectCode` field says which) — its absence never reads as a pass.
 4. CI's text gates re-run Tier 3 as a backstop.
 5. The [README PR Merge Policy](../README.md#pr-merge-policy) lists all of it as merge requirements.
+
+### When CI is red
+
+Read the failure from the terminal rather than the Actions UI:
+
+```bash
+gh pr checks <number>              # which check failed, and the run URL
+gh run view <run-id> --log-failed  # the failing step, log only
+```
+
+Then fix it and re-run **the whole sweep**, not just the step that was reported: each CI step
+exits on its own failure, so the steps after it never ran and the log is not a complete list of
+what is broken. Recurring failures get a row in
+[`docs/lessons_learned/`](lessons_learned/README.md) so the class is caught next time —
+[041](lessons_learned/041-deleting-a-tracked-asset-breaks-every-link-to-it.md) is one.
+
+### The auto-fix loop
+
+Most of the above is automatic. **`.github/workflows/ci-autofix.yml`** subscribes to this
+workflow with a `workflow_run` trigger — GitHub does not notify an agent, the agent subscribes —
+and on a failure it checks out the branch, hands Claude the failing log, and lets it push a
+`ci(autofix):` commit. Four properties are load-bearing:
+
+| Property                                               | Why                                                                                                     |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Fires only on **this** workflow, never on Gradle/tests | A text-gate fix is mechanical; an agent that gets a test suite green by weakening it is worse than red. |
+| Two attempts per branch, counted by the commit prefix  | A third red run comments on the PR and stops instead of looping.                                        |
+| Skips when the branch moved past the failing commit    | The newer push has its own run; the owner's Cursor tooling also pushes to open PR branches.             |
+| Re-verifies with an explicit `workflow_dispatch`       | A push made with `GITHUB_TOKEN` starts no new run, so the loop has to ask for the gate by hand.         |
+
+`workflow_run` only fires for a workflow file that is **on the default branch**, so the loop is
+inert on the PR that introduces or edits it and goes live on merge. Test a change to it with the
+workflow's `workflow_dispatch` inputs (a failed run ID and a branch), not by waiting for a red PR.

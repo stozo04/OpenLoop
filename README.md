@@ -79,7 +79,7 @@ io.github.stozo04.openloop/
 ```
 
 > A fuller map — including `diagnostics/`, `review/` and `update/` — is in
-> [`CLAUDE.md`](CLAUDE.md#source-layout).
+> [`docs/OPENLOOP_INSTRUCTIONS.md`](docs/OPENLOOP_INSTRUCTIONS.md#source-layout).
 
 ## Getting Started
 

@@ -6,9 +6,10 @@ Written 2026-08-16, alongside the change that shipped it. The point of this docu
 tongue — it is the **method**, because more effects like this are queued. Read §1 and §8 if you read
 nothing else.
 
-> **Where things live.** The vendor project in this folder is **reference material only** and is
-> gitignored (§7). The shipped design decisions are recorded in
-> [`docs/PRD-camera-lenses.md` §14](../docs/PRD-camera-lenses.md); this guide is the how.
+> **Where things live.** The vendor project this was written from lived in `twisted-tounge/` as
+> **reference material only**, gitignored (§7); it was deleted from the repo on 2026-08-31, so the
+> vendor paths below are a record of how it was handled, not a place to look. The shipped design
+> decisions are in [`PRD-camera-lenses.md` §14](../PRD-camera-lenses.md); this guide is the how.
 
 ---
 
@@ -386,22 +387,14 @@ And keep the last row honest. A static poster proves plumbing. It does not prove
 **OpenLoop is public under Apache 2.0.** Anything committed is redistributed to everyone, under a
 license granting them the right to redistribute it again.
 
-The vendor project in this folder contains matcap textures, a 2.4 MB normal map, `.armesh`/`.fbx`
+The vendor project contained matcap textures, a 2.4 MB normal map, `.armesh`/`.fbx`
 geometry and a compiled bundle. **We hold no redistribution rights to any of it.** Committing the
 folder wholesale would publish another company's assets under our license. This has bitten the repo
 before — PR #118 was blocked on exactly this question for the broccoli photograph (PRD §11.2).
 
-So the folder is gitignored except this guide:
-
-```gitignore
-twisted-tounge/**
-!twisted-tounge/*.md
-!twisted-tounge/images/
-!twisted-tounge/images/**
-```
-
-**Verify the negation actually works** (`git check-ignore -v` on both a vendor file and the guide) —
-a `!` re-include silently fails if a parent directory is itself excluded.
+That `twisted-tounge/` tree is gone — deleted from git on 2026-08-31, not coming back, and this
+guide is the only leftover. There is no ignore rule for a path that no longer exists. This guide
+lives in `docs/guides/`.
 
 All shipped art is original vector drawable authored in this repo. For the next port:
 

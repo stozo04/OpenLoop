@@ -8,7 +8,7 @@
 ## Problem statement
 
 Agent sessions in this repo rely on model training data that can be a year stale — which is
-why `CLAUDE.md` forces a `developer.android.com` search before any claim about Android
+why `OPENLOOP_INSTRUCTIONS.md` forces a `developer.android.com` search before any claim about Android
 behavior. Google ships that same knowledge today as **agent skills**: 21 evaluated, versioned
 `SKILL.md` packages (the open standard OpenLoop's own `.claude/skills/` already uses),
 deliberately focused on "use cases and workflows where evaluations show LLMs underperform."
@@ -24,7 +24,7 @@ contradicts this repo's architecture will steer sessions against it.
 1. Installed skills auto-trigger during matching domain work (verified in a live session
    after restart).
 2. The r8-analyzer flow produces an actionable keep-rule/app-size report on the 31 MB release bundle.
-3. No skill recommendation against a documented repo decision survives — the `CLAUDE.md`
+3. No skill recommendation against a documented repo decision survives — the `OPENLOOP_INSTRUCTIONS.md`
    precedence section catches it.
 4. All existing gates stay green (Markdown placement, cspell, lint).
 
@@ -61,13 +61,13 @@ plan step 2 undid). Procedure and citation: [`guides/android-skills.md`](guides/
 **Scope: project only, never user.** Every turn, Claude Code injects each enabled skill's name +
 description into the prompt — the 21 android-skills descriptions measure ~8 kB (≈2 k tokens) per
 turn. Enabled at user scope that tax lands in every project on the machine, and the precedence
-guard (which lives in *this* repo's `CLAUDE.md`) protects none of them. The 2026-08-21 install had
+guard (which lives in *this* repo's `OPENLOOP_INSTRUCTIONS.md`) protects none of them. The 2026-08-21 install had
 landed at **user** scope (`~/.claude/settings.json`); it was migrated to project scope on 2026-08-22
 — plan step 2 records the evidence. How to invoke, scope, and update the skills:
 [`guides/android-skills.md`](guides/android-skills.md).
 
-**Mitigation for the overruled concern — precedence guard in `CLAUDE.md`:** since plugin
-skills can't be edited, the guard lives in `CLAUDE.md` ("Google Android Skills —
+**Mitigation for the overruled concern — precedence guard in `OPENLOOP_INSTRUCTIONS.md`:** since plugin
+skills can't be edited, the guard lives in `OPENLOOP_INSTRUCTIONS.md` ("Google Android Skills —
 Precedence"), which every session reads first: repo docs win over skill guidance, with the
 known collision points spelled out (`navigation-3` vs the Lesson-014 sealed NavHost;
 `camerax`'s `MlKitAnalyzer` preference vs the deliberate manual `FaceTracker` analyzer;
@@ -117,15 +117,15 @@ Swapping that layer is a real project with real risk. Open question below.
 
 ### Installed but guarded or dormant
 
-| Skill                                                                              | Reason                                                                                                                                                                                                                                                                                                       |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `navigation/navigation-3`                                                          | **Guarded — installed per the all-21 decision, but its advice must not be followed here.** OpenLoop deliberately uses a sealed-state machine + exhaustive `OpenLoopNavHost` `when` (Lesson 014, `PRD-mission-control.md`), not Navigation. The `CLAUDE.md` precedence section exists chiefly for this skill. |
-| `jetpack-compose/migration/migrate-xml-views-to-jetpack-compose`                   | Pure Compose app; nothing to migrate.                                                                                                                                                                                                                                                                        |
-| `build-system/agp/agp-9-upgrade`                                                   | Already on AGP 9.3.1. (Also: AGP ceiling is set by the installed Studio, not Maven.)                                                                                                                                                                                                                         |
-| `media/media3-cast-integration`                                                    | Cast is out of scope. Revisit only if a "play loops on TV" feature is ever proposed — YAGNI today.                                                                                                                                                                                                           |
-| `play/play-billing-library-version-upgrade`                                        | Free app, no IAP.                                                                                                                                                                                                                                                                                            |
-| `play/engage-sdk-integration`, `identity/verified-email`, `device-ai/appfunctions` | No matching surface in the app.                                                                                                                                                                                                                                                                              |
-| `tv/*`, `wear/*`, `xr/*`                                                           | Form factors out of scope.                                                                                                                                                                                                                                                                                   |
+| Skill                                                                              | Reason                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `navigation/navigation-3`                                                          | **Guarded — installed per the all-21 decision, but its advice must not be followed here.** OpenLoop deliberately uses a sealed-state machine + exhaustive `OpenLoopNavHost` `when` (Lesson 014, `PRD-mission-control.md`), not Navigation. The `OPENLOOP_INSTRUCTIONS.md` precedence section exists chiefly for this skill. |
+| `jetpack-compose/migration/migrate-xml-views-to-jetpack-compose`                   | Pure Compose app; nothing to migrate.                                                                                                                                                                                                                                                                                       |
+| `build-system/agp/agp-9-upgrade`                                                   | Already on AGP 9.3.1. (Also: AGP ceiling is set by the installed Studio, not Maven.)                                                                                                                                                                                                                                        |
+| `media/media3-cast-integration`                                                    | Cast is out of scope. Revisit only if a "play loops on TV" feature is ever proposed — YAGNI today.                                                                                                                                                                                                                          |
+| `play/play-billing-library-version-upgrade`                                        | Free app, no IAP.                                                                                                                                                                                                                                                                                                           |
+| `play/engage-sdk-integration`, `identity/verified-email`, `device-ai/appfunctions` | No matching surface in the app.                                                                                                                                                                                                                                                                                             |
+| `tv/*`, `wear/*`, `xr/*`                                                           | Form factors out of scope.                                                                                                                                                                                                                                                                                                  |
 
 ## How future features use these skills
 

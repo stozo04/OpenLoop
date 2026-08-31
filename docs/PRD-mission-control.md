@@ -8,7 +8,7 @@
 
 | You need                                               | Go to                                                                                                                                                                           |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Architecture: tech stack, source layout, state machine | `CLAUDE.md` → Architecture Snapshot                                                                                                                                             |
+| Architecture: tech stack, source layout, state machine | `OPENLOOP_INSTRUCTIONS.md` → Architecture Snapshot                                                                                                                              |
 | Per-feature design + verification record               | `docs/PRD-<feature>.md` (capture-zoom, camera-lenses, multi-face-lenses, photo-capture, speed-curves, photo-booth, aso-discoverability, crashlytics-autotriage, android-skills) |
 | Google standards + OpenLoop-specific rules             | [`ANDROID_STANDARDS.md`](ANDROID_STANDARDS.md)                                                                                                                                  |
 | Testing strategy + inventory                           | [`TEST_COVERAGE.md`](TEST_COVERAGE.md)                                                                                                                                          |

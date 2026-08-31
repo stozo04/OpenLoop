@@ -13,7 +13,7 @@ Read these in full, in this order, then begin:
 1. `swarm/SWARM-PROMPT.md` — how the three of you work together: bus protocol, file claims, phases
 2. `swarm/GOAL.md` — what to build, the quality bar, and the Definition of Done
 3. `swarm/collab/decisions.md` — standing rulings and the locked scope. Binding, not advisory.
-4. Everything `SWARM-PROMPT.md` lists under **Required reading** — `CLAUDE.md`, the core lessons
+4. Everything `SWARM-PROMPT.md` lists under **Required reading** — `docs/OPENLOOP_INSTRUCTIONS.md`, the core lessons
    (008, 011–032, especially **031** and **032**), `docs/PRD-camera-lenses.md`, and `Lens.kt`
 
 Your bus file is `swarm/collab/bus/claude.jsonl`. **You are its only writer** — never append to

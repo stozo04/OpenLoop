@@ -1,8 +1,8 @@
 <component name="DependencyValidationManager">
   <!-- Inspect Code scope = what git tracks. Select this ("Custom scope → OpenLoop Tracked") in
        Code → Inspect Code so the run skips the git worktrees under .claude/worktrees (full
-       copies of the repo), build output, the gitignored DeepAR reference bundle, private notes and
+       copies of the repo), build output, private notes and
        the swarm message-bus logs. One "whole project" run swept those in and produced 82,752 items,
        of which ~1,400 were in files git actually tracks. See docs/STATIC_ANALYSIS.md. -->
-  <scope name="OpenLoop Tracked" pattern="!file:.claude/worktrees//*&amp;&amp;!file:build//*&amp;&amp;!file:*/build//*&amp;&amp;!file:.gradle//*&amp;&amp;!file:.kotlin//*&amp;&amp;!file:.idea//*&amp;&amp;!file:twisted-tounge/twisted-tongue//*&amp;&amp;!file:twisted-tounge/__MACOSX//*&amp;&amp;!file:docs/local//*&amp;&amp;!file:swarm/collab/bus//*&amp;&amp;!file:releases//*&amp;&amp;!file:*.jsonl&amp;&amp;!file:*.log&amp;&amp;!file:keystore.properties&amp;&amp;!file:local.properties&amp;&amp;!file:*DO-NOT-COMMIT*&amp;&amp;!file:*.aab&amp;&amp;!file:*.apk" />
+  <scope name="OpenLoop Tracked" pattern="!file:.claude/worktrees//*&amp;&amp;!file:build//*&amp;&amp;!file:*/build//*&amp;&amp;!file:.gradle//*&amp;&amp;!file:.kotlin//*&amp;&amp;!file:.idea//*&amp;&amp;!file:docs/local//*&amp;&amp;!file:swarm/collab/bus//*&amp;&amp;!file:releases//*&amp;&amp;!file:*.jsonl&amp;&amp;!file:*.log&amp;&amp;!file:keystore.properties&amp;&amp;!file:local.properties&amp;&amp;!file:*DO-NOT-COMMIT*&amp;&amp;!file:*.aab&amp;&amp;!file:*.apk" />
 </component>

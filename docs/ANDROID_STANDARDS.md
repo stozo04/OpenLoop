@@ -121,7 +121,7 @@ Platform Layer    →  CameraX, Media3, system APIs
 
 **Google Guide:** [CameraX Overview](https://developer.android.com/media/camera/camerax) · [CameraX Architecture](https://developer.android.com/media/camera/camerax/architecture) · [Getting Started with CameraX (Codelab)](https://developer.android.com/codelabs/camerax-getting-started)
 
-Generic CameraX guidance (CameraX over Camera2, lifecycle binding, `PreviewView`, use-case limits, recording lifecycles) comes from the `android-skills:camerax` skill — force it with `/android-skills:camerax` ([`guides/android-skills.md`](guides/android-skills.md)) — and the Google links above. **Precedence caveat** (`CLAUDE.md`): the skill prefers `MlKitAnalyzer`; `FaceTracker` is a deliberate manual `ImageAnalysis.Analyzer` on the stable ML Kit API — keep it.
+Generic CameraX guidance (CameraX over Camera2, lifecycle binding, `PreviewView`, use-case limits, recording lifecycles) comes from the `android-skills:camerax` skill — force it with `/android-skills:camerax` ([`guides/android-skills.md`](guides/android-skills.md)) — and the Google links above. **Precedence caveat** (`OPENLOOP_INSTRUCTIONS.md`): the skill prefers `MlKitAnalyzer`; `FaceTracker` is a deliberate manual `ImageAnalysis.Analyzer` on the stable ML Kit API — keep it.
 
 **OpenLoop-specific CameraX rules** — the ones no skill can know:
 
