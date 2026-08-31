@@ -156,7 +156,7 @@ Then skim the output for lines starting with `e:` (errors — these stop the bui
 It runs every check to **zero** — clean debug+release build with compiler warnings fatal, 16 KB
 `zipalign`, Android Lint 0 errors / 0 warnings, unit + instrumented tests counted from XML,
 markdownlint, IDE-faithful table alignment, relative links, `cspell` over every tracked text file,
-JSON validity, and the Android Studio Inspect Code export — and writes `build/sweep-receipt.json`
+JSON validity, verification loops (gate 5b, overlapped), and the Android Studio Inspect Code export — and writes `build/sweep-receipt.json`
 when all are green. A Claude Code hook refuses to create a PR without a receipt for the current
 commit. Full policy: [`docs/DEFINITION_OF_DONE.md`](docs/DEFINITION_OF_DONE.md).
 

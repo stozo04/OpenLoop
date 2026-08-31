@@ -19,7 +19,7 @@ Sibling skills you must reuse, not copy:
 
 This skill is the feature map plus a thin `helpers/control.ps1` wrapper. The pixel sweep remains the codec/FGS proof. A feature-map pass that skips a mapped entry point is incomplete.
 
-**Loops vs recipes.** A feature file is a dump/tap recipe. A `helpers/*_loop.py` script is the fail-the-process proof. Onboarding is the first loop. When the owner asks to "verify" a surface, write or run a loop per `docs/guides/verification-loops.md`. Do not add an isolated Compose `setContent` test and call that the loop.
+**Loops vs recipes.** A feature file is a dump/tap recipe. A `helpers/*_loop.py` script is the fail-the-process proof. Onboarding is the first loop. When the owner asks to "verify" a surface, write or run a loop per `docs/guides/verification-loops.md`. `/create-verifier FEATURE_NAME` is the skill that writes the next one. Do not add an isolated Compose `setContent` test and call that the loop. A FAIL is a product bug — fix the app, not the loop.
 
 **Completeness:** Before claiming the feature map is current or adding “missing” recipes, run the gate in `features/README.md` (inventory → diff → no silent `missing`). Global Cursor rule: `feature-map-completeness`. PRDs are optional — OpenLoop shipped many surfaces before PRDs existed; use `strings.xml` + UI chrome first. Worksheet: `features/INVENTORY.md`.
 

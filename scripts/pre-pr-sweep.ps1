@@ -14,6 +14,9 @@
          is a flaky gate (docs/STATIC_ANALYSIS.md).
       4. JVM unit tests: 0 failures, 0 errors, tests > 0 (counted from the XML, never from BUILD SUCCESSFUL).
       5. Instrumented tests (unless -SkipConnected): same, from the connected XML.
+      5b. Verification loops: shipped helpers/*_loop.py via scripts/run-verification-loops.py --changed.
+         Starts in the background after a green debug APK so it overlaps lint/unit/text gates.
+         One emulator — does not overlap connectedDebugAndroidTest. Skip with -SkipConnected.
       6. Markdown: markdownlint-cli2, table alignment (scripts/md-table-align.py), markdown-link-check — all zero.
       7. Spelling: cspell over every tracked text file (Markdown, Kotlin, XML, scripts, configs) — zero unknown words.
          Legit terms go into cspell.json `words` (never disable the check).
@@ -30,7 +33,8 @@
 
 .PARAMETER InspectExport   Path to the Inspect Code HTML export. Default: build/inspect-export/index.html
 .PARAMETER SkipInspectCode Record Engine 2 as NOT RUN instead of failing when the export is missing.
-.PARAMETER SkipConnected   Skip connectedDebugAndroidTest (no emulator/device attached).
+.PARAMETER SkipConnected   Skip connectedDebugAndroidTest AND verification loops (no emulator/device attached).
+                           A skip means loop surfaces are not done. Do not edit a loop to force a pass.
 .PARAMETER DocsOnly        Text gates only (6-9). For docs-only branches — the receipt records it.
 
 .EXAMPLE
@@ -57,6 +61,10 @@ if (-not $env:JAVA_HOME) { $env:JAVA_HOME = "C:\Program Files\Android\Android St
 $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } elseif ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { "$env:LOCALAPPDATA\Android\Sdk" }
 
 $results = [ordered]@{}
+$loopProc = $null
+$loopStartError = $null
+$loopLog = Join-Path $root "build/verification-loops.log"
+$loopErr = Join-Path $root "build/verification-loops.err"
 function Gate([string]$name, [scriptblock]$body) {
     Write-Host ""
     Write-Host "== $name" -ForegroundColor Cyan
@@ -113,6 +121,26 @@ if (-not $DocsOnly) {
         return "FAIL: exit=$($r.Code) e:=$($errs.Count) w:=$($warns.Count) — first: $(($errs + $warns | Select-Object -First 1))"
     }
 
+    # Overlap: start loops as soon as the debug APK exists. One emulator, so connected
+    # tests wait until 5b finishes. Do not overlap two device drivers.
+    if (-not $SkipConnected -and ($results["1. clean assembleDebug assembleRelease (0 e:, 0 w:)"] -like "PASS*")) {
+        $debugApk = Join-Path $root "app/build/outputs/apk/debug/app-debug.apk"
+        if (Test-Path $debugApk) {
+            try {
+                if (Test-Path $loopLog) { Remove-Item $loopLog -Force }
+                if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
+                $script:loopProc = Start-Process -FilePath "python" -ArgumentList @(
+                    (Join-Path $root "scripts/run-verification-loops.py"),
+                    "--changed"
+                ) -WorkingDirectory $root -PassThru -WindowStyle Hidden `
+                    -RedirectStandardOutput $loopLog -RedirectStandardError $loopErr
+                Write-Host "== 5b. Verification loops — started in background (one emulator; overlapping remaining gates)" -ForegroundColor Cyan
+            } catch {
+                $script:loopStartError = $_.Exception.Message
+            }
+        }
+    }
+
     Gate "2. zipalign -c -P 16 on the release APK" {
         $apk = @("app/build/outputs/apk/release/app-release-unsigned.apk", "app/build/outputs/apk/release/app-release.apk") | Where-Object { Test-Path $_ } | Select-Object -First 1
         if (-not $apk) { return "FAIL: no release APK found" }
@@ -142,18 +170,6 @@ if (-not $DocsOnly) {
     Gate "4. JVM unit tests — 0 failures" {
         $r = Run-Gradle @(":app:testDebugUnitTest")
         $s = Sum-JUnit "app/build/test-results/testDebugUnitTest"
-        if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
-        return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
-    }
-
-    Gate "5. Instrumented tests — 0 failures" {
-        if ($SkipConnected) { return "SKIPPED (-SkipConnected; run connectedDebugAndroidTest before the PR)" }
-        $devices = @(& "$sdk/platform-tools/adb.exe" devices 2>$null | Select-String -Pattern "^\S+\s+(device|offline)$")
-        if ($devices.Count -gt 1 -and -not $env:ANDROID_SERIAL) {
-            return "FAIL: $($devices.Count) devices attached and ANDROID_SERIAL is unset — pin one (a Studio-managed emulator that is `offline` will otherwise be picked)"
-        }
-        $r = Run-Gradle @(":app:connectedDebugAndroidTest")
-        $s = Sum-JUnit "app/build/outputs/androidTest-results/connected"
         if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
         return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
     }
@@ -250,6 +266,38 @@ Gate "9. Inspect Code export (Engine 2) — 0 hard findings in tracked files" {
     return "FAIL: no export at $InspectExport. Android Studio → Code → Inspect Code → scope 'OpenLoop Tracked' → Export → HTML → build/inspect-export/"
 }
 
+Gate "5b. Verification loops — 0 failures (one emulator, overlapped)" {
+    if ($DocsOnly) { return "SKIPPED (docs-only)" }
+    if ($SkipConnected) { return "SKIPPED (-SkipConnected; no emulator — loop surfaces are not done)" }
+    if ($loopStartError) { return "FAIL: could not start runner: $loopStartError" }
+    if ($null -eq $loopProc) {
+        return "SKIPPED (debug APK missing or assemble did not pass — loops never started)"
+    }
+    $loopProc | Wait-Process
+    $code = $loopProc.ExitCode
+    if (Test-Path $loopLog) { Get-Content $loopLog | Add-Content $log }
+    if (Test-Path $loopErr) { Get-Content $loopErr | Add-Content $log }
+    $tail = ""
+    if (Test-Path $loopLog) { $tail = (@(Get-Content $loopLog) | Select-Object -Last 1) }
+    if ($code -eq 0 -and "$tail" -like "PASS*") { return "PASS ($tail)" }
+    if ($code -eq 0) { return "PASS" }
+    return "FAIL: exit=$code $tail — fix the product, not the loop (docs/DEFINITION_OF_DONE.md)"
+}
+
+if (-not $DocsOnly) {
+    Gate "5. Instrumented tests — 0 failures" {
+        if ($SkipConnected) { return "SKIPPED (-SkipConnected; run connectedDebugAndroidTest before the PR)" }
+        $devices = @(& "$sdk/platform-tools/adb.exe" devices 2>$null | Select-String -Pattern "^\S+\s+(device|offline)$")
+        if ($devices.Count -gt 1 -and -not $env:ANDROID_SERIAL) {
+            return "FAIL: $($devices.Count) devices attached and ANDROID_SERIAL is unset — pin one (a Studio-managed emulator that is `offline` will otherwise be picked)"
+        }
+        $r = Run-Gradle @(":app:connectedDebugAndroidTest")
+        $s = Sum-JUnit "app/build/outputs/androidTest-results/connected"
+        if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
+        return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
+    }
+}
+
 # ---------------------------------------------------------------------------- verdict + receipt
 Write-Host ""
 Write-Host "== Sweep summary" -ForegroundColor Cyan
@@ -263,15 +311,17 @@ foreach ($k in $results.Keys) {
 
 $sha = (git rev-parse HEAD).Trim()
 $dirty = @(git status --porcelain --untracked-files=no)
+$loopVerdict = $results["5b. Verification loops — 0 failures (one emulator, overlapped)"]
 $receipt = [ordered]@{
-    sha         = $sha
-    branch      = (git branch --show-current).Trim()
-    at          = (Get-Date -Format o)
-    treeClean   = ($dirty.Count -eq 0)
-    docsOnly    = [bool]$DocsOnly
-    inspectCode = $inspect
-    connected   = (-not $SkipConnected) -and (-not $DocsOnly)
-    gates       = $results
+    sha                = $sha
+    branch             = (git branch --show-current).Trim()
+    at                 = (Get-Date -Format o)
+    treeClean          = ($dirty.Count -eq 0)
+    docsOnly           = [bool]$DocsOnly
+    inspectCode        = $inspect
+    connected          = (-not $SkipConnected) -and (-not $DocsOnly)
+    verificationLoops  = if ($loopVerdict -like "PASS*") { "passed" } elseif ($loopVerdict -like "SKIPPED*") { "skipped" } else { "failed" }
+    gates              = $results
 }
 $receiptPath = Join-Path $root "build/sweep-receipt.json"
 if ($failed.Count -gt 0) {

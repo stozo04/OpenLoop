@@ -45,6 +45,7 @@ A feature file is a dump/tap recipe. A `helpers/*_loop.py` script is the fail-th
 When the owner asks to "verify" a surface, write or run a loop. Do not add an isolated Compose
 `setContent` test and call that the loop. Pattern, onboarding implementation notes, and remaining
 order: [`docs/guides/verification-loops.md`](../../../../docs/guides/verification-loops.md).
+Create the next script with `/create-verifier FEATURE_NAME`.
 
 Shipped loop: [Onboarding](./onboarding.md) → `helpers/onboarding_loop.py`.
 Next: wave 1 `capture-mode`, `flip-camera`, `gallery-empty` (no recording). Do not start wave 3

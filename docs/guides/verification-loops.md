@@ -108,7 +108,7 @@ Do this, in order:
 2. Name the fixtures in a comment-sized table in the script (same shape as FirstRun / Returning).
 3. Put must-have / must-not-have string lists next to those fixtures. Copy from `strings.xml`, including punctuation (`LET'S GO!`, `B&W` vs `Black & White`).
 4. Extract shared adb/dump/tap/serial helpers out of `onboarding_loop.py` into `helpers/loop_adb.py` **when the second loop lands**. Do not copy the 400-line file. Do not extract "for later" before the second loop exists.
-5. Script name `helpers/<feature>_loop.py`. Recipe's "Driving it with control.ps1" section gets the one-liner, same as onboarding.
+5. Script name `helpers/<feature>_loop.py`. Recipe's "Driving it with control.ps1" section gets the one-liner, same as onboarding. Register the loop in `scripts/run-verification-loops.py` `LOOPS` so Definition of Done `--changed` can select it.
 6. Harness-sync. One commit per loop. Prove it on a booted emulator (`adb devices` shows `device`) before calling it done.
 7. If the dump cannot prove the claim (camera facing, lens on a face, Play review card), name the **other** signal (logcat line, file on disk, visual with an honest "no face on this AVD"). Missing signal is a fail or `verified-unreachable`, never a silent pass.
 
@@ -206,7 +206,17 @@ Permission rationale / denied screens stay support chrome. Drive them only when 
 | `share-and-library.md`                            | `share-and-library`                                       | 5    |
 | Rate the app / in-app review                      | `in-app-review`                                           | 6    |
 
-When the request names a surface that has a recipe but no `*_loop.py` yet, **write the loop**. Do not only re-walk the recipe.
+When the request names a surface that has a recipe but no `*_loop.py` yet, **write the loop**. Do not only re-walk the recipe. Invoke `/create-verifier FEATURE_NAME` (skill `create-verifier`).
+
+## Definition of Done
+
+Shipped loops run as sweep gate **5b** (`python scripts/run-verification-loops.py --changed`). The sweep starts that command in the background after a green debug APK so it overlaps lint, JVM tests, and text gates. One emulator. Do not overlap with `connectedDebugAndroidTest`.
+
+A FAIL is a product bug. The change is not done. Keep fixing the app. **Do not** edit the loop to make it pass unless the loop itself is wrong (stale `strings.xml` literal, dump/serial bug). Forbidden: deleting the assertion that failed, swallowing FAIL, stretching timeouts until a flake hides, adding `testTag`s so the dump is easier.
+
+`-SkipConnected` skips loops too. That is honest, not done.
+
+Register every new `helpers/<id>_loop.py` in `scripts/run-verification-loops.py` `LOOPS` or `--changed` will not select it (an unmapped `app/src/main/` change still runs every shipped script).
 
 ## Emulator honesty
 
@@ -225,3 +235,4 @@ When the request names a surface that has a recipe but no `*_loop.py` yet, **wri
 | "verify photo booth"                    | Wave 2 arm, then run. Include Color / Black & White and the swap-lenses banner.                    |
 | "verify the editor" / "full e2e"        | Wave 4, or `run-e2e` if they want the existing orchestrator. Prefer a loop if they used that word. |
 | "verify rate the app"                   | Wave 6. Logcat, not a screenshot of Play's card.                                                   |
+| "/create-verifier FEATURE_NAME"         | Skill `create-verifier`. Write the loop. Do not add a Compose test.                                |

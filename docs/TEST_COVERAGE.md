@@ -208,9 +208,11 @@ These Compose host tests are the pyramid base. They are **not** a verification l
 
 A **recipe** under `.cursor/skills/verify-openloop/features/` tells an agent what to tap. A **loop** is `helpers/<feature>_loop.py` and is the only proof that counts for "verify X".
 
-Shipped: onboarding first-run vs returning (`python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py`). Remaining surfaces, the onboarding implementation notes, and the ordered build-out: [`guides/verification-loops.md`](guides/verification-loops.md).
+Shipped: onboarding first-run vs returning (`python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py`). Remaining surfaces, the onboarding implementation notes, and the ordered build-out: [`guides/verification-loops.md`](guides/verification-loops.md). Create the next one with `/create-verifier FEATURE_NAME`.
 
 This lane is agent-driven adb + uiautomator, not `androidTest/`. `run-e2e` / the pixel sweep remain the codec/FGS orchestrators. Do not add an isolated `setContent` test and call that the loop.
+
+Shipped loops are a Definition of Done gate (`scripts/run-verification-loops.py --changed`, sweep gate 5b, overlapped with lint/unit/text). A FAIL is a product bug — fix the app, not the loop.
 
 ---
 
