@@ -199,6 +199,19 @@ Gate "6d. Harness skill trees byte-identical (.claude/.cursor/.codex)" {
     return "FAIL: skill trees have drifted — see build/sweep.log for the paths"
 }
 
+Gate "6e. Script self-checks (scripts/test-*.py) — all green" {
+    # Free and offline. The other gates prove the TEXT is well-formed; this is the only one that
+    # fails when the logic of a script those gates depend on breaks.
+    $bad = @()
+    foreach ($t in (Get-ChildItem scripts/test-*.py)) {
+        $out = & python $t.FullName 2>&1
+        $out | Add-Content $log
+        if ($LASTEXITCODE -ne 0) { $bad += $t.Name }
+    }
+    if ($bad.Count -eq 0) { return "PASS" }
+    return "FAIL: $($bad -join ', ') — see build/sweep.log"
+}
+
 Gate "7. cspell over every tracked text file — 0 unknown words" {
     # `--file-list <path>` exits 1 silently on Windows; feeding the list on stdin works everywhere.
     $out = Get-Content $listFile | npx --yes cspell --no-progress --file-list stdin 2>&1

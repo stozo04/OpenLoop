@@ -106,7 +106,11 @@ def main(argv):
     fix = "--fix" in argv
     files = [a for a in argv if not a.startswith("--")]
     if not files:
-        files = subprocess.check_output(["git", "ls-files", "*.md"], text=True).split()
+        # `git ls-files` still lists a tracked file that has been deleted on disk, so a tree in the
+        # middle of a rename would crash this gate instead of reporting on it — and a gate that
+        # dies on someone else's half-staged move blocks everyone. Skip what is not there.
+        files = [f for f in subprocess.check_output(["git", "ls-files", "*.md"], text=True).split()
+                 if Path(f).exists()]
     total = 0
     for f in files:
         bad = process(Path(f), fix)
