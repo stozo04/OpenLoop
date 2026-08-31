@@ -47,9 +47,14 @@ def run_case(skill, case, timeout):
     except json.JSONDecodeError:
         return {"error": (p.stdout or p.stderr)[:300]}
 
-    blob = json.dumps(data)
     answer = data.get("result") or ""
-    fired = skill in blob
+    # Check if skill was consulted: first try dedicated field, then check metadata (not result text)
+    if "skills_read" in data:
+        fired = skill in data.get("skills_read", [])
+    else:
+        # Exclude result field to avoid false positives from answer text mentioning the skill
+        metadata = {k: v for k, v in data.items() if k != "result"}
+        fired = skill in json.dumps(metadata)
     want = bool(case.get("should_trigger", True))
 
     fails = []
@@ -108,6 +113,9 @@ def main(argv):
             else:
                 print(f"  pass   (fired={r['fired']}, turns={r['turns']}, ${r['cost']:.2f})")
 
+    if args.case and total == 0:
+        print(f"no case named {args.case!r} found")
+        return 1
     print(f"\n{total - failed}/{total} passed  ·  ${cost:.2f} spent")
     return 1 if failed else 0
 
