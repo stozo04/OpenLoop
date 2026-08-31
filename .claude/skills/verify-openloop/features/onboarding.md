@@ -17,21 +17,31 @@ First launch shows a single full-bleed trust screen (`Free. Forever.`) with `LET
 
 Preconditions:
 
-- Doctor passes.
-- Onboarding flag reset if this checkout already completed it:
-  `adb -s $Serial shell am force-stop io.github.stozo04.openloop`
-  then the `rm` in `.claude/skills/reset-storage/SKILL.md` (DataStore file `files/datastore/openloop_preferences.preferences_pb`).
-- Evidence dir `onboarding/` created.
+- One emulator connected (`adb devices` shows exactly one `emulator-*\tdevice`, or set `VERIFY_SERIAL`).
+- Debug APK installed, or present at `app/build/outputs/apk/debug/app-debug.apk` (the script installs with `-r -g` if missing). Do not invoke Gradle.
 
-- **See the screen.** Launch. Run `control.ps1 dump`. The dump contains `Free. Forever.` and `LET'S GO!` (testTag `onboarding_cta`). Content-desc `Looping demo of a boomerang video` may appear for the hero video.
-- **Continue.** `control.ps1 tap -Label "LET'S GO!"`. After a short wait, dump no longer shows `LET'S GO!`. Next dump shows `Grant Permission` or `Start recording` (or `Take photo` if stills mode).
-- **Returning user.** Launch again without reset. Dump does **not** show `LET'S GO!`.
-- **Proof.** Save dumps as `show.txt`, `after-cta.txt`, `second-launch.txt`.
+Run the rerunnable loop (Linux cloud agents and any host with `adb` + Python 3 stdlib):
+
+```bash
+python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py
+```
+
+Optional env: `VERIFY_SERIAL`, `VERIFY_EVIDENCE_DIR` (default `/tmp/openloop-verify/<timestamp>/onboarding`), `VERIFY_ALLOW_DEVICE=1` with `VERIFY_SERIAL` for a dedicated test phone.
+
+The script resets onboarding (force-stop + delete `files/datastore/openloop_preferences.preferences_pb`), then drives two launch fixtures:
+
+**First run (`LaunchKind.FirstRun`).** Assert dump contains `Free. Forever.`, badges `No Subscriptions · No Ads` and `Open source · 100% on your phone`, CTA `LET'S GO!`, and video content-desc `Looping demo of a boomerang video`. Tap `LET'S GO!`. Wait until the CTA is gone and the DataStore file exists. Evidence: `first-run.xml`, `first-run.png`, `after-cta.xml`.
+
+**Returning launch (`LaunchKind.Returning`).** Force-stop without deleting DataStore; relaunch. Dump must show `Start recording`, `Video`, and `Flip Camera`, and must **not** show `LET'S GO!`. Presence of the word `Camera` on mode chips is not photo mode — prove video mode from `Start recording`. Prove back-facing camera from logcat: a line containing `Camera bound (lens=back)` (saved as `returning-logcat.txt`). Flip Camera content-desc alone is not enough. Evidence: `returning.xml`, `returning.png`.
+
+Exit 0 prints `PASS serial=... first-run=onboarding returning=video+back evidence=...`. Exit 1 prints `FAIL ...` with the missing assertion.
+
+On Windows, the same flow can still be driven manually with `helpers/control.ps1` and `.claude/skills/run-e2e/scripts/uiauto.ps1`.
 
 ## Gotchas
 
 - Onboarding is one page now, not three. Recipes that tap through page dots are stale.
-- Camera permission is **not** an onboarding page. It is in-context at the shutter (`Grant Permission` / `We need a quick permission`).
+- Camera permission is **not** an onboarding page. It is in-context at the shutter (`Grant Permission` / `We need a quick permission`). The loop grants CAMERA up front; if `Grant Permission` appears on the returning launch, the loop fails.
 - `reset-storage` deletes only the onboarding DataStore. It keeps gallery videos. Force-stop first or the process rewrites the file on exit.
 - `run-as` works on debug builds. Release installs are not this skill's target.
 - Do not use a user's personal DataStore as the first-run fixture.

@@ -112,4 +112,6 @@ Leave the emulator running unless you started it for this run; if you started it
 
 It calls `.claude/skills/run-e2e/scripts/uiauto.ps1` for dump/tap. Do not reimplement dump parsing.
 
+Onboarding rerunnable loop (adb + Python 3 stdlib, no Gradle): `python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py`. Recipe: `features/onboarding.md`.
+
 For the full editor-tab + logcat report, run `.claude/skills/run-e2e/SKILL.md` and keep that report under `docs/e2e/`. That satisfies **edit-and-save** when you also store the dumps in `$VERIFY_EVIDENCE_DIR/edit-and-save/`. Single-tab claims use `features/edit-trim.md`, `edit-speed.md`, `edit-loop.md`, `edit-filter.md`, `edit-delete.md`, or `edit-save.md`.
