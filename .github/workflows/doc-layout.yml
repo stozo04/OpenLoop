@@ -55,10 +55,10 @@ jobs:
               # Agent-harness Markdown, not product documentation. `swarm/` is a self-contained
               # multi-agent workspace whose briefs and durable output are deliberately tracked —
               # .gitignore states it explicitly ("The durable output (decisions.md, LESSONS.md,
-              # research-*.md) IS tracked") — and `.claude/` / `.cursor/` hold slash-command
+              # research-*.md) IS tracked") — and `.claude/` / `.cursor/` / `.codex/` hold slash-command
               # and skill packages (`SKILL.md`). None of that is the product docs this gate
               # exists to keep tidy.
-              swarm/*|.claude/*|.cursor/*)
+              swarm/*|.claude/*|.cursor/*|.codex/*)
                 ;;
               # Reverse-engineering guides that must sit WITH the third-party reference project
               # they document (owner instruction, 2026-08-16). The vendor assets in those folders
