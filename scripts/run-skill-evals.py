@@ -27,6 +27,7 @@ Write tools are disallowed in the child run so an eval can never mutate the repo
 """
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -38,18 +39,45 @@ EVALS = ROOT / ".claude" / "evals"
 DISALLOWED = "Write,Edit,NotebookEdit"
 
 
-def run_case(skill, case, timeout):
-    p = subprocess.run(
-        ["claude", "-p", case["prompt"], "--output-format", "json", "--disallowedTools", DISALLOWED],
-        cwd=ROOT, capture_output=True, text=True, timeout=timeout)
-    try:
-        data = json.loads(p.stdout)
-    except json.JSONDecodeError:
-        return {"error": (p.stdout or p.stderr)[:300]}
+def invoked(events, skill):
+    """Did the agent actually consult the skill?
 
-    blob = json.dumps(data)
-    answer = data.get("result") or ""
-    fired = skill in blob
+    Read from `tool_use` blocks, not from the answer text. Searching the transcript for the
+    skill's name conflates two different things and gets both wrong: a correct refusal that
+    explains "this is not what harness-sync is for" reads as fired, while a correct use that
+    only ever mentions `sync-harness-skills.py` reads as not fired. The tool event is the fact;
+    the prose is the model talking about it.
+    """
+    for e in events:
+        for block in (e.get("message") or {}).get("content") or []:
+            if not isinstance(block, dict) or block.get("type") != "tool_use":
+                continue
+            inp = block.get("input") or {}
+            if block.get("name") == "Skill" and skill in str(inp.get("skill", "")):
+                return True
+            # Some harnesses load a skill by reading its SKILL.md rather than via the Skill tool.
+            if f"skills/{skill}/SKILL.md" in str(inp.get("file_path", "")).replace("\\", "/"):
+                return True
+    return False
+
+
+def score_run(events, skill, case):
+    """Turn a transcript into a verdict. Pure, so scripts/test-run-skill-evals.py can feed it
+    synthetic transcripts and pin this logic down without spending an agent run per assertion."""
+    final = next((e for e in reversed(events) if e.get("type") == "result"), None)
+    if final is None:
+        return {"error": "no result event"}
+
+    answer = final.get("result") or ""
+    # A run that never really happened must not be scored. A usage limit or a hard error ends the
+    # turn with no tools used, which silently satisfies every should_trigger:false case — a green
+    # negative result that proves nothing is worse than a red one, because nobody re-runs it.
+    if final.get("is_error") or final.get("subtype") not in (None, "success"):
+        return {"error": f"run failed ({final.get('subtype')}): {answer[:200]}"}
+    if re.search(r"(session|usage|rate) limit|resets \d", answer, re.I):
+        return {"error": f"run did not execute: {answer[:200]}"}
+
+    fired = invoked(events, skill)
     want = bool(case.get("should_trigger", True))
 
     fails = []
@@ -60,8 +88,24 @@ def run_case(skill, case, timeout):
         low = answer.lower()
         fails += [f"missing {s!r}" for s in case.get("expects", []) if s.lower() not in low]
         fails += [f"contains {s!r}" for s in case.get("rejects", []) if s.lower() in low]
-    return {"fired": fired, "fails": fails, "cost": data.get("total_cost_usd"),
-            "turns": data.get("num_turns"), "answer": answer}
+    return {"fired": fired, "fails": fails, "cost": final.get("total_cost_usd"),
+            "turns": final.get("num_turns"), "answer": answer}
+
+
+def run_case(skill, case, timeout):
+    p = subprocess.run(
+        ["claude", "-p", case["prompt"], "--output-format", "stream-json", "--verbose",
+         "--disallowedTools", DISALLOWED],
+        cwd=ROOT, capture_output=True, text=True, timeout=timeout)
+    events = []
+    for line in p.stdout.splitlines():
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    if not events:
+        return {"error": (p.stderr or p.stdout or "no output")[:300]}
+    return score_run(events, skill, case)
 
 
 def main(argv):
@@ -79,7 +123,7 @@ def main(argv):
               + (f" for skill {args.skill!r}" if args.skill else ""))
         return 1
 
-    failed = total = 0
+    failed = total = errors = 0
     cost = 0.0
     for suite in suites:
         spec = json.loads(suite.read_text(encoding="utf-8"))
@@ -97,7 +141,9 @@ def main(argv):
                 r = {"error": f"timed out after {args.timeout}s"}
 
             if "error" in r:
-                failed += 1
+                # Counted apart from FAIL: an error means the case never got a verdict, so
+                # reporting it as a failed skill would send you debugging the wrong thing.
+                errors += 1
                 print(f"  ERROR  {r['error']}")
                 continue
             cost += r["cost"] or 0
@@ -108,8 +154,17 @@ def main(argv):
             else:
                 print(f"  pass   (fired={r['fired']}, turns={r['turns']}, ${r['cost']:.2f})")
 
-    print(f"\n{total - failed}/{total} passed  ·  ${cost:.2f} spent")
-    return 1 if failed else 0
+    if not total:
+        # A filter that matched nothing is a typo, not a clean run. Printing "0/0 passed" and
+        # exiting 0 is the worst outcome available: it looks like proof and contains none.
+        print(f"no case matched --case {args.case!r}"
+              + (f" for skill {args.skill!r}" if args.skill else ""))
+        return 1
+
+    print(f"\n{total - failed - errors}/{total} passed"
+          + (f", {errors} errored" if errors else "")
+          + f"  ·  ${cost:.2f} spent")
+    return 1 if (failed or errors) else 0
 
 
 if __name__ == "__main__":

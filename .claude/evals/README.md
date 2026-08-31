@@ -40,9 +40,11 @@ python scripts/run-skill-evals.py --case gate-6d-red    # one case
 turns apiece), which is why the runner is opt-in and filterable rather than a sweep gate. Run the
 cases you touched, not the whole suite, unless you are changing a skill's description.
 
-The runner asks for `--output-format json` and scores two things per case:
+The runner asks for `--output-format stream-json` — it needs the per-message `tool_use` events,
+not just the final answer — and scores two things per case:
 
-- **fired** — whether the skill was actually consulted. This is the part a skill's `description`
+- **fired** — whether the skill was actually consulted, read from the `tool_use` events rather
+  than from the wording of the answer. This is the part a skill's `description`
   controls, and the part that silently rots when the description drifts from how people really ask.
 - **expects** — substrings that must appear in the answer, and `rejects` that must not. Deliberately
   loose: these check that the model reached the right conclusion, not that it phrased it a
@@ -51,6 +53,31 @@ The runner asks for `--output-format json` and scores two things per case:
 A `should_trigger: false` case is scored the other way — firing is the failure. Those near-misses
 are the ones worth having: a description broad enough to catch every real request usually also
 catches adjacent work it should stay out of.
+
+## The runner has its own tests
+
+A suite lies more quietly than a skill breaks — it reports green when nothing ran, or red when
+the skill was fine — so the runner is itself tested, free and offline:
+
+```bash
+python scripts/test-run-skill-evals.py
+```
+
+Every case in it is a lie this runner actually told, kept so it cannot tell it twice. Three came
+out of the first real run and the Bugbot review of it:
+
+- **A text search is not an invocation.** `fired` used to be the skill name appearing anywhere in
+  the transcript, which is wrong in both directions: a correct refusal that explains what the
+  skill is for reads as fired, and a correct use that only names the underlying script reads as
+  not fired. It now reads `tool_use` events.
+- **A run that never happened must not be scored.** A session limit was reported as a content
+  failure on one case and as a *pass* on the negative case — because a run that never fires the
+  skill trivially satisfies "the skill did not fire". Those are `ERROR` now, counted separately.
+- **A filter that matches nothing exits 1.** `--case` with a typo printed `0/0 passed` and exited
+  0, which looks like proof and contains none.
+
+When adding an assertion, ask what it would take for it to pass while the skill is broken. If the
+answer is "the API being down", it is not an assertion yet.
 
 ## The deterministic half
 
@@ -61,7 +88,7 @@ underneath it still works, and they cost money, so the mechanism gets its own fr
 python scripts/test-sync-harness-skills.py
 ```
 
-Eight cases against a throwaway git repo, no API calls. Two real bugs came out of writing it — a
+Eleven cases against a throwaway git repo, no API calls. Two real bugs came out of writing it — a
 new skill that was not yet `git add`ed passed the gate, and a file deleted from all three
 harnesses crashed the comparison. Prefer this layer whenever a check can be made deterministic;
 save the paid layer for what genuinely needs a model.
