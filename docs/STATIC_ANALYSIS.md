@@ -289,3 +289,21 @@ exits on its own failure, so the steps after it never ran and the log is not a c
 what is broken. Recurring failures get a row in
 [`docs/lessons_learned/`](lessons_learned/README.md) so the class is caught next time —
 [041](lessons_learned/041-deleting-a-tracked-asset-breaks-every-link-to-it.md) is one.
+
+### The auto-fix loop
+
+Most of the above is automatic. **`.github/workflows/ci-autofix.yml`** subscribes to this
+workflow with a `workflow_run` trigger — GitHub does not notify an agent, the agent subscribes —
+and on a failure it checks out the branch, hands Claude the failing log, and lets it push a
+`ci(autofix):` commit. Four properties are load-bearing:
+
+| Property                                               | Why                                                                                                     |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| Fires only on **this** workflow, never on Gradle/tests | A text-gate fix is mechanical; an agent that gets a test suite green by weakening it is worse than red. |
+| Two attempts per branch, counted by the commit prefix  | A third red run comments on the PR and stops instead of looping.                                        |
+| Skips when the branch moved past the failing commit    | The newer push has its own run; the owner's Cursor tooling also pushes to open PR branches.             |
+| Re-verifies with an explicit `workflow_dispatch`       | A push made with `GITHUB_TOKEN` starts no new run, so the loop has to ask for the gate by hand.         |
+
+`workflow_run` only fires for a workflow file that is **on the default branch**, so the loop is
+inert on the PR that introduces or edits it and goes live on merge. Test a change to it with the
+workflow's `workflow_dispatch` inputs (a failed run ID and a branch), not by waiting for a red PR.
