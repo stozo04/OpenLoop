@@ -126,17 +126,28 @@ if (-not $DocsOnly) {
     if (-not $SkipConnected -and ($results["1. clean assembleDebug assembleRelease (0 e:, 0 w:)"] -like "PASS*")) {
         $debugApk = Join-Path $root "app/build/outputs/apk/debug/app-debug.apk"
         if (Test-Path $debugApk) {
-            try {
-                if (Test-Path $loopLog) { Remove-Item $loopLog -Force }
-                if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
-                $script:loopProc = Start-Process -FilePath "python" -ArgumentList @(
-                    (Join-Path $root "scripts/run-verification-loops.py"),
-                    "--changed"
-                ) -WorkingDirectory $root -PassThru -WindowStyle Hidden `
-                    -RedirectStandardOutput $loopLog -RedirectStandardError $loopErr
-                Write-Host "== 5b. Verification loops — started in background (one emulator; overlapping remaining gates)" -ForegroundColor Cyan
-            } catch {
-                $script:loopStartError = $_.Exception.Message
+            $adb = Join-Path $sdk "platform-tools/adb.exe"
+            if (-not (Test-Path $adb)) { $adb = "adb" }
+            $installOut = & $adb install -r $debugApk 2>&1
+            $installOut | Add-Content $log
+            if ($LASTEXITCODE -ne 0) {
+                $script:loopStartError = "adb install -r failed: exit=$LASTEXITCODE"
+            } else {
+                try {
+                    if (Test-Path $loopLog) { Remove-Item $loopLog -Force }
+                    if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
+                    $script:loopProc = Start-Process -FilePath "python" -ArgumentList @(
+                        (Join-Path $root "scripts/run-verification-loops.py"),
+                        "--changed"
+                    ) -WorkingDirectory $root -PassThru -WindowStyle Hidden `
+                        -RedirectStandardOutput $loopLog -RedirectStandardError $loopErr -ErrorAction Stop
+                    if ($null -eq $script:loopProc) {
+                        $script:loopStartError = "Start-Process returned null (python may not be on PATH or redirect files may be locked)"
+                    }
+                    Write-Host "== 5b. Verification loops — started in background (one emulator; overlapping remaining gates)" -ForegroundColor Cyan
+                } catch {
+                    $script:loopStartError = $_.Exception.Message
+                }
             }
         }
     }

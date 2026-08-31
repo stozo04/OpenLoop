@@ -154,8 +154,14 @@ def select_loop_ids(
             selected.append(loop_id)
             seen.add(loop_id)
 
-    if not selected and app_main_changed(changed):
-        return [name for name in shipped]
+    if app_main_changed(changed):
+        all_needles: list[str] = []
+        for row in registry:
+            all_needles.extend(str(n) for n in row["paths"])  # type: ignore[arg-type]
+        main_files = [rel for rel in changed if rel.startswith("app/src/main/")]
+        unmapped = [rel for rel in main_files if not path_matches([rel], all_needles)]
+        if unmapped or not selected:
+            return [name for name in shipped]
 
     extras = [name for name in shipped if name not in {str(r["id"]) for r in registry}]
     if extras and app_main_changed(changed):
