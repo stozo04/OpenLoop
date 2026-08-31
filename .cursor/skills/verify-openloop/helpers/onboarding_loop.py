@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -48,6 +49,8 @@ def run_adb(serial: str, *args: str, check: bool = True) -> subprocess.Completed
         cmd,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=check,
     )
 
@@ -68,6 +71,8 @@ def resolve_serial() -> str:
         ["adb", "devices"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=True,
     ).stdout
     emulators = [
@@ -109,7 +114,7 @@ def evidence_dir() -> Path:
         path = Path(base)
     else:
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = Path("/tmp/openloop-verify") / stamp / "onboarding"
+        path = Path(tempfile.gettempdir()) / "openloop-verify" / stamp / "onboarding"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -234,15 +239,17 @@ def package_installed(serial: str) -> bool:
 
 
 def ensure_installed(serial: str) -> None:
-    if package_installed(serial):
-        return
     apk = repo_root() / APK_REL
     if not apk.is_file():
+        if package_installed(serial):
+            return
         fail(f"{PACKAGE} not installed and debug APK missing at {apk}")
     install = subprocess.run(
         ["adb", "-s", serial, "install", "-r", "-g", str(apk)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     combined = (install.stdout or "") + (install.stderr or "")
     if install.returncode != 0:
@@ -298,16 +305,10 @@ def wait_until(
     predicate,
     timeout_s: float,
     interval_s: float = 0.5,
-    *,
-    on_poll=None,
 ) -> bool:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        if on_poll:
-            result = on_poll()
-        else:
-            result = predicate()
-        if result:
+        if predicate():
             return True
         time.sleep(interval_s)
     return False
@@ -439,7 +440,14 @@ def main() -> int:
     assert_contains(strings, blob, CAMERA_MUST_HAVE, "returning")
     assert_absent(strings, blob, CAMERA_MUST_NOT_HAVE, "returning")
 
-    logcat = adb_out(serial, "logcat", "-d")
+    logcat = ""
+
+    def poll_back_camera() -> bool:
+        nonlocal logcat
+        logcat = adb_out(serial, "logcat", "-d")
+        return bool(FACING_PROOF_RE.search(logcat))
+
+    wait_until(poll_back_camera, timeout_s=30.0)
     (evidence / "returning-logcat.txt").write_text(logcat, encoding="utf-8")
     if FACING_FRONT_RE.search(logcat) and not FACING_PROOF_RE.search(logcat):
         fail("returning logcat shows Camera bound (lens=front) but not lens=back")
@@ -449,6 +457,7 @@ def main() -> int:
             f"see {evidence / 'returning-logcat.txt'}"
         )
 
+    force_stop(serial)
     print(
         f"PASS serial={serial} first-run=onboarding returning=video+back evidence={evidence}"
     )

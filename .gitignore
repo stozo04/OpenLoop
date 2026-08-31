@@ -12,6 +12,13 @@ app/google-services.json
 keystore.properties
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+.env
+.env.*
+!.env.example
 
 # Personal local-only notes (signing playbook, passwords reminders, etc.) — never commit
 local/

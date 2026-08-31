@@ -21,6 +21,7 @@
       <w>argb</w>
       <w>armeabi</w>
       <w>armesh</w>
+      <w>armv</w>
       <w>arted</w>
       <w>arthenica</w>
       <w>asarray</w>
@@ -329,6 +330,7 @@
       <w>pscustomobject</w>
       <w>pushback</w>
       <w>pwsh</w>
+      <w>pycache</w>
       <w>pythonutf</w>
       <w>qcom</w>
       <w>r8</w>

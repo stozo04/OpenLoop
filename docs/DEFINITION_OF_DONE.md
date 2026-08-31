@@ -16,25 +16,15 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 - If you discover the breakage was already on `main`, that makes it **more** urgent, not less — a broken gate on `main` means the safety net is down for every future change. Repair it (or escalate) immediately; never build on top of it.
 - Capture the green proof (build verdict + exit 0 + test counts, per the gate below) in the PR.
 
-## Verification loops (installed APK)
+## Autonomous onboarding proof
 
-Shipped `helpers/*_loop.py` scripts are part of this gate, not an optional extra. Policy: [`docs/guides/verification-loops.md`](guides/verification-loops.md). Create a new one with `/create-verifier FEATURE_NAME` (skill `create-verifier`).
-
-**A failing loop means the change is not done.** Keep working until the product matches the assertion, or stop and escalate. **Do not edit the loop to make it pass** unless you can show the loop itself is wrong (stale `strings.xml` literal, dump/serial bug). Deleting an assertion, swallowing FAIL, or stretching a timeout until a flake hides is not a fix.
-
-**Overlap so the emulator is not the long pole.** As soon as `app/build/outputs/apk/debug/app-debug.apk` exists, start:
+The installed-APK onboarding check is part of this gate:
 
 ```bash
 python scripts/run-verification-loops.py --changed
 ```
 
-On Windows Git Bash, do **not** type `python3` — it often resolves to a `Scripts\python3.exe` stub that dies with `No module named 'encodings'`. Use `python` or `py -3`. The shebang `#!/usr/bin/env python3` is for Linux.
-
-That selection runs every shipped loop whose surface is in the diff; an unmapped `app/src/main/` change runs all of them. The pre-PR sweep starts the same command in the background after a green assemble so it overlaps lint, JVM tests, and the text gates. **One emulator.** Do not boot a second AVD to go faster. Do not overlap loops with `connectedDebugAndroidTest` (they share the device; AGP uninstalls after instrumented tests).
-
-`-SkipConnected` skips loops as well as instrumented tests. That skip is honest, not done: say so in the PR. A cloud VM whose emulator stays `adb` `offline` is the same class — not a pass on compiling the script.
-
-Docs-only receipts (`-DocsOnly`) do not run loops.
+It resets only onboarding state, verifies the first-run screen, taps the CTA, proves DataStore persistence, cold-starts, and verifies Video mode with the back camera. A failure is a product failure unless the captured XML/logcat proves the check itself is wrong. The sweep overlaps it with non-device gates, then waits before instrumented tests. `-SkipConnected` skips it and must be reported. On Windows, use `python` or `py -3`, not Git Bash `python3`.
 
 ---
 
@@ -164,7 +154,7 @@ changing the script.
 > ```
 >
 > It reports every gate (it never stops at the first red), logs to `build/sweep.log`, and writes
-> `build/sweep-receipt.json` on green. Gate **5b** (verification loops) starts in the background
+> `build/sweep-receipt.json` on green. Gate **5b** (the onboarding loop) starts in the background
 > after a green debug APK so it overlaps lint, JVM tests, and the text gates. The steps below are
 > what it runs, kept here so a human can reproduce any one of them by hand.
 
@@ -224,11 +214,9 @@ $env:ANDROID_SERIAL = "emulator-XXXX"                            # pin the devic
 
 Read the actual counts (`tests=".." failures=".." errors=".."` in `app/build/.../*-results/`); confirm **0 failures**, not just `BUILD SUCCESSFUL`.
 
-### 5. Run it for real — boot, install, launch, screenshot, **and the matching loops**
+### 5. Run it for real — boot, install, launch, screenshot, and onboarding proof
 
-This is the step that separates "should work" from "works." Automated tests miss crashes-on-launch, missing/mislabeled assets, and layout breakage. Boot an emulator, install the APK, launch the app, and capture a screenshot as **proof**. Then run the shipped verification loops for the surfaces you touched (`python scripts/run-verification-loops.py --changed`, or the sweep's gate **5b** which starts that in the background after assemble). A screenshot of the launcher is not a substitute for a loop that exists.
-
-**A loop FAIL is a product FAIL.** Fix the app. See [Verification loops](#verification-loops-installed-apk) above.
+This is the step that separates "should work" from "works." Automated tests miss crashes-on-launch, missing/mislabeled assets, and layout breakage. Boot an emulator, install the APK, launch it, capture a screenshot, and run `python scripts/run-verification-loops.py --changed` (the sweep runs it as gate 5b).
 
 **Which APK:** debug is the default. When the change adds or bumps a dependency that ships native code, JNI, reflection, or a logging framework, run the **release** APK too and drive the code path that dependency serves — `assembleRelease` proves R8 compiled, not what it removed or renamed, and the first hand-tracking release build crashed on a lens tap that debug handled fine (Lesson 040).
 
@@ -288,15 +276,16 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] Baseline green before changes (clean assembleDebug)
 - [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
+- [ ] Tracked-file hygiene + Gitleaks pass: no gitignored/generated files or secrets (API keys, tokens, passwords, signing material, or other credentials) are committed
 - [ ] Release bump only: Play technical quality check done (vitals Memory rows under threshold, bundle App optimization High) — numbers pasted here
-- [ ] `.\scripts\pre-pr-sweep.ps1` GREEN on the final commit: build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown + tables + links + cspell + JSON all zero, verification loops PASS (or SKIPPED with no emulator — not done). Receipt: build/sweep-receipt.json
+- [ ] `.\scripts\pre-pr-sweep.ps1` GREEN on the final commit: build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown + tables + links + cspell + JSON all zero, onboarding loop PASS (or SKIPPED with no emulator — not done). Receipt: build/sweep-receipt.json
 - [ ] Inspect Code (Engine 2) export parsed to 0 hard findings — or the PR says it was SKIPPED and why
 - [ ] Play-facing docs aligned (owner rule, 2026-08-24): permission/telemetry/storage changes → data-safety.md + privacy policy (md + html, new effective date); lens/feature changes → store-listing.md (+ docs/index.html, root README.md)
 - [ ] Agent memory aligned (owner rule, 2026-08-24, Claude sessions): the project memory (`MEMORY.md` index + entries) reflects what this PR changed — new durable facts captured, entries this PR made stale corrected or deleted. Memory is never left stale.
 - [ ] Root `README.md` aligned (owner rule, 2026-08-24): the GitHub-facing README reflects this PR — feature list, tech stack, SDK levels, state machine, commands. Never stale.
 - [ ] Unit tests: 0 failures (count: __)
 - [ ] Instrumented tests: 0 failures (count: __)
-- [ ] Verification loops for touched surfaces: PASS (names: __) — a FAIL was fixed in the **product**, not by editing the loop
+- [ ] Autonomous onboarding loop: PASS
 - [ ] App installed + launched on an emulator; no FATAL in logcat
 - [ ] Screenshot captured and attached to the PR
 - [ ] Coverage gaps stated + manual QA checklist provided
