@@ -75,13 +75,21 @@ jobs:
           git fetch origin "$BRANCH" --quiet
           tip=$(git rev-parse "origin/$BRANCH")
 
+          # Populate TRIGGER_SHA from the run metadata when workflow_dispatch left it empty.
+          trigger_sha="${TRIGGER_SHA:-}"
+          if [ -z "$trigger_sha" ]; then
+            trigger_sha=$(gh run view "$RUN_ID" --json headSha --jq .headSha)
+          fi
+
           # A newer commit landed while the gate was running (the owner's Cursor tooling also
           # pushes to open PR branches). That push gets its own run; fixing the old one is noise.
-          if [ -n "${TRIGGER_SHA:-}" ] && [ "$TRIGGER_SHA" != "$tip" ]; then
-            echo "Branch moved on ($TRIGGER_SHA -> $tip); the newer push has its own run."
+          if [ "$trigger_sha" != "$tip" ]; then
+            echo "Branch moved on ($trigger_sha -> $tip); the newer push has its own run."
             echo "go=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          echo "trigger_sha=$trigger_sha" >> "$GITHUB_OUTPUT"
 
           # The commit marker doubles as the attempt counter: two tries, then hand it to a human.
           attempts=$(git log "origin/main..origin/$BRANCH" --grep "^ci(autofix):" --oneline | wc -l)
@@ -147,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin "$BRANCH" --quiet
-          if [ "$(git rev-parse "origin/$BRANCH")" = "${TRIGGER_SHA:-}" ]; then
+          if [ "$(git rev-parse "origin/$BRANCH")" = "${{ steps.guards.outputs.trigger_sha }}" ]; then
             echo "No fix was pushed — nothing to re-verify."
             exit 0
           fi
