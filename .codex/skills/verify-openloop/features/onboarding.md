@@ -23,8 +23,10 @@ Preconditions:
 Run the repeatable loop (Linux cloud agents and any host with `adb` + Python 3 stdlib):
 
 ```bash
-python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py
+python .cursor/skills/verify-openloop/helpers/onboarding_loop.py
 ```
+
+Windows Git Bash: `python` or `py -3`, not `python3`.
 
 Optional env: `VERIFY_SERIAL`, `VERIFY_EVIDENCE_DIR` (default `/tmp/openloop-verify/<timestamp>/onboarding`), `VERIFY_ALLOW_DEVICE=1` with `VERIFY_SERIAL` for a dedicated test phone.
 

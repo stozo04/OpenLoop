@@ -47,10 +47,10 @@ Allowed loop edits: literals that `strings.xml` actually changed; bugs in dump/t
 8. Prove it on a booted emulator (`adb devices` shows `device`):
 
    ```bash
-   python3 .cursor/skills/verify-openloop/helpers/<feature>_loop.py
+   python .cursor/skills/verify-openloop/helpers/<feature>_loop.py
    ```
 
-   Or `python3 scripts/run-verification-loops.py --only <feature>`. Compiling the script is not proof. Nested virtualization with `adb` `offline` is unverified — say that.
+   Or `python scripts/run-verification-loops.py --only <feature>`. Compiling the script is not proof. Nested virtualization with `adb` `offline` is unverified — say that. Windows Git Bash: `python` or `py -3`, not `python3`.
 
 ## Script contract (copy from onboarding)
 

@@ -95,8 +95,10 @@ Pass line: `PASS serial=... first-run=onboarding returning=video+back evidence=.
 Run:
 
 ```bash
-python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py
+python .cursor/skills/verify-openloop/helpers/onboarding_loop.py
 ```
+
+Windows Git Bash: `python` or `py -3`, not `python3` (`Scripts\python3.exe` is a stub and dies with `No module named 'encodings'`).
 
 Wrong-surface is not a pass. `OnboardingScreenTest` going green does not ship an onboarding loop.
 

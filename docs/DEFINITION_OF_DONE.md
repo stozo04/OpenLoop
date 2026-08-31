@@ -28,6 +28,8 @@ Shipped `helpers/*_loop.py` scripts are part of this gate, not an optional extra
 python scripts/run-verification-loops.py --changed
 ```
 
+On Windows Git Bash, do **not** type `python3` — it often resolves to a `Scripts\python3.exe` stub that dies with `No module named 'encodings'`. Use `python` or `py -3`. The shebang `#!/usr/bin/env python3` is for Linux.
+
 That selection runs every shipped loop whose surface is in the diff; an unmapped `app/src/main/` change runs all of them. The pre-PR sweep starts the same command in the background after a green assemble so it overlaps lint, JVM tests, and the text gates. **One emulator.** Do not boot a second AVD to go faster. Do not overlap loops with `connectedDebugAndroidTest` (they share the device; AGP uninstalls after instrumented tests).
 
 `-SkipConnected` skips loops as well as instrumented tests. That skip is honest, not done: say so in the PR. A cloud VM whose emulator stays `adb` `offline` is the same class — not a pass on compiling the script.

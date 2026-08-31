@@ -10,6 +10,9 @@ invent Compose tests and it does not edit a loop to make a fail look like a pass
     python scripts/run-verification-loops.py --only onboarding
     python scripts/run-verification-loops.py --list
 
+Windows: `python` or `py -3`. Git Bash `python3` is often `Scripts\\python3.exe` and dies
+with `No module named 'encodings'`.
+
 Selection (--changed):
 
 - Match changed paths against each loop's `paths` substrings.
