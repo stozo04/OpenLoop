@@ -392,17 +392,9 @@ geometry and a compiled bundle. **We hold no redistribution rights to any of it.
 folder wholesale would publish another company's assets under our license. This has bitten the repo
 before — PR #118 was blocked on exactly this question for the broccoli photograph (PRD §11.2).
 
-So the folder is gitignored except this guide:
-
-```gitignore
-twisted-tounge/**
-!twisted-tounge/*.md
-!twisted-tounge/images/
-!twisted-tounge/images/**
-```
-
-**Verify the negation actually works** (`git check-ignore -v` on both a vendor file and the guide) —
-a `!` re-include silently fails if a parent directory is itself excluded.
+That `twisted-tounge/` tree is gone — deleted from git on 2026-08-31, not coming back, and this
+guide is the only leftover. There is no ignore rule for a path that no longer exists. This guide
+lives in `docs/guides/`.
 
 All shipped art is original vector drawable authored in this repo. For the next port:
 

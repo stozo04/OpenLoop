@@ -135,7 +135,7 @@ sweep turn the export into a pass/fail over tracked files.
 1. **Scope first.** Code → Inspect Code → *Custom scope* → **OpenLoop Tracked**. The scope is
    committed at `.idea/scopes/OpenLoop_Tracked.xml` (`.gitignore` un-ignores `.idea/scopes/` and
    `.idea/dictionaries/` for exactly this). It excludes `.claude/worktrees/` (git worktrees — full
-   copies of the repo), build output, the gitignored DeepAR bundle, `docs/local/`, the swarm
+   copies of the repo), build output, `docs/local/`, the swarm
    message-bus logs and every other file git does not track. A "whole project" run once produced
    **82,752 items in a 9 GB export, 98 % of them phantom** (Lesson 038).
 2. **Export → HTML** into `build/inspect-export/` (gitignored). Don't put it at the repo root.

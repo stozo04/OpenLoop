@@ -26,7 +26,7 @@ docs/local/
 .kotlin/
 
 # IDE specific files. `.idea/` is per-machine EXCEPT the two folders shared through git so every
-# clone runs Inspect Code the same way: the "OpenLoop Tracked" scope (skips worktrees/build/vendor)
+# clone runs Inspect Code the same way: the "OpenLoop Tracked" scope (skips worktrees/build)
 # and the project spelling dictionary (generated from cspell.json — see docs/STATIC_ANALYSIS.md).
 .idea/*
 !.idea/scopes/
