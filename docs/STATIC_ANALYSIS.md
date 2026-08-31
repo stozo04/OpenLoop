@@ -274,3 +274,18 @@ already makes it a precondition of every PR. Adding it is a follow-up, not a gap
    skipped (the receipt's `inspectCode` field says which) — its absence never reads as a pass.
 4. CI's text gates re-run Tier 3 as a backstop.
 5. The [README PR Merge Policy](../README.md#pr-merge-policy) lists all of it as merge requirements.
+
+### When CI is red
+
+Read the failure from the terminal rather than the Actions UI:
+
+```bash
+gh pr checks <number>              # which check failed, and the run URL
+gh run view <run-id> --log-failed  # the failing step, log only
+```
+
+Then fix it and re-run **the whole sweep**, not just the step that was reported: each CI step
+exits on its own failure, so the steps after it never ran and the log is not a complete list of
+what is broken. Recurring failures get a row in
+[`docs/lessons_learned/`](lessons_learned/README.md) so the class is caught next time —
+[041](lessons_learned/041-deleting-a-tracked-asset-breaks-every-link-to-it.md) is one.
