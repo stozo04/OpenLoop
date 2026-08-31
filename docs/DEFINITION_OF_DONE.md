@@ -105,14 +105,27 @@ for the other two is worse than not fixing it: nothing on disk says which copy i
 
 **If an LLM changes its own skills, the other two get the same bytes in the same commit.**
 
+**Whatever LLM you are, run the check the moment you finish touching a skills tree** — before the
+commit, not at sweep time. It is read-only and takes under a second, and the `harness-sync` skill
+(present in all three harnesses) drives it:
+
 ```powershell
-python scripts/sync-harness-skills.py                      # --check is the default: exit 1 on drift
-python scripts/sync-harness-skills.py --fix --from cursor  # name the harness you actually edited
+python scripts/sync-harness-skills.py         # --check is the default: exit 1 on drift
+python scripts/sync-harness-skills.py --fix   # propagate the change to the other two
 ```
 
-`--fix` has no default source deliberately — the edited harness is the source of truth, and guessing
-reverts the change instead of propagating it. Enforced as sweep gate **6d** and as a CI step in
-[`static-analysis.yml`](../.github/workflows/static-analysis.yml); both are hard.
+**Aligning carries the change outward; it never deletes it to match the untouched two.** Both
+directions make the trees agree and turn the gate green, so the wrong one destroys the edit
+silently — the reason the script takes the direction from git rather than from whoever ran it.
+Bare `--fix` propagates from the one tree git says changed, and stops if none or several did
+(edited separately means no copy is authoritative — reconcile by hand, then run it). `--from`
+overrides that, but is refused when it contradicts git, naming the tree whose work would have
+been lost; `--force` is the deliberate discard and needs a reason in the PR.
+
+Enforced as sweep gate **6d** and as a CI step in
+[`static-analysis.yml`](../.github/workflows/static-analysis.yml); both are hard. The mechanism
+has its own free, offline test — `python scripts/test-sync-harness-skills.py` — run it after
+changing the script.
 
 - **Scope is `skills/**` only.** `settings.json` is harness-specific by design (Claude's carries
   marketplaces, plugins and hooks; the other two a plugin stub) and `.claude/commands/` has no
