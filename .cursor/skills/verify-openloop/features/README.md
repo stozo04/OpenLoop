@@ -25,6 +25,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 - Record the feature ID and entry point with every artifact.
 - Report an unreachable path with the attempted label and the dump that lacked it.
 - Do not report a skipped entry point as verified through a different path.
+- Onboarding has an autonomous proof: `python scripts/run-verification-loops.py --changed`.
 
 ## Feature entry contract
 

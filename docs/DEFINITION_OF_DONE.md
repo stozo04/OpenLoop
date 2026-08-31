@@ -16,6 +16,16 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 - If you discover the breakage was already on `main`, that makes it **more** urgent, not less — a broken gate on `main` means the safety net is down for every future change. Repair it (or escalate) immediately; never build on top of it.
 - Capture the green proof (build verdict + exit 0 + test counts, per the gate below) in the PR.
 
+## Autonomous onboarding proof
+
+The installed-APK onboarding check is part of this gate:
+
+```bash
+python scripts/run-verification-loops.py --changed
+```
+
+It resets only onboarding state, verifies the first-run screen, taps the CTA, proves DataStore persistence, cold-starts, and verifies Video mode with the back camera. A failure is a product failure unless the captured XML/logcat proves the check itself is wrong. The sweep overlaps it with non-device gates, then waits before instrumented tests. `-SkipConnected` skips it and must be reported. On Windows, use `python` or `py -3`, not Git Bash `python3`.
+
 ---
 
 ## Markdown rules (non-negotiable)
@@ -144,8 +154,9 @@ changing the script.
 > ```
 >
 > It reports every gate (it never stops at the first red), logs to `build/sweep.log`, and writes
-> `build/sweep-receipt.json` on green. The steps below are what it runs, kept here so a human can
-> reproduce any one of them by hand.
+> `build/sweep-receipt.json` on green. Gate **5b** (the onboarding loop) starts in the background
+> after a green debug APK so it overlaps lint, JVM tests, and the text gates. The steps below are
+> what it runs, kept here so a human can reproduce any one of them by hand.
 
 ### 0. Baseline — before you change anything
 
@@ -191,7 +202,7 @@ Reproduce both Inspect Code engines and clear them. Full design + severity rules
 
 There is no lint baseline, so the report must show **zero `severity="Error"` entries and zero `severity="Warning"` entries** (the sweep parses the XML; only the version-freshness checks `GradleDependency` / `NewerVersionAvailable` / `AndroidGradlePluginVersion` are advisory). Then **Engine 2** (IDE inspections + proofreading): in Android Studio run **Code → Inspect Code** with the custom scope **OpenLoop Tracked**, export the result as HTML into `build/inspect-export/`, and let the sweep parse it (`python scripts/inspect-report.py build/inspect-export/index.html` — zero hard findings in tracked files). The headless `inspect.bat` is vacuous on this machine (`STATIC_ANALYSIS.md`), so the IDE run is the real one. **Do not introduce a `lint-baseline.xml` to silence findings** — a generated baseline swallows every issue currently in the tree, including ones the PR just added. Fix it, or suppress it at the source with a stated reason.
 
-The text gates run alongside (all zero, whole repo, no baseline): `markdownlint-cli2`, `python scripts/md-table-align.py`, `markdown-link-check`, `cspell` over every tracked text file (legit terms go into `cspell.json` `words`; `python scripts/sync-ide-dictionary.py` keeps the IDE dictionary identical), and JSON validity.
+The text gates run alongside with no baseline: `markdownlint-cli2`, `python scripts/md-table-align.py`, `cspell` over every tracked text file (legit terms go into `cspell.json` `words`; `python scripts/sync-ide-dictionary.py` keeps the IDE dictionary identical), and JSON validity. `markdown-link-check` checks changed Markdown only; any tracked delete or rename switches it to all Markdown so unchanged inbound links are still protected.
 
 ### 4. Automated tests — unit and instrumented
 
@@ -203,9 +214,9 @@ $env:ANDROID_SERIAL = "emulator-XXXX"                            # pin the devic
 
 Read the actual counts (`tests=".." failures=".." errors=".."` in `app/build/.../*-results/`); confirm **0 failures**, not just `BUILD SUCCESSFUL`.
 
-### 5. Run it for real — boot, install, launch, screenshot
+### 5. Run it for real — boot, install, launch, screenshot, and onboarding proof
 
-This is the step that separates "should work" from "works." Automated tests miss crashes-on-launch, missing/mislabeled assets, and layout breakage. Boot an emulator, install the APK, launch the app, and capture a screenshot as **proof**.
+This is the step that separates "should work" from "works." Automated tests miss crashes-on-launch, missing/mislabeled assets, and layout breakage. Boot an emulator, install the APK, launch it, capture a screenshot, and run `python scripts/run-verification-loops.py --changed` (the sweep runs it as gate 5b).
 
 **Which APK:** debug is the default. When the change adds or bumps a dependency that ships native code, JNI, reflection, or a logging framework, run the **release** APK too and drive the code path that dependency serves — `assembleRelease` proves R8 compiled, not what it removed or renamed, and the first hand-tracking release build crashed on a lens tap that debug handled fine (Lesson 040).
 
@@ -265,14 +276,16 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] Baseline green before changes (clean assembleDebug)
 - [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
+- [ ] Tracked-file hygiene + Gitleaks pass: no gitignored/generated files or secrets (API keys, tokens, passwords, signing material, or other credentials) are committed
 - [ ] Release bump only: Play technical quality check done (vitals Memory rows under threshold, bundle App optimization High) — numbers pasted here
-- [ ] `.\scripts\pre-pr-sweep.ps1` GREEN on the final commit: build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown + tables + links + cspell + JSON all zero (receipt: build/sweep-receipt.json)
+- [ ] `.\scripts\pre-pr-sweep.ps1` GREEN on the final commit: build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown + tables + links + cspell + JSON all zero, onboarding loop PASS (or SKIPPED with no emulator — not done). Receipt: build/sweep-receipt.json
 - [ ] Inspect Code (Engine 2) export parsed to 0 hard findings — or the PR says it was SKIPPED and why
 - [ ] Play-facing docs aligned (owner rule, 2026-08-24): permission/telemetry/storage changes → data-safety.md + privacy policy (md + html, new effective date); lens/feature changes → store-listing.md (+ docs/index.html, root README.md)
 - [ ] Agent memory aligned (owner rule, 2026-08-24, Claude sessions): the project memory (`MEMORY.md` index + entries) reflects what this PR changed — new durable facts captured, entries this PR made stale corrected or deleted. Memory is never left stale.
 - [ ] Root `README.md` aligned (owner rule, 2026-08-24): the GitHub-facing README reflects this PR — feature list, tech stack, SDK levels, state machine, commands. Never stale.
 - [ ] Unit tests: 0 failures (count: __)
 - [ ] Instrumented tests: 0 failures (count: __)
+- [ ] Autonomous onboarding loop: PASS
 - [ ] App installed + launched on an emulator; no FATAL in logcat
 - [ ] Screenshot captured and attached to the PR
 - [ ] Coverage gaps stated + manual QA checklist provided

@@ -33,8 +33,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -274,13 +272,11 @@ private fun OnboardingVideoCard(
                 player = exoPlayer
                 useController = false
                 resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM // crop-to-fill the full-bleed page
+                contentDescription = videoDescription
             }
         },
-        // The looping clip is a decorative product demo; the title below is the real label. Give
-        // TalkBack a short description rather than leaving the bare PlayerView unlabeled.
-        modifier = modifier.semantics {
-            contentDescription = videoDescription
-        },
+        // Give TalkBack a short description rather than leaving the PlayerView unlabeled.
+        modifier = modifier,
     )
 }
 

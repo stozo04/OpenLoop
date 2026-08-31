@@ -5,7 +5,8 @@ name: Static analysis (text gates)
 # every tracked text file, JSON validity, and the cspell ↔ IDE-dictionary sync. Every step is a HARD gate — the tree is at zero and
 # there is no baseline, so a red step means the PR introduced it. Design: docs/STATIC_ANALYSIS.md.
 #
-# Deliberately whole-repo, not changed-files-only: with no baseline that is the only honest scope.
+# Structural/spelling gates remain whole-repo. Relative links check changed Markdown, falling back to
+# all Markdown when any tracked file is deleted or renamed so unchanged inbound links cannot go stale.
 
 on:
   pull_request:
@@ -20,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -35,13 +38,27 @@ jobs:
       - name: Table alignment (0 misaligned)
         run: python scripts/md-table-align.py
 
-      - name: markdown-link-check (0 dead relative links)
+      - name: markdown-link-check (changed docs; all after delete/rename)
         run: |
           set -o pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          if [[ -z "$base" ]]; then base="$(git merge-base HEAD origin/main)"; fi
+          removed="$(git diff --name-only --diff-filter=DR --find-renames "$base" HEAD)"
+          if [[ -n "$removed" ]]; then
+            git ls-files '*.md' > link-files.txt
+            scope="all; delete/rename detected"
+          else
+            git diff --name-only --diff-filter=ACMRT "$base" HEAD -- '*.md' > link-files.txt
+            scope="changed"
+          fi
           dead=0
-          for f in $(git ls-files '*.md'); do
+          count=0
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            count=$((count + 1))
             npx --yes markdown-link-check --config .markdown-link-check.json -q "$f" | tee -a link-check.log || dead=1
-          done
+          done < link-files.txt
+          echo "checked $count Markdown file(s); scope=$scope"
           exit $dead
 
       # The gates above check that text is well-formed; nothing here executed the Python the

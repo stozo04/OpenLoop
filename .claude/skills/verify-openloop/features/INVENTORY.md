@@ -7,7 +7,7 @@ Does **not** need to stay perfectly current between audits — the [README compl
 
 | Surface (user-visible)               | Source hint                  | Status             | Feature file                                       |
 | ------------------------------------ | ---------------------------- | ------------------ | -------------------------------------------------- |
-| Onboarding `LET'S GO!`               | strings / OnboardingScreen   | mapped             | [onboarding.md](./onboarding.md)                   |
+| Onboarding `LET'S GO!`               | strings / OnboardingScreen   | automated          | [onboarding.md](./onboarding.md)                   |
 | Record / stop video                  | `Start recording`            | mapped             | [record-clip.md](./record-clip.md)                 |
 | Lenses drawer + catalogue            | `Lenses and Photo Booth`     | mapped             | [lenses.md](./lenses.md)                           |
 | Multi-face (1–2) lens                | FaceRoster / live preview    | folded into lenses | [lenses.md](./lenses.md)                           |

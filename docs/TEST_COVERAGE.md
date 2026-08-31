@@ -200,6 +200,14 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 **Source:** [Testing APIs](https://developer.android.com/develop/ui/compose/testing/apis) · [Semantics in Testing](https://developer.android.com/develop/ui/compose/testing/semantics)
 
+These Compose host tests are the pyramid base. `OnboardingScreenTest` clicking `onboarding_cta` never starts `MainActivity`, hits DataStore, or binds the camera, so it does not replace the installed-APK check below.
+
+---
+
+## Installed-APK onboarding check
+
+`python scripts/run-verification-loops.py --changed` drives `MainActivity` with adb and UI hierarchy dumps, then proves first-run copy, CTA persistence, returning-user routing, Video mode, and back-camera binding. It is Definition of Done gate 5b. A false assertion fails the process and produces XML, screenshots, and logcat evidence.
+
 ---
 
 ## Current Test Inventory

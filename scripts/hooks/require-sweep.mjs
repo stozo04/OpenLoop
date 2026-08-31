@@ -74,5 +74,7 @@ if (receipt.docsOnly === true) {
 const notes = [];
 if (receipt.inspectCode !== "passed") notes.push("Inspect Code (Engine 2) was SKIPPED — say so in the PR description.");
 if (receipt.connected === false) notes.push("Instrumented tests were SKIPPED — say so in the PR description.");
+if (receipt.onboardingLoop === "skipped")
+  notes.push("The onboarding loop was SKIPPED — onboarding is not verified; say so in the PR.");
 if (notes.length) process.stderr.write(`sweep receipt OK for ${head.slice(0, 10)}; notes: ${notes.join(" ")}\n`);
 process.exit(0);

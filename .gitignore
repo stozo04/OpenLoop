@@ -12,6 +12,13 @@ app/google-services.json
 keystore.properties
 *.jks
 *.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+.env
+.env.*
+!.env.example
 
 # Personal local-only notes (signing playbook, passwords reminders, etc.) — never commit
 local/
@@ -38,6 +45,8 @@ docs/local/
 # Temporary files
 *.tmp
 *.log
+__pycache__/
+*.py[cod]
 
 # E2E loop source video — local test asset, never commit (see .claude/commands/e2e-fold-loop.md)
 google-pro-fold-video.mp4

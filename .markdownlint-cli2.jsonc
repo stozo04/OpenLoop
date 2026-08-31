@@ -1,5 +1,5 @@
 // Tier-3 static analysis (Issue #21) — approximate Android Studio's Markdown inspections
-// headlessly. Run: `npx --yes markdownlint-cli2 $(git ls-files '*.md')`  (see docs/STATIC_ANALYSIS.md).
+// headlessly. The sweep batches tracked files to stay under Windows' command-line limit.
 //
 // Scoped to the high-signal STRUCTURAL rules IntelliJ's Markdown inspection actually flags
 // (table formatting, ordered-list numbering, list/heading spacing). Opinionated prose rules

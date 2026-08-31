@@ -14,10 +14,14 @@
          is a flaky gate (docs/STATIC_ANALYSIS.md).
       4. JVM unit tests: 0 failures, 0 errors, tests > 0 (counted from the XML, never from BUILD SUCCESSFUL).
       5. Instrumented tests (unless -SkipConnected): same, from the connected XML.
-      6. Markdown: markdownlint-cli2, table alignment (scripts/md-table-align.py), markdown-link-check — all zero.
+      5b. Autonomous onboarding loop via scripts/run-verification-loops.py --changed.
+         Starts in the background after a green debug APK so it overlaps lint/unit/text gates.
+         One emulator — does not overlap connectedDebugAndroidTest. Skip with -SkipConnected.
+      6. Markdown: markdownlint-cli2, table alignment (scripts/md-table-align.py), and relative-link checks on
+         changed Markdown (all Markdown after any delete/rename) — all zero.
       7. Spelling: cspell over every tracked text file (Markdown, Kotlin, XML, scripts, configs) — zero unknown words.
          Legit terms go into cspell.json `words` (never disable the check).
-      8. JSON validity of every tracked *.json; the IDE dictionary is in sync with cspell.json.
+      8. JSON validity, IDE dictionary sync, tracked-file hygiene, and a redacted Gitleaks scan of tracked HEAD.
       9. Inspect Code (Engine 2): parses the Android Studio HTML export with scripts/inspect-report.py — zero hard
          findings in tracked files. Run Code → Inspect Code with the "OpenLoop Tracked" scope and export HTML
          to build/inspect-export/. Pass -SkipInspectCode ONLY where Studio is unavailable; the receipt then says
@@ -30,7 +34,8 @@
 
 .PARAMETER InspectExport   Path to the Inspect Code HTML export. Default: build/inspect-export/index.html
 .PARAMETER SkipInspectCode Record Engine 2 as NOT RUN instead of failing when the export is missing.
-.PARAMETER SkipConnected   Skip connectedDebugAndroidTest (no emulator/device attached).
+.PARAMETER SkipConnected   Skip connectedDebugAndroidTest and the onboarding loop (no emulator/device attached).
+                           A skip means onboarding is not verified.
 .PARAMETER DocsOnly        Text gates only (6-9). For docs-only branches — the receipt records it.
 
 .EXAMPLE
@@ -57,6 +62,10 @@ if (-not $env:JAVA_HOME) { $env:JAVA_HOME = "C:\Program Files\Android\Android St
 $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } elseif ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { "$env:LOCALAPPDATA\Android\Sdk" }
 
 $results = [ordered]@{}
+$loopProc = $null
+$loopStartError = $null
+$loopLog = Join-Path $root "build/verification-loops.log"
+$loopErr = Join-Path $root "build/verification-loops.err"
 function Gate([string]$name, [scriptblock]$body) {
     Write-Host ""
     Write-Host "== $name" -ForegroundColor Cyan
@@ -113,6 +122,24 @@ if (-not $DocsOnly) {
         return "FAIL: exit=$($r.Code) e:=$($errs.Count) w:=$($warns.Count) — first: $(($errs + $warns | Select-Object -First 1))"
     }
 
+    # Start the onboarding proof as soon as the debug APK exists. Connected tests wait
+    # until it finishes because both drive the same emulator.
+    if (-not $SkipConnected -and ($results["1. clean assembleDebug assembleRelease (0 e:, 0 w:)"] -like "PASS*")) {
+        try {
+            if (Test-Path $loopLog) { Remove-Item $loopLog -Force }
+            if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
+            $script:loopProc = Start-Process -FilePath "python" -ArgumentList @(
+                (Join-Path $root "scripts/run-verification-loops.py"),
+                "--changed"
+            ) -WorkingDirectory $root -PassThru -WindowStyle Hidden `
+                -RedirectStandardOutput $loopLog -RedirectStandardError $loopErr -ErrorAction Stop
+            if ($null -eq $script:loopProc) { $script:loopStartError = "Start-Process returned null" }
+            Write-Host "== 5b. Onboarding loop — started in background" -ForegroundColor Cyan
+        } catch {
+            $script:loopStartError = $_.Exception.Message
+        }
+    }
+
     Gate "2. zipalign -c -P 16 on the release APK" {
         $apk = @("app/build/outputs/apk/release/app-release-unsigned.apk", "app/build/outputs/apk/release/app-release.apk") | Where-Object { Test-Path $_ } | Select-Object -First 1
         if (-not $apk) { return "FAIL: no release APK found" }
@@ -145,18 +172,6 @@ if (-not $DocsOnly) {
         if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
         return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
     }
-
-    Gate "5. Instrumented tests — 0 failures" {
-        if ($SkipConnected) { return "SKIPPED (-SkipConnected; run connectedDebugAndroidTest before the PR)" }
-        $devices = @(& "$sdk/platform-tools/adb.exe" devices 2>$null | Select-String -Pattern "^\S+\s+(device|offline)$")
-        if ($devices.Count -gt 1 -and -not $env:ANDROID_SERIAL) {
-            return "FAIL: $($devices.Count) devices attached and ANDROID_SERIAL is unset — pin one (a Studio-managed emulator that is `offline` will otherwise be picked)"
-        }
-        $r = Run-Gradle @(":app:connectedDebugAndroidTest")
-        $s = Sum-JUnit "app/build/outputs/androidTest-results/connected"
-        if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
-        return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
-    }
 }
 
 # ---------------------------------------------------------------------------- text gates
@@ -168,10 +183,25 @@ $listFile = Join-Path $root "build/sweep-files.txt"
 $text | Set-Content $listFile -Encoding utf8
 
 Gate "6a. markdownlint-cli2 — 0 findings" {
-    $out = & npx --yes markdownlint-cli2 @md 2>&1
-    $out | Add-Content $log
-    if ($LASTEXITCODE -eq 0) { return "PASS ($($md.Count) files)" }
-    return "FAIL: $(($out | Where-Object { $_ -match 'Summary:' }) -join ' ')"
+    # Windows rejects one command line containing every tracked Markdown path.
+    $failed = $false
+    $summary = @()
+    $linted = 0
+    for ($i = 0; $i -lt $md.Count; $i += 40) {
+        $last = [Math]::Min($i + 39, $md.Count - 1)
+        $batch = @($md[$i..$last] | ForEach-Object { ":$_" })
+        $out = & npx --yes markdownlint-cli2 @batch 2>&1
+        $out | Add-Content $log
+        foreach ($line in $out) {
+            if ($line -match '^Linting: (\d+) files?$') { $linted += [int]$Matches[1] }
+        }
+        if ($LASTEXITCODE -ne 0) {
+            $failed = $true
+            $summary += @($out | Where-Object { $_ -match 'Summary:' })
+        }
+    }
+    if (-not $failed -and $linted -eq $md.Count) { return "PASS ($linted files)" }
+    return "FAIL: linted=$linted expected=$($md.Count) $($summary -join ' ')"
 }
 
 Gate "6b. Markdown table alignment (IDE-faithful) — 0 misaligned" {
@@ -181,14 +211,26 @@ Gate "6b. Markdown table alignment (IDE-faithful) — 0 misaligned" {
     return "FAIL: $($out | Select-Object -Last 1) (fix: python scripts/md-table-align.py --fix)"
 }
 
-Gate "6c. markdown-link-check — 0 dead relative links" {
+$linkBase = ("$(& git merge-base HEAD origin/main 2>$null)").Trim()
+$removedOrRenamed = if ($linkBase) { @(& git diff --name-only --diff-filter=DR --find-renames $linkBase HEAD) } else { @() }
+$linkMd = if ($removedOrRenamed.Count -gt 0) {
+    $md
+} elseif ($linkBase) {
+    @(& git diff --name-only --diff-filter=ACMRT $linkBase HEAD -- "*.md" | Where-Object { Test-Path $_ })
+} else {
+    @()
+}
+
+Gate "6c. markdown-link-check — changed docs (all after delete/rename)" {
+    if (-not $linkBase) { return "FAIL: cannot find merge-base with origin/main" }
     $dead = 0
-    foreach ($f in $md) {
+    foreach ($f in $linkMd) {
         $out = & npx --yes markdown-link-check --config .markdown-link-check.json -q $f 2>&1
         $out | Add-Content $log
         $dead += @($out | Where-Object { $_ -match '\[✖\]|\[x\]|ERROR:' }).Count
     }
-    if ($dead -eq 0) { return "PASS ($($md.Count) files)" }
+    $scope = if ($removedOrRenamed.Count -gt 0) { "all; delete/rename detected" } else { "changed" }
+    if ($dead -eq 0) { return "PASS ($($linkMd.Count) files; $scope)" }
     return "FAIL: $dead dead link(s) — see build/sweep.log"
 }
 
@@ -238,6 +280,25 @@ Gate "8b. IDE spelling dictionary in sync with cspell.json" {
     return "FAIL: $out"
 }
 
+Gate "8c. Tracked-file hygiene + Gitleaks — no generated files or secrets" {
+    $ignoredTracked = @(& git ls-files -ci --exclude-standard)
+    $ignoredTracked | Add-Content $log
+    try {
+        $gitleaks = (& scripts/ensure-gitleaks.ps1 | Select-Object -Last 1)
+        $archive = Join-Path $root "build/gitleaks-tracked-head.zip"
+        & git archive --format=zip -o $archive HEAD
+        if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
+        $out = & $gitleaks dir --no-banner --no-color --redact=100 --max-archive-depth=1 --max-decode-depth=2 $archive 2>&1
+        $scanCode = $LASTEXITCODE
+        $out | Add-Content $log
+    } catch {
+        $_ | Add-Content $log
+        return "FAIL: Gitleaks could not run — see build/sweep.log"
+    }
+    if ($ignoredTracked.Count -eq 0 -and $scanCode -eq 0) { return "PASS" }
+    return "FAIL: ignored-tracked=$($ignoredTracked.Count) gitleaks-exit=$scanCode — see build/sweep.log (findings are redacted)"
+}
+
 $inspect = "skipped"
 Gate "9. Inspect Code export (Engine 2) — 0 hard findings in tracked files" {
     if (Test-Path $InspectExport) {
@@ -248,6 +309,37 @@ Gate "9. Inspect Code export (Engine 2) — 0 hard findings in tracked files" {
     }
     if ($SkipInspectCode) { return "SKIPPED (-SkipInspectCode: say so in the PR; the owner runs Inspect Code before merge)" }
     return "FAIL: no export at $InspectExport. Android Studio → Code → Inspect Code → scope 'OpenLoop Tracked' → Export → HTML → build/inspect-export/"
+}
+
+Gate "5b. Onboarding loop — autonomous first-run + returning-user proof" {
+    if ($DocsOnly) { return "SKIPPED (docs-only)" }
+    if ($SkipConnected) { return "SKIPPED (-SkipConnected; onboarding is not verified)" }
+    if ($loopStartError) { return "FAIL: could not start runner: $loopStartError" }
+    if ($null -eq $loopProc) {
+        return "SKIPPED (debug APK missing or assemble did not pass — onboarding never started)"
+    }
+    $loopProc | Wait-Process
+    $code = $loopProc.ExitCode
+    if (Test-Path $loopLog) { Get-Content $loopLog | Add-Content $log }
+    if (Test-Path $loopErr) { Get-Content $loopErr | Add-Content $log }
+    $tail = ""
+    if (Test-Path $loopLog) { $tail = (@(Get-Content $loopLog) | Select-Object -Last 1) }
+    if ($code -eq 0 -and "$tail" -match '^PASS loops=[a-z0-9,-]+$') { return "PASS ($tail)" }
+    return "FAIL: exit=$code final=$tail — expected a final PASS loops=<names> marker"
+}
+
+if (-not $DocsOnly) {
+    Gate "5. Instrumented tests — 0 failures" {
+        if ($SkipConnected) { return "SKIPPED (-SkipConnected; run connectedDebugAndroidTest before the PR)" }
+        $devices = @(& "$sdk/platform-tools/adb.exe" devices 2>$null | Select-String -Pattern "^\S+\s+(device|offline)$")
+        if ($devices.Count -gt 1 -and -not $env:ANDROID_SERIAL) {
+            return "FAIL: $($devices.Count) devices attached and ANDROID_SERIAL is unset — pin one (a Studio-managed emulator that is `offline` will otherwise be picked)"
+        }
+        $r = Run-Gradle @(":app:connectedDebugAndroidTest")
+        $s = Sum-JUnit "app/build/outputs/androidTest-results/connected"
+        if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
+        return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
+    }
 }
 
 # ---------------------------------------------------------------------------- verdict + receipt
@@ -263,15 +355,17 @@ foreach ($k in $results.Keys) {
 
 $sha = (git rev-parse HEAD).Trim()
 $dirty = @(git status --porcelain --untracked-files=no)
+$loopVerdict = $results["5b. Onboarding loop — autonomous first-run + returning-user proof"]
 $receipt = [ordered]@{
-    sha         = $sha
-    branch      = (git branch --show-current).Trim()
-    at          = (Get-Date -Format o)
-    treeClean   = ($dirty.Count -eq 0)
-    docsOnly    = [bool]$DocsOnly
-    inspectCode = $inspect
-    connected   = (-not $SkipConnected) -and (-not $DocsOnly)
-    gates       = $results
+    sha                = $sha
+    branch             = (git branch --show-current).Trim()
+    at                 = (Get-Date -Format o)
+    treeClean          = ($dirty.Count -eq 0)
+    docsOnly           = [bool]$DocsOnly
+    inspectCode        = $inspect
+    connected          = (-not $SkipConnected) -and (-not $DocsOnly)
+    onboardingLoop     = if ($loopVerdict -like "PASS*") { "passed" } elseif ($loopVerdict -like "SKIPPED*") { "skipped" } else { "failed" }
+    gates              = $results
 }
 $receiptPath = Join-Path $root "build/sweep-receipt.json"
 if ($failed.Count -gt 0) {
