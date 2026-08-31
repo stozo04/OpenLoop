@@ -52,8 +52,8 @@ def run_adb(serial: str, *args: str, check: bool = True) -> subprocess.Completed
     )
 
 
-def adb_out(serial: str, *args: str) -> str:
-    result = run_adb(serial, *args)
+def adb_out(serial: str, *args: str, check: bool = True) -> str:
+    result = run_adb(serial, *args, check=check)
     return (result.stdout or "") + (result.stderr or "")
 
 
@@ -168,7 +168,9 @@ def parse_nodes(xml_text: str) -> list[UiNode]:
 
 
 def dump_ui(serial: str) -> tuple[str, list[UiNode]]:
-    run_adb(serial, "shell", "uiautomator", "dump", "/sdcard/ui.xml", check=False)
+    dump_result = run_adb(serial, "shell", "uiautomator", "dump", "/sdcard/ui.xml", check=False)
+    if dump_result.returncode != 0:
+        return "", []
     result = run_adb(serial, "shell", "cat", "/sdcard/ui.xml", check=False)
     xml_text = (result.stdout or "").strip()
     marker = "<hierarchy"
@@ -227,7 +229,7 @@ def save_screencap(serial: str, path: Path) -> None:
 
 
 def package_installed(serial: str) -> bool:
-    out = adb_out(serial, "shell", "pm", "path", PACKAGE)
+    out = adb_out(serial, "shell", "pm", "path", PACKAGE, check=False)
     return "package:" in out
 
 
@@ -279,6 +281,7 @@ def datastore_exists(serial: str) -> bool:
         PACKAGE,
         "ls",
         DATASTORE_REL,
+        check=False,
     )
     return DATASTORE_REL.split("/")[-1] in out and "No such file" not in out
 
