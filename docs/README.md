@@ -86,7 +86,7 @@ In-app launcher assets live only under `app/src/main/res/` (see root [`README.md
 
 1. **Agents:** `CLAUDE.md` mandates reading the core `docs/lessons_learned/` tier and this layout before adding docs.
 2. **PR review:** the [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) skill flags new `.md` outside `docs/` (except root `README.md` / `CLAUDE.md`).
-3. **CI — doc layout gate:** [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml) fails PRs that **add** new `*.md` outside allowed paths. Allowed today: `docs/`, root `README.md` / `CLAUDE.md` / `AGENTS.md` (tool-discovery entry points — each harness only looks for its own filename at the repo root, so the pointers cannot move; owner instruction, 2026-08-30), `swarm/`, `.claude/`, `.cursor/`, `.codex/` (Cursor and Codex `SKILL.md` packages, same class as `.claude/skills/`), and `twisted-tounge/*.md` — the last because a reverse-engineering guide has to sit with the third-party reference project it documents, whose vendor assets are gitignored (owner instruction, 2026-08-16).
+3. **CI — doc layout gate:** [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml) fails PRs that **add** new `*.md` outside allowed paths. Allowed today: `docs/`, root `README.md` / `CLAUDE.md` / `AGENTS.md` (tool-discovery entry points — each harness only looks for its own filename at the repo root, so the pointers cannot move; owner instruction, 2026-08-30), `swarm/`, `.claude/`, `.cursor/`, `.codex/` (Cursor and Codex `SKILL.md` packages, same class as `.claude/skills/`).
 4. **CI / Tier 3 static analysis:** [`STATIC_ANALYSIS.md`](STATIC_ANALYSIS.md) — markdownlint, table alignment, link check, harness skill-tree identity, cspell and JSON validity over the whole tracked tree, hard. Locally the same checks are gates 6–8 of `scripts/pre-pr-sweep.ps1` (tooling lives in `scripts/`, not here — it is not documentation).
 5. **Secrets:** `keystore.properties`, `*.jks`, and `docs/local/` are gitignored.
 
@@ -97,4 +97,4 @@ In-app launcher assets live only under `app/src/main/res/` (see root [`README.md
 - Play Store submission pack: [`play-store/README.md`](play-store/README.md)
 - Testing guides index: [`guides/README.md`](guides/README.md)
 - Reverse algorithm reference: [`guides/reverse-video-research.md`](guides/reverse-video-research.md)
-- Porting a third-party AR effect (DeepAR → a native lens): [`twisted-tounge/GUIDE.md`](../twisted-tounge/GUIDE.md)
+- Porting a third-party AR effect (DeepAR → a native lens): [`guides/porting-third-party-ar-effects.md`](guides/porting-third-party-ar-effects.md)

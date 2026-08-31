@@ -526,11 +526,11 @@ render, capture, and saved-media paths; it cannot prove those human-facing behav
 
 ## 14. 2026-08-16 — Twisted Tongue, and the framework it forced
 
-**Status:** built, verified on the owner's hardware · **Guide:** [`twisted-tounge/GUIDE.md`](../twisted-tounge/GUIDE.md)
+**Status:** built, verified on the owner's hardware · **Guide:** [`guides/porting-third-party-ar-effects.md`](guides/porting-third-party-ar-effects.md)
 **Ships in:** 1.0.41 (versionCode 41)
 
 The eighth lens, and the first sourced from a **third-party AR project** rather than designed here.
-The owner supplied a DeepAR Studio project (`twisted-tounge/`); §4 already ruled DeepAR out as a
+The owner supplied a DeepAR Studio project (`twisted-tounge/`, removed 2026-08-31); §4 had ruled DeepAR out as a
 dependency on C1/C3, so the SDK and its assets could not ship. What shipped instead is a native
 reimplementation in this repo's own renderer, with original art. The guide carries the full method,
 the dead ends, and a playbook for the next one — that playbook is the durable deliverable, since the
@@ -571,7 +571,7 @@ rule ("adding a lens is one entry plus its art") survives:
 | #   | Question                                                     | Decision                                                                                                                                                                                                                                                                                                                                    |
 | --- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Ship the DeepAR SDK?                                         | **No** — §4 C1/C3, decided 2026-08-08 and unchanged. Paid/MAU-metered, and a proprietary binary cannot ship in an Apache 2.0 app.                                                                                                                                                                                                           |
-| 2   | Ship the DeepAR *assets* (matcaps, normal maps, FBX meshes)? | **No.** This repo is public; we hold no redistribution rights. `twisted-tounge/**` is gitignored except the guide. Art is original vector, authored here.                                                                                                                                                                                   |
+| 2   | Ship the DeepAR *assets* (matcaps, normal maps, FBX meshes)? | **No.** This repo is public; we hold no redistribution rights. The vendor bundle was gitignored except the guide, and removed from the repo on 2026-08-31. Art is original vector, authored here.                                                                                                                                           |
 | 3   | Gate the tongue on mouth-open?                               | **No.** The reference does not either — its blendshape weight is statically `1.0` and there is no trigger in the graph. Openness detection would need ML Kit `CONTOUR_MODE`, which §5.1 rejected on per-frame cost. Faithful *and* cheap.                                                                                                   |
 | 4   | Bulge the eyes with the existing `WarpTarget.EYES`?          | **No.** The eyeball art is opaque and covers the socket, so a warp underneath is invisible — one less moving part.                                                                                                                                                                                                                          |
 | 5   | Wobble the eyeballs too?                                     | **No.** The reference does, but the eyeball is centered *on* its anchor, so rotation about that anchor barely moves it; a visible jiggle would need a second mechanism (translation). The tongue carries the motion. Same primitive with a lever arm if it is ever wanted.                                                                  |

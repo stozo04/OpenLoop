@@ -27,7 +27,7 @@ Both have failed repeatedly in CI (PR #161 hit both at once), which is why they 
 
 **A brand-new `.md` file goes under `docs/`.** The only exceptions are the allowlist in
 [`docs/README.md` § Enforcement](README.md#enforcement) — root `README.md` / `CLAUDE.md` / `AGENTS.md`
-and the agent-harness paths (`.claude/`, `.cursor/`, `.codex/`, `swarm/`, `twisted-tounge/*.md`). That list is the
+and the agent-harness paths (`.claude/`, `.cursor/`, `.codex/`, `swarm/`). That list is the
 single source of truth; it is enforced by [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml)
 against `git diff --diff-filter=A`.
 

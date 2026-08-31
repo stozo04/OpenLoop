@@ -6,17 +6,22 @@
       "name": "edited-one-harness",
       "prompt": "I just edited the run-e2e SKILL.md under .cursor/skills to fix a typo. Anything else I need to do before I commit?",
       "should_trigger": true,
-      "expects": ["sync-harness-skills", "cursor"],
+      "expects": [
+        "sync-harness-skills",
+        "cursor"
+      ],
       "rejects": [],
       "why": "The everyday case. The user never says 'sync' or 'drift' — they describe editing one harness and ask what is left, which is exactly the moment M5 bites. If the description only catches people who already know the rule, it is useless to the person who does not."
     },
     {
       "name": "gate-6d-red",
-      "prompt": "sweep just failed on 6d, what is that",
+      "prompt": "sweep just failed on 6d. sort it out for me",
       "should_trigger": true,
-      "expects": ["skills", "identical"],
+      "expects": [
+        "sync-harness-skills"
+      ],
       "rejects": [],
-      "why": "Terse, jargon-only, no context — how a gate failure actually gets reported. The gate number is the only handle the user has, so it has to be a trigger."
+      "why": "Rewritten after the first real run. The original was 'sweep just failed on 6d, what is that' - a definition lookup, which the model answered correctly and completely from the repo without consulting anything. That is the documented behaviour, not a description gap: a skill is consulted for work the model cannot already do in one step, so a case phrased as a lookup tests nothing about triggering. The real situation behind those words is someone whose gate is red who wants it fixed, and that needs the skill's repair procedure - which direction to propagate, and never to satisfy the gate by deleting the change."
     },
     {
       "name": "settings-json-differs",

@@ -13,7 +13,7 @@ import kotlin.math.roundToInt
  * ## Why this exists
  *
  * A sticker pinned rigidly to a landmark reads as a decal: it is *on* the face rather than *of* it.
- * The reference effect this was reverse-engineered from (`twisted-tounge/GUIDE.md`)
+ * The reference effect this was reverse-engineered from (`docs/guides/porting-third-party-ar-effects.md`)
  * hangs its tongue off a five-joint chain and puts a `simplePendulumPhysics` component on four of
  * them, plus one on each eyeball. That lag is most of what sells the joke.
  *
