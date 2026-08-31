@@ -17,7 +17,8 @@
       5b. Autonomous onboarding loop via scripts/run-verification-loops.py --changed.
          Starts in the background after a green debug APK so it overlaps lint/unit/text gates.
          One emulator — does not overlap connectedDebugAndroidTest. Skip with -SkipConnected.
-      6. Markdown: markdownlint-cli2, table alignment (scripts/md-table-align.py), markdown-link-check — all zero.
+      6. Markdown: markdownlint-cli2, table alignment (scripts/md-table-align.py), and relative-link checks on
+         changed Markdown (all Markdown after any delete/rename) — all zero.
       7. Spelling: cspell over every tracked text file (Markdown, Kotlin, XML, scripts, configs) — zero unknown words.
          Legit terms go into cspell.json `words` (never disable the check).
       8. JSON validity, IDE dictionary sync, tracked-file hygiene, and a redacted Gitleaks scan of tracked HEAD.
@@ -210,14 +211,26 @@ Gate "6b. Markdown table alignment (IDE-faithful) — 0 misaligned" {
     return "FAIL: $($out | Select-Object -Last 1) (fix: python scripts/md-table-align.py --fix)"
 }
 
-Gate "6c. markdown-link-check — 0 dead relative links" {
+$linkBase = ("$(& git merge-base HEAD origin/main 2>$null)").Trim()
+$removedOrRenamed = if ($linkBase) { @(& git diff --name-only --diff-filter=DR --find-renames $linkBase HEAD) } else { @() }
+$linkMd = if ($removedOrRenamed.Count -gt 0) {
+    $md
+} elseif ($linkBase) {
+    @(& git diff --name-only --diff-filter=ACMRT $linkBase HEAD -- "*.md" | Where-Object { Test-Path $_ })
+} else {
+    @()
+}
+
+Gate "6c. markdown-link-check — changed docs (all after delete/rename)" {
+    if (-not $linkBase) { return "FAIL: cannot find merge-base with origin/main" }
     $dead = 0
-    foreach ($f in $md) {
+    foreach ($f in $linkMd) {
         $out = & npx --yes markdown-link-check --config .markdown-link-check.json -q $f 2>&1
         $out | Add-Content $log
         $dead += @($out | Where-Object { $_ -match '\[✖\]|\[x\]|ERROR:' }).Count
     }
-    if ($dead -eq 0) { return "PASS ($($md.Count) files)" }
+    $scope = if ($removedOrRenamed.Count -gt 0) { "all; delete/rename detected" } else { "changed" }
+    if ($dead -eq 0) { return "PASS ($($linkMd.Count) files; $scope)" }
     return "FAIL: $dead dead link(s) — see build/sweep.log"
 }
 
