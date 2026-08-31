@@ -192,6 +192,13 @@ Gate "6c. markdown-link-check — 0 dead relative links" {
     return "FAIL: $dead dead link(s) — see build/sweep.log"
 }
 
+Gate "6d. Harness skill trees byte-identical (.claude/.cursor/.codex)" {
+    $out = & python scripts/sync-harness-skills.py --check 2>&1
+    $out | Add-Content $log
+    if ($LASTEXITCODE -eq 0) { return "PASS" }
+    return "FAIL: skill trees have drifted — see build/sweep.log for the paths"
+}
+
 Gate "7. cspell over every tracked text file — 0 unknown words" {
     # `--file-list <path>` exits 1 silently on Windows; feeding the list on stdin works everywhere.
     $out = Get-Content $listFile | npx --yes cspell --no-progress --file-list stdin 2>&1

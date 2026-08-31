@@ -200,6 +200,7 @@ legacy hits; those were cleared on 2026-08-25 and the gate went hard.)
 | [`cspell`](https://cspell.org)                                         | `cspell.json`                    | "Typo" — over **every** tracked text file (Markdown, Kotlin, XML, scripts, configs), because the IDE spell-checks comments and string literals too. `words` is the single project dictionary; the IDE XML is generated from it             |
 | `scripts/sync-ide-dictionary.py --check`                               | `.idea/dictionaries/project.xml` | Keeps the IDE's project dictionary identical to `cspell.json`                                                                                                                                                                              |
 | JSON validity (`python -c json.loads`)                                 | —                                | "Compliance with JSON standard"                                                                                                                                                                                                            |
+| `scripts/sync-harness-skills.py --check`                               | —                                | Not an IDE inspection — the repo's own rule (DoD M5): `.claude/`, `.cursor/` and `.codex/` skill trees must be byte-identical                                                                                                              |
 
 `markdownlint` still disables the opinionated prose rules IntelliJ doesn't flag (`MD013`
 line-length, `MD033` inline-HTML, `MD041` first-line-heading). `cspell` stays `en,en-GB` so test
@@ -254,7 +255,7 @@ broken references on `main`** (not introduced by this work):
 ### Hosting Tier 3 — GitHub Actions (hard)
 
 Tier 3 runs in CI via **`.github/workflows/static-analysis.yml`** on every pull request (plus
-`workflow_dispatch`): `actions/checkout@v6`, `setup-node@v6`, `setup-python@v5`, then the same six
+`workflow_dispatch`): `actions/checkout@v6`, `setup-node@v6`, `setup-python@v5`, then the same
 checks as sweep gates 6–8 over the **whole tracked tree**. Every step is a **hard** gate — the tree
 is at zero, so a red step is something the PR introduced. The Gradle half of the sweep (build,
 lint, tests) is deliberately not in CI yet: it cannot be tried without pushing, and the receipt hook

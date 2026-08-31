@@ -20,14 +20,14 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 
 ## Markdown rules (non-negotiable)
 
-Every PR that adds or edits a `.md` file clears both of these **before the commit**, not after CI says no.
+Every PR that adds or edits a `.md` file clears all five of these **before the commit**, not after CI says no.
 Both have failed repeatedly in CI (PR #161 hit both at once), which is why they are their own gate.
 
 ### M1. New Markdown lives under `docs/`
 
 **A brand-new `.md` file goes under `docs/`.** The only exceptions are the allowlist in
 [`docs/README.md` § Enforcement](README.md#enforcement) — root `README.md` / `CLAUDE.md` / `AGENTS.md`
-and the agent-harness paths (`.claude/`, `.cursor/`, `swarm/`, `twisted-tounge/*.md`). That list is the
+and the agent-harness paths (`.claude/`, `.cursor/`, `.codex/`, `swarm/`, `twisted-tounge/*.md`). That list is the
 single source of truth; it is enforced by [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml)
 against `git diff --diff-filter=A`.
 
@@ -94,6 +94,32 @@ Then fix, in this order:
 
 Leave alone: historical records that were true when written (a PRD's "per X I searched…", a lessons-learned
 entry, a changelog). Those describe the past, not the current layout.
+
+### M5. Harness skill packages are byte-identical across `.claude/`, `.cursor/`, `.codex/`
+
+The same rule as M3, one level down. The owner runs three LLM providers on this repo routinely and
+each harness auto-discovers skills **only** under its own directory, so the skills cannot live in one
+shared copy the way the instruction files do — they live as three copies of one thing, and those
+copies must never diverge (owner instruction, 2026-08-30). A skill fixed for one LLM that stays broken
+for the other two is worse than not fixing it: nothing on disk says which copy is current.
+
+**If an LLM changes its own skills, the other two get the same bytes in the same commit.**
+
+```powershell
+python scripts/sync-harness-skills.py                      # --check is the default: exit 1 on drift
+python scripts/sync-harness-skills.py --fix --from cursor  # name the harness you actually edited
+```
+
+`--fix` has no default source deliberately — the edited harness is the source of truth, and guessing
+reverts the change instead of propagating it. Enforced as sweep gate **6d** and as a CI step in
+[`static-analysis.yml`](../.github/workflows/static-analysis.yml); both are hard.
+
+- **Scope is `skills/**` only.** `settings.json` is harness-specific by design (Claude's carries
+  marketplaces, plugins and hooks; the other two a plugin stub) and `.claude/commands/` has no
+  counterpart — none of that is compared.
+- **Adding a fourth harness?** Create `.<name>/skills/`, add it to `HARNESSES` in the script, and add
+  the `doc-layout.yml` + [`docs/README.md` § Enforcement](README.md#enforcement) allowlist entries — in
+  the same PR, per M1.
 
 ## The gate (run top to bottom)
 

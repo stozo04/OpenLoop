@@ -126,11 +126,15 @@ jobs:
                `.markdownlint-cli2.jsonc` to make a gate pass — fix the content the gate is
                complaining about. Adding a genuinely new proper noun to `cspell.json` is the one
                exception, and it must be followed by `python scripts/sync-ide-dictionary.py`.
-            4. Re-run ALL SIX gates locally before pushing, in the order and form listed under
+            4. Re-run EVERY gate locally before pushing, in the order and form listed under
                "Tier 3" in `docs/STATIC_ANALYSIS.md`, exactly as
                `.github/workflows/static-analysis.yml` runs them. All must be at zero. Fixing only
                the reported step is how this loop burns its second attempt.
-            5. Commit and push:
+            5. A file under `.claude/skills/`, `.cursor/skills/` or `.codex/skills/` exists as three
+               byte-identical copies (Definition of Done M5). Editing one means running
+               `python scripts/sync-harness-skills.py --fix --from <the harness you edited>` and
+               committing all three, or gate 6d turns the next run red.
+            6. Commit and push:
                - `git config user.name "github-actions[bot]"` and
                  `git config user.email "41898282+github-actions[bot]@users.noreply.github.com"`
                - The subject MUST start with `ci(autofix): ` — it is the loop's attempt counter.
@@ -138,7 +142,7 @@ jobs:
                - `git pull --rebase origin ${{ env.BRANCH }}` before pushing. If the push is
                  rejected, rebase and retry ONCE; if it is rejected again, stop and comment on the
                  PR instead.
-            6. If you cannot find a fix you are confident in, change nothing, comment on the PR
+            7. If you cannot find a fix you are confident in, change nothing, comment on the PR
                with what you found and why you stopped, and finish. A wrong patch that looks
                authoritative is worse than a red check.
 
