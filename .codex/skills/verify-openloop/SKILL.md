@@ -19,6 +19,8 @@ Sibling skills you must reuse, not copy:
 
 This skill is the feature map plus a thin `helpers/control.ps1` wrapper. The pixel sweep remains the codec/FGS proof. A feature-map pass that skips a mapped entry point is incomplete.
 
+**Loops vs recipes.** A feature file is a dump/tap recipe. A `helpers/*_loop.py` script is the fail-the-process proof. Onboarding is the first loop. When the owner asks to "verify" a surface, write or run a loop per `docs/guides/verification-loops.md`. Do not add an isolated Compose `setContent` test and call that the loop.
+
 **Completeness:** Before claiming the feature map is current or adding “missing” recipes, run the gate in `features/README.md` (inventory → diff → no silent `missing`). Global Cursor rule: `feature-map-completeness`. PRDs are optional — OpenLoop shipped many surfaces before PRDs existed; use `strings.xml` + UI chrome first. Worksheet: `features/INVENTORY.md`.
 
 ## Launch
@@ -112,6 +114,6 @@ Leave the emulator running unless you started it for this run; if you started it
 
 It calls `.claude/skills/run-e2e/scripts/uiauto.ps1` for dump/tap. Do not reimplement dump parsing.
 
-Onboarding rerunnable loop (adb + Python 3 stdlib, no Gradle): `python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py`. Recipe: `features/onboarding.md`.
+Onboarding repeatable loop (adb + Python 3 stdlib, no Gradle): `python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py`. Recipe: `features/onboarding.md`. Pattern and remaining loops: `docs/guides/verification-loops.md`.
 
 For the full editor-tab + logcat report, run `.claude/skills/run-e2e/SKILL.md` and keep that report under `docs/e2e/`. That satisfies **edit-and-save** when you also store the dumps in `$VERIFY_EVIDENCE_DIR/edit-and-save/`. Single-tab claims use `features/edit-trim.md`, `edit-speed.md`, `edit-loop.md`, `edit-filter.md`, `edit-delete.md`, or `edit-save.md`.

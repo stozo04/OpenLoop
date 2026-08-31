@@ -20,7 +20,7 @@ Preconditions:
 - One emulator connected (`adb devices` shows exactly one `emulator-*\tdevice`, or set `VERIFY_SERIAL`).
 - Debug APK installed, or present at `app/build/outputs/apk/debug/app-debug.apk` (the script installs with `-r -g` if missing). Do not invoke Gradle.
 
-Run the rerunnable loop (Linux cloud agents and any host with `adb` + Python 3 stdlib):
+Run the repeatable loop (Linux cloud agents and any host with `adb` + Python 3 stdlib):
 
 ```bash
 python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py
@@ -45,3 +45,4 @@ On Windows, the same flow can still be driven manually with `helpers/control.ps1
 - `reset-storage` deletes only the onboarding DataStore. It keeps gallery videos. Force-stop first or the process rewrites the file on exit.
 - `run-as` works on debug builds. Release installs are not this skill's target.
 - Do not use a user's personal DataStore as the first-run fixture.
+- Isolated Compose tests (`OnboardingScreenTest` `setContent`) are not this loop. Pattern, script internals, and remaining loops: `docs/guides/verification-loops.md`.

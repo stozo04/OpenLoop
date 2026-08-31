@@ -8,6 +8,7 @@ General Android/Kotlin/library concepts are **not** mirrored here — web-search
 
 | Guide                                                                    | When to read it                                                                                                                                                                    |
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`verification-loops.md`](verification-loops.md)                         | **Verification loops** — what "verify X" means (installed APK, not a Compose host), the onboarding golden example, and the ordered build-out of remaining loops                    |
 | [`oem-regression-testing.md`](oem-regression-testing.md)                 | **API 34 / Samsung / LG regression lanes** — emulator sweeps, Robolectric, RTL, LG fault injection                                                                                 |
 | [`robolectric-testing-explained.md`](robolectric-testing-explained.md)   | When to use Robolectric, run commands, and **what must never move to it** (the media pipeline)                                                                                     |
 | [`samsung-rtl-steps.md`](samsung-rtl-steps.md)                           | One-time Samsung Remote Test Lab setup (RDB, adb PATH, manual smoke)                                                                                                               |
@@ -19,4 +20,4 @@ General Android/Kotlin/library concepts are **not** mirrored here — web-search
 
 Testing strategy and inventory: [`../TEST_COVERAGE.md`](../TEST_COVERAGE.md).
 
-Agent-runnable E2E skills: `.claude/skills/run-e2e/` and `.claude/skills/run-e2e-pixel-sweep/`.
+Agent-runnable E2E skills: `.cursor/skills/verify-openloop/` (feature recipes + loops), `.claude/skills/run-e2e/`, and `.claude/skills/run-e2e-pixel-sweep/`.

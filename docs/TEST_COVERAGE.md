@@ -200,6 +200,18 @@ Compose tests use a `ComposeTestRule` to set content, find nodes via the semanti
 
 **Source:** [Testing APIs](https://developer.android.com/develop/ui/compose/testing/apis) · [Semantics in Testing](https://developer.android.com/develop/ui/compose/testing/semantics)
 
+These Compose host tests are the pyramid base. They are **not** a verification loop. `OnboardingScreenTest` clicking `onboarding_cta` never starts `MainActivity`, never hits DataStore, and never binds the camera. When the owner says "verify X", follow [`guides/verification-loops.md`](guides/verification-loops.md): install the debug APK, drive a real emulator, fail the process if the assertion is false.
+
+---
+
+## Verification loops (installed APK)
+
+A **recipe** under `.cursor/skills/verify-openloop/features/` tells an agent what to tap. A **loop** is `helpers/<feature>_loop.py` and is the only proof that counts for "verify X".
+
+Shipped: onboarding first-run vs returning (`python3 .cursor/skills/verify-openloop/helpers/onboarding_loop.py`). Remaining surfaces, the onboarding implementation notes, and the ordered build-out: [`guides/verification-loops.md`](guides/verification-loops.md).
+
+This lane is agent-driven adb + uiautomator, not `androidTest/`. `run-e2e` / the pixel sweep remain the codec/FGS orchestrators. Do not add an isolated `setContent` test and call that the loop.
+
 ---
 
 ## Current Test Inventory
@@ -315,6 +327,7 @@ When adding a new feature, follow this checklist:
 5. **Add UI tests if layout matters** (`androidTest/`) — if a button position, visibility, or centering is critical, guard it with a Compose UI test
 6. **Name tests descriptively** — use backtick-delimited names: `` `returning user skips onboarding on second launch` ``
 7. **Test error paths** — if something can fail, test that it fails gracefully
+8. **"Verify X" is a loop, not a new Compose test** — when the owner asks to verify a shipped surface, write or run the matching loop in [`guides/verification-loops.md`](guides/verification-loops.md). Do not treat a green `setContent` host as that proof.
 
 ---
 

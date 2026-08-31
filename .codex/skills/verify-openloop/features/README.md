@@ -39,24 +39,35 @@ Follow the **global** Cursor rule `feature-map-completeness` (all projects). Ope
 3. **Gate** — do not call this map complete while a shipped user-visible surface is still `missing`. Orchestrators ([edit-and-save](./edit-and-save.md)) require each named Edit surface to have its own file under **Edit (post-capture)** below.
 4. Show the user the remaining `missing` / `out of scope` list in the reply.
 
+## Loops vs recipes
+
+A feature file is a dump/tap recipe. A `helpers/*_loop.py` script is the fail-the-process proof.
+When the owner asks to "verify" a surface, write or run a loop. Do not add an isolated Compose
+`setContent` test and call that the loop. Pattern, onboarding implementation notes, and remaining
+order: [`docs/guides/verification-loops.md`](../../../../docs/guides/verification-loops.md).
+
+Shipped loop: [Onboarding](./onboarding.md) → `helpers/onboarding_loop.py`.
+Next: wave 1 `capture-mode`, `flip-camera`, `gallery-empty` (no recording). Do not start wave 3
+(capture) before wave 1 exists.
+
 ## Features
 
-- [Onboarding](./onboarding.md) — first launch, `LET'S GO!`, then camera.
-- [Record a clip](./record-clip.md) — shutter start/stop, land on Trim.
-- [Lenses](./lenses.md) — carousel, pick/clear, 1–2 face tracking, bake into capture.
-- [Photo capture](./photo-capture.md) — Camera mode stills (skip Trim/editor).
-- [Photo booth](./photo-booth.md) — arm booth, countdown ×3, strip.
-- [Pinch zoom](./pinch-zoom.md) — viewfinder pinch + zoom chip (gesture-fragile).
-- [Import a video](./import-video.md) — Photo Picker → Trim (then save into library).
-- [Gallery](./gallery.md) — open from camera, play or empty state, back, selection delete.
-- [Share and library](./share-and-library.md) — dual save (Gallery + Photos), share sheet, gallery SEND.
+- [Onboarding](./onboarding.md) — first launch, `LET'S GO!`, then camera. **Loop shipped:** `helpers/onboarding_loop.py`.
+- [Record a clip](./record-clip.md) — shutter start/stop, land on Trim. Planned loop: wave 3 `record-clip`. Flip is wave 1 `flip-camera`.
+- [Lenses](./lenses.md) — carousel, pick/clear, 1–2 face tracking, bake into capture. Planned loop: wave 2 `lenses-ui` (open/pick/clear only on a faceless AVD).
+- [Photo capture](./photo-capture.md) — Camera mode stills (skip Trim/editor). Planned loops: wave 1 `capture-mode`, wave 3 `photo-capture`.
+- [Photo booth](./photo-booth.md) — arm booth, countdown ×3, strip. Planned loops: wave 2 `photo-booth-arm` then `photo-booth-run`.
+- [Pinch zoom](./pinch-zoom.md) — viewfinder pinch + zoom chip (gesture-fragile). Planned loop: wave 3 `pinch-zoom` (`verified-unreachable` allowed).
+- [Import a video](./import-video.md) — Photo Picker → Trim (then save into library). Planned loop: wave 5 `import-video`.
+- [Gallery](./gallery.md) — open from camera, play or empty state, back, selection delete. Planned loops: wave 1 `gallery-empty`, wave 5 `gallery-play`.
+- [Share and library](./share-and-library.md) — dual save (Gallery + Photos), share sheet, gallery SEND. Planned loop: wave 5 `share-and-library`.
 
 ### Edit (post-capture)
 
-- [Trim](./edit-trim.md) — in/out window, SAVE into editor, discard dialog.
-- [Speed](./edit-speed.md) — Constant slider + Custom curve / presets.
-- [Loop](./edit-loop.md) — direction chips, reverse / Loopifying, help.
-- [Filter (Looks)](./edit-filter.md) — look chips, preview, memory gate.
-- [Delete clip](./edit-delete.md) — toolbar Delete → discard session → camera.
-- [Save boomerang](./edit-save.md) — export / Creating.. → share + library handoff.
-- [Edit and save (full path)](./edit-and-save.md) — orchestrates the suite end-to-end (`run-e2e` scope).
+- [Trim](./edit-trim.md) — in/out window, SAVE into editor, discard dialog. Planned loop: wave 4 `edit-trim`.
+- [Speed](./edit-speed.md) — Constant slider + Custom curve / presets. Planned loop: wave 4 `edit-speed`.
+- [Loop](./edit-loop.md) — direction chips, reverse / Loopifying, help. Planned loop: wave 4 `edit-loop`.
+- [Filter (Looks)](./edit-filter.md) — look chips, preview, memory gate. Planned loop: wave 4 `edit-filter`.
+- [Delete clip](./edit-delete.md) — toolbar Delete → discard session → camera. Planned loop: wave 4 `edit-delete`.
+- [Save boomerang](./edit-save.md) — export / Creating.. → share + library handoff. Planned loop: wave 4 `edit-save`.
+- [Edit and save (full path)](./edit-and-save.md) — orchestrates the suite end-to-end (`run-e2e` scope). Prefer a loop if the owner used that word.
