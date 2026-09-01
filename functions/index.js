@@ -1,14 +1,14 @@
 "use strict";
 
 /**
- * DRAFT — pending sign-off. See docs/PRD-crashlytics-autotriage.md.
- *
  * On a new FATAL Crashlytics issue, create (exactly once) a GitHub issue labeled
  * `crashlytics-auto`. A GitHub Action (.github/workflows/crashlytics-autotriage.yml)
  * then has Claude triage it and, when confident, open a draft fix PR.
  *
  * Runtime: Node 22, firebase-functions v6 (2nd gen). Uses the global `fetch` (Node 18+),
  * so there are no extra HTTP dependencies.
+ *
+ * See docs/PRD-crashlytics-autotriage.md and docs/FIREBASE.md.
  */
 
 const {onNewFatalIssuePublished} = require("firebase-functions/v2/alerts/crashlytics");
