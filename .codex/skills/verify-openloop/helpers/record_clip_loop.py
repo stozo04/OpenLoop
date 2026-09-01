@@ -19,11 +19,13 @@ dialog, so the run leaves no media behind (saving is `edit-save.md`, not this fe
     VERIFY_SERIAL=emulator-5556   pick a device when more than one is online
     VERIFY_EVIDENCE_DIR=<dir>     where the XML/PNG/logcat evidence lands
 
-Runtime is dominated by scenario 3. The elapsed counter is a 33 ms tick loop, so on an emulator
-whose main thread cannot keep up it advances at roughly a fifth of wall time: ~3 minutes measured
-on a Pixel_8_API34 AVD, against 30 s on hardware that keeps the cadence. Scenario 3 therefore
-asserts the cap in the units the user sees (the chip reaching the cap, and a finalize with no stop
-tap and no error), never in wall-clock seconds — see the block comment above `scenario_cap`.
+Runtime is dominated by scenario 3 and depends on how well the device holds a 33 ms tick: the
+counter accumulates ticks instead of reading a clock. A healthy Pixel_8_API34 AVD runs the whole
+loop in ~75 s and the cap yields a 31.2 s clip; the same AVD memory-starved took 219 s and
+produced a 143 s clip for the same cap. Scenario 3 therefore asserts the cap through what does
+not vary with that — no stop tap, no error finalize, Trim opens, and the clip comes back at least
+25 s — never a wall-clock ceiling and never how high the chip had climbed at the last dump. See
+the docstring on `scenario_cap`.
 """
 from __future__ import annotations
 
@@ -80,9 +82,11 @@ SCRATCH_REL = "files/scratch"
 # with the snackbar instead of opening a Trim screen whose SAVE would be dead.
 MIN_CLIP_MS = 400
 CAP_SECONDS = 30
-# The chip is sampled every few seconds; the last sample before the cap fires lands somewhere
-# short of it. 20 s is well past any plausible mis-start and still leaves room for a sampling gap.
-CAP_CHIP_FLOOR = 20
+# A recording left to run out must come back as most of the cap. Floor, not equality: the counter
+# accumulates ticks rather than reading a clock, so a device that cannot hold the cadence overruns
+# (143 s measured on a memory-starved AVD) while a healthy one lands just past 30 s. Both are the
+# cap firing; a clip that stopped at 8 s is not.
+CAP_MIN_CLIP_MS = 25_000
 
 
 class Chip:
@@ -346,16 +350,21 @@ def scenario_mid_length(serial: str, evidence: Path, chip: Chip, scratch: Scratc
     return duration_ms
 
 
-def scenario_cap(serial: str, evidence: Path, chip: Chip, scratch: Scratch) -> int:
+def scenario_cap(serial: str, evidence: Path, chip: Chip, scratch: Scratch) -> tuple[int, int]:
     """Never tap stop: the 30 s cap finalizes the recording on its own and Trim opens.
 
-    What is asserted is the cap in the product's own units — the chip climbing to the cap, Trim
-    arriving with no stop tap, and a clean finalize — not the clip's wall-clock length. The
-    elapsed counter accumulates 33 ms per tick rather than reading a clock, so on an emulator
-    that cannot service the tick loop at cadence the cap fires late and the container is longer
-    than 30 s (143 s measured here against a chip that had just reached 30s). That gap is the
-    AVD's scheduling, not a product regression a verifier can distinguish from one, so pinning a
-    wall-clock ceiling here would be a permanently red gate that says nothing about the feature.
+    Four things make that the cap and not something else: no stop tap is ever sent, Trim arrives
+    anyway, logcat has no error finalize, and the clip that comes back is at least
+    [CAP_MIN_CLIP_MS] — a recording cut short by anything else would not be.
+
+    Deliberately NOT asserted: how high the chip had climbed when the last dump landed. That
+    number measures the sampling interval, not the product — a dump costs seconds, so the faster
+    the device runs the counter, the further from the cap the final sample sits (17s on a
+    cold-booted AVD, 29s on a loaded one). Nor is a wall-clock ceiling asserted: the counter
+    accumulates 33 ms per tick instead of reading a clock, so a device that cannot hold the
+    cadence overruns the cap in real seconds (143 s measured on a memory-starved AVD). Both are
+    the cap firing. The chip is still asserted on every sample here — for its *format*, which is
+    what issue #154 broke.
     """
     _, nodes = wait_for_camera_idle(serial, evidence, "cap")
     clear_logcat(serial)
@@ -368,18 +377,20 @@ def scenario_cap(serial: str, evidence: Path, chip: Chip, scratch: Scratch) -> i
         fail(f"cap: recording never started; evidence={path}")
 
     before = len(chip.samples)
-    # 5 s between dumps: each dump is seconds of work on the device's main thread, and hammering
-    # it starves the very tick loop under test.
-    trim_xml = wait_for_trim(serial, chip, "cap-recording", timeout_s=480.0, interval_s=5.0)
+    # 3 s between dumps: a dump is seconds of work on the device's main thread, and hammering it
+    # starves the very tick loop under test — but sample too rarely and the countdown's format
+    # goes unchecked for most of the recording.
+    trim_xml = wait_for_trim(serial, chip, "cap-recording", timeout_s=480.0, interval_s=3.0)
     if not trim_xml:
         xml, _ = dump_ui(serial)
         path = snapshot(serial, evidence, "cap-no-trim", xml)
         fail(f"cap: recording did not finalize itself within 480s; evidence={path}")
     snapshot(serial, evidence, "cap-trim", trim_xml)
 
-    peak = max(chip.samples[before:], default=-1)
-    if peak < CAP_CHIP_FLOOR:
-        fail(f"cap: countdown only reached {peak}s before Trim opened; expected it to climb to the {CAP_SECONDS}s cap")
+    samples = chip.samples[before:]
+    if not samples:
+        fail("cap: the countdown chip never rendered during a full-length recording")
+    peak = max(samples)
 
     logcat = adb_out(serial, "logcat", "-d", "-s", "OpenLoopViewModel:*")
     (evidence / "cap-logcat.txt").write_text(logcat, encoding="utf-8")
@@ -388,9 +399,15 @@ def scenario_cap(serial: str, evidence: Path, chip: Chip, scratch: Scratch) -> i
     match = FINALIZED_RE.search(logcat)
     if not match:
         fail(f"cap: no 'Capture finalized (Nms)' in logcat; evidence={evidence / 'cap-logcat.txt'}")
+    duration_ms = int(match.group(1))
+    if duration_ms < CAP_MIN_CLIP_MS:
+        fail(
+            f"cap: the recording stopped itself at {duration_ms}ms, short of the {CAP_SECONDS}s cap "
+            f"— something other than the cap ended it; evidence={evidence / 'cap-logcat.txt'}"
+        )
 
     discard_clip(serial, evidence, "cap", scratch)
-    return peak
+    return peak, duration_ms
 
 
 def main() -> int:
@@ -410,14 +427,11 @@ def main() -> int:
     started = time.monotonic()
     short = scenario_too_short(serial, evidence, chip, scratch)
     mid_ms = scenario_mid_length(serial, evidence, chip, scratch)
-    peak = scenario_cap(serial, evidence, chip, scratch)
-
-    if not chip.samples:
-        fail("no countdown chip was ever observed while recording; the timer never rendered")
+    peak, cap_ms = scenario_cap(serial, evidence, chip, scratch)
 
     force_stop(serial)
     print(
-        f"PASS serial={serial} too-short={short} mid={mid_ms}ms cap-chip={peak}s "
+        f"PASS serial={serial} too-short={short} mid={mid_ms}ms cap={cap_ms}ms cap-chip-peak={peak}s "
         f"chip-samples={len(chip.samples)} took={int(time.monotonic() - started)}s evidence={evidence}"
     )
     return 0

@@ -34,11 +34,12 @@ run out (the 30 s cap finalizes it with no stop tap). Every countdown sample is 
 `<seconds>s / 30s` — never a `mm:ss` clock. Both clips are thrown away through the Discard dialog,
 so nothing is saved and the gallery is untouched.
 
-Expect roughly **4 minutes** on an emulator: the elapsed counter accumulates 33 ms per tick rather
-than reading a clock, so an AVD that cannot service the loop at cadence reaches the cap in ~2.5
-minutes of wall time (~30 s on hardware that keeps up). That is also why the cap is asserted
-through the chip and the finalize, not the clip's container length — a Pixel_8_API34 AVD produced
-a 143 s file for a chip that had just reached `30s`.
+Expect roughly **75 seconds** on a healthy Pixel_8_API34 AVD, where the cap produces a 31.2 s clip.
+The elapsed counter accumulates 33 ms per tick instead of reading a clock, so a device that cannot
+hold the cadence overruns: the same AVD under host memory pressure took 219 s and produced a
+**143 s** clip for the same 30 s cap. The cap is therefore asserted as "no stop tap, no error
+finalize, Trim opened, clip ≥ 25 s" — never a wall-clock ceiling, and never how high the chip had
+climbed at the last dump, which measures the polling interval rather than the product.
 
 ## Driving it with control.ps1
 
@@ -64,4 +65,5 @@ Preconditions:
 - Permission rationale can sit on top of the shutter. Dump first.
 - The too-short snackbar covers the shutter row: while it is up, `Start recording` / `Flip Camera` are not in the dump at all. Prove "still on camera" with the mode selector, then re-check the shutter once it clears.
 - A uiautomator dump takes seconds and the snackbar lasts four, so polling with dumps loses that race. Wait on logcat (`Video burst recording failed` / `below the 400ms minimum`), then dump once.
+- Under host memory pressure the AVD's own system ANRs (`System UI isn't responding`, package `android`, in the dump) and every recipe here fails at the first step. That is the host, not the app — free memory and cold-boot the AVD (`-no-snapshot-load`); `adb reboot` restores the same broken state.
 - Front/back flip (`Flip Camera`) does not by itself prove a recording.
