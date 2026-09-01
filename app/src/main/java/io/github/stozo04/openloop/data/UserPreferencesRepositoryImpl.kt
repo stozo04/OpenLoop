@@ -21,13 +21,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
     name = "openloop_preferences"
 )
 
-/**
- * Production implementation of [UserPreferencesRepository].
- *
- * Reads are exposed as [Flow] (never blocking). Writes use [DataStore.edit]
- * which is atomic and transactional. IOException is caught on reads and
- * falls back to safe defaults (e.g. show onboarding again).
- */
+/** Production implementation of [UserPreferencesRepository]. */
 class UserPreferencesRepositoryImpl(
     private val dataStore: DataStore<Preferences>
 ) : UserPreferencesRepository {
@@ -36,10 +30,6 @@ class UserPreferencesRepositoryImpl(
         val HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
         val HAS_SEEN_SPEED_CURVE_INTRO = booleanPreferencesKey("has_seen_speed_curve_intro")
         val SAVED_LOOP_COUNT = intPreferencesKey("saved_loop_count")
-        // Future keys:
-        // val CAPTURE_DURATION_MS = longPreferencesKey("capture_duration_ms")
-        // val DEFAULT_PLAYBACK_SPEED = floatPreferencesKey("default_playback_speed")
-        // val AUDIO_ENABLED = booleanPreferencesKey("audio_enabled")
     }
 
     override val hasCompletedOnboarding: Flow<Boolean> = dataStore.data
