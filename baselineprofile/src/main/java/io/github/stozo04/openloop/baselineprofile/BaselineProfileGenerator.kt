@@ -14,12 +14,8 @@ class BaselineProfileGenerator {
     @Test
     fun generate() = baselineProfileRule.collect(
         packageName = "io.github.stozo04.openloop",
-        // Check if there are other critical paths like Camera or Video Editor
         includeInStartupProfile = true
     ) {
-        // This block defines the interactions to be profiled.
-        // For a basic profile, just starting the app is often enough, 
-        // but we can add more interactions here.
         pressHome()
         startActivityAndWait()
     }

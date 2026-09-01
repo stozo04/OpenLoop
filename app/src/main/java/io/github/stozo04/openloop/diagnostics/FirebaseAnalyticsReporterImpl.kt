@@ -43,7 +43,6 @@ internal class FirebaseAnalyticsReporterImpl(
                     is Long -> putLong(key, value)
                     is Int -> putLong(key, value.toLong())
                     is Double -> putDouble(key, value)
-                    is Float -> putDouble(key, value.toDouble())
                     is Boolean -> putBoolean(key, value)
                     else -> Log.w(TAG, "logEvent($name) dropped param '$key' of type ${value::class.simpleName}")
                 }
