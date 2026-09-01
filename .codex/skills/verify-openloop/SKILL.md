@@ -13,9 +13,9 @@ Also present, not this skill's default: the GitHub Pages store site. Ignore it h
 
 Sibling skills you must reuse, not copy:
 
-- `.claude/skills/run-e2e/` — full capture → editor → save with logcat scan
-- `.claude/skills/run-e2e-pixel-sweep/` — 4-emulator import → save quality gate
-- `.claude/skills/reset-storage/` — delete onboarding DataStore only
+- `.codex/skills/run-e2e/` — full capture → editor → save with logcat scan
+- `.codex/skills/run-e2e-pixel-sweep/` — 4-emulator import → save quality gate
+- `.codex/skills/reset-storage/` — delete onboarding DataStore only
 
 This skill is the feature map plus a thin `helpers/control.ps1` wrapper. The pixel sweep remains the codec/FGS proof. A feature-map pass that skips a mapped entry point is incomplete.
 
@@ -31,7 +31,7 @@ Isolation: **one emulator**. Parallel AVDs fight over host CPU and codecs and in
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 $env:VERIFY_RUN_ID = Get-Date -Format "yyyyMMdd_HHmmss"
 # Start one AVD first (Pixel_6 / Pixel_8 / Pixel_8_API34 are the known ones).
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 launch
+pwsh .codex/skills/verify-openloop/helpers/control.ps1 launch
 ```
 
 Ready when `control.ps1 doctor` prints `ok` and `control.ps1 dump` shows one of:
@@ -49,7 +49,7 @@ If launch fails, stop. Do not tap some other OpenLoop build (`com.OpenLoop.app` 
 Read-only. Run before the first drive, after any failed drive, and whenever the instance looks wrong.
 
 ```powershell
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 doctor
+pwsh .codex/skills/verify-openloop/helpers/control.ps1 doctor
 ```
 
 Must confirm: serial is an emulator (or an explicitly allowed test device), `io.github.stozo04.openloop` is installed, `versionName`/`versionCode` match this checkout (`1.0.49` / `49` on the branch this skill was written against — re-read `app/build.gradle.kts` if they drifted), and `adb get-state` is `device`.
@@ -61,8 +61,8 @@ If doctor fails, relaunch or abort. Never drive an instance you did not start.
 Harness: `uiauto.ps1` (uiautomator dump → tap by text or content-desc). Screenshots hit a per-session image limit; the dump is the eyes.
 
 ```powershell
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 dump
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 tap -Label "Start recording"
+pwsh .codex/skills/verify-openloop/helpers/control.ps1 dump
+pwsh .codex/skills/verify-openloop/helpers/control.ps1 tap -Label "Start recording"
 ```
 
 Prefer these handles, in order:
@@ -99,10 +99,10 @@ Name artifacts `$VERIFY_EVIDENCE_DIR/<feature-id>/`.
 Kill what this run started. Never `pkill` / `adb shell pkill` by name.
 
 ```powershell
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 cleanup
+pwsh .codex/skills/verify-openloop/helpers/control.ps1 cleanup
 ```
 
-Force-stops `io.github.stozo04.openloop` on **this serial only**. Leaves the APK installed. Does not delete `$VERIFY_EVIDENCE_DIR`. Does not wipe gallery clips unless the recipe says so. Does not reset onboarding unless you ran `.claude/skills/reset-storage/`.
+Force-stops `io.github.stozo04.openloop` on **this serial only**. Leaves the APK installed. Does not delete `$VERIFY_EVIDENCE_DIR`. Does not wipe gallery clips unless the recipe says so. Does not reset onboarding unless you ran `.codex/skills/reset-storage/`.
 
 After cleanup, confirm the evidence directory still exists and is non-empty if a feature was driven.
 
@@ -112,8 +112,8 @@ Leave the emulator running unless you started it for this run; if you started it
 
 `helpers/control.ps1` is the wrapper. Invocation is in Launch / Doctor / Drive / Cleanup above.
 
-It calls `.claude/skills/run-e2e/scripts/uiauto.ps1` for dump/tap. Do not reimplement dump parsing.
+It calls `.codex/skills/run-e2e/scripts/uiauto.ps1` for dump/tap. Do not reimplement dump parsing.
 
 Onboarding repeatable loop (adb + Python 3 stdlib, no Gradle): `python scripts/run-verification-loops.py --changed`. Recipe: `features/onboarding.md`. Windows: `python` or `py -3`, not Git Bash `python3`.
 
-For the full editor-tab + logcat report, run `.claude/skills/run-e2e/SKILL.md` and keep that report under `docs/e2e/`. That satisfies **edit-and-save** when you also store the dumps in `$VERIFY_EVIDENCE_DIR/edit-and-save/`. Single-tab claims use `features/edit-trim.md`, `edit-speed.md`, `edit-loop.md`, `edit-filter.md`, `edit-delete.md`, or `edit-save.md`.
+For the full editor-tab + logcat report, run `.codex/skills/run-e2e/SKILL.md` and keep that report under `docs/e2e/`. That satisfies **edit-and-save** when you also store the dumps in `$VERIFY_EVIDENCE_DIR/edit-and-save/`. Single-tab claims use `features/edit-trim.md`, `edit-speed.md`, `edit-loop.md`, `edit-filter.md`, `edit-delete.md`, or `edit-save.md`.

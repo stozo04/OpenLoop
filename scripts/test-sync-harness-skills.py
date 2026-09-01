@@ -23,6 +23,9 @@ already been wrong or could silently become useless:
   * fix_mirrors_delete— a delete in the source is mirrored, not silently re-created forever.
   * fix_needs_source  — bare --fix refuses rather than guessing, because a wrong guess reverts
                         the edit being propagated and then passes the check, hiding the loss.
+  * self_reference    — the one allowed difference: each copy points at its OWN skills tree. The
+                        three cases below pin all of it, because the normalization that permits it
+                        is also the way real drift could start slipping past the gate.
 """
 import shutil
 import subprocess
@@ -162,6 +165,46 @@ def main():
         assert code == 2, out
         assert "cursor edit" in (tmp / ".cursor" / SKILL).read_text(encoding="utf-8")
         assert "codex edit" in (tmp / ".codex" / SKILL).read_text(encoding="utf-8")
+
+    @case("self_reference — each copy pointing at its own skills tree is not drift")
+    def _(tmp):
+        for h in HARNESSES:
+            (tmp / f".{h}" / SKILL).write_text(
+                f"# demo skill\nrun .{h}/skills/demo/go.py and pwsh .{h}\\skills\\demo\\go.ps1\n",
+                encoding="utf-8")
+        code, out = run(tmp)
+        assert code == 0, f"self-references must be allowed in both slash flavors:\n{out}"
+
+    @case("self_reference_wrong_target — pointing at ANOTHER harness's tree is still drift")
+    def _(tmp):
+        # The hole this closes: normalizing every harness token to one placeholder would make
+        # `.codex/skills` inside .cursor's copy compare equal, and Cursor would be sent to a
+        # directory it cannot read with the gate green.
+        (tmp / ".cursor" / SKILL).write_text("# demo skill\nrun .codex/skills/demo/go.py\n",
+                                             encoding="utf-8")
+        (tmp / ".claude" / SKILL).write_text("# demo skill\nrun .claude/skills/demo/go.py\n",
+                                             encoding="utf-8")
+        (tmp / ".codex" / SKILL).write_text("# demo skill\nrun .codex/skills/demo/go.py\n",
+                                            encoding="utf-8")
+        assert run(tmp)[0] == 1, "a copy pointing at someone else's tree must be reported"
+
+    @case("fix_retargets — --fix rewrites the self-reference for each destination harness")
+    def _(tmp):
+        (tmp / ".claude" / SKILL).write_text(
+            "# demo skill\nread .claude/skills/demo/note.md\n", encoding="utf-8")
+        code, out = run(tmp, "--fix", "--from", "claude")
+        assert code == 0, out
+        for h in HARNESSES:
+            body = (tmp / f".{h}" / SKILL).read_text(encoding="utf-8")
+            assert f".{h}/skills/demo/note.md" in body, f".{h} was not retargeted: {body!r}"
+        assert run(tmp)[0] == 0, "a retargeted tree must satisfy the check it was written for"
+
+    @case("fix_preserves_crlf — a CRLF skill is not silently rewritten to LF")
+    def _(tmp):
+        (tmp / ".claude" / SKILL).write_bytes(b"# demo skill\r\nedited\r\n")
+        assert run(tmp, "--fix", "--from", "claude")[0] == 0
+        for h in HARNESSES:
+            assert (tmp / f".{h}" / SKILL).read_bytes() == b"# demo skill\r\nedited\r\n", h
 
     print("all cases passed")
     return 0

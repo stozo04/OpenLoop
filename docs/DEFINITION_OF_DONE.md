@@ -105,7 +105,7 @@ Then fix, in this order:
 Leave alone: historical records that were true when written (a PRD's "per X I searched…", a lessons-learned
 entry, a changelog). Those describe the past, not the current layout.
 
-### M5. Harness skill packages are byte-identical across `.claude/`, `.cursor/`, `.codex/`
+### M5. Harness skill packages are identical across `.claude/`, `.cursor/`, `.codex/`
 
 The same rule as M3, one level down. The owner runs three LLM providers on this repo routinely and
 each harness auto-discovers skills **only** under its own directory, so the skills cannot live in one
@@ -137,6 +137,14 @@ Enforced as sweep gate **6d** and as a CI step in
 has its own free, offline test — `python scripts/test-sync-harness-skills.py` — run it after
 changing the script.
 
+- **One difference is allowed: a skill's pointer at its own tree.** A recipe that says "run
+  `.claude/skills/verify-openloop/helpers/onboarding_loop.py`" has to name a different directory in
+  each copy, or two of the three send their LLM to a path it cannot read (owner instruction,
+  2026-08-31). `.claude/skills`, `.cursor/skills` and `.codex/skills` are therefore compared as one
+  token and `--fix` rewrites it per destination. Every other byte still has to match, and each copy
+  must point at **itself** — `.cursor`'s copy naming `.codex/skills` is drift. Paths outside
+  `<harness>/skills` (`~/.cursor/mcp.json`, `.claude/commands/`) are genuinely one harness's and
+  stay literal in all three.
 - **Scope is `skills/**` only.** `settings.json` is harness-specific by design (Claude's carries
   marketplaces, plugins and hooks; the other two a plugin stub) and `.claude/commands/` has no
   counterpart — none of that is compared.

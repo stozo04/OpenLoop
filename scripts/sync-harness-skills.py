@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the per-harness skill packages byte-identical.
+"""Keep the per-harness skill packages identical, modulo each one's own path.
 
 The owner drives this repo with three LLM harnesses, and each one auto-discovers skills only
 under its own directory — `.claude/skills/`, `.cursor/skills/`, `.codex/skills/`. The content is
@@ -7,6 +7,15 @@ the same project knowledge, so the three trees are copies of ONE thing and must 
 skill fixed for one LLM that stays broken for the other two is worse than not fixing it, because
 nothing says which copy is current. Same rule as `docs/DEFINITION_OF_DONE.md` M3 for the shared
 instruction files, one level down (M5).
+
+ONE exception to "identical", and it exists because the trees are copies: a skill that points at
+its own tree — `.claude/skills/verify-openloop/helpers/onboarding_loop.py` — has to name a
+different directory in each copy, or two of the three send their LLM to a path it cannot read.
+So `.claude/skills`, `.cursor/skills` and `.codex/skills` are compared as one self-reference
+token, and `--fix` rewrites that token to the destination harness instead of copying it verbatim.
+Every other byte still has to match, and each copy must reference ITSELF: `.cursor`'s copy naming
+`.codex/skills` is drift, not a self-reference. Nothing outside `<harness>/skills` is normalized —
+`~/.cursor/mcp.json` and `.claude/commands/` are genuinely one harness's, and stay literal.
 
 Scope is `skills/**` only. `settings.json` is deliberately NOT compared — it is harness-specific
 (Claude's carries marketplaces, plugins and hooks; the others a plugin stub) — and
@@ -23,6 +32,7 @@ overrides that and is refused when it contradicts git, unless `--force` says to 
 """
 import argparse
 import filecmp
+import re
 import shutil
 import subprocess
 import sys
@@ -31,6 +41,39 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 HARNESSES = ("claude", "cursor", "codex")
 SUBTREE = "skills"
+
+# A reference to something INSIDE the harness's own skills tree, in either slash flavor — the
+# skills are written on Windows and quote both `.claude/skills/verify-openloop/...` and
+# `pwsh <repo>\.claude\skills\run-e2e\...`. A deeper path is required so that prose enumerating
+# the three trees ("`.claude/skills/`, `.cursor/skills/`, `.codex/skills/`", which harness-sync's
+# own SKILL.md does) is left alone: that is a list of all three, not a pointer at one.
+SELF_REF = re.compile(r"\.(claude|cursor|codex)([/\\]" + SUBTREE + r"[/\\][A-Za-z0-9_.-])")
+SELF_TOKEN = ".<harness>"
+
+
+def normalized(path, harness):
+    """File text with a reference to `harness`'s own skills tree collapsed to one token.
+
+    Only that harness's token is replaced, so each copy has to point at ITSELF to compare equal:
+    `.cursor`'s copy naming `.codex/skills` normalizes to nothing and reads as drift, which is
+    what it is. None means "not UTF-8 text" — those are compared byte-for-byte instead.
+    """
+    try:
+        # newline="": no universal-newline translation. Without it a CRLF skill file would come
+        # back with LF endings and --fix would rewrite every line of it as a "sync".
+        with path.open(encoding="utf-8", newline="") as fh:
+            text = fh.read()
+    except (UnicodeDecodeError, OSError):
+        return None
+    return re.sub(rf"\.{harness}([/\\]{SUBTREE}[/\\][A-Za-z0-9_.-])", SELF_TOKEN + r"\1", text)
+
+
+def same_content(a, a_harness, b, b_harness):
+    """True when two copies differ only in which harness tree they point at."""
+    if filecmp.cmp(a, b, shallow=False):  # contents, never size + mtime — a checkout rewrites those
+        return True
+    na = normalized(a, a_harness)
+    return na is not None and na == normalized(b, b_harness)
 
 
 def tracked(harness):
@@ -94,8 +137,7 @@ def drift():
             elif rel not in trees[base] or not trees[base][rel].exists() or h == base:
                 state[h] = "same"
             else:
-                # shallow=False: compare contents, never size + modification time — a checkout rewrites those.
-                state[h] = "same" if filecmp.cmp(trees[base][rel], trees[h][rel], shallow=False) else "differs"
+                state[h] = "same" if same_content(trees[base][rel], base, trees[h][rel], h) else "differs"
         # All-missing is consistent, not drift: git still lists a path deleted from every
         # harness (staged or not), and flagging that would leave --fix with nothing to do
         # and the gate permanently red until the delete was committed.
@@ -182,7 +224,14 @@ def main(argv):
                     print(f"  removed .{h}/{SUBTREE}/{rel}")
                 continue
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src_tree[rel], dst)
+            # Retarget the source's self-reference at the harness being written, so its copy points
+            # at a tree that LLM can actually read. Everything else is copied verbatim; a non-text
+            # file (or one with no self-reference) round-trips byte-for-byte through the same path.
+            text = normalized(src_tree[rel], args.source)
+            if text is None:
+                shutil.copyfile(src_tree[rel], dst)
+            else:
+                dst.write_text(text.replace(SELF_TOKEN, f".{h}"), encoding="utf-8", newline="")
             copied += 1
             print(f"  wrote   .{h}/{SUBTREE}/{rel}")
     print(f"\nsynced from .{args.source}: {copied} copied, {removed} removed — `git add` the result")

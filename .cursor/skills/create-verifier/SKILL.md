@@ -16,7 +16,7 @@ The verifier drives `io.github.stozo04.openloop/.MainActivity` on an emulator li
 1. Read `docs/OPERATING_INSTRUCTIONS.md`, `docs/OPENLOOP_INSTRUCTIONS.md`, the matching `.cursor/skills/verify-openloop/features/<feature>.md`, and the relevant product code/strings. Use `.cursor/skills/verify-openloop/helpers/onboarding_loop.py` as the proven reference.
 2. Derive observable acceptance criteria from the shipped product: precondition, entry point, exact must-have/must-not-have UI, user actions, persisted/resulting state, and any required non-UI proof such as logcat or a file.
 3. Create `.cursor/skills/verify-openloop/helpers/<feature>_loop.py` with Python's standard library. Reuse an existing helper when one fits; extract shared code only after two real loops demonstrate material duplication.
-4. Update the matching feature recipe with the direct run command. Run `python scripts/sync-harness-skills.py --fix --from cursor`, then `--check`.
+4. Update the matching feature recipe with the direct run command. Run `python scripts/sync-harness-skills.py --fix` (it takes the direction from git and retargets each copy's own paths), then `--check`.
 5. Build the current debug APK if needed and run the new loop on a booted emulator. Do not report completion from syntax checks or exit code alone; independently confirm its final PASS marker and evidence artifacts.
 
 `scripts/run-verification-loops.py --changed` discovers shipped `*_loop.py` files automatically, so there is no registry or roadmap to update.
