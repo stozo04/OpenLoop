@@ -34,26 +34,8 @@ import io.github.stozo04.openloop.R
  * | eye line down to the **chin** | **1.75** |
  * | mouth width, at rest | 0.8 |
  *
- * These are **measured off a real tracked face**, not assumed. An earlier version reasoned them
- * from published head statistics (treating one unit as the interpupillary distance) and every lens
- * came out ~20% oversized — eye-to-mouth is the larger of the two spans. If a lens ever needs
+ * These are **measured off a real tracked face**, not assumed. If a lens ever needs
  * resizing, re-measure against this table rather than nudging a lens in isolation.
- *
- * ## The chin row was wrong until 2026-08-16, and it shipped two bugs
- *
- * This table used to say **chin = 1.00** — which is the same number as the mouth, and that
- * coincidence is the tell: the row was the *mouth* wearing the chin's label. A real jaw runs about
- * another **0.75 units** below the mouth (stomion→menton ≈ 50 mm against a ≈ 67 mm pupil→stomion
- * face unit), putting the chin at **-1.75**.
- *
- * [PizzaFace] and [Football] were both sized against the wrong number, so both stopped at roughly
- * the mouth and left the subject's real chin — and the corners of their real mouth — on show below
- * the art. That is what "the mouth looks duplicated" was: the character's composited mouth *and*
- * the subject's own, at once. [Broccoli] was never affected because it hangs a stalk far below the
- * jaw and covers to -3.88 regardless.
- *
- * `LensAnchorTest.characterLensesCoverTheWholeHead` now asserts crown-to-chin coverage for every
- * character lens, so the class of bug cannot come back silently.
  *
  * Because they are ratios of the face to itself, one set of numbers holds for every face at every
  * distance and angle — there is nothing here to re-tune per device.
