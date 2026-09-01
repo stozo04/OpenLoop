@@ -11,6 +11,7 @@ Does **not** need to stay perfectly current between audits — the [README compl
 | Record / stop video                  | `Start recording`            | automated 2026-08-31 | [record-clip.md](./record-clip.md)                 |
 | Lenses drawer + catalogue            | `Lenses and Photo Booth`     | mapped               | [lenses.md](./lenses.md)                           |
 | Multi-face (1–2) lens                | FaceRoster / live preview    | folded into lenses   | [lenses.md](./lenses.md)                           |
+| Capture-mode toggle (photo/video)    | `Camera` / `Video` selector  | automated 2026-09-01 | [photo-capture.md](./photo-capture.md)             |
 | Photo stills mode                    | `Camera` / `Take photo`      | mapped               | [photo-capture.md](./photo-capture.md)             |
 | Photo booth                          | booth tab / countdown        | mapped               | [photo-booth.md](./photo-booth.md)                 |
 | Pinch zoom                           | zoom chip                    | mapped               | [pinch-zoom.md](./pinch-zoom.md)                   |
