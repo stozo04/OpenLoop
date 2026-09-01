@@ -31,7 +31,7 @@ Isolation: **one emulator**. Parallel AVDs fight over host CPU and codecs and in
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 $env:VERIFY_RUN_ID = Get-Date -Format "yyyyMMdd_HHmmss"
 # Start one AVD first (Pixel_6 / Pixel_8 / Pixel_8_API34 are the known ones).
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 launch
+pwsh .claude/skills/verify-openloop/helpers/control.ps1 launch
 ```
 
 Ready when `control.ps1 doctor` prints `ok` and `control.ps1 dump` shows one of:
@@ -49,7 +49,7 @@ If launch fails, stop. Do not tap some other OpenLoop build (`com.OpenLoop.app` 
 Read-only. Run before the first drive, after any failed drive, and whenever the instance looks wrong.
 
 ```powershell
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 doctor
+pwsh .claude/skills/verify-openloop/helpers/control.ps1 doctor
 ```
 
 Must confirm: serial is an emulator (or an explicitly allowed test device), `io.github.stozo04.openloop` is installed, `versionName`/`versionCode` match this checkout (`1.0.49` / `49` on the branch this skill was written against — re-read `app/build.gradle.kts` if they drifted), and `adb get-state` is `device`.
@@ -61,8 +61,8 @@ If doctor fails, relaunch or abort. Never drive an instance you did not start.
 Harness: `uiauto.ps1` (uiautomator dump → tap by text or content-desc). Screenshots hit a per-session image limit; the dump is the eyes.
 
 ```powershell
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 dump
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 tap -Label "Start recording"
+pwsh .claude/skills/verify-openloop/helpers/control.ps1 dump
+pwsh .claude/skills/verify-openloop/helpers/control.ps1 tap -Label "Start recording"
 ```
 
 Prefer these handles, in order:
@@ -99,7 +99,7 @@ Name artifacts `$VERIFY_EVIDENCE_DIR/<feature-id>/`.
 Kill what this run started. Never `pkill` / `adb shell pkill` by name.
 
 ```powershell
-pwsh .cursor/skills/verify-openloop/helpers/control.ps1 cleanup
+pwsh .claude/skills/verify-openloop/helpers/control.ps1 cleanup
 ```
 
 Force-stops `io.github.stozo04.openloop` on **this serial only**. Leaves the APK installed. Does not delete `$VERIFY_EVIDENCE_DIR`. Does not wipe gallery clips unless the recipe says so. Does not reset onboarding unless you ran `.claude/skills/reset-storage/`.

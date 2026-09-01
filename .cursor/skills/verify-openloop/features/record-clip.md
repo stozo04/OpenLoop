@@ -16,6 +16,31 @@ From the camera viewfinder the user taps the shutter to start a video (up to 30 
 - Confirm capture mode is **Video** (`capture_mode_selector`, label `Video`) not Camera/stills and not Photo Booth.
 - Tap the large shutter at the bottom center.
 
+## Autonomous check
+
+Run it from the repository root:
+
+```powershell
+python .cursor/skills/verify-openloop/helpers/record_clip_loop.py
+```
+
+`python scripts/run-verification-loops.py --changed` runs it alongside every other loop. Both take
+`VERIFY_SERIAL` when more than one emulator is online and `VERIFY_EVIDENCE_DIR` for the artifacts.
+
+It installs the current debug APK, grants CAMERA, and drives all three outcomes of a shutter tap:
+a sub-400 ms double tap (stays on camera, `That was quick!` snackbar, no clip), a few seconds
+(Trim opens, scratch clip on disk, `Capture finalized (Nms)` in logcat), and a recording left to
+run out (the 30 s cap finalizes it with no stop tap). Every countdown sample is asserted as
+`<seconds>s / 30s` — never a `mm:ss` clock. Both clips are thrown away through the Discard dialog,
+so nothing is saved and the gallery is untouched.
+
+Expect roughly **75 seconds** on a healthy Pixel_8_API34 AVD, where the cap produces a 31.2 s clip.
+The elapsed counter accumulates 33 ms per tick instead of reading a clock, so a device that cannot
+hold the cadence overruns: the same AVD under host memory pressure took 219 s and produced a
+**143 s** clip for the same 30 s cap. The cap is therefore asserted as "no stop tap, no error
+finalize, Trim opened, clip ≥ 25 s" — never a wall-clock ceiling, and never how high the chip had
+climbed at the last dump, which measures the polling interval rather than the product.
+
 ## Driving it with control.ps1
 
 Preconditions:
@@ -38,4 +63,7 @@ Preconditions:
 - Import (`Import a video` / gallery empty `…or import one`) is a different entry into Trim — see [import-video](./import-video.md). Do not count import as `record-clip`.
 - Active [lenses](./lenses.md) bake into the recording; prove lens UI separately if that is the claim.
 - Permission rationale can sit on top of the shutter. Dump first.
+- The too-short snackbar covers the shutter row: while it is up, `Start recording` / `Flip Camera` are not in the dump at all. Prove "still on camera" with the mode selector, then re-check the shutter once it clears.
+- A uiautomator dump takes seconds and the snackbar lasts four, so polling with dumps loses that race. Wait on logcat (`Video burst recording failed` / `below the 400ms minimum`), then dump once.
+- Under host memory pressure the AVD's own system ANRs (`System UI isn't responding`, package `android`, in the dump) and every recipe here fails at the first step. That is the host, not the app — free memory and cold-boot the AVD (`-no-snapshot-load`); `adb reboot` restores the same broken state.
 - Front/back flip (`Flip Camera`) does not by itself prove a recording.

@@ -1,6 +1,6 @@
 ---
 name: harness-sync
-description: Check and repair byte-drift between the three LLM harness skill trees — `.claude/skills/`, `.cursor/skills/` and `.codex/skills/` — which the Definition of Done (M5) requires to be byte-identical. Use this skill whenever you edit, add, delete or rename ANYTHING under any of those three directories, and whenever the user says "sync harness", "sync the skills", "/harness-sync", "harness drift", "gate 6d", "M5", "sweep gate 6d is red", "the skill trees have drifted", "propagate this skill to the other LLMs", or asks whether the three harness folders match. Also use it proactively before committing a skill change and when a pre-PR sweep or CI run reports the "Harness skill trees byte-identical" gate as failing — a skills edit that reaches only one harness is the exact failure this catches.
+description: Check and repair byte-drift between the three LLM harness skill trees — `.claude/skills/`, `.cursor/skills/` and `.codex/skills/` — which the Definition of Done (M5) requires to be identical apart from each copy's pointer at its own tree. Use this skill whenever you edit, add, delete or rename ANYTHING under any of those three directories, and whenever the user says "sync harness", "sync the skills", "/harness-sync", "harness drift", "gate 6d", "M5", "sweep gate 6d is red", "the skill trees have drifted", "propagate this skill to the other LLMs", or asks whether the three harness folders match. Also use it proactively before committing a skill change and when a pre-PR sweep or CI run reports the "Harness skill trees byte-identical" gate as failing — a skills edit that reaches only one harness is the exact failure this catches.
 ---
 
 # harness-sync — keep the three harness skill trees identical
@@ -78,6 +78,20 @@ must NOT be synced:
 - **`.claude/commands/`** and `.claude/evals/` have no counterpart in the other two directories.
   They are Claude-only by design and live outside `skills/`, which is why the script never sees
   them.
+
+One difference inside the compared files IS allowed, and only one: **a skill's pointer at its own
+tree**. A recipe that points at `<harness>/skills/verify-openloop/helpers/onboarding_loop.py` names
+a different directory in each copy, because otherwise two of the three send their LLM to a path it
+cannot read (owner instruction, 2026-08-31). The leading `.claude` / `.cursor` / `.codex` of such a
+path is compared as one token, and `--fix` rewrites it for each destination — so you still edit one
+tree and propagate. Three rules keep it honest:
+
+- Each copy must point at **itself**. A `.cursor` copy naming the `.codex` tree is drift, and the
+  gate says so.
+- Only a path that continues past the tree root counts. Prose listing the three directories — the
+  `## Scope` heading below does it — is a list, not a pointer, and is compared literally.
+- Anything outside a harness's `skills/` (`~/.cursor/mcp.json`, `.claude/commands/`) belongs to one
+  harness for real and stays literal in all three copies.
 
 If you are adding a fourth harness, create `.<name>/skills/`, add the name to `HARNESSES` in the
 script, and add the allowlist entries in `.github/workflows/doc-layout.yml` and

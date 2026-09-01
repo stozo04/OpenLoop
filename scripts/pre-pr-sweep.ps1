@@ -324,7 +324,10 @@ Gate "5b. Onboarding loop — autonomous first-run + returning-user proof" {
     if (Test-Path $loopErr) { Get-Content $loopErr | Add-Content $log }
     $tail = ""
     if (Test-Path $loopLog) { $tail = (@(Get-Content $loopLog) | Select-Object -Last 1) }
-    if ($code -eq 0 -and "$tail" -match '^PASS loops=[a-z0-9,-]+$') { return "PASS ($tail)" }
+    # Underscores are in the class because a loop's name is its `<name>_loop.py` stem, and those
+    # are Python module names: `record_clip`, not `record-clip`. Written when onboarding was the
+    # only loop, this pattern rejected the marker the runner actually printed for the second one.
+    if ($code -eq 0 -and "$tail" -match '^PASS loops=[a-z0-9_,-]+$') { return "PASS ($tail)" }
     return "FAIL: exit=$code final=$tail — expected a final PASS loops=<names> marker"
 }
 

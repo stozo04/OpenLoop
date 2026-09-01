@@ -6,7 +6,7 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 - One emulator attached. Serial in `VERIFY_SERIAL` if more than one `adb devices` line is `device`.
 - Debug APK from **this** checkout installed (`io.github.stozo04.openloop`).
-- `pwsh .cursor/skills/verify-openloop/helpers/control.ps1 doctor` passes.
+- `pwsh .claude/skills/verify-openloop/helpers/control.ps1 doctor` passes.
 - Camera permission granted (`control.ps1 grant-camera` or install `-g`).
 - Never drive a physical phone unless `VERIFY_ALLOW_DEVICE=1`.
 - Never drive `com.OpenLoop.app`.
