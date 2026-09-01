@@ -271,7 +271,7 @@ def scenario_too_short(serial: str, evidence: Path, chip: Chip, scratch: Scratch
         seen["xml"], seen["nodes"] = dump_ui(serial)
         strings, blob = dump_strings(seen["nodes"]), dump_blob(seen["nodes"])
 
-        if FINALIZED_RE.search(logcat) or "TRIM YOUR VIDEO" in strings:
+        if (FINALIZED_RE.search(logcat) and not TOO_SHORT_LOG_RE.search(logcat)) or "TRIM YOUR VIDEO" in strings:
             # The two taps landed far enough apart to encode a real clip: the precondition failed,
             # not the product. Clean up and try again.
             print(f"  too-short attempt {attempt}: taps produced a full clip, discarding and retrying")
