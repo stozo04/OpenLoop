@@ -29,19 +29,10 @@ import kotlin.math.hypot
  *
  * ## ID churn
  *
- * When ML Kit loses a face for a frame or two it often re-detects it under a **new** tracking id.
- * The old id is still being held, so without care the same person would wear two lenses for up to
- * [holdMs] — and, with the slots full, the new id would be locked out until the hold expired. So
- * the nearest fresh face that has no slot and stands within [SAME_FACE_RADIUS_UNITS] of a
- * held-but-unseen slot holder is taken to be that person. A different person cannot land on the
- * exact same spot inside a third of a second, and a third person entering anywhere else during
- * someone's blink still cannot steal a slot.
- *
- * The adopted face is **published under the original id**, not the detector's new one (Lesson
- * 037). Every per-face consumer downstream — the wobble springs and eased mouth in [LensMotion],
- * anything added later — keys its state on [FaceSnapshot.trackingId], so a label change that
- * leaked through would reset all of it mid-blink. The new id is recorded as an alias and folded
- * back onto the original on every later sighting, for as long as that person is held.
+ * ML Kit often re-detects a briefly lost face under a new tracking id. The roster adopts the
+ * nearest fresh face within [SAME_FACE_RADIUS_UNITS] of a held-but-unseen slot as the same person,
+ * publishing it under the original id (Lesson 037) so downstream per-face state keyed on
+ * [FaceSnapshot.trackingId] is not reset mid-blink.
  */
 class FaceRoster(private val maxFaces: Int, private val holdMs: Long) {
 

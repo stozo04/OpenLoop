@@ -783,12 +783,6 @@ class LensSurfaceProcessor(context: Context) : SurfaceProcessor {
 
         /**
          * Camera pass — a straight sample of the external OES texture through CameraX's transform.
-         *
-         * This used to carry up to two radial bulges (Big Mouth, Bug Eyes). Both lenses are gone,
-         * and with them the flip into y-down screen space they needed: the shader converted
-         * `vTexCoord`, warped, and converted back, which is exactly the identity when no warp
-         * fires. A lens that deforms pixels again wants that scaffolding back — it is in the
-         * history, not commented out here.
          */
         const val CAMERA_FRAGMENT_SHADER = """
             #extension GL_OES_EGL_image_external : require

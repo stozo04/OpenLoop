@@ -410,12 +410,8 @@ object LensAnchor {
     }
 
     /**
-     * Resolves the three features to lift onto a character: left eye, right eye, mouth.
-     *
-     * Sources follow the subject's real landmarks (so a blink, a smile and a head turn all carry
-     * through); destinations are fixed points in the face frame (so the character's face does not
-     * inherit the subject's proportions, camera perspective, or a lens-distorted nose). That split
-     * is the whole trick — expression from the human, geometry from the character.
+     * Resolves the three features to lift onto a character. Expression from the human (real
+     * landmarks), geometry from the character (fixed points in the face frame).
      */
     fun features(
         face: FaceSnapshot,
