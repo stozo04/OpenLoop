@@ -15,6 +15,27 @@ Camera mode takes a single still from the live preview (including any active len
 - Tap the shutter (`Take photo`).
 - Share or dismiss; open Gallery to see the still.
 
+## Autonomous check
+
+Run it from the repository root:
+
+```powershell
+python .codex/skills/verify-openloop/helpers/photo_mode_loop.py
+```
+
+`python scripts/run-verification-loops.py --changed` runs it alongside every other loop. Both take
+`VERIFY_SERIAL` when more than one emulator is online and `VERIFY_EVIDENCE_DIR` for the artifacts.
+
+It covers the `photo-mode` sub-feature only — the CAMERA | VIDEO selector and what tapping it does.
+Nothing is captured: no still, no clip, no gallery write. Three states (Video baseline → Camera →
+Video) are each asserted out of a **single** dump, two ways at once: the shutter's description
+(`Start recording` ⇄ `Take photo`, the ability being switched) and the tapped segment's `checked`
+flag, which is where the lime highlight surfaces in the hierarchy. Half a flip — the highlight moves
+but the shutter still records, or the reverse — fails. Roughly 25 s on a healthy AVD; evidence is
+`video-baseline`, `camera-mode` and `video-restored` as XML + PNG.
+
+Taking the actual still is not automated — that is the `control.ps1` recipe below.
+
 ## Driving it with control.ps1
 
 Preconditions:
