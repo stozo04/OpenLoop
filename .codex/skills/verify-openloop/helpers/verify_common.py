@@ -36,6 +36,12 @@ class UiNode:
     # and the navigation bar come back alongside the app — filter on this before asserting that
     # some text is or is not on screen "in the app".
     pkg: str = ""
+    # Selection/toggle state. A Compose `selectable`/`toggleable` reaches uiautomator as
+    # checkable="true" on the wrapper node, with `checked` carrying whether it is the selected
+    # one — the label leaf and the RadioButton-class leaf both report checked="false" whatever
+    # is selected, so this pair is the only place a segmented control's state is readable.
+    checkable: bool = False
+    checked: bool = False
 
 
 def fail(message: str) -> None:
@@ -150,6 +156,8 @@ def parse_nodes_regex(xml_text: str) -> list[UiNode]:
         desc_m = re.search(r'content-desc="([^"]*)"', fragment)
         bounds_m = re.search(r'bounds="(\[[^\]]+\]\[[^\]]+\])"', fragment)
         pkg_m = re.search(r'package="([^"]*)"', fragment)
+        checkable_m = re.search(r'checkable="([^"]*)"', fragment)
+        checked_m = re.search(r'checked="([^"]*)"', fragment)
         bounds = parse_bounds(bounds_m.group(1)) if bounds_m else None
         nodes.append(
             UiNode(
@@ -157,6 +165,8 @@ def parse_nodes_regex(xml_text: str) -> list[UiNode]:
                 desc=decode_entities(desc_m.group(1) if desc_m else ""),
                 bounds=bounds,
                 pkg=pkg_m.group(1) if pkg_m else "",
+                checkable=bool(checkable_m) and checkable_m.group(1) == "true",
+                checked=bool(checked_m) and checked_m.group(1) == "true",
             )
         )
     return nodes
@@ -173,6 +183,8 @@ def parse_nodes_etree(xml_text: str) -> list[UiNode]:
                 desc=decode_entities(elem.attrib.get("content-desc", "")),
                 bounds=bounds,
                 pkg=elem.attrib.get("package", ""),
+                checkable=elem.attrib.get("checkable") == "true",
+                checked=elem.attrib.get("checked") == "true",
             )
         )
     return nodes

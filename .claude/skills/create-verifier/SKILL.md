@@ -16,8 +16,9 @@ The verifier drives `io.github.stozo04.openloop/.MainActivity` on an emulator li
 1. Read `docs/OPERATING_INSTRUCTIONS.md`, `docs/OPENLOOP_INSTRUCTIONS.md`, the matching `.claude/skills/verify-openloop/features/<feature>.md`, and the relevant product code/strings. Use `.claude/skills/verify-openloop/helpers/onboarding_loop.py` as the proven reference.
 2. Derive observable acceptance criteria from the shipped product: precondition, entry point, exact must-have/must-not-have UI, user actions, persisted/resulting state, and any required non-UI proof such as logcat or a file.
 3. Create `.claude/skills/verify-openloop/helpers/<feature>_loop.py` with Python's standard library. Reuse an existing helper when one fits; extract shared code only after two real loops demonstrate material duplication.
-4. Update the matching feature recipe with the direct run command. Run `python scripts/sync-harness-skills.py --fix` (it takes the direction from git and retargets each copy's own paths), then `--check`.
+4. Update the matching feature recipe with the direct run command.
 5. Build the current debug APK if needed and run the new loop on a booted emulator. Do not report completion from syntax checks or exit code alone; independently confirm its final PASS marker and evidence artifacts.
+6. Only once it has been seen passing, mark the surface `automated <YYYY-MM-DD>` in `features/INVENTORY.md` — add a row when the loop covers a surface the table does not list yet, and leave neighbouring rows `mapped` rather than overstating what the loop drives. Then run `python scripts/sync-harness-skills.py --fix` (it takes the direction from git and retargets each copy's own paths), followed by `--check`; the sync must come last so every edit above reaches all three harnesses.
 
 `scripts/run-verification-loops.py --changed` discovers shipped `*_loop.py` files automatically, so there is no registry or roadmap to update.
 
