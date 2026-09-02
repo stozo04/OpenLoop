@@ -152,16 +152,7 @@ private const val SCRUB_EPSILON = 0.015f
 /** Debounce playlist rebinding — coalesces trim/mode/seam changes (editor-memory-oom WS-2). */
 private val PLAYLIST_DEBOUNCE = EditorPlaylistBind.PLAYLIST_DEBOUNCE
 
-/**
- * Tabbed boomerang editor. Opens from the Trim screen's NEXT with the trimmed clip already
- * boomeranged (`FORWARD_THEN_REVERSE` default) looping in the preview. Slices 03–04 expose two
- * interactive tabs — **Direction** (four chips) and **Speed** (a slider) — plus a Save checkmark; a
- * disabled **Reps** stub holds its slot for slice 05.
- *
- * Reps (1) is hard-wired this slice; [OpenLoopViewModel.saveBoomerang] renders with the selected
- * direction + speed. Flow collection uses [collectAsStateWithLifecycle] (Lesson 002); colors are the
- * shared `CameraScreen.kt` tokens, all 8-hex literals (Lesson 001).
- */
+/** Tabbed boomerang editor: Direction / Speed / Looks. */
 @Composable
 fun BoomerangEditorScreen(
     viewModel: OpenLoopViewModel,

@@ -59,11 +59,7 @@ import io.github.stozo04.openloop.ui.theme.OpenLoopBackground
 import io.github.stozo04.openloop.ui.theme.SurfaceContainer
 import java.io.File
 
-/**
- * Post-capture Trim screen: video preview on top, filmstrip trim controls + bottom toolbar below.
- * SAVE (or Speed / Loop / Filter on the toolbar) advances into the tabbed editor when the trim
- * window meets [OpenLoopViewModel.MIN_TRIM_DURATION].
- */
+/** Post-capture Trim screen. */
 @OptIn(UnstableApi::class)
 @Composable
 fun TrimScreen(
