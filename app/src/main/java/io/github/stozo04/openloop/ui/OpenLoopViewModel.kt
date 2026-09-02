@@ -224,10 +224,7 @@ class OpenLoopViewModel(
                 OpenLoopUiState.Onboarding
             }
         }
-        // Best-effort prune of orphaned scratch copies older than 24 h (parent D-8). Imports raise
-        // scratch churn (an abandoned import can leave a whole library-video-sized copy), so reclaim
-        // it deterministically at launch rather than waiting on Android's cache eviction. Fire-and-
-        // forget on Dispatchers.IO inside the repo — never blocks startup or the UI thread.
+        // D-8 scratch prune: fire-and-forget on Dispatchers.IO inside the repo.
         viewModelScope.launch {
             try {
                 videoStorage.pruneStaleScratch(STALE_SCRATCH_MAX_AGE.inWholeMilliseconds)

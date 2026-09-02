@@ -109,19 +109,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.withContext
 
 /**
- * Single hosting call site for the two camera-bound states ([OpenLoopUiState.ReadyToCapture] and
- * [OpenLoopUiState.Recording]).
- *
- * WHY THIS EXISTS: if those two states are rendered from two *separate* `when` branches in the
- * navigation (each with its own `CameraScreen(...)` call), Compose disposes one and builds the
- * other on the start/stop transition. That remount re-runs [CameraScreen]'s
- * `LaunchedEffect { startCamera() }`, which calls `unbindAll()` and tears the camera out from under
- * the in-flight recording — finalizing it immediately with `ERROR_SOURCE_INACTIVE` (~25 ms after
- * the user taps record). Routing both states through this one composable keeps a single
- * [content] instance alive across the transition, so the camera stays bound and recording runs
- * until the user taps stop or the 30 s cap fires.
- *
- * Regression guard: `CameraScreenTest.cameraScreenHost_keepsContentMounted_acrossCaptureTransition`.
+ * Single hosting call site for [OpenLoopUiState.ReadyToCapture] and [OpenLoopUiState.Recording].
+ * Keeps [CameraScreen] mounted across the transition so the camera is not rebound (Lesson 012).
  */
 @Composable
 fun CameraScreenHost(

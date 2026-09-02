@@ -118,9 +118,7 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     @OptIn(UnstableApi::class)
     private val viewModel: OpenLoopViewModel by viewModels {
-        // Bridge Context → repositories + media here, once. applicationContext is the long-lived,
-        // safe Context to read dataStore / cacheDir / filesDir from; nothing downstream
-        // (Factory, ViewModel) ever sees a Context.
+        // Context bridge (Lesson 004).
         OpenLoopViewModel.Factory(
             UserPreferencesRepositoryImpl(applicationContext.dataStore),
             VideoStorageRepositoryImpl(
@@ -305,9 +303,7 @@ class MainActivity : ComponentActivity() {
                     appUpdateController.check()
                 }
 
-                // Collect one-shot boomerang events → share sheet + snackbars (the app's only
-                // SnackbarHost). `when` stays exhaustive with no `else` (Lesson 014) so a new event
-                // must be handled here to compile.
+                // Collect one-shot boomerang events → share sheet + snackbars (the app's only SnackbarHost).
                 LaunchedEffect(Unit) {
                     viewModel.events.collect { event ->
                         when (event) {
@@ -700,10 +696,7 @@ fun OpenLoopNavHost(
                 onSecondaryAction = { onOpenAppSettings() }
             )
         }
-        // ReadyToCapture and Recording MUST share this single call site (Lesson 012). Two separate
-        // branches make Compose dispose+rebuild CameraScreen on the start/stop transition, which
-        // re-runs its startCamera() effect, calls unbindAll(), and kills the in-flight recording
-        // (ERROR_SOURCE_INACTIVE). CameraScreenHost keeps one CameraScreen instance alive across both.
+        // ReadyToCapture and Recording share one call site (Lesson 012).
         is OpenLoopUiState.ReadyToCapture,
         is OpenLoopUiState.Recording -> {
             CameraScreenHost(uiState) {
