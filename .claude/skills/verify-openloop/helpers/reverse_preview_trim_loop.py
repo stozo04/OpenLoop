@@ -184,8 +184,25 @@ def move_trim_start(serial: str, evidence: Path) -> float:
 
 
 def start_reverse(serial: str, evidence: Path) -> None:
-    clear_logcat(serial)
     xml, nodes = dump_ui(serial)
+    save = find_exact(nodes, "SAVE")
+    if not save:
+        path = snapshot(serial, evidence, "save-missing", xml)
+        fail(f"trim: SAVE button missing; evidence={path}")
+    tap_node(serial, save)
+
+    seen = {"xml": "", "nodes": []}
+
+    def editor_open() -> bool:
+        seen["xml"], seen["nodes"] = dump_ui(serial)
+        return find_exact(seen["nodes"], "Loop") is not None
+
+    if not wait_until(editor_open, timeout_s=20.0, interval_s=0.5):
+        path = snapshot(serial, evidence, "editor-not-open", seen["xml"])
+        fail(f"editor: did not open after SAVE; evidence={path}")
+
+    clear_logcat(serial)
+    xml, nodes = seen["xml"], seen["nodes"]
     loop = find_exact(nodes, "Loop")
     if not loop:
         path = snapshot(serial, evidence, "loop-missing", xml)
@@ -201,7 +218,6 @@ def start_reverse(serial: str, evidence: Path) -> None:
     if wait_until(reverse_started, timeout_s=5.0, interval_s=0.5):
         return
 
-    # The persisted direction may be Forward. Select the shipped boomerang direction explicitly.
     xml, nodes = dump_ui(serial)
     direction = find_exact(nodes, "Forward then reverse")
     if not direction:
