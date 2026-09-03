@@ -118,6 +118,27 @@ class VideoReverserTest {
     }
 
     /**
+     * Companion to the test above, for the case that made pass 1's zero-frame escape racy: a trim
+     * window so short that ALL of it can still be inside the decoder when input EOS is queued.
+     *
+     * The escape exists to stop a genuinely empty pass from spinning, but "input EOS queued and
+     * nothing rendered yet" is also the normal in-flight state behind a long preroll, so it could
+     * abandon a pass that was about to succeed. It is gated on decoder OUTPUT EOS — the only signal
+     * that no further frame can ever render.
+     */
+    @Test
+    fun reverse_withShortWindowBehindLongPreroll_producesOutput() = runBlocking {
+        val startMs = durationMs - 120L
+        assumeTrue("fixture too short for a tail window", startMs > 200L)
+
+        val output = withTimeout(REVERSE_TIMEOUT_MS) { reverser.reverse(fixture, startMs, durationMs) }
+
+        assertTrue("reversed output should exist", output.exists())
+        val validation = ReverseOutputValidator.validateReversedOutput(output)
+        assertTrue("short tail window reversed to nothing: ${validation.reason}", validation.valid)
+    }
+
+    /**
      * RTL regression (SM-S921B, 2026-06-03): pass 1 aborted ~113ms after Transformer when
      * [SAMSUNG_POST_TRANSFORM_CODEC_SETTLE] was zero. On Samsung hardware, reverse must survive
      * pass 1 after the same settle [Media3VideoProcessor] applies before [VideoReverser.reverse].
