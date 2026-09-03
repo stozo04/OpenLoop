@@ -669,9 +669,11 @@ class VideoReverser(
                     decoderDone = true
                 }
                 // Zero-frame pass (immediate EOS / no muxer track): don't spin until durationUs clears.
-                // Gated on "nothing was ever rendered" — with a decoder preroll in front of a short trim
-                // window, the encoder can still be empty when input EOS is queued, and bailing there
-                // would throw away a pass that was about to succeed (issue #170).
+                // Gated on decoder OUTPUT EOS, not input EOS, plus "nothing was ever rendered". Behind a
+                // long preroll a short trim window can still be entirely inside the decoder when input
+                // EOS is queued — indistinguishable from an empty pass at that moment — so the input-side
+                // gate could abandon a pass about to succeed. Output EOS is the only signal that no
+                // further frame can render (issue #170).
                 if (decoderOutputEos && !started && lastEncodedSampleUs < 0L) decoderDone = true
             }
 
