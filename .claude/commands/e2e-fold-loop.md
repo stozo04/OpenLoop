@@ -3,8 +3,10 @@
 > **Status: GOAL MET 2026-06-04** (branch `feature/e2e-fold-loop-fixes`). Iteration 1 found and
 > fixed BUG-1 (pass-1 jitter subsampling → 15 fps + corrupted reverse half, commit `731b26b`);
 > iteration 2 confirmed a zero-change clean sweep on all three devices. Historical reports were
-> archived during doc cleanup. BUG-2 (skip-at-input corruption for >30 fps sources) may still apply —
-> re-run this loop after any media-pipeline change, or whenever a Pixel-family regression is suspected.
+> archived during doc cleanup. BUG-2 (skip-at-input corruption for >30 fps sources) was fixed in
+> `6a5f266` alongside issue #170 — subsampling now decides at decoder output — but has never been
+> verified against a real >30 fps source. Re-run this loop after any media-pipeline change, or
+> whenever a Pixel-family regression is suspected.
 
 ## THE GOAL
 
@@ -93,10 +95,11 @@ emulator software codecs don't reproduce):
    first timed out; codec-component counts climb.
 3. **Save path has no timeout** — `BoomerangRenderWorker` → `reverse()` runs un-budgeted; the
    same stall = indefinite "Render worker reported failure". Same disease as #1, two symptoms.
-4. **BUG-2 (fold-loop iter 1):** when pass-1 subsampling legitimately engages (>30 fps source),
-   it drops *compressed* samples → broken P-frame chains → moving-region macroblock smear.
-   Fix design: decide ENCODE/SKIP at decoder output (render selectively), not at input. Needs
-   a synthetic 60 fps fixture to verify. See STATE.md.
+4. **BUG-2 (fold-loop iter 1) — fixed in `6a5f266`, unverified:** when pass-1 subsampling
+   legitimately engaged (>30 fps source), it dropped *compressed* samples → broken P-frame chains
+   → moving-region macroblock smear. `pass1SampleAction` now decides at decoder output (render
+   selectively) rather than at input, so the chain stays intact. Still needs a synthetic 60 fps
+   fixture to confirm on a real above-cap source. See STATE.md.
 
 Signature → meaning map and refuted dead ends: `run-e2e-pixel-sweep/SKILL.md` ("Reading
 failures") and `run-e2e/references/logcat-signatures.md`. Two standing rules: **emulators run
