@@ -497,13 +497,29 @@ enum class Lens(
      * owner-supplied reference. A **prop**, like [Elvis]: [features] stays null so the subject's
      * own face carries the expression and only the two pieces are added.
      *
-     * The art is **original vector, authored here**, not the reference itself — that arrived as a
-     * screenshot of a stock silhouette, and PRD §11.2 is explicit that a public Apache 2.0 repo
+     * The art is **original, generated in this repo**, not the reference itself — that arrived as
+     * a screenshot of a stock silhouette, and PRD §11.2 is explicit that a public Apache 2.0 repo
      * ships only art it can redistribute. What was taken from it is the *shape*: both silhouettes
      * were traced off the reference at 5% column steps (per-column top and bottom edges) and then
      * made symmetric, since the reference is drawn slightly three-quarter on and a lens worn on a
      * face has to be square to it. Tracing is what fixed the mustache — drawn by eye first, its
      * philtrum notch and centre arch both ran far too deep and it read as two separate blobs.
+     *
+     * ## The assets
+     *
+     * Photoreal WebP, the [Elvis] pattern — but where Elvis's binaries are opaque, these are
+     * **rendered from committed source** by `swarm/tools/render_lens_art.py`: the traced
+     * silhouettes live in `swarm/art/`, and the tool turns each region into a lit, textured
+     * surface (the crown a creased cylinder, the brim a rolled edge on a saddle, the mustache
+     * ~34k individual hairs through a flow field). Re-run it rather than editing a `.webp`.
+     *
+     * * **lens_cowboy_hat_art.webp** — 1024x492, so [LensPlacement.artAspect] is 492/1024.
+     * * **lens_cowboy_mustache_art.webp** — 1024x413, so `artAspect` is 413/1024.
+     * * **lens_cowboy.webp** — the 320x320 carousel chip, composed from those two so it cannot
+     *   drift away from what the lens paints on a face.
+     *
+     * The flat vector this shipped with first read as clip art beside a photographic face on the
+     * owner's 2026-09-03 capture; the geometry below is unchanged from it.
      *
      * ## The two anchors, and why they are two
      *
@@ -541,14 +557,6 @@ enum class Lens(
      * Draw order is hat then mustache; they are 1.00 units apart at the closest, so neither
      * overlaps the other and the subject's eyes, nose and cheeks show between them.
      *
-     * The carousel chip is **generated** from these same two drawables, so it cannot drift away
-     * from them:
-     *
-     * ```text
-     * python swarm/tools/compose_lens_thumbnail.py \
-     *     --out app/src/main/res/drawable/lens_cowboy.xml --viewport 320 \
-     *     --layer lens_cowboy_hat.xml:300:10:34 --layer lens_cowboy_mustache.xml:224:48:190
-     * ```
      */
     Cowboy(
         displayName = "Cowboy",
@@ -558,11 +566,11 @@ enum class Lens(
         thumbnailRes = R.drawable.lens_cowboy,
         art = listOf(
             LensArt(
-                drawableRes = R.drawable.lens_cowboy_hat,
+                drawableRes = R.drawable.lens_cowboy_hat_art,
                 placement = LensPlacement(
                     widthInUnits = 3.6f,
-                    // The authored 750x360 viewport's own ratio.
-                    artAspect = 0.48f,
+                    // The encoded asset's own ratio: 492 / 1024.
+                    artAspect = 0.48047f,
                     // 1.20, was 1.48. At 1.48 the brim's dip landed at +0.62 and the hat read as
                     // held ABOVE the head rather than worn: measured off the owner's 2026-09-03
                     // capture, 0.39 units of bare forehead showed between the brim and the brow.
@@ -572,11 +580,11 @@ enum class Lens(
                 ),
             ),
             LensArt(
-                drawableRes = R.drawable.lens_cowboy_mustache,
+                drawableRes = R.drawable.lens_cowboy_mustache_art,
                 placement = LensPlacement(
                     widthInUnits = 1.6f,
-                    // The authored 620x250 viewport's own ratio.
-                    artAspect = 0.4032f,
+                    // The encoded asset's own ratio: 413 / 1024.
+                    artAspect = 0.40332f,
                     upInUnits = 0.01f,
                     // The mouth, not the eye line — a jaw drops without the hat moving.
                     anchor = LensAnchorPoint.MOUTH,

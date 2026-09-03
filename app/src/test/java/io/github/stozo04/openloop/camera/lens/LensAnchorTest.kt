@@ -1083,10 +1083,10 @@ class LensAnchorTest {
 
     @Test
     fun cowboy_declaredAspectsAreTheAuthoredViewports() {
-        // Both drawables put 1 face unit on a round number of viewport units, which is what lets
-        // every coordinate inside them be read as anatomy. A guessed aspect breaks that silently.
-        assertEquals("750x360", 360f / 750f, cowboyHat.placement.artAspect, tolerance)
-        assertEquals("620x250", 250f / 620f, cowboyMustache.placement.artAspect, 1e-4f)
+        // Measured off the encoded assets, never estimated: a guessed aspect stretches the art on
+        // the face and nothing else catches it. Re-measure here if render_lens_art.py changes size.
+        assertEquals("encoded 1024x492", 492f / 1024f, cowboyHat.placement.artAspect, 1e-4f)
+        assertEquals("encoded 1024x413", 413f / 1024f, cowboyMustache.placement.artAspect, 1e-4f)
     }
 
     @Test

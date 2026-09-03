@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+    GEOMETRY SOURCE, NOT A SHIPPED DRAWABLE. This lives outside app/src/main/res on purpose:
+    swarm/tools/render_lens_art.py rasterises these paths into region masks and renders the
+    lit WebP the lens actually uses (drawable-nodpi/lens_cowboy_*_art.webp). Edit the shape
+    here, then re-run that tool — never hand-edit the .webp.
+    Paths 2 and 3 (the flat highlight and crease) are IGNORED by the renderer, which lights the
+    crown from a real height field instead. They are kept because they still describe the form
+    the shading is meant to produce, and because deleting them would renumber the rest.
+-->
+<!--
     Cowboy hat, front-on, for Lens.Cowboy — see Lens.kt for the face-unit numbers.
 
     The silhouette is traced from the owner's reference at 5% column steps (crown span, brim sweep,

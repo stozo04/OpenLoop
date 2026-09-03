@@ -701,9 +701,9 @@ against the 0.775 head half-width, out on the cheeks where a handlebar's tips be
 arch clearing the lip line by 0.12 is what keeps the wearer's mouth readable — a mustache that
 covers the mouth is a gag, not a lens.
 
-The carousel chip is **generated** from those same two drawables by
-`swarm/tools/compose_lens_thumbnail.py`, not drawn a third time, so it cannot drift away from what
-the lens paints on a face. That tool is new and is the one piece of machinery this lens added.
+The carousel chip is **generated** from those same two layers, not drawn a third time, so it cannot
+drift away from what the lens paints on a face. (§16.7 moved that generation into
+`swarm/tools/render_lens_art.py` along with the rest of the art.)
 
 ### 16.4 Where this lens is verified
 
@@ -781,3 +781,50 @@ Two things the capture does **not** settle, both owner calls:
 
 Neither blocks the geometry fix; both are recorded so the look question is not confused with the
 placement one.
+
+### 16.7 2026-09-03, third pass — photoreal WebP, rendered rather than sourced
+
+The owner asked whether the lens could use photoreal WebP like Elvis, accepting up front that it
+might not work out. It did.
+
+**Sourcing photography was not possible and is not what shipped.** The environment's network policy
+denies every image host at the CONNECT (Wikimedia, Commons, the stock sites — 403 on all of them),
+so there was nothing to download. That turned out to be the better answer anyway: §11.2's rule is
+that a public Apache 2.0 repo ships only art it can redistribute, and **generated** art is the
+cleanest possible response to it — no licence to check, no attribution to carry, no provenance
+question at all.
+
+So `swarm/tools/render_lens_art.py` renders the assets from the traced silhouettes, which moved to
+`swarm/art/` (out of `res/`, where an unreferenced drawable would trip Lint). No 3D renderer: each
+region gets a height field, normals come from its gradient, and one Lambert + Blinn-Phong pass
+lights it.
+
+* **Crown** — a cylinder measured per row off its own silhouette, with a broad cattleman dent and
+  the pinched felt ridge either side. Drawn narrow at first, the dent read as a *seam*; widening it
+  and blurring the height field four times harder is what made it felt.
+* **Brim** — a rolled edge (distance transform) on a saddle that lifts toward the tips. Its lower
+  band darkens as a **fraction of local thickness**; as an absolute band, the thick middle turned
+  into a slab.
+* **Mustache** — ~34,000 individual hairs traced through a flow field that runs steeply down at the
+  philtrum, levels off, and hooks up at the tips, in seven tonal buckets. **Hairs that escape the
+  silhouette fade out**, and that one detail is what stops the edge reading as a die-cut sticker.
+
+| Asset                            | Size     | On disk |
+| -------------------------------- | -------- | ------- |
+| `lens_cowboy_hat_art.webp`       | 1024x492 | 24.5 KB |
+| `lens_cowboy_mustache_art.webp`  | 1024x413 | 65.1 KB |
+| `lens_cowboy.webp` (chip)        | 320x320  | 12.1 KB |
+
+All three are well under the existing lens art (148-186 KB) and inside the renderer's 1024 px cap.
+Encoded at quality 90, which libwebp stores with a **lossless alpha channel** exactly as §11.2
+claims — verified here at max alpha delta **0**, with mean colour delta ~1/255 inside the visible
+region.
+
+**The geometry did not move.** Same widths, same `upInUnits`, same anchors; only `artAspect` shifted
+by ~0.001 to the encoded ratios. This pass is purely a material change, which is why it is a
+separate commit from §16.6's placement fix and can be reverted on its own.
+
+**Still not verified on a device.** The renders were judged against the schematic head, not a face —
+an attempt to composite them onto the owner's capture required inpainting the shipped art out of it
+first, and that destroyed his beard, so it was thrown away rather than presented as evidence. What
+the art looks like on a real bearded face at real size remains the owner's check.

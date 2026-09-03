@@ -53,6 +53,7 @@
       <w>bigflake</w>
       <w>blendshape</w>
       <w>blendshapes</w>
+      <w>blinn</w>
       <w>bom</w>
       <w>boomerang</w>
       <w>boomerangmaker</w>
@@ -209,6 +210,7 @@
       <w>kalog</w>
       <w>kayden</w>
       <w>kayley</w>
+      <w>keepdims</w>
       <w>keepnames</w>
       <w>keepradius</w>
       <w>keyalg</w>
@@ -238,6 +240,7 @@
       <w>lifecycle</w>
       <w>lifecycles</w>
       <w>lifecyclescope</w>
+      <w>linalg</w>
       <w>listicle</w>
       <w>listicles</w>
       <w>localappdata</w>
@@ -291,6 +294,8 @@
       <w>nart</w>
       <w>navhost</w>
       <w>ncore</w>
+      <w>ndimage</w>
+      <w>ndshift</w>
       <w>neko</w>
       <w>neon</w>
       <w>nnnn</w>
@@ -330,6 +335,7 @@
       <w>proguard</w>
       <w>pscustomobject</w>
       <w>pushback</w>
+      <w>putalpha</w>
       <w>pwsh</w>
       <w>pycache</w>
       <w>pythonutf</w>
@@ -408,6 +414,7 @@
       <w>subdir</w>
       <w>subpaths</w>
       <w>supabase</w>
+      <w>supersample</w>
       <w>suspendable</w>
       <w>swiftshader</w>
       <w>sysdir</w>
