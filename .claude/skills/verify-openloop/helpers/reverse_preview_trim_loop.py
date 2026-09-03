@@ -189,6 +189,8 @@ def start_reverse(serial: str, evidence: Path) -> None:
     if not save:
         path = snapshot(serial, evidence, "save-missing", xml)
         fail(f"trim: SAVE button missing; evidence={path}")
+    
+    clear_logcat(serial)
     tap_node(serial, save)
 
     seen = {"xml": "", "nodes": []}
@@ -200,8 +202,6 @@ def start_reverse(serial: str, evidence: Path) -> None:
     if not wait_until(editor_open, timeout_s=20.0, interval_s=0.5):
         path = snapshot(serial, evidence, "editor-not-open", seen["xml"])
         fail(f"editor: did not open after SAVE; evidence={path}")
-
-    clear_logcat(serial)
     xml, nodes = seen["xml"], seen["nodes"]
     loop = find_exact(nodes, "Loop")
     if not loop:
