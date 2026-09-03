@@ -21,7 +21,7 @@ Does **not** need to stay perfectly current between audits — the [README compl
 | Save to Photos + share sheet         | `Saved to Photos`            | mapped               | [share-and-library.md](./share-and-library.md)     |
 | Trim                                 | Trim screen / tab            | mapped               | [edit-trim.md](./edit-trim.md)                     |
 | Speed constant + curve               | Speed tab                    | mapped               | [edit-speed.md](./edit-speed.md)                   |
-| Loop direction                       | Loop tab                     | mapped               | [edit-loop.md](./edit-loop.md)                     |
+| Loop direction                       | Loop tab                     | automated 2026-09-03 | [edit-loop.md](./edit-loop.md)                     |
 | Filter / Looks                       | Filter tab                   | mapped               | [edit-filter.md](./edit-filter.md)                 |
 | Delete in-progress clip              | toolbar Delete               | mapped               | [edit-delete.md](./edit-delete.md)                 |
 | Save boomerang                       | `Save boomerang`             | mapped               | [edit-save.md](./edit-save.md)                     |

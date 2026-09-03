@@ -336,11 +336,17 @@ class VideoReverser(
 
             val startUs = trimStartMs * 1000L
             extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
-            // SEEK_TO_PREVIOUS_SYNC can land on a sync point *before* the trim start — skip those
-            // samples so pass 1 does not EOS immediately with zero frames (which wedged the loop).
-            while (extractor.sampleTime in 0 until startUs) {
-                if (!extractor.advance()) break
-            }
+            // STAY on that sync sample. Everything between it and the trim start is the decoder's
+            // PREROLL: H.264 P-frames are not independently decodable, so skipping those compressed
+            // samples (what this used to do) handed the decoder a bare P-frame — nothing decoded, the
+            // encoder never published a format, and pass 1 polled until the editor's 120s deadline
+            // degraded the loop to forward-only (issue #170). The preroll is discarded at RENDER time
+            // in [runDecodeEncodeLoop] instead, which rebuilds reference state without emitting pixels.
+            val prerollStartUs = extractor.sampleTime.coerceAtLeast(0L)
+            ReversePreviewLog.d(
+                "pass1.preroll",
+                "sync=${prerollStartUs}us trimStart=${startUs}us frames=${if (prerollStartUs < startUs) "decoded+dropped" else "none"}",
+            )
             val endUs = trimEndMs * 1000L
             val spanUs = (endUs - startUs).coerceAtLeast(1L)
 
@@ -357,8 +363,6 @@ class VideoReverser(
                 minEncodeIntervalUs = minEncodeIntervalUs,
                 onSamplePts = { sampleUs -> ((sampleUs - startUs).toFloat() / spanUs).coerceIn(0f, 1f) },
                 onProgress = onProgress,
-                // Pass 1 keeps original timestamps (re-based to 0 at the trim start).
-                remapPtsUs = { sampleUs -> (sampleUs - startUs).coerceAtLeast(0L) },
                 onFrameEncoded = { encodedFrames++ },
                 onFrameSkipped = { skippedFrames++ },
             )
@@ -545,8 +549,17 @@ class VideoReverser(
     }
 
     /**
-     * Pass-1 decode→encode loop: pump samples in `[trimStart, trimEnd]` from [extractor] through the
-     * surface-coupled [decoder]/[encoder] into [muxer], re-basing each frame's PTS via [remapPtsUs].
+     * Pass-1 decode→encode loop.
+     *
+     * **Every** compressed sample from the extractor's current position (the sync sample at or before
+     * [startUs]) through [endUs] is queued to the [decoder] — nothing is dropped at the compressed
+     * boundary, because an H.264 P-frame is only decodable with its reference chain intact. Selection
+     * happens on the DECODED side: a frame is rendered onto the [encoder]'s surface only when its
+     * presentation time is at or after [startUs] and [pass1SampleAction] admits it; everything else is
+     * released with `render = false`, which rebuilds decoder state without emitting pixels.
+     *
+     * Frames keep their source timestamps. Pass 2 re-stamps every frame as `last - t`, so the trim
+     * window's offset cancels out and the reversed clip still starts at zero.
      */
     private suspend fun runDecodeEncodeLoop(
         extractor: MediaExtractor,
@@ -559,7 +572,6 @@ class VideoReverser(
         minEncodeIntervalUs: Long = 0L,
         onSamplePts: (Long) -> Float,
         onProgress: (Float) -> Unit,
-        remapPtsUs: (Long) -> Long,
         onFrameEncoded: () -> Unit = {},
         onFrameSkipped: () -> Unit = {},
     ) {
@@ -584,41 +596,10 @@ class VideoReverser(
             }
 
             if (!inputDone) {
-                // Advance past pre-trim samples and dense frames *without* dequeuing decoder input
-                // buffers — every dequeued buffer must be queued exactly once or MediaCodec wedges.
-                if (!pendingDecoderEos) {
-                    while (true) {
-                        val sampleUs = extractor.sampleTime
-                        if (sampleUs !in 0L..endUs) {
-                            pendingDecoderEos = true
-                            break
-                        }
-                        if (sampleUs < startUs) {
-                            if (!extractor.advance()) {
-                                pendingDecoderEos = true
-                            }
-                            continue
-                        }
-                        if (
-                            pass1SampleAction(
-                                sampleUs = sampleUs,
-                                lastEncodedSampleUs = lastEncodedSampleUs,
-                                endUs = endUs,
-                                minEncodeIntervalUs = minEncodeIntervalUs,
-                            ) == Pass1SampleAction.ENCODE
-                        ) {
-                            break
-                        }
-                        onFrameSkipped()
-                        if (!extractor.advance()) {
-                            pendingDecoderEos = true
-                            break
-                        }
-                        if (extractor.sampleTime == sampleUs) {
-                            pendingDecoderEos = true
-                            break
-                        }
-                    }
+                // Feed every sample up to the trim end, preroll included. Nothing is skipped here —
+                // dropping a compressed sample breaks the reference chain of the ones that follow.
+                if (!pendingDecoderEos && extractor.sampleTime !in 0L..endUs) {
+                    pendingDecoderEos = true
                 }
 
                 val inIndex = runMediaCodecCancellable { decoder.dequeueInputBuffer(timeoutUs) }
@@ -639,11 +620,8 @@ class VideoReverser(
                             inputDone = true
                         } else {
                             runMediaCodecCancellable {
-                                decoder.queueInputBuffer(inIndex, 0, size, remapPtsUs(sampleUs), 0)
+                                decoder.queueInputBuffer(inIndex, 0, size, sampleUs, 0)
                             }
-                            lastEncodedSampleUs = sampleUs
-                            onFrameEncoded()
-                            onProgress(onSamplePts(sampleUs))
                             if (!extractor.advance()) {
                                 pendingDecoderEos = true
                             }
@@ -652,11 +630,27 @@ class VideoReverser(
                 }
             }
 
-            // Move decoded frames onto the encoder surface.
+            // Move decoded frames onto the encoder surface. Preroll frames (source PTS before the trim
+            // start) and frame-rate-subsampled frames are released WITHOUT rendering: they have already
+            // served their purpose as decoder reference state and must not reach the encoder.
             val outIndex = runMediaCodecCancellable { decoder.dequeueOutputBuffer(bufferInfo, timeoutUs) }
             if (outIndex >= 0) {
-                val render = bufferInfo.size > 0
+                val frameUs = bufferInfo.presentationTimeUs
+                val inWindow = bufferInfo.size > 0 && frameUs >= startUs
+                val render = inWindow && pass1SampleAction(
+                    sampleUs = frameUs,
+                    lastEncodedSampleUs = lastEncodedSampleUs,
+                    endUs = endUs,
+                    minEncodeIntervalUs = minEncodeIntervalUs,
+                ) == Pass1SampleAction.ENCODE
                 runMediaCodecCancellable { decoder.releaseOutputBuffer(outIndex, render) }
+                if (render) {
+                    lastEncodedSampleUs = frameUs
+                    onFrameEncoded()
+                    onProgress(onSamplePts(frameUs))
+                } else if (inWindow) {
+                    onFrameSkipped()
+                }
                 if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                     runMediaCodecCancellable { encoder.signalEndOfInputStream() }
                 }
@@ -673,7 +667,10 @@ class VideoReverser(
                     decoderDone = true
                 }
                 // Zero-frame pass (immediate EOS / no muxer track): don't spin until durationUs clears.
-                if (inputDone && !started) decoderDone = true
+                // Gated on "nothing was ever rendered" — with a decoder preroll in front of a short trim
+                // window, the encoder can still be empty when input EOS is queued, and bailing there
+                // would throw away a pass that was about to succeed (issue #170).
+                if (inputDone && !started && lastEncodedSampleUs < 0L) decoderDone = true
             }
 
             // Clips with no container duration still need a way out once input is exhausted.
@@ -1115,10 +1112,10 @@ class VideoReverser(
          * ([Media3VideoProcessor.renderBoomerang] and `ensureReversed` share the reverser), so
          * this cap applies to the SAVED boomerang's reversed half too — only the forward clips
          * are cut from the full-rate source. Sources at or below the cap are never subsampled
-         * (see [pass1SampleAction]'s jitter tolerance). KNOWN LIMIT: when subsampling does
-         * engage (>30 fps source), pass 1 drops compressed samples before the decoder, which
-         * breaks P-frame reference chains and smears moving regions — subsampling should move
-         * to render time (decode all, render selectively). Tracked as fold-loop BUG-2.
+         * (see [pass1SampleAction]'s jitter tolerance). Subsampling is applied at RENDER time —
+         * every compressed sample still reaches the decoder, only the decoded frames are
+         * selected — so an engaged cap no longer breaks P-frame reference chains or smears
+         * moving regions (fold-loop BUG-2, fixed alongside issue #170).
          */
         const val MAX_PASS1_ENCODE_FPS = 30
         /** Safety valve when the encoder pipeline never signals EOS (device codec wedge). */
@@ -1132,9 +1129,9 @@ class VideoReverser(
 internal enum class Pass1SampleAction { ENCODE, SKIP }
 
 /**
- * Whether to encode [sampleUs] in pass 1 or skip it (advance only). Encodes the first sample,
- * any sample at least [minEncodeIntervalUs] after the last encoded one, and the tail of the trim
- * window so the last frame is not dropped.
+ * Whether to render the DECODED frame at [sampleUs] onto pass 1's encoder surface, or release it
+ * unrendered. Encodes the first frame, any frame at least [minEncodeIntervalUs] after the last
+ * encoded one, and the tail of the trim window so the last frame is not dropped.
  */
 internal fun pass1SampleAction(
     sampleUs: Long,
@@ -1146,11 +1143,10 @@ internal fun pass1SampleAction(
     if (lastEncodedSampleUs < 0L) return Pass1SampleAction.ENCODE
     // Tolerate timestamp jitter: real "30 fps" sources stamp frames slightly under the nominal
     // interval (e.g. 33,222 µs vs the computed 33,333 µs), so a floor comparison skipped EVERY
-    // OTHER frame of an at-cap source — halving the reversed half to ~15 fps. Worse, pass 1
-    // skips by dropping compressed samples before the decoder, so the skipped frames' P-frame
-    // references are lost and moving regions macroblock-smear (Pixel 6 E2E, 2026-06-04, fold-loop
-    // iter 1). A quarter-interval tolerance keeps subsampling engaged only for sources genuinely
-    // above the cap (worst-case overshoot: cap × 4/3, e.g. 40 fps for a 120 fps source).
+    // OTHER frame of an at-cap source — halving the reversed half to ~15 fps (Pixel 6 E2E,
+    // 2026-06-04, fold-loop iter 1). A quarter-interval tolerance keeps subsampling engaged only
+    // for sources genuinely above the cap (worst-case overshoot: cap × 4/3, e.g. 40 fps for a
+    // 120 fps source).
     val jitterToleranceUs = minEncodeIntervalUs / 4
     if (sampleUs - lastEncodedSampleUs >= minEncodeIntervalUs - jitterToleranceUs) {
         return Pass1SampleAction.ENCODE

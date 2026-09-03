@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.Image
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
+import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.media.MediaMuxer
@@ -13,6 +14,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.github.stozo04.openloop.media.SyntheticVideoFixtures.frameLuma
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -72,6 +74,46 @@ class VideoReverserTest {
         assertTrue(
             "no _intermediate_ files should remain",
             scratchDir.listFiles()?.none { it.name.startsWith("_intermediate_") } ?: true,
+        )
+    }
+
+    /**
+     * Regression for issue #170: a trim window that STARTS BETWEEN sync samples.
+     *
+     * `SEEK_TO_PREVIOUS_SYNC` lands on the keyframe before the trim, and pass 1 used to advance past
+     * every compressed sample below the trim start — discarding the keyframe and its reference chain,
+     * so the first packet handed to the decoder was a bare P-frame. Nothing decoded, the encoder never
+     * published a format, and the pipeline polled until the ViewModel's 120 s deadline degraded the
+     * loop to forward-only. Pass 1 must now decode that preroll and drop it at *render* time.
+     *
+     * The [withTimeout] is what makes this test fail fast: [VideoReverser]'s own escape hatch is
+     * [VideoReverser.MAX_DECODE_LOOP_ITERATIONS], which is hours of wall clock, so an unguarded call
+     * would hang the connected run instead of going red.
+     */
+    @Test
+    fun reverse_withTrimStartBetweenKeyframes_producesOutput() = runBlocking {
+        val startMs = 250L
+        assumeTrue("fixture too short for a ${startMs}ms trim start", durationMs > startMs + 200L)
+        // Guard against a vacuous pass: if the trim start happens to land ON a keyframe, the preroll
+        // path this test exists for is never exercised.
+        assumeTrue(
+            "first sample at/after ${startMs}ms is a sync sample — preroll path not exercised",
+            !firstSampleAtOrAfterIsSync(fixture, startMs),
+        )
+
+        val output = withTimeout(REVERSE_TIMEOUT_MS) { reverser.reverse(fixture, startMs, durationMs) }
+
+        assertTrue("reversed output should exist", output.exists())
+        val validation = ReverseOutputValidator.validateReversedOutput(output)
+        assertTrue("reversed output invalid: ${validation.reason}", validation.valid)
+        val outMs = MediaMetadataRetriever().use { r ->
+            r.setDataSource(output.absolutePath)
+            r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        }
+        val expectedMs = durationMs - startMs
+        assertTrue(
+            "reversed duration $outMs ≉ trim window $expectedMs (a 1-frame 'success' also fails here)",
+            abs(outMs - expectedMs) <= TRIM_WINDOW_TOLERANCE_MS,
         )
     }
 
@@ -212,6 +254,31 @@ class VideoReverserTest {
         assertEquals("retry must be attempt index 1", 1, retry.first)
         assertTrue("retry must force the software ENCODER", retry.second)
         assertTrue("retry must force the software DECODER", retry.third)
+    }
+
+    /**
+     * True when the first sample at or after [ms] carries [MediaExtractor.SAMPLE_FLAG_SYNC] — i.e. a
+     * trim starting there is keyframe-aligned and would NOT exercise the decoder-preroll path.
+     */
+    private fun firstSampleAtOrAfterIsSync(file: File, ms: Long): Boolean {
+        val extractor = MediaExtractor()
+        try {
+            extractor.setDataSource(file.absolutePath)
+            val track = (0 until extractor.trackCount).firstOrNull {
+                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true
+            } ?: return true
+            extractor.selectTrack(track)
+            val targetUs = ms * 1000L
+            while (extractor.sampleTime >= 0L) {
+                if (extractor.sampleTime >= targetUs) {
+                    return extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0
+                }
+                if (!extractor.advance()) break
+            }
+            return true
+        } finally {
+            extractor.release()
+        }
     }
 
     // ── Fixture acquisition ──────────────────────────────────────────────────────────────────────
@@ -371,5 +438,7 @@ class VideoReverserTest {
         const val DEQUEUE_TIMEOUT_US = 10_000L
         const val LUMA_TOLERANCE = 45      // codec round-trip slack on mean luma (0..255)
         const val RAMP_MIN_SPREAD = 20     // first vs last must differ this much to apply the order check
+        const val REVERSE_TIMEOUT_MS = 30_000L   // issue #170's bounded window; the reverser's own guard is hours
+        const val TRIM_WINDOW_TOLERANCE_MS = 170 // ~2 frames of the 12fps synthetic fixture
     }
 }

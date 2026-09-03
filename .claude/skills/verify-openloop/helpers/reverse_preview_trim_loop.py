@@ -3,8 +3,8 @@
 
 Records a fresh clip through the real camera UI, moves the trim start away from zero, enters the
 default Forward-then-reverse editor, and requires reverse preview to finish within 30 seconds.
-The current bug is supposed to make this verifier RED; do not lengthen the deadline or weaken the
-assertions to turn it green.
+The run is rejected as vacuous unless the trim start landed BETWEEN sync samples, which is the
+condition #170 wedged on. Do not lengthen the deadline or weaken the assertions to turn it green.
 
     python .claude/skills/verify-openloop/helpers/reverse_preview_trim_loop.py
 
@@ -59,6 +59,10 @@ REVERSE_START_RE = re.compile(r"viewModel\.ensureReversed\.start")
 REVERSE_OK_RE = re.compile(
     r"viewModel\.ensureReversed\.ok \| .*?file=([^\s]+) bytes=(\d+)",
 )
+# Pass 1 logs where SEEK_TO_PREVIOUS_SYNC actually landed. sync < trimStart means the decoder had to
+# preroll — the exact path #170 broke. sync == trimStart means the drag happened to land on a
+# keyframe, so a green run would prove nothing.
+PREROLL_RE = re.compile(r"pass1\.preroll \| sync=(\d+)us trimStart=(\d+)us")
 REVERSE_FAILURE_RE = re.compile(
     r"viewModel\.ensureReversed\.(?:timeout|fail)|reverse\.(?:failed|exhausted)",
 )
@@ -263,6 +267,20 @@ def require_reverse_success(serial: str, evidence: Path) -> tuple[str, int]:
     )
     if output_name not in found:
         fail(f"reverse: logged output {output_name} is absent from cache/scratch/reversed")
+
+    preroll = PREROLL_RE.search(outcome["logcat"])
+    if not preroll:
+        fail(
+            "reverse: no pass1.preroll receipt, so the trim start's keyframe alignment is unknown; "
+            f"evidence={evidence / 'reverse-logcat.txt'}"
+        )
+    sync_us, trim_start_us = int(preroll.group(1)), int(preroll.group(2))
+    if sync_us >= trim_start_us:
+        fail(
+            f"reverse: trim start {trim_start_us}us IS a sync sample, so the #170 decoder-preroll "
+            f"path was never exercised and this run proves nothing; "
+            f"evidence={evidence / 'reverse-logcat.txt'}"
+        )
     return output_name, output_bytes
 
 

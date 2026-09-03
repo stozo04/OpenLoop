@@ -27,8 +27,9 @@ python .claude/skills/verify-openloop/helpers/reverse_preview_trim_loop.py
 The loop records a fresh camera clip, moves the trim start away from zero, enters the default
 `Forward then reverse` direction, and requires `viewModel.ensureReversed.ok` plus a cleared loading
 overlay within 30 seconds. It saves the before/after UI, screenshots, reverse logcat, active media
-resources, and source-file receipt. It intentionally exits nonzero on the current product bug;
-do not mark this inventory surface `automated` until it has printed its final `PASS` on an emulator.
+resources, and source-file receipt. A run is rejected as vacuous unless the `pass1.preroll` receipt
+shows the trim start landed BETWEEN sync samples — a start that happens to hit a keyframe exercises
+none of what #170 broke.
 
 `python scripts/run-verification-loops.py --changed` discovers it automatically.
 
