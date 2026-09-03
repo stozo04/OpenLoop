@@ -42,6 +42,10 @@ class UiNode:
     # is selected, so this pair is the only place a segmented control's state is readable.
     checkable: bool = False
     checked: bool = False
+    # Compose's `selected` semantics, which reaches uiautomator as this attribute rather than as
+    # `checked` — a `selectable` in a list (a lens thumbnail) announces itself this way, while a
+    # `selectable` inside a segmented control announces itself through the pair above.
+    selected: bool = False
 
 
 def fail(message: str) -> None:
@@ -158,6 +162,7 @@ def parse_nodes_regex(xml_text: str) -> list[UiNode]:
         pkg_m = re.search(r'package="([^"]*)"', fragment)
         checkable_m = re.search(r'checkable="([^"]*)"', fragment)
         checked_m = re.search(r'checked="([^"]*)"', fragment)
+        selected_m = re.search(r'selected="([^"]*)"', fragment)
         bounds = parse_bounds(bounds_m.group(1)) if bounds_m else None
         nodes.append(
             UiNode(
@@ -167,6 +172,7 @@ def parse_nodes_regex(xml_text: str) -> list[UiNode]:
                 pkg=pkg_m.group(1) if pkg_m else "",
                 checkable=bool(checkable_m) and checkable_m.group(1) == "true",
                 checked=bool(checked_m) and checked_m.group(1) == "true",
+                selected=bool(selected_m) and selected_m.group(1) == "true",
             )
         )
     return nodes
@@ -185,6 +191,7 @@ def parse_nodes_etree(xml_text: str) -> list[UiNode]:
                 pkg=elem.attrib.get("package", ""),
                 checkable=elem.attrib.get("checkable") == "true",
                 checked=elem.attrib.get("checked") == "true",
+                selected=elem.attrib.get("selected") == "true",
             )
         )
     return nodes
@@ -250,6 +257,20 @@ def find_exact(nodes: list[UiNode], label: str) -> UiNode | None:
         if node.text == label or node.desc == label:
             return node
     return None
+
+
+def find_all(nodes: list[UiNode], label: str) -> list[UiNode]:
+    """Every node carrying `label`, not just the first.
+
+    A Compose element that both describes itself and reports state can reach uiautomator as more
+    than one node — the description on one, the flag on another — so a caller asking "is this
+    thing selected" has to look across all of them rather than at whichever came first.
+    """
+    return [node for node in nodes if node.bounds and (node.text == label or node.desc == label)]
+
+
+def swipe(serial: str, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> None:
+    run_adb(serial, "shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(duration_ms))
 
 
 def center(node: UiNode) -> tuple[int, int]:
