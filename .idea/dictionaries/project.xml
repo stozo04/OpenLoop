@@ -304,6 +304,7 @@
       <w>notmatch</w>
       <w>noto</w>
       <w>nullness</w>
+      <w>numpy</w>
       <w>nums</w>
       <w>objdump</w>
       <w>oes</w>
@@ -371,6 +372,7 @@
       <w>saveable</w>
       <w>scanline</w>
       <w>sceneform</w>
+      <w>scipy</w>
       <w>screencap</w>
       <w>scrimmed</w>
       <w>scriptblocks</w>
