@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    GEOMETRY SOURCE, NOT A SHIPPED DRAWABLE. This lives outside app/src/main/res on purpose:
+    swarm/tools/render_lens_art.py rasterises these paths into region masks and renders the
+    lit WebP the lens actually uses (drawable-nodpi/lens_cowboy_*_art.webp). Edit the shape
+    here, then re-run that tool — never hand-edit the .webp.
+-->
+<!--
+    Handlebar mustache for Lens.Cowboy — see Lens.kt for the face-unit numbers.
+
+    The silhouette is traced from the owner's reference at 5% column steps and fitted to within a
+    few units of the measured top and bottom edges. The reference is already symmetric here, and
+    tracing it is what fixed the first draft: drawn by eye, the philtrum notch and the centre arch
+    both ran far too deep and the thing read as two separate blobs rather than one moustache.
+
+    The 620x250 viewport is 442.9 units per face unit at the catalogue's 1.4-unit width, so the
+    coordinates read as anatomy against a mouth anchored at the origin: the humps at y=1 stop at
+    the nose base, the arch at y=80 clears the lip line by 0.16 units, and the lobes at y=248 hang
+    beside the mouth corners rather than over them.
+
+    One closed silhouette in one flat colour, as the reference draws it. The shape is the whole
+    read at 56dp, so shading that would be invisible there is left out.
+-->
+<vector
+    width="310dp"
+    height="125dp"
+    viewportWidth="620"
+    viewportHeight="250">
+
+    <!--
+        Left barb -> hump -> philtrum notch -> hump -> right barb along the top, then back along
+        the underside: each tip tapers to an upswept point, each lobe hangs past the mouth corner,
+        and the middle arches high so the wearer's lips stay readable.
+    -->
+    <path
+        fillColor="#FF33261C"
+        pathData="M2,190
+            C30,226 50,213 62,213
+            C86,213 100,150 124,95
+            C144,42 166,14 186,11
+            C208,8 232,1 248,1
+            C272,1 296,12 310,23
+            C324,12 348,1 372,1
+            C388,1 412,8 434,11
+            C454,14 476,42 496,95
+            C520,150 534,213 558,213
+            C570,213 590,226 618,190
+            C600,225 580,246 558,248
+            C538,250 516,246 496,238
+            C472,228 452,205 434,175
+            C414,144 392,115 372,97
+            C352,84 330,80 310,80
+            C290,80 268,84 248,97
+            C228,115 206,144 186,175
+            C168,205 148,228 124,238
+            C104,246 82,250 62,248
+            C40,246 20,225 2,190
+            Z" />
+</vector>

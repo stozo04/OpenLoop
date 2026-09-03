@@ -467,8 +467,7 @@ Kayley accepted the replacement on 2026-08-15 after inspecting the encoded file.
 ### Generic two-eye warp
 
 `WarpSpec` gained the anatomical `WarpTarget` values `MOUTH` and `EYES`, defaulting to `MOUTH`.
-`LensAnchor.warps()` therefore produces one unchanged mouth circle for Big Mouth or two landmark-
-centered eye circles for Bug Eyes. `LensSurfaceProcessor` binds two generic uniform sets and applies
+`LensAnchor.warps()` therefore produces one unchanged mouth circle for Big Mouth or two landmark-centered eye circles for Bug Eyes. `LensSurfaceProcessor` binds two generic uniform sets and applies
 the same shader function twice; an unused set is disabled with `WarpCircle.NONE`. No renderer,
 tracker, UI, camera, or capture branch names a lens, and the default keeps Big Mouth's center,
 radius, and strength unchanged.
@@ -649,3 +648,182 @@ behavior change. `drawCamera` no longer needs the lens, the face, or the frame a
 
 This is a separate commit from §15.1 on purpose: reverting it restores the engine without bringing
 back the two lenses, if a future warp lens wants it.
+
+---
+
+## 16. 2026-09-03 — Cowboy, and art traced rather than drawn
+
+The ninth lens: a felt hat on the crown and a handlebar mustache on the upper lip. A **prop**, so
+the subject's own face carries the expression — the **Elvis** pattern, two layers and no
+`FeatureLayout`. The catalogue is now **eight** lenses (§15.1's seven plus this one).
+
+### 16.1 The reference could not ship, so only its shape did
+
+The owner supplied a screenshot of a black silhouette found through image search. §11.2 is the
+standing rule: OpenLoop is public under Apache 2.0, so art without redistribution rights cannot
+ship, and "we can look at it" is not "we can publish it". What shipped is **original vector
+authored in-repo** — the same answer §14.3 D2 gave the DeepAR bundle, and the answer §5.2 already
+prefers for lens art.
+
+What *was* taken from the reference is the **silhouette**, measured rather than admired: both
+shapes were traced off it at 5% column steps (per-column top and bottom edges of the thresholded
+image), then made symmetric, because the reference is drawn slightly three-quarter on and a lens
+worn on a face has to be square to it.
+
+**Tracing is what made the mustache work.** Drawn by eye first, its philtrum notch and its centre
+arch both ran roughly twice as deep as the reference's, and the result read as two separate blobs
+rather than one moustache. Nothing about that was visible in the numbers; it took rendering the
+art against the schematic head in `swarm/tools/preview_lens.py` to see it, and the measured profile
+to fix it. Same lesson as the Pizza wedge in §13: *look at the silhouette, not the bounding box.*
+
+### 16.2 Two anchors, because a jaw moves and a skull does not
+
+A hat belongs to the skull and a mustache to the mouth. This is the second lens after
+**Twisted Tongue** to need `LensPlacement.anchor` for a reason other than symmetry: the hat is on
+`FACE` and the mustache on `MOUTH`, so a dropping jaw carries the mustache and leaves the hat put.
+No framework change was needed — §14.2's three additions cover it, and the entry is one enum block
+plus its art, exactly as the catalogue rule promises.
+
+### 16.3 The numbers
+
+Face units, solved against the reference table in `Lens.kt`'s header. `artAspect` is each
+drawable's authored viewport ratio, so coordinates inside the art read as anatomy.
+
+| Layer    | Anchor  | width | aspect | up    | Lands                                                               |
+| -------- | ------- | ----- | ------ | ----- | ------------------------------------------------------------------- |
+| Hat      | `FACE`  | 3.6   | 0.48   | +1.48 | brim dip +0.62 (above the brow), crown +2.26, brim inner line +0.79 |
+| Mustache | `MOUTH` | 1.6   | 0.4032 | +0.01 | top +0.33 (nose base), centre arch +0.12, lobes −0.31, tips ±0.80   |
+
+3.6 units of brim over a 1.55-unit head is 2.3x, which is a real cowboy hat's ratio. The mustache
+was 1.4 first and read as a pencil mustache on the schematic head; 1.6 puts the tips at ±0.80
+against the 0.775 head half-width, out on the cheeks where a handlebar's tips belong. The centre
+arch clearing the lip line by 0.12 is what keeps the wearer's mouth readable — a mustache that
+covers the mouth is a gag, not a lens.
+
+The carousel chip is **generated** from those same two layers, not drawn a third time, so it cannot
+drift away from what the lens paints on a face. (§16.7 moved that generation into
+`swarm/tools/render_lens_art.py` along with the rest of the art.)
+
+### 16.4 Where this lens is verified
+
+* **JVM, `LensAnchorTest`** — six Cowboy cases on top of the catalogue-driven ones: the two pieces
+  are on different anchors, the declared aspects are the authored viewports, the brim is wider than
+  the head and lands between brow and eye line, the mustache sits above the lip line rather than on
+  the chin, it spans past the mouth corners without leaving the face, and 1.28 units of face show
+  between the two pieces. The whole suite is green (85 cases), as is `LensPhysicsTest` (32).
+* **Geometry, `swarm/tools/preview_lens.py`** — both layers rendered against the schematic head.
+  This is where the two-blob mustache and a gap between crown and brim were caught; neither is
+  expressible as a bounding-box assertion.
+* **On device, `helpers/lenses_loop.py`** — a new autonomous verifier drives the drawer, scrolls to
+  Cowboy, wears it and takes it off, reading each state twice out of one dump. **Written, not yet
+  seen passing** — see §16.5.
+* **`LensCarouselTest` needed no edit**: it is catalogue-driven and already scrolls.
+
+### 16.5 Residual risk — and what this change could not verify
+
+Everything in §11.1 still applies unchanged; the hat and mustache are subject to the same
+front/back mirroring, roll, portrait/landscape and steadiness questions as every other prop.
+
+Beyond that, this change was built in a container with **no Android SDK and no emulator** (its
+network policy denies `dl.google.com`, which serves both the SDK and Google's Maven mirror). So:
+
+* the Gradle build, Android Lint, the instrumented suite and the on-device run **did not run here**;
+* `lenses_loop.py` has proved nothing yet — `INVENTORY.md` carries the row as `loop not yet run`;
+* the pure-math suites *did* run, compiled off-device against a two-file JVM shim for
+  `@DrawableRes` and `R`, which is possible precisely because `LensAnchor` and `Lens` carry no
+  Android types — the property §5's R1 mitigation was designed for.
+
+The `docs/DEFINITION_OF_DONE.md` gate is therefore **not cleared by this change**; it has to be run
+on a machine with the SDK before merge, and the first pre-PR sweep there is what settles both the
+build and the verifier.
+
+### 16.6 2026-09-03, second pass — the first hardware capture, and the brow
+
+The owner ran the lens on his own face the same day. **Everything worked**: both layers tracked,
+the mustache landed on the mouth, the hat stayed square to the head, the live preview composited
+cleanly. That is the whole chain §16.4 could not prove from a container.
+
+**It also showed the hat was perched.** The brim floated above the hairline with the full forehead
+bare, which reads as a hat held over someone's head rather than worn.
+
+The capture is measurable, so it was measured rather than eyeballed. Both layers render in exactly
+the palette they declare, so the art can be masked out of the screenshot by colour and the face
+frame recovered from the art's own geometry: the hat quad measured 480 px tall, and it is declared
+`3.6 x 0.48`, which fixes the face unit at **278 px**. Everything else follows.
+
+| Measured off the capture       | Value                                    |
+| ------------------------------ | ---------------------------------------- |
+| face unit (eye-to-mouth)       | 278 px                                   |
+| brim front dip                 | **+0.69** (designed +0.62 — as intended) |
+| top of the brow                | **+0.30**                                |
+| bare forehead, brim to brow    | **0.39 units**                           |
+
+**The placement math was right; its input was wrong.** The brim was tuned against an *assumed*
+brow at +0.35 with the reasoning "+0.62 clears it comfortably" — but a worn hat does not clear the
+brow comfortably, it sits *on* it, and the real brow is at +0.30 rather than +0.35. `upInUnits`
+drops 1.48 → **1.20**, putting the dip at +0.34, just above the brow. Nothing else moved: the crown
+still stands 0.81 units over the skull and the mustache was untouched.
+
+This is the **chin-row mistake again** (§13, and the header table in `Lens.kt`): a lens tuned
+against a number that was never in the table, guessed instead of measured. So the fix is not only
+the one lens — **the brow is now a row in that table**, with `BROW_UNITS` in `LensAnchorTest`
+asserting Cowboy's brim lands on it rather than a hand-picked bound. The next lens that sits on a
+forehead gets the measured number for free.
+
+Two things the capture does **not** settle, both owner calls:
+
+* **The flat vector reads as clip art against a photographic face.** Elvis is photoreal WebP; this is
+  flat-shaded vector, and side by side on a real face the difference shows. Closing it means
+  photoreal source art, which is an asset-sourcing decision, not a code one.
+* **The mustache's weight.** It measures as designed and sits correctly, but its mid-brown is
+  lighter than a dark beard, so on a bearded subject it reads as applied rather than grown.
+
+Neither blocks the geometry fix; both are recorded so the look question is not confused with the
+placement one.
+
+### 16.7 2026-09-03, third pass — photoreal WebP, rendered rather than sourced
+
+The owner asked whether the lens could use photoreal WebP like Elvis, accepting up front that it
+might not work out. It did.
+
+**Sourcing photography was not possible and is not what shipped.** The environment's network policy
+denies every image host at the CONNECT (Wikimedia, Commons, the stock sites — 403 on all of them),
+so there was nothing to download. That turned out to be the better answer anyway: §11.2's rule is
+that a public Apache 2.0 repo ships only art it can redistribute, and **generated** art is the
+cleanest possible response to it — no licence to check, no attribution to carry, no provenance
+question at all.
+
+So `swarm/tools/render_lens_art.py` renders the assets from the traced silhouettes, which moved to
+`swarm/art/` (out of `res/`, where an unreferenced drawable would trip Lint). No 3D renderer: each
+region gets a height field, normals come from its gradient, and one Lambert + Blinn-Phong pass
+lights it.
+
+* **Crown** — a cylinder measured per row off its own silhouette, with a broad cattleman dent and
+  the pinched felt ridge either side. Drawn narrow at first, the dent read as a *seam*; widening it
+  and blurring the height field four times harder is what made it felt.
+* **Brim** — a rolled edge (distance transform) on a saddle that lifts toward the tips. Its lower
+  band darkens as a **fraction of local thickness**; as an absolute band, the thick middle turned
+  into a slab.
+* **Mustache** — ~34,000 individual hairs traced through a flow field that runs steeply down at the
+  philtrum, levels off, and hooks up at the tips, in seven tonal buckets. **Hairs that escape the
+  silhouette fade out**, and that one detail is what stops the edge reading as a die-cut sticker.
+
+| Asset                            | Size     | On disk |
+| -------------------------------- | -------- | ------- |
+| `lens_cowboy_hat_art.webp`       | 1024x492 | 24.5 KB |
+| `lens_cowboy_mustache_art.webp`  | 1024x413 | 65.1 KB |
+| `lens_cowboy.webp` (chip)        | 320x320  | 12.1 KB |
+
+All three are well under the existing lens art (148-186 KB) and inside the renderer's 1024 px cap.
+Encoded at quality 90, which libwebp stores with a **lossless alpha channel** exactly as §11.2
+claims — verified here at max alpha delta **0**, with mean colour delta ~1/255 inside the visible
+region.
+
+**The geometry did not move.** Same widths, same `upInUnits`, same anchors; only `artAspect` shifted
+by ~0.001 to the encoded ratios. This pass is purely a material change, which is why it is a
+separate commit from §16.6's placement fix and can be reverted on its own.
+
+**Still not verified on a device.** The renders were judged against the schematic head, not a face —
+an attempt to composite them onto the owner's capture required inpainting the shipped art out of it
+first, and that destroyed his beard, so it was thrown away rather than presented as evidence. What
+the art looks like on a real bearded face at real size remains the owner's check.

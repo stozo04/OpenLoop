@@ -16,6 +16,23 @@ Chooses the playback direction pattern for the trimmed clip: forward-only, rever
 - In the editor, tap **Loop**.
 - Tap a direction chip. Wait if the preview says `Loopifying..`.
 
+## Autonomous verifier
+
+Issue [#170](https://github.com/stozo04/OpenLoop/issues/170) is locked by an installed-APK loop:
+
+```powershell
+python .claude/skills/verify-openloop/helpers/reverse_preview_trim_loop.py
+```
+
+The loop records a fresh camera clip, moves the trim start away from zero, enters the default
+`Forward then reverse` direction, and requires `viewModel.ensureReversed.ok` plus a cleared loading
+overlay within 30 seconds. It saves the before/after UI, screenshots, reverse logcat, active media
+resources, and source-file receipt. A run is rejected as vacuous unless the `pass1.preroll` receipt
+shows the trim start landed BETWEEN sync samples — a start that happens to hit a keyframe exercises
+none of what #170 broke.
+
+`python scripts/run-verification-loops.py --changed` discovers it automatically.
+
 ## Driving it with control.ps1
 
 Preconditions:

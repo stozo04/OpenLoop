@@ -29,7 +29,7 @@ Order of operations at session start:
 
 1. Read this file and [`docs/OPERATING_INSTRUCTIONS.md`](OPERATING_INSTRUCTIONS.md) (the root `CLAUDE.md` / `AGENTS.md` pointers name both).
 2. Read `docs/lessons_learned/README.md` — it explains the two tiers and carries the index.
-3. Read **every core lesson in full: 008 and 011–041.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
+3. Read **every core lesson in full: 008 and 011–042.** These are device- and repo-specific (Samsung encoder ordering, surface-size corruption, zero-sample muxes, FGS API gating, CameraX effect attachment) and exist nowhere else.
 4. **Skim the index rows for the baseline lessons (001–007, 009, 010)** — generic Android/Compose hygiene now largely held by Lint, CI, and IDE inspections. Open one only when the work actually touches that area.
 5. Proceed with the user's request.
 

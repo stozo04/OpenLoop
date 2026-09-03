@@ -53,6 +53,7 @@
       <w>bigflake</w>
       <w>blendshape</w>
       <w>blendshapes</w>
+      <w>blinn</w>
       <w>bom</w>
       <w>boomerang</w>
       <w>boomerangmaker</w>
@@ -209,6 +210,7 @@
       <w>kalog</w>
       <w>kayden</w>
       <w>kayley</w>
+      <w>keepdims</w>
       <w>keepnames</w>
       <w>keepradius</w>
       <w>keyalg</w>
@@ -238,6 +240,7 @@
       <w>lifecycle</w>
       <w>lifecycles</w>
       <w>lifecyclescope</w>
+      <w>linalg</w>
       <w>listicle</w>
       <w>listicles</w>
       <w>localappdata</w>
@@ -291,6 +294,8 @@
       <w>nart</w>
       <w>navhost</w>
       <w>ncore</w>
+      <w>ndimage</w>
+      <w>ndshift</w>
       <w>neko</w>
       <w>neon</w>
       <w>nnnn</w>
@@ -299,6 +304,7 @@
       <w>notmatch</w>
       <w>noto</w>
       <w>nullness</w>
+      <w>numpy</w>
       <w>nums</w>
       <w>objdump</w>
       <w>oes</w>
@@ -325,11 +331,13 @@
       <w>playstore</w>
       <w>pointerinput</w>
       <w>predictive</w>
+      <w>preroll</w>
       <w>previewview</w>
       <w>programiv</w>
       <w>proguard</w>
       <w>pscustomobject</w>
       <w>pushback</w>
+      <w>putalpha</w>
       <w>pwsh</w>
       <w>pycache</w>
       <w>pythonutf</w>
@@ -364,6 +372,7 @@
       <w>saveable</w>
       <w>scanline</w>
       <w>sceneform</w>
+      <w>scipy</w>
       <w>screencap</w>
       <w>scrimmed</w>
       <w>scriptblocks</w>
@@ -408,6 +417,7 @@
       <w>subdir</w>
       <w>subpaths</w>
       <w>supabase</w>
+      <w>supersample</w>
       <w>suspendable</w>
       <w>swiftshader</w>
       <w>sysdir</w>

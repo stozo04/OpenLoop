@@ -30,12 +30,18 @@ import io.github.stozo04.openloop.R
  * |---|---|
  * | head width, ear to ear | 1.55 |
  * | eye line up to the crown | 1.25 |
+ * | eye line up to the **top of the brow** | **0.30** |
  * | eye line down to the mouth | **1.00** (the definition) |
  * | eye line down to the **chin** | **1.75** |
  * | mouth width, at rest | 0.8 |
  *
  * These are **measured off a real tracked face**, not assumed. If a lens ever needs
  * resizing, re-measure against this table rather than nudging a lens in isolation.
+ *
+ * The **brow** row was added 2026-09-03 off an owner hardware capture, because [Cowboy] shipped a
+ * hat brim tuned against an *assumed* brow at 0.35 and the real one measured 0.30 — the same class
+ * of error as the chin row above, and the reason anything a lens sits against belongs in this table
+ * rather than in one lens's head.
  *
  * Because they are ratios of the face to itself, one set of numbers holds for every face at every
  * distance and angle — there is nothing here to re-tune per device.
@@ -481,6 +487,107 @@ enum class Lens(
                     artAspect = 0.3549f,
                     // Rests on bridge, same as Sunglasses. Spans +0.433 to −0.313 (contains y=0).
                     upInUnits = 0.06f,
+                ),
+            ),
+        ),
+    ),
+
+    /**
+     * Cowboy — a felt hat on the crown and a handlebar mustache on the upper lip, from an
+     * owner-supplied reference. A **prop**, like [Elvis]: [features] stays null so the subject's
+     * own face carries the expression and only the two pieces are added.
+     *
+     * The art is **original, generated in this repo**, not the reference itself — that arrived as
+     * a screenshot of a stock silhouette, and PRD §11.2 is explicit that a public Apache 2.0 repo
+     * ships only art it can redistribute. What was taken from it is the *shape*: both silhouettes
+     * were traced off the reference at 5% column steps (per-column top and bottom edges) and then
+     * made symmetric, since the reference is drawn slightly three-quarter on and a lens worn on a
+     * face has to be square to it. Tracing is what fixed the mustache — drawn by eye first, its
+     * philtrum notch and center arch both ran far too deep, and it read as two separate blobs.
+     *
+     * ## The assets
+     *
+     * Photoreal WebP, the [Elvis] pattern — but where Elvis's binaries are opaque, these are
+     * **rendered from committed source** by `swarm/tools/render_lens_art.py`: the traced
+     * silhouettes live in `swarm/art/`, and the tool turns each region into a lit, textured
+     * surface (the crown a creased cylinder, the brim a rolled edge on a saddle, the mustache
+     * ~34k individual hairs through a flow field). Re-run it rather than editing a `.webp`.
+     *
+     * * **lens_cowboy_hat_art.webp** — 1024x492, so [LensPlacement.artAspect] is 492/1024.
+     * * **lens_cowboy_mustache_art.webp** — 1024x413, so `artAspect` is 413/1024.
+     * * **lens_cowboy.webp** — the 320x320 carousel chip, composed from those two so it cannot
+     *   drift away from what the lens paints on a face.
+     *
+     * The flat vector this shipped with first read as clip art beside a photographic face on the
+     * owner's 2026-09-03 capture; the geometry below is unchanged from it.
+     *
+     * ## The two anchors, and why they are two
+     *
+     * A hat belongs to the *skull* and a mustache belongs to the *mouth*, and those move
+     * independently: a jaw drops without the crown moving. So this is not one quad — the hat is on
+     * `FACE` and the mustache on [LensAnchorPoint.MOUTH], the same reason [TwistedTongue] splits.
+     *
+     * ## The numbers
+     *
+     * Solved against the reference table at the top of this file. `artAspect` is the authored
+     * viewport's own ratio in both cases, so every coordinate inside the drawables is readable as
+     * anatomy rather than as art-space.
+     *
+     * * **Hat.** 3.6 units across a 1.55-unit head — 2.3x, which is a real cowboy hat's ratio, and
+     *   the crown at 0.47 of that width clears the skull. The 750x360 viewport is then 208.33 units
+     *   per face unit. Centred +1.20 puts the brim's front dip (viewport y=360) at **+0.34**, just
+     *   clear of the +0.30 brow, and the crown's shoulders (y=18) at **+2.06** — 0.81 units of hat
+     *   above the +1.25 crown, which is a real crown height. The brim's inner line (y=324) lands at
+     *   +0.51 — 0.74 units *below* the skull's crown, so the hat is worn down over the head rather
+     *   than balanced on top of it.
+     *
+     *   **This was +1.48 until the first hardware capture (owner, 2026-09-03).** At that height the
+     *   dip sat at +0.62 and 0.39 units of bare forehead showed between the brim and the brow, so
+     *   the hat read as held above the head rather than worn. The placement math was correct — it
+     *   was tuned against an assumed 0.35 brow, and the real one is 0.30. That row is now in the
+     *   header table so the next lens does not have to rediscover it.
+     * * **Mustache.** 1.4 units was tried first and read as a pencil mustache on the schematic
+     *   head; 1.6 is the handlebar the reference draws, and it puts the tips at ±0.80 against the
+     *   0.775 head half-width — at the cheek edge, where a handlebar's tips belong. The 620x250
+     *   viewport is 387.5 units per face unit. Centred +0.01 **on the mouth**, its top edge (y=1)
+     *   lands at +0.33 — the nose base — and its centre arch (y=80) at **+0.12**, so the lip line
+     *   stays clear and the wearer can still be seen talking. The lobes (y=248) reach −0.31,
+     *   hanging beside the mouth corners rather than over them, and well clear of the −0.75 chin.
+     *
+     * Draw order is hat then mustache; they are 1.00 units apart at the closest, so neither
+     * overlaps the other and the subject's eyes, nose and cheeks show between them.
+     *
+     */
+    Cowboy(
+        displayName = "Cowboy",
+        // Both pieces are worn on the real face: a spin would throw the hat off the head and tear
+        // the mustache off the lip. Same answer as Elvis, for the same reason.
+        interaction = LensInteraction.NONE,
+        thumbnailRes = R.drawable.lens_cowboy,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_cowboy_hat_art,
+                placement = LensPlacement(
+                    widthInUnits = 3.6f,
+                    // The encoded asset's own ratio: 492 / 1024.
+                    artAspect = 0.48047f,
+                    // 1.20, was 1.48. At 1.48 the brim's dip landed at +0.62 and the hat read as
+                    // held ABOVE the head rather than worn: measured off the owner's 2026-09-03
+                    // capture, 0.39 units of bare forehead showed between the brim and the brow.
+                    // The placement was doing exactly what it was told; the input was wrong. This
+                    // drops it 0.28 units so the dip sits at +0.34, just clear of the +0.30 brow.
+                    upInUnits = 1.20f,
+                ),
+            ),
+            LensArt(
+                drawableRes = R.drawable.lens_cowboy_mustache_art,
+                placement = LensPlacement(
+                    widthInUnits = 1.6f,
+                    // The encoded asset's own ratio: 413 / 1024.
+                    artAspect = 0.40332f,
+                    upInUnits = 0.01f,
+                    // The mouth, not the eye line — a jaw drops without the hat moving.
+                    anchor = LensAnchorPoint.MOUTH,
                 ),
             ),
         ),

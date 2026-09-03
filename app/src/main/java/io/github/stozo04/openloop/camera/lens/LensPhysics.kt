@@ -176,8 +176,8 @@ object LensPhysics {
      * [leverX]/[leverY] is the vector from the quad's center to the touch point and
      * [velocityX]/[velocityY] the flick velocity — both in face units (square space, y down), so
      * the same flick reads the same at any distance from the camera. The cross product makes the
-     * direction physical: flick the top of the ball rightward and it spins clockwise, flick the
-     * bottom rightward and it spins the other way. A flick on an already-spinning layer *adds* its
+     * direction physical: flick the top of the ball rightward, and it spins clockwise, flick the
+     * bottom rightward, and it spins the other way. A flick on an already-spinning layer *adds* its
      * impulse, so repeated flicks pump the spin up (to the cap) or brake it.
      *
      * [MIN_LEVER_UNITS] floors the lever arm so a near-center flick cannot divide toward

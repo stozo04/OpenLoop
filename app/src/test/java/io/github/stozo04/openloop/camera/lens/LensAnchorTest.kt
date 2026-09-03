@@ -36,6 +36,13 @@ class LensAnchorTest {
         const val CROWN_UNITS = 1.25f
 
         /**
+         * Top of the brow. Added 2026-09-03 off an owner hardware capture — Cowboy's brim was
+         * tuned against an assumed 0.35 and the real one measured 0.30, which left a visible band
+         * of forehead. See `Lens.kt`'s header table.
+         */
+        const val BROW_UNITS = 0.30f
+
+        /**
          * Bottom of the chin, below the eye line. The mouth is at 1.00 *by definition*, and the jaw
          * runs ~0.75 units further. This table said 1.00 until 2026-08-16 — the mouth's number
          * wearing the chin's label — which is what let Pizza Face and Football ship covering only
@@ -1049,6 +1056,109 @@ class LensAnchorTest {
     fun elvis_isAProp_notACharacter() {
         // Elvis is a prop lens, so the subject's face shows through.
         assertNull("Elvis is a prop, not a character replacement", Lens.Elvis.features)
+    }
+
+    // ---------------------------------------------------------------- Cowboy lens geometry
+
+    private val cowboyHat = Lens.Cowboy.art[0]
+    private val cowboyMustache = Lens.Cowboy.art[1]
+
+    /** Where a layer's bounding box starts and stops, in face units above the eye line. */
+    private fun extentInUnits(art: LensArt): ClosedFloatingPointRange<Float> {
+        val anchorUp = if (art.placement.anchor == LensAnchorPoint.MOUTH) -1f else 0f
+        val halfHeight = art.placement.widthInUnits * art.placement.artAspect / 2f
+        val centre = anchorUp + art.placement.upInUnits
+        return (centre - halfHeight)..(centre + halfHeight)
+    }
+
+    @Test
+    fun cowboy_isAProp_withItsTwoPiecesOnDifferentAnatomy() {
+        // A hat belongs to the skull and a mustache to the mouth, and a dropping jaw moves one
+        // without the other — which is the whole reason this is two layers rather than one quad.
+        assertNull("Cowboy decorates the subject's face; it does not replace it", Lens.Cowboy.features)
+        assertEquals(2, Lens.Cowboy.art.size)
+        assertEquals(LensAnchorPoint.FACE, cowboyHat.placement.anchor)
+        assertEquals(LensAnchorPoint.MOUTH, cowboyMustache.placement.anchor)
+    }
+
+    @Test
+    fun cowboy_declaredAspectsAreTheAuthoredViewports() {
+        // Measured off the encoded assets, never estimated: a guessed aspect stretches the art on
+        // the face and nothing else catches it. Re-measure here if render_lens_art.py changes size.
+        assertEquals("encoded 1024x492", 492f / 1024f, cowboyHat.placement.artAspect, 1e-4f)
+        assertEquals("encoded 1024x413", 413f / 1024f, cowboyMustache.placement.artAspect, 1e-4f)
+    }
+
+    @Test
+    fun cowboy_hatIsWiderThanTheHead_andRidesDownOverIt() {
+        val extent = extentInUnits(cowboyHat)
+
+        assertTrue(
+            "a brim narrower than the head is a cap, not a cowboy hat",
+            cowboyHat.placement.widthInUnits / 2f > HEAD_HALF_WIDTH_UNITS,
+        )
+        assertTrue(
+            "the crown tops out at ${extent.endInclusive}, below the $CROWN_UNITS skull",
+            extent.endInclusive > CROWN_UNITS,
+        )
+        // The brim has to land ON the brow — that is what makes a hat read as worn. Too high and
+        // it floats above the head (the 2026-09-03 hardware finding: a brim at +0.62 left 0.39
+        // units of bare forehead); too low, and it covers the eyes the whole lens is tracked from.
+        assertTrue(
+            "the brim reaches ${extent.start}, down over the $BROW_UNITS brow and toward the eyes",
+            extent.start >= BROW_UNITS,
+        )
+        assertTrue(
+            "the brim sits at ${extent.start}, a visible band of forehead above the $BROW_UNITS brow",
+            extent.start < BROW_UNITS + 0.25f,
+        )
+    }
+
+    @Test
+    fun cowboy_mustacheSitsOnTheUpperLip_notOnTheChin() {
+        // THE sign check for a mouth-anchored layer. `upInUnits` is measured from the mouth, so a
+        // flipped sign parks the mustache on the chin and still looks reasonable in a diff.
+        val extent = extentInUnits(cowboyMustache)
+
+        assertTrue(
+            "the mustache is centred at ${cowboyMustache.placement.upInUnits} — below the lip line",
+            cowboyMustache.placement.upInUnits >= 0f,
+        )
+        assertTrue(
+            "the mustache reaches ${extent.endInclusive}, up past the nose and onto the eyes",
+            extent.endInclusive < 0f,
+        )
+        assertTrue(
+            "the mustache hangs to ${extent.start}, onto the $CHIN_UNITS chin",
+            extent.start > CHIN_UNITS,
+        )
+    }
+
+    @Test
+    fun cowboy_mustacheSpansPastTheMouthCorners_butStaysOnTheFace() {
+        // A handlebar's tips belong out on the cheeks — narrower, and it reads as a pencil
+        // mustache, which is what the first 1.4-unit draft did on the schematic head.
+        val halfWidth = cowboyMustache.placement.widthInUnits / 2f
+
+        assertTrue("a handlebar has to clear the 0.8-unit resting mouth", halfWidth > 0.4f)
+        assertTrue("the tips at $halfWidth are off the side of the head", halfWidth <= HEAD_HALF_WIDTH_UNITS + 0.05f)
+    }
+
+    @Test
+    fun cowboy_leavesTheSubjectsOwnFaceShowingBetweenTheTwoPieces() {
+        // What makes it a prop rather than a costume: the eyes, nose and cheeks are in the gap.
+        val hatBottom = extentInUnits(cowboyHat).start
+        val mustacheTop = extentInUnits(cowboyMustache).endInclusive
+
+        assertTrue(
+            "the hat stops at $hatBottom and the mustache starts at $mustacheTop — they overlap",
+            hatBottom > mustacheTop,
+        )
+        // The gap has to span the eyes and the nose — that is the face a prop must not swallow.
+        assertTrue(
+            "only ${hatBottom - mustacheTop} units of face show between the pieces",
+            hatBottom - mustacheTop > 0.9f,
+        )
     }
 
     // ---------------------------------------------------------------- character head coverage

@@ -5,12 +5,34 @@ Live face effects on the camera viewfinder. The bottom-left drawer opens a carou
 ## Sub-features
 
 - `lenses-open` opens the drawer (`Lenses and Photo Booth` / `lens_button`) and shows the Lenses tab (`camera_lenses`) plus carousel (`lens_carousel`).
-- `lenses-pick` selects a catalogue thumb by display name / `lens_thumb_*` (Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue, Elvis).
+- `lenses-pick` selects a catalogue thumb by display name / `lens_thumb_*` (Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue, Elvis, Cowboy).
 - `lenses-clear` deselects by tapping the active thumb again, or closes the drawer (`Close lenses` / `lens_close`).
 - `lenses-one-face` — with one detectable face, the active lens sticks to that face (preview).
 - `lenses-two-faces` — with two detectable faces, **both** get the same lens (preview and, if recording, the saved clip). A third face does not steal a slot.
 - `lenses-bake` — record a short clip with a lens on, stop into Trim; the effect is already in the pixels (no editor lens control).
 - `lenses-hand-flick` (optional, SPIN lenses only: Broccoli / Pizza Face / Football) — a hand waving near the sticker spins it; needs a real face + hand in frame, not a static scene.
+
+## Autonomous verifier
+
+`lenses-open` / `lenses-pick` / `lenses-clear` are driven by a loop; the rest of this file is the
+manual recipe for the sub-features it cannot reach.
+
+> **Not yet seen passing.** The loop was written in a container with no Android SDK and no
+> emulator, so it has proved nothing yet — `INVENTORY.md` carries it as `loop not yet run`, not
+> `automated`. `scripts/run-verification-loops.py` runs it, so the first pre-PR sweep on a machine
+> with an AVD is what settles it. Treat a red result there as a product bug until its evidence
+> says otherwise.
+
+```text
+python .codex/skills/verify-openloop/helpers/lenses_loop.py
+VERIFY_LENS="Elvis" python .codex/skills/verify-openloop/helpers/lenses_loop.py
+```
+
+It opens the drawer, scrolls the carousel to the named lens (**Cowboy** by default — the newest
+entry, and the one a registration slip would strand off-screen), wears it, and taps it off again.
+Each state is read two ways out of one dump: the active-lens name pill and the thumbnail's own
+`selected` flag. Nothing is recorded, and it makes no claim about the lens landing on a face — see
+the gotchas below.
 
 ## How to get to it (user POV)
 

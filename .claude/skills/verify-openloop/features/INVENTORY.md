@@ -9,7 +9,7 @@ Does **not** need to stay perfectly current between audits — the [README compl
 | ------------------------------------ | ---------------------------- | -------------------- | -------------------------------------------------- |
 | Onboarding `LET'S GO!`               | strings / OnboardingScreen   | automated 2026-08-31 | [onboarding.md](./onboarding.md)                   |
 | Record / stop video                  | `Start recording`            | automated 2026-08-31 | [record-clip.md](./record-clip.md)                 |
-| Lenses drawer + catalogue            | `Lenses and Photo Booth`     | mapped               | [lenses.md](./lenses.md)                           |
+| Lenses drawer + catalogue            | `Lenses and Photo Booth`     | automated 2026-09-03 | [lenses.md](./lenses.md)                           |
 | Multi-face (1–2) lens                | FaceRoster / live preview    | folded into lenses   | [lenses.md](./lenses.md)                           |
 | Capture-mode toggle (photo/video)    | `Camera` / `Video` selector  | automated 2026-09-01 | [photo-capture.md](./photo-capture.md)             |
 | Photo stills mode                    | `Camera` / `Take photo`      | mapped               | [photo-capture.md](./photo-capture.md)             |
@@ -21,7 +21,7 @@ Does **not** need to stay perfectly current between audits — the [README compl
 | Save to Photos + share sheet         | `Saved to Photos`            | mapped               | [share-and-library.md](./share-and-library.md)     |
 | Trim                                 | Trim screen / tab            | mapped               | [edit-trim.md](./edit-trim.md)                     |
 | Speed constant + curve               | Speed tab                    | mapped               | [edit-speed.md](./edit-speed.md)                   |
-| Loop direction                       | Loop tab                     | mapped               | [edit-loop.md](./edit-loop.md)                     |
+| Loop direction                       | Loop tab                     | automated 2026-09-03 | [edit-loop.md](./edit-loop.md)                     |
 | Filter / Looks                       | Filter tab                   | mapped               | [edit-filter.md](./edit-filter.md)                 |
 | Delete in-progress clip              | toolbar Delete               | mapped               | [edit-delete.md](./edit-delete.md)                 |
 | Save boomerang                       | `Save boomerang`             | mapped               | [edit-save.md](./edit-save.md)                     |
@@ -34,4 +34,8 @@ When you find a new shipped control in `strings.xml` or chrome that is not liste
 
 `automated <date>` means a `*_loop.py` verifier drives that surface on an emulator and was seen
 passing on that date — not that the recipe merely mentions one. `mapped` is a written recipe with
-no autonomous check behind it yet.
+no autonomous check behind it yet. `loop not yet run` is the state in between and is deliberately not
+`automated`: the verifier is written and shipped, but nobody has watched it go green on a device,
+so it has proved nothing. `scripts/run-verification-loops.py` picks it up either way, so the first
+pre-PR sweep on a machine with an emulator is what settles it — promote the row to
+`automated <date>` there, or fix the product.
