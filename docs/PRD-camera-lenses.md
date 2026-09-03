@@ -649,3 +649,91 @@ behavior change. `drawCamera` no longer needs the lens, the face, or the frame a
 
 This is a separate commit from §15.1 on purpose: reverting it restores the engine without bringing
 back the two lenses, if a future warp lens wants it.
+
+---
+
+## 16. 2026-09-03 — Cowboy, and art traced rather than drawn
+
+The ninth lens: a felt hat on the crown and a handlebar mustache on the upper lip. A **prop**, so
+the subject's own face carries the expression — the **Elvis** pattern, two layers and no
+`FeatureLayout`. The catalogue is now **eight** lenses (§15.1's seven plus this one).
+
+### 16.1 The reference could not ship, so only its shape did
+
+The owner supplied a screenshot of a black silhouette found through image search. §11.2 is the
+standing rule: OpenLoop is public under Apache 2.0, so art without redistribution rights cannot
+ship, and "we can look at it" is not "we can publish it". What shipped is **original vector
+authored in-repo** — the same answer §14.3 D2 gave the DeepAR bundle, and the answer §5.2 already
+prefers for lens art.
+
+What *was* taken from the reference is the **silhouette**, measured rather than admired: both
+shapes were traced off it at 5% column steps (per-column top and bottom edges of the thresholded
+image), then made symmetric, because the reference is drawn slightly three-quarter on and a lens
+worn on a face has to be square to it.
+
+**Tracing is what made the mustache work.** Drawn by eye first, its philtrum notch and its centre
+arch both ran roughly twice as deep as the reference's, and the result read as two separate blobs
+rather than one moustache. Nothing about that was visible in the numbers; it took rendering the
+art against the schematic head in `swarm/tools/preview_lens.py` to see it, and the measured profile
+to fix it. Same lesson as the Pizza wedge in §13: *look at the silhouette, not the bounding box.*
+
+### 16.2 Two anchors, because a jaw moves and a skull does not
+
+A hat belongs to the skull and a mustache to the mouth. This is the second lens after
+**Twisted Tongue** to need `LensPlacement.anchor` for a reason other than symmetry: the hat is on
+`FACE` and the mustache on `MOUTH`, so a dropping jaw carries the mustache and leaves the hat put.
+No framework change was needed — §14.2's three additions cover it, and the entry is one enum block
+plus its art, exactly as the catalogue rule promises.
+
+### 16.3 The numbers
+
+Face units, solved against the reference table in `Lens.kt`'s header. `artAspect` is each
+drawable's authored viewport ratio, so coordinates inside the art read as anatomy.
+
+| Layer    | Anchor  | width | aspect | up    | Lands                                                               |
+| -------- | ------- | ----- | ------ | ----- | ------------------------------------------------------------------- |
+| Hat      | `FACE`  | 3.6   | 0.48   | +1.48 | brim dip +0.62 (above the brow), crown +2.26, brim inner line +0.79 |
+| Mustache | `MOUTH` | 1.6   | 0.4032 | +0.01 | top +0.33 (nose base), centre arch +0.12, lobes −0.31, tips ±0.80   |
+
+3.6 units of brim over a 1.55-unit head is 2.3x, which is a real cowboy hat's ratio. The mustache
+was 1.4 first and read as a pencil mustache on the schematic head; 1.6 puts the tips at ±0.80
+against the 0.775 head half-width, out on the cheeks where a handlebar's tips belong. The centre
+arch clearing the lip line by 0.12 is what keeps the wearer's mouth readable — a mustache that
+covers the mouth is a gag, not a lens.
+
+The carousel chip is **generated** from those same two drawables by
+`swarm/tools/compose_lens_thumbnail.py`, not drawn a third time, so it cannot drift away from what
+the lens paints on a face. That tool is new and is the one piece of machinery this lens added.
+
+### 16.4 Where this lens is verified
+
+* **JVM, `LensAnchorTest`** — six Cowboy cases on top of the catalogue-driven ones: the two pieces
+  are on different anchors, the declared aspects are the authored viewports, the brim is wider than
+  the head and lands between brow and eye line, the mustache sits above the lip line rather than on
+  the chin, it spans past the mouth corners without leaving the face, and 1.28 units of face show
+  between the two pieces. The whole suite is green (85 cases), as is `LensPhysicsTest` (32).
+* **Geometry, `swarm/tools/preview_lens.py`** — both layers rendered against the schematic head.
+  This is where the two-blob mustache and a gap between crown and brim were caught; neither is
+  expressible as a bounding-box assertion.
+* **On device, `helpers/lenses_loop.py`** — a new autonomous verifier drives the drawer, scrolls to
+  Cowboy, wears it and takes it off, reading each state twice out of one dump. **Written, not yet
+  seen passing** — see §16.5.
+* **`LensCarouselTest` needed no edit**: it is catalogue-driven and already scrolls.
+
+### 16.5 Residual risk — and what this change could not verify
+
+Everything in §11.1 still applies unchanged; the hat and mustache are subject to the same
+front/back mirroring, roll, portrait/landscape and steadiness questions as every other prop.
+
+Beyond that, this change was built in a container with **no Android SDK and no emulator** (its
+network policy denies `dl.google.com`, which serves both the SDK and Google's Maven mirror). So:
+
+* the Gradle build, Android Lint, the instrumented suite and the on-device run **did not run here**;
+* `lenses_loop.py` has proved nothing yet — `INVENTORY.md` carries the row as `loop not yet run`;
+* the pure-math suites *did* run, compiled off-device against a two-file JVM shim for
+  `@DrawableRes` and `R`, which is possible precisely because `LensAnchor` and `Lens` carry no
+  Android types — the property §5's R1 mitigation was designed for.
+
+The `docs/DEFINITION_OF_DONE.md` gate is therefore **not cleared by this change**; it has to be run
+on a machine with the SDK before merge, and the first pre-PR sweep there is what settles both the
+build and the verifier.
