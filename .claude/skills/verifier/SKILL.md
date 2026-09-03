@@ -18,4 +18,3 @@ and source receipts under `%TEMP%\openloop-verify\...\reverse-preview-trim`.
 Do not lengthen the deadline or weaken assertions to hide a red result. Until issue #170 is fixed,
 failure after reverse pass 1 starts is the expected product-bug receipt. The aggregate automation
 command `python scripts/run-verification-loops.py --changed` discovers this verifier automatically.
-
