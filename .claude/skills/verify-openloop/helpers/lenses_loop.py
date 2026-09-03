@@ -226,7 +226,8 @@ def main() -> int:
     tap_node(serial, thumb)
     worn_xml, worn_nodes = wait_for_lens(serial, True, "lens-worn", evidence)
 
-    again = find_exact(app_nodes(worn_nodes), LENS)
+    candidates = find_all(app_nodes(worn_nodes), LENS)
+    again = next((node for node in candidates if node.selected), None)
     if not again:
         path = snapshot(serial, evidence, "thumb-gone", worn_xml)
         fail(f"clear: {LENS!r} left the tray once selected, so it cannot be tapped off; evidence={path}")
