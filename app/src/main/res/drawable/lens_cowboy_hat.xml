@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Cowboy hat, front-on, for Lens.Cowboy — see Lens.kt for the face-unit numbers.
+
+    The silhouette is traced from the owner's reference at 5% column steps (crown span, brim sweep,
+    per-column top and bottom edges), then made symmetric — the reference is drawn slightly
+    three-quarter on, and a lens worn on a face has to be square to it.
+
+    The 750x360 viewport is 208.33 units per face unit at the catalogue's 3.6-unit width, so every
+    coordinate reads as anatomy: the brim's front dip at y=360 lands 0.62 units above the eye line,
+    just clear of the brow, and the crown's shoulders at y=18 reach +2.26.
+
+    Drawn back-to-front — crown, its highlight and crease, the band, then the brim over the crown's
+    base — so the brim hides where the crown would otherwise end in a straight line.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="375dp"
+    android:height="180dp"
+    android:viewportWidth="750"
+    android:viewportHeight="360">
+
+    <!-- Crown: shoulders rising to y=18 with the centre creased down to 46, as the reference has it. -->
+    <path
+        android:fillColor="#FF7A5433"
+        android:pathData="M200,345
+            C196,220 202,120 218,58
+            C226,26 248,10 268,22
+            C300,40 336,46 375,46
+            C414,46 450,40 482,22
+            C502,10 524,26 532,58
+            C548,120 554,220 550,345
+            Z" />
+
+    <!-- Felt catches the light down the crown's left shoulder; without it the crown reads flat. -->
+    <path
+        android:fillColor="#FF89603C"
+        android:pathData="M218,58
+            C226,26 248,10 268,22
+            C252,72 244,160 247,300
+            L213,300
+            C208,150 212,104 218,58
+            Z" />
+
+    <!-- The centre crease itself, in shadow. -->
+    <path
+        android:fillColor="#FF66432A"
+        android:pathData="M375,46
+            C352,80 344,140 347,300
+            L403,300
+            C406,140 398,80 375,46
+            Z" />
+
+    <!-- Hatband, wrapping the crown's base. Curves because it is on a cylinder, not a plane. -->
+    <path
+        android:fillColor="#FF2C231B"
+        android:pathData="M199,254
+            C258,242 316,238 375,238
+            C434,238 492,242 551,254
+            L553,330
+            C492,318 434,314 375,314
+            C316,314 258,318 199,330
+            Z" />
+
+    <!-- Brass buckle, centred on the band. -->
+    <path
+        android:fillColor="#FFC8A24B"
+        android:pathData="M357,250
+            L393,250
+            L393,318
+            L357,318
+            Z" />
+
+    <!--
+        Brim: one crescent. Tips swept up to a fine point, thickening inward and dipping to the
+        front centre — the traced profile, not a uniform band, which is what makes it read as a
+        brim curling toward the viewer rather than a plank.
+    -->
+    <path
+        android:fillColor="#FF8B6242"
+        android:pathData="M8,224
+            C30,226 52,244 75,283
+            C95,296 122,306 150,311
+            C215,320 300,324 375,324
+            C450,324 535,320 600,311
+            C628,306 655,296 675,283
+            C698,244 720,226 742,224
+            C748,228 748,233 742,237
+            C726,296 704,312 675,321
+            C652,329 626,336 600,341
+            C535,352 450,359 375,360
+            C300,359 215,352 150,341
+            C124,336 98,329 75,321
+            C46,312 24,296 8,237
+            C2,233 2,228 8,224
+            Z" />
+
+    <!-- The brim's underside, which curls toward the viewer and so reads darker than its top. -->
+    <path
+        android:fillColor="#FF5C3D23"
+        android:pathData="M8,237
+            C24,296 46,312 75,321
+            C98,329 124,336 150,341
+            C215,352 300,359 375,360
+            C450,359 535,352 600,341
+            C626,336 652,329 675,321
+            C704,312 726,296 742,237
+            C730,286 706,302 675,308
+            C652,315 626,321 600,326
+            C535,336 450,342 375,343
+            C300,342 215,336 150,326
+            C124,321 98,315 75,308
+            C44,302 20,286 8,237
+            Z" />
+</vector>

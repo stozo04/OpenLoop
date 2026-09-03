@@ -485,6 +485,88 @@ enum class Lens(
             ),
         ),
     ),
+
+    /**
+     * Cowboy — a felt hat on the crown and a handlebar mustache on the upper lip, from an
+     * owner-supplied reference. A **prop**, like [Elvis]: [features] stays null so the subject's
+     * own face carries the expression and only the two pieces are added.
+     *
+     * The art is **original vector, authored here**, not the reference itself — that arrived as a
+     * screenshot of a stock silhouette, and PRD §11.2 is explicit that a public Apache 2.0 repo
+     * ships only art it can redistribute. What was taken from it is the *shape*: both silhouettes
+     * were traced off the reference at 5% column steps (per-column top and bottom edges) and then
+     * made symmetric, since the reference is drawn slightly three-quarter on and a lens worn on a
+     * face has to be square to it. Tracing is what fixed the mustache — drawn by eye first, its
+     * philtrum notch and centre arch both ran far too deep and it read as two separate blobs.
+     *
+     * ## The two anchors, and why they are two
+     *
+     * A hat belongs to the *skull* and a mustache belongs to the *mouth*, and those move
+     * independently: a jaw drops without the crown moving. So this is not one quad — the hat is on
+     * `FACE` and the mustache on [LensAnchorPoint.MOUTH], the same reason [TwistedTongue] splits.
+     *
+     * ## The numbers
+     *
+     * Solved against the reference table at the top of this file. `artAspect` is the authored
+     * viewport's own ratio in both cases, so every coordinate inside the drawables is readable as
+     * anatomy rather than as art-space.
+     *
+     * * **Hat.** 3.6 units across a 1.55-unit head — 2.3x, which is a real cowboy hat's ratio, and
+     *   the crown at 0.47 of that width clears the skull. The 750x360 viewport is then 208.33 units
+     *   per face unit. Centred +1.48 puts the brim's front dip (viewport y=360) at **+0.62**, just
+     *   above the brow, and the crown's shoulders (y=18) at **+2.26** — 1.01 units of hat above the
+     *   +1.25 crown, which is a real crown height. The brim's inner line (y=324) lands at +0.79 —
+     *   0.46 units *below* the skull's crown, so the hat is worn down over the head rather than
+     *   balanced on top of it.
+     * * **Mustache.** 1.4 units was tried first and read as a pencil mustache on the schematic
+     *   head; 1.6 is the handlebar the reference draws, and it puts the tips at ±0.80 against the
+     *   0.775 head half-width — at the cheek edge, where a handlebar's tips belong. The 620x250
+     *   viewport is 387.5 units per face unit. Centred +0.01 **on the mouth**, its top edge (y=1)
+     *   lands at +0.33 — the nose base — and its centre arch (y=80) at **+0.12**, so the lip line
+     *   stays clear and the wearer can still be seen talking. The lobes (y=248) reach −0.31,
+     *   hanging beside the mouth corners rather than over them, and well clear of the −0.75 chin.
+     *
+     * Draw order is hat then mustache; they are 1.28 units apart at the closest, so neither
+     * overlaps the other and the face shows between them.
+     *
+     * The carousel chip is **generated** from these same two drawables, so it cannot drift away
+     * from them:
+     *
+     * ```text
+     * python swarm/tools/compose_lens_thumbnail.py \
+     *     --out app/src/main/res/drawable/lens_cowboy.xml --viewport 320 \
+     *     --layer lens_cowboy_hat.xml:300:10:34 --layer lens_cowboy_mustache.xml:224:48:190
+     * ```
+     */
+    Cowboy(
+        displayName = "Cowboy",
+        // Both pieces are worn on the real face: a spin would throw the hat off the head and tear
+        // the mustache off the lip. Same answer as Elvis, for the same reason.
+        interaction = LensInteraction.NONE,
+        thumbnailRes = R.drawable.lens_cowboy,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_cowboy_hat,
+                placement = LensPlacement(
+                    widthInUnits = 3.6f,
+                    // The authored 750x360 viewport's own ratio.
+                    artAspect = 0.48f,
+                    upInUnits = 1.48f,
+                ),
+            ),
+            LensArt(
+                drawableRes = R.drawable.lens_cowboy_mustache,
+                placement = LensPlacement(
+                    widthInUnits = 1.6f,
+                    // The authored 620x250 viewport's own ratio.
+                    artAspect = 0.4032f,
+                    upInUnits = 0.01f,
+                    // The mouth, not the eye line — a jaw drops without the hat moving.
+                    anchor = LensAnchorPoint.MOUTH,
+                ),
+            ),
+        ),
+    ),
     ;
 
     /**
