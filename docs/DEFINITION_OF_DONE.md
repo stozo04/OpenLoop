@@ -288,6 +288,21 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] Release bump only: Play technical quality check done (vitals Memory rows under threshold, bundle App optimization High) — numbers pasted here
 - [ ] `.\scripts\pre-pr-sweep.ps1` GREEN on the final commit: build 0 e:/0 w:, zipalign, Lint 0/0, tests 0 failures, Markdown + tables + links + cspell + JSON all zero, onboarding loop PASS (or SKIPPED with no emulator — not done). Receipt: build/sweep-receipt.json
 - [ ] Inspect Code (Engine 2) export parsed to 0 hard findings — or the PR says it was SKIPPED and why
+- [ ] Fenced code blocks compile as what they claim to be: the IDE parses a ```kotlin body as real
+      Kotlin, so a `…` placeholder is a parse error, not a hint. Use real values, or `TODO()`, or
+      put the elision inside a comment. Six of 1.0.50's eight Inspect Code errors were one such
+      ellipsis ([Lesson 010](lessons_learned/010-markdown-code-fences-are-inspected.md))
+- [ ] No `xmlns:android` outside `app/src/*/res/` (AndroidManifest excepted): an XML file the app
+      never packages cannot resolve that schema in any IDE, and reports `URI is not registered`
+      on every open. Generator input carries plain attribute names. Checked by sweep gate 8c
+- [ ] Generated art regenerates byte-identically: a change to `swarm/art/*.xml` or
+      `swarm/tools/render_lens_art.py` means re-running `python swarm/tools/render_lens_art.py`
+      (needs `numpy`, `Pillow`, `scipy`) and confirming `git status` on `drawable-nodpi/` is clean,
+      or committing the regenerated WebP. The provenance claim in PRD §16 is only true if this runs
+- [ ] Proofreading findings were accepted ONE AT A TIME, never bulk-applied: LanguageTool does not
+      know this domain. A single bulk pass in 1.0.50 produced `We must be NOT downscale here`,
+      `revert any edit made sense`, and `a narrowband along the silhouette edge` — three comments
+      whose technical meaning was destroyed by a grammar fix. Read every suggestion against the code
 - [ ] Play-facing docs aligned (owner rule, 2026-08-24): permission/telemetry/storage changes → data-safety.md + privacy policy (md + html, new effective date); lens/feature changes → store-listing.md (+ docs/index.html, root README.md)
 - [ ] Agent memory aligned (owner rule, 2026-08-24, Claude sessions): the project memory (`MEMORY.md` index + entries) reflects what this PR changed — new durable facts captured, entries this PR made stale corrected or deleted. Memory is never left stale.
 - [ ] Root `README.md` aligned (owner rule, 2026-08-24): the GitHub-facing README reflects this PR — feature list, tech stack, SDK levels, state machine, commands. Never stale.

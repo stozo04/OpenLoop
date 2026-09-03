@@ -288,7 +288,7 @@ object LensAnchor {
         val ratio = mouthToBottom / eyeToMouth
         // Measured against a relaxed and a wide-open jaw: the lower lip sits ~0.20 units below the
         // corner line at rest and passes ~0.62 wide open. Below CLOSED it is shut, above OPEN it is
-        // as open as it gets, and between them it is linear.
+        // as open as it gets, and between them, it is linear.
         return ((ratio - MOUTH_CLOSED_RATIO) / (MOUTH_OPEN_RATIO - MOUTH_CLOSED_RATIO))
             .coerceIn(0f, 1f)
     }

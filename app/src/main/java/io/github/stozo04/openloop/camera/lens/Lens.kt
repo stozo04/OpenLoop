@@ -503,7 +503,7 @@ enum class Lens(
      * were traced off the reference at 5% column steps (per-column top and bottom edges) and then
      * made symmetric, since the reference is drawn slightly three-quarter on and a lens worn on a
      * face has to be square to it. Tracing is what fixed the mustache — drawn by eye first, its
-     * philtrum notch and centre arch both ran far too deep and it read as two separate blobs.
+     * philtrum notch and center arch both ran far too deep, and it read as two separate blobs.
      *
      * ## The assets
      *

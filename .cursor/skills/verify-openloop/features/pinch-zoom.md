@@ -11,7 +11,7 @@ Pinch on the live viewfinder to zoom in or out (including mid-recording). A zoom
 ## How to get to it (user POV)
 
 - On the viewfinder, pinch with two fingers. Release; the chip shows the ratio.
-- Record or shoot; zoom is in the saved media.
+- Record or shoot; Zoom is in the saved media.
 
 ## Driving it with control.ps1
 

@@ -1,6 +1,6 @@
 # Photo booth
 
-Photo booth is a self-driving 5-4-3-2-1 countdown, three stills, composited into a vertical strip (white borders, OpenLoop + date footer, color or B&W). The user arms booth from the lenses / Photo Booth tab, then uses the shutter (`Start photo booth`). Between shots they can swap lenses.
+Photo booth is a self-driving 5-4-3-2-1 countdown, three stills, composited into a vertical strip (white borders, OpenLoop + date footer, color or B&W). The user arms booth from the lenses / Photo Booth tab, then uses the shutter (`Start photo booth`). Between shots, they can swap lenses.
 
 ## Sub-features
 

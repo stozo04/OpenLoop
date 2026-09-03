@@ -13,7 +13,7 @@
 
 Lenses track the face and animate themselves (wobble springs, mouth-open reveal), but the user
 cannot **touch** them. The owner's ask: with the Football lens on your face and the front camera up,
-flick the ball with a finger and it **spins** — a harder flick spins it faster and further, and it
+flick the ball with a finger, and it **spins** — a harder flick spins it faster and further, and it
 always lands back exactly where it started: one or two clean revolutions, then your eyes and mouth
 snap back onto the ball. The spin must appear in the live preview *and* be baked into the recording (and
 into a photo-mode capture), exactly like every other lens behavior.
@@ -174,11 +174,12 @@ of the face coming back is part of the joke.
 ### 3.6 Catalogue — the Football opts in
 
 ```kotlin
-// Lens.Football's art layer gains:
-spin = SpinSpec(
-    gain = …,                        // tuned so a comfortable flick travels ≈ 1 full revolution
+// Lens.Football's art layer gains this, shipped as SPIN_ON_A_HEAD in the catalogue:
+private val SPIN_ON_A_HEAD = SpinSpec(
+    gain = 1.8f,                     // tuned so a comfortable flick travels ≈ 1 full revolution
     frictionHalfLifeSeconds = 0.6f,  // whole gesture plays out in ~1–2 s, then the landing ease
     maxAngularVelocity = 25f,        // caps the hardest fling at ~3 revolutions total (§3.4)
+    minHandSpeed = 3f,               // ≈20 cm/s: a wave clears it, a hand adjusting hair does not
 )
 ```
 

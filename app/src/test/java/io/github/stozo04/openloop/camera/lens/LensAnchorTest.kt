@@ -1103,7 +1103,7 @@ class LensAnchorTest {
         )
         // The brim has to land ON the brow — that is what makes a hat read as worn. Too high and
         // it floats above the head (the 2026-09-03 hardware finding: a brim at +0.62 left 0.39
-        // units of bare forehead); too low and it covers the eyes the whole lens is tracked from.
+        // units of bare forehead); too low, and it covers the eyes the whole lens is tracked from.
         assertTrue(
             "the brim reaches ${extent.start}, down over the $BROW_UNITS brow and toward the eyes",
             extent.start >= BROW_UNITS,
@@ -1136,7 +1136,7 @@ class LensAnchorTest {
 
     @Test
     fun cowboy_mustacheSpansPastTheMouthCorners_butStaysOnTheFace() {
-        // A handlebar's tips belong out on the cheeks — narrower and it reads as a pencil
+        // A handlebar's tips belong out on the cheeks — narrower, and it reads as a pencil
         // mustache, which is what the first 1.4-unit draft did on the schematic head.
         val halfWidth = cowboyMustache.placement.widthInUnits / 2f
 

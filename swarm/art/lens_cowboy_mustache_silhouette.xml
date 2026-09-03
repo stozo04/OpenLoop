@@ -21,11 +21,11 @@
     One closed silhouette in one flat colour, as the reference draws it. The shape is the whole
     read at 56dp, so shading that would be invisible there is left out.
 -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="310dp"
-    android:height="125dp"
-    android:viewportWidth="620"
-    android:viewportHeight="250">
+<vector
+    width="310dp"
+    height="125dp"
+    viewportWidth="620"
+    viewportHeight="250">
 
     <!--
         Left barb -> hump -> philtrum notch -> hump -> right barb along the top, then back along
@@ -33,8 +33,8 @@
         and the middle arches high so the wearer's lips stay readable.
     -->
     <path
-        android:fillColor="#FF33261C"
-        android:pathData="M2,190
+        fillColor="#FF33261C"
+        pathData="M2,190
             C30,226 50,213 62,213
             C86,213 100,150 124,95
             C144,42 166,14 186,11

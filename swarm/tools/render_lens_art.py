@@ -56,7 +56,6 @@ from scipy.ndimage import (
 _COMMANDS = ("M", "L", "C", "Z")   # the absolute subset the silhouettes use
 TOKEN = re.compile("[%s]|-?\\d*\\.?\\d+" % "".join(_COMMANDS + tuple(c.lower() for c in _COMMANDS)))
 
-ANDROID = "{http://schemas.android.com/apk/res/android}"
 ROOT = Path(__file__).resolve().parents[2]
 SILHOUETTES = ROOT / "swarm/art"
 DRAWABLES = ROOT / "app/src/main/res/drawable-nodpi"
@@ -110,17 +109,22 @@ def _subpaths(data: str):
 
 
 def path_masks(name: str, width: int):
-    """One boolean mask per `<path>`, in the order they are drawn."""
+    """One boolean mask per `<path>`, in the order they are drawn.
+
+    The silhouettes carry NO xmlns: they are input to this tool, never packaged, and the
+    `android:` namespace made every IDE outside `res/` report "URI is not registered" on a file
+    that is not an Android resource. Plain attribute names, identical geometry.
+    """
     root = ET.parse(SILHOUETTES / name).getroot()
-    vw = float(root.get(ANDROID + "viewportWidth"))
-    vh = float(root.get(ANDROID + "viewportHeight"))
+    vw = float(root.get("viewportWidth"))
+    vh = float(root.get("viewportHeight"))
     scale = width / vw
     height = int(round(vh * scale))
     out = []
     for node in root.findall("path"):
         img = Image.new("L", (width, height), 0)
         draw = ImageDraw.Draw(img)
-        for poly in _subpaths(node.get(ANDROID + "pathData")):
+        for poly in _subpaths(node.get("pathData")):
             draw.polygon([(x * scale, y * scale) for x, y in poly], fill=255)
         out.append(np.asarray(img) > 127)
     return out, width, height

@@ -351,7 +351,7 @@ class LensMotionTest {
     @Test
     fun aFaceRelabelledByTheDetector_keepsItsSpin_throughTheRoster() {
         // The Lesson 037 boundary, with a spin instead of a spring: a blink that relabels the
-        // person must not stop their ball mid-air or snap their features back early.
+        // person must not stop their ball midair or snap their features back early.
         val roster = FaceRoster(maxFaces = 2, holdMs = 350L)
         val motion = LensMotion()
         var stamp = frameNs

@@ -283,6 +283,12 @@ Gate "8b. IDE spelling dictionary in sync with cspell.json" {
 Gate "8c. Tracked-file hygiene + Gitleaks — no generated files or secrets" {
     $ignoredTracked = @(& git ls-files -ci --exclude-standard)
     $ignoredTracked | Add-Content $log
+    # An XML file outside res/ that declares the Android namespace cannot resolve it in ANY IDE —
+    # Inspect Code reports "URI is not registered" on every open. Generator input (swarm/art) carries
+    # plain attribute names instead; the manifest is the one legitimate exception. (1.0.50, #169)
+    $strayNs = @(& git ls-files "*.xml" | Where-Object { $_ -notmatch "/res/" -and $_ -notmatch "AndroidManifest\.xml$" } |
+        Where-Object { Select-String -Path $_ -Pattern "schemas\.android\.com" -Quiet })
+    if ($strayNs.Count -gt 0) { $strayNs | Add-Content $log }
     try {
         $gitleaks = (& scripts/ensure-gitleaks.ps1 | Select-Object -Last 1)
         $archive = Join-Path $root "build/gitleaks-tracked-head.zip"
@@ -295,8 +301,8 @@ Gate "8c. Tracked-file hygiene + Gitleaks — no generated files or secrets" {
         $_ | Add-Content $log
         return "FAIL: Gitleaks could not run — see build/sweep.log"
     }
-    if ($ignoredTracked.Count -eq 0 -and $scanCode -eq 0) { return "PASS" }
-    return "FAIL: ignored-tracked=$($ignoredTracked.Count) gitleaks-exit=$scanCode — see build/sweep.log (findings are redacted)"
+    if ($ignoredTracked.Count -eq 0 -and $scanCode -eq 0 -and $strayNs.Count -eq 0) { return "PASS" }
+    return "FAIL: ignored-tracked=$($ignoredTracked.Count) gitleaks-exit=$scanCode android-xmlns-outside-res=$($strayNs.Count) — see build/sweep.log (findings are redacted)"
 }
 
 $inspect = "skipped"

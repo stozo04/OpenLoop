@@ -467,8 +467,7 @@ Kayley accepted the replacement on 2026-08-15 after inspecting the encoded file.
 ### Generic two-eye warp
 
 `WarpSpec` gained the anatomical `WarpTarget` values `MOUTH` and `EYES`, defaulting to `MOUTH`.
-`LensAnchor.warps()` therefore produces one unchanged mouth circle for Big Mouth or two landmark-
-centered eye circles for Bug Eyes. `LensSurfaceProcessor` binds two generic uniform sets and applies
+`LensAnchor.warps()` therefore produces one unchanged mouth circle for Big Mouth or two landmark-centered eye circles for Bug Eyes. `LensSurfaceProcessor` binds two generic uniform sets and applies
 the same shader function twice; an unused set is disabled with `WarpCircle.NONE`. No renderer,
 tracker, UI, camera, or capture branch names a lens, and the default keeps Big Mouth's center,
 radius, and strength unchanged.

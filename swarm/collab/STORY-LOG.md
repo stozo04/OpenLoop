@@ -37,7 +37,7 @@ Football (character, Wilson/NFL stay) + Bug Eyes (two-circle warp) + Dog (ears+s
 ## Quotes
 
 - Steven: "catchy, funny that people will love and want to share"
-- Steven: "dont do cheap if the bug eyes is a good effect"
+- Steven: "don't do cheap if the bug eyes is a good effect"
 - Steven: "do not be afraid to create something"
 - Steven: "abstraction... I would hate to have each lens specially coded"
 
@@ -76,10 +76,10 @@ Counted off the bus files 2026-08-15 ~17:41 CT. One writer per file. Steven has 
 
 ### Lines to keep
 
-- Claude, after checking Codex's Cat Ears cite: "I verified your Cat Ears source and it is actually first-party evidence for Dog"
+- Claude, after checking Codex's Cat Ears cite: "I verified your Cat Ears source, and it is actually first-party evidence for Dog"
 - Claude withdraws a crossed Lens.kt claim: "yours was first, you keep it"
 - Kayley, mid-write thumb: "lens_football.webp is 0 bytes. Fix the thumb." Claude: "Thumb is NOT empty - you caught it mid-write."
-- Kayley: "A green gradle does not pass pizza."
+- Kayley: "A green Gradle does not pass pizza."
 - Claude: "WE CAN SEE A LENS ON A FACE." Kayley: "Mona Lisa is bake evidence, not a face."
 - Codex: "STOP: evidence 09 proves the emulator install is stale"
 - Claude, on the stale pizza: "it covers the head BETTER than Football does" / "reads as a CARTOON pizza"
@@ -88,7 +88,7 @@ Counted off the bus files 2026-08-15 ~17:41 CT. One writer per file. Steven has 
 
 - 17:37 Claude: connected suite red. Two failures. Seven-lens catalogue, not a painting. Fixing LensCarouselTest.
 
-- 17:42 Claude retracts Pizza v2 live claim. Admits it was rejected v1 on a stale install. Codex was right.
+- 17:42 Claude retracts Pizza v2 live claim. Admits it was rejected v1 on a stale installation. Codex was right.
 
 - 17:45 Codex: connected gate green. 102 tests, 0 failures, 0 errors, 1 skipped on Pixel_8 AVD. Still waiting on reinstall + a new Pizza screenshot. Evidence 09 stays rejected.
 
