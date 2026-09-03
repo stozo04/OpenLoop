@@ -84,13 +84,25 @@ def snapshot(serial: str, evidence: Path, name: str, xml: str) -> Path:
     return path
 
 
+def thumb_is_on(node: UiNode) -> bool:
+    """Whether a lens thumbnail reports itself as the worn one.
+
+    `LensCarousel` sets Compose's `selected` semantics, but Compose only maps that to
+    AccessibilityNodeInfo.isSelected for `Role.Tab`; every other role is announced as
+    isChecked + isCheckable. The thumbnails have no Role, so a worn lens dumps as
+    checked="true" selected="false" (verified on the Pixel 8 API 37 AVD). Read both, so
+    this stays true if the carousel ever takes a Tab role.
+    """
+    return node.selected or node.checked
+
+
 def lens_state(nodes: list[UiNode]) -> tuple[bool, bool]:
     """One dump's answer to "is LENS on": (name pill showing, thumbnail reporting selected)."""
     app = app_nodes(nodes)
     # The pill is a Text; the thumbnails carry the same string as a contentDescription. Only a
     # node whose *text* is the name can be the pill, or every thumb would look like one.
     pill = any(node.text == LENS for node in app)
-    thumb = any(node.selected for node in find_all(app, LENS))
+    thumb = any(thumb_is_on(node) for node in find_all(app, LENS))
     return pill, thumb
 
 
@@ -227,7 +239,7 @@ def main() -> int:
     worn_xml, worn_nodes = wait_for_lens(serial, True, "lens-worn", evidence)
 
     candidates = find_all(app_nodes(worn_nodes), LENS)
-    again = next((node for node in candidates if node.selected), None)
+    again = next((node for node in candidates if thumb_is_on(node)), None)
     if not again:
         path = snapshot(serial, evidence, "thumb-gone", worn_xml)
         fail(f"clear: {LENS!r} left the tray once selected, so it cannot be tapped off; evidence={path}")

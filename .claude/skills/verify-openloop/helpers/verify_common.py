@@ -42,9 +42,10 @@ class UiNode:
     # is selected, so this pair is the only place a segmented control's state is readable.
     checkable: bool = False
     checked: bool = False
-    # Compose's `selected` semantics, which reaches uiautomator as this attribute rather than as
-    # `checked` — a `selectable` in a list (a lens thumbnail) announces itself this way, while a
-    # `selectable` inside a segmented control announces itself through the pair above.
+    # Compose's `selected` semantics reaches uiautomator as THIS attribute only for `Role.Tab`;
+    # every other role is announced through `checked`/`checkable` above. So a lens thumbnail, which
+    # sets `selected` with no role, dumps as checked="true" selected="false" — read both when you
+    # mean "is this the chosen one" (see `lenses_loop.thumb_is_on`).
     selected: bool = False
 
 
