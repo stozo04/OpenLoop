@@ -36,6 +36,13 @@ class LensAnchorTest {
         const val CROWN_UNITS = 1.25f
 
         /**
+         * Top of the brow. Added 2026-09-03 off an owner hardware capture — Cowboy's brim was
+         * tuned against an assumed 0.35 and the real one measured 0.30, which left a visible band
+         * of forehead. See `Lens.kt`'s header table.
+         */
+        const val BROW_UNITS = 0.30f
+
+        /**
          * Bottom of the chin, below the eye line. The mouth is at 1.00 *by definition*, and the jaw
          * runs ~0.75 units further. This table said 1.00 until 2026-08-16 — the mouth's number
          * wearing the chin's label — which is what let Pizza Face and Football ship covering only
@@ -1094,13 +1101,17 @@ class LensAnchorTest {
             "the crown tops out at ${extent.endInclusive}, below the $CROWN_UNITS skull",
             extent.endInclusive > CROWN_UNITS,
         )
-        // The brim has to land between the brow and the eyes: any higher and the hat floats above
-        // the head, any lower and it covers the eyes the lens is tracked from.
+        // The brim has to land ON the brow — that is what makes a hat read as worn. Too high and
+        // it floats above the head (the 2026-09-03 hardware finding: a brim at +0.62 left 0.39
+        // units of bare forehead); too low and it covers the eyes the whole lens is tracked from.
         assertTrue(
-            "the brim reaches ${extent.start}, down onto the eye line",
-            extent.start > 0.3f,
+            "the brim reaches ${extent.start}, down over the $BROW_UNITS brow and toward the eyes",
+            extent.start >= BROW_UNITS,
         )
-        assertTrue("the brim floats above the brow at ${extent.start}", extent.start < 1.0f)
+        assertTrue(
+            "the brim sits at ${extent.start}, a visible band of forehead above the $BROW_UNITS brow",
+            extent.start < BROW_UNITS + 0.25f,
+        )
     }
 
     @Test
@@ -1143,9 +1154,10 @@ class LensAnchorTest {
             "the hat stops at $hatBottom and the mustache starts at $mustacheTop — they overlap",
             hatBottom > mustacheTop,
         )
+        // The gap has to span the eyes and the nose — that is the face a prop must not swallow.
         assertTrue(
             "only ${hatBottom - mustacheTop} units of face show between the pieces",
-            hatBottom - mustacheTop > 1f,
+            hatBottom - mustacheTop > 0.9f,
         )
     }
 

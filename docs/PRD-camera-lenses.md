@@ -737,3 +737,47 @@ network policy denies `dl.google.com`, which serves both the SDK and Google's Ma
 The `docs/DEFINITION_OF_DONE.md` gate is therefore **not cleared by this change**; it has to be run
 on a machine with the SDK before merge, and the first pre-PR sweep there is what settles both the
 build and the verifier.
+
+### 16.6 2026-09-03, second pass — the first hardware capture, and the brow
+
+The owner ran the lens on his own face the same day. **Everything worked**: both layers tracked,
+the mustache landed on the mouth, the hat stayed square to the head, the live preview composited
+cleanly. That is the whole chain §16.4 could not prove from a container.
+
+**It also showed the hat was perched.** The brim floated above the hairline with the full forehead
+bare, which reads as a hat held over someone's head rather than worn.
+
+The capture is measurable, so it was measured rather than eyeballed. Both layers render in exactly
+the palette they declare, so the art can be masked out of the screenshot by colour and the face
+frame recovered from the art's own geometry: the hat quad measured 480 px tall, and it is declared
+`3.6 x 0.48`, which fixes the face unit at **278 px**. Everything else follows.
+
+| Measured off the capture       | Value                                    |
+| ------------------------------ | ---------------------------------------- |
+| face unit (eye-to-mouth)       | 278 px                                   |
+| brim front dip                 | **+0.69** (designed +0.62 — as intended) |
+| top of the brow                | **+0.30**                                |
+| bare forehead, brim to brow    | **0.39 units**                           |
+
+**The placement math was right; its input was wrong.** The brim was tuned against an *assumed*
+brow at +0.35 with the reasoning "+0.62 clears it comfortably" — but a worn hat does not clear the
+brow comfortably, it sits *on* it, and the real brow is at +0.30 rather than +0.35. `upInUnits`
+drops 1.48 → **1.20**, putting the dip at +0.34, just above the brow. Nothing else moved: the crown
+still stands 0.81 units over the skull and the mustache was untouched.
+
+This is the **chin-row mistake again** (§13, and the header table in `Lens.kt`): a lens tuned
+against a number that was never in the table, guessed instead of measured. So the fix is not only
+the one lens — **the brow is now a row in that table**, with `BROW_UNITS` in `LensAnchorTest`
+asserting Cowboy's brim lands on it rather than a hand-picked bound. The next lens that sits on a
+forehead gets the measured number for free.
+
+Two things the capture does **not** settle, both owner calls:
+
+* **The flat vector reads as clip art against a photographic face.** Elvis is photoreal WebP; this is
+  flat-shaded vector, and side by side on a real face the difference shows. Closing it means
+  photoreal source art, which is an asset-sourcing decision, not a code one.
+* **The mustache's weight.** It measures as designed and sits correctly, but its mid-brown is
+  lighter than a dark beard, so on a bearded subject it reads as applied rather than grown.
+
+Neither blocks the geometry fix; both are recorded so the look question is not confused with the
+placement one.

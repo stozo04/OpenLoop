@@ -30,12 +30,18 @@ import io.github.stozo04.openloop.R
  * |---|---|
  * | head width, ear to ear | 1.55 |
  * | eye line up to the crown | 1.25 |
+ * | eye line up to the **top of the brow** | **0.30** |
  * | eye line down to the mouth | **1.00** (the definition) |
  * | eye line down to the **chin** | **1.75** |
  * | mouth width, at rest | 0.8 |
  *
  * These are **measured off a real tracked face**, not assumed. If a lens ever needs
  * resizing, re-measure against this table rather than nudging a lens in isolation.
+ *
+ * The **brow** row was added 2026-09-03 off an owner hardware capture, because [Cowboy] shipped a
+ * hat brim tuned against an *assumed* brow at 0.35 and the real one measured 0.30 — the same class
+ * of error as the chin row above, and the reason anything a lens sits against belongs in this table
+ * rather than in one lens's head.
  *
  * Because they are ratios of the face to itself, one set of numbers holds for every face at every
  * distance and angle — there is nothing here to re-tune per device.
@@ -513,11 +519,17 @@ enum class Lens(
      *
      * * **Hat.** 3.6 units across a 1.55-unit head — 2.3x, which is a real cowboy hat's ratio, and
      *   the crown at 0.47 of that width clears the skull. The 750x360 viewport is then 208.33 units
-     *   per face unit. Centred +1.48 puts the brim's front dip (viewport y=360) at **+0.62**, just
-     *   above the brow, and the crown's shoulders (y=18) at **+2.26** — 1.01 units of hat above the
-     *   +1.25 crown, which is a real crown height. The brim's inner line (y=324) lands at +0.79 —
-     *   0.46 units *below* the skull's crown, so the hat is worn down over the head rather than
-     *   balanced on top of it.
+     *   per face unit. Centred +1.20 puts the brim's front dip (viewport y=360) at **+0.34**, just
+     *   clear of the +0.30 brow, and the crown's shoulders (y=18) at **+2.06** — 0.81 units of hat
+     *   above the +1.25 crown, which is a real crown height. The brim's inner line (y=324) lands at
+     *   +0.51 — 0.74 units *below* the skull's crown, so the hat is worn down over the head rather
+     *   than balanced on top of it.
+     *
+     *   **This was +1.48 until the first hardware capture (owner, 2026-09-03).** At that height the
+     *   dip sat at +0.62 and 0.39 units of bare forehead showed between the brim and the brow, so
+     *   the hat read as held above the head rather than worn. The placement math was correct — it
+     *   was tuned against an assumed 0.35 brow, and the real one is 0.30. That row is now in the
+     *   header table so the next lens does not have to rediscover it.
      * * **Mustache.** 1.4 units was tried first and read as a pencil mustache on the schematic
      *   head; 1.6 is the handlebar the reference draws, and it puts the tips at ±0.80 against the
      *   0.775 head half-width — at the cheek edge, where a handlebar's tips belong. The 620x250
@@ -526,8 +538,8 @@ enum class Lens(
      *   stays clear and the wearer can still be seen talking. The lobes (y=248) reach −0.31,
      *   hanging beside the mouth corners rather than over them, and well clear of the −0.75 chin.
      *
-     * Draw order is hat then mustache; they are 1.28 units apart at the closest, so neither
-     * overlaps the other and the face shows between them.
+     * Draw order is hat then mustache; they are 1.00 units apart at the closest, so neither
+     * overlaps the other and the subject's eyes, nose and cheeks show between them.
      *
      * The carousel chip is **generated** from these same two drawables, so it cannot drift away
      * from them:
@@ -551,7 +563,12 @@ enum class Lens(
                     widthInUnits = 3.6f,
                     // The authored 750x360 viewport's own ratio.
                     artAspect = 0.48f,
-                    upInUnits = 1.48f,
+                    // 1.20, was 1.48. At 1.48 the brim's dip landed at +0.62 and the hat read as
+                    // held ABOVE the head rather than worn: measured off the owner's 2026-09-03
+                    // capture, 0.39 units of bare forehead showed between the brim and the brow.
+                    // The placement was doing exactly what it was told; the input was wrong. This
+                    // drops it 0.28 units so the dip sits at +0.34, just clear of the +0.30 brow.
+                    upInUnits = 1.20f,
                 ),
             ),
             LensArt(
