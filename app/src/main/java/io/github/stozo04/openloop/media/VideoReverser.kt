@@ -580,6 +580,7 @@ class VideoReverser(
         var muxerStarted = false
         var inputDone = false
         var decoderDone = false
+        var decoderOutputEos = false
         val timeoutUs = DEQUEUE_TIMEOUT_US
         var lastEncodedSampleUs = -1L
         var loopIterations = 0
@@ -652,6 +653,7 @@ class VideoReverser(
                     onFrameSkipped()
                 }
                 if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                    decoderOutputEos = true
                     runMediaCodecCancellable { encoder.signalEndOfInputStream() }
                 }
             }
@@ -670,7 +672,7 @@ class VideoReverser(
                 // Gated on "nothing was ever rendered" — with a decoder preroll in front of a short trim
                 // window, the encoder can still be empty when input EOS is queued, and bailing there
                 // would throw away a pass that was about to succeed (issue #170).
-                if (inputDone && !started && lastEncodedSampleUs < 0L) decoderDone = true
+                if (decoderOutputEos && !started && lastEncodedSampleUs < 0L) decoderDone = true
             }
 
             // Clips with no container duration still need a way out once input is exhausted.
