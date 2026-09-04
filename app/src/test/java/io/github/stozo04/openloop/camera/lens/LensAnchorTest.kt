@@ -1165,17 +1165,25 @@ class LensAnchorTest {
 
     @Test
     fun vampire_isAPropWithMeasuredLayersOnTheRightAnatomy() {
-        val costume = Lens.Vampire.art[0]
-        val fangs = Lens.Vampire.art[1]
+        val torso = Lens.Vampire.art[0]
+        val costume = Lens.Vampire.art[1]
+        val fangs = Lens.Vampire.art[2]
+        val torsoExtent = extentInUnits(torso)
         val costumeExtent = extentInUnits(costume)
 
         assertEquals("Vampire", Lens.Vampire.displayName)
         assertNull("Vampire frames the subject's real face", Lens.Vampire.features)
         assertEquals(LensInteraction.NONE, Lens.Vampire.interaction)
+        assertEquals(3, Lens.Vampire.art.size)
+        assertEquals(LensAnchorPoint.FACE, torso.placement.anchor)
         assertEquals(LensAnchorPoint.FACE, costume.placement.anchor)
         assertEquals(LensAnchorPoint.MOUTH, fangs.placement.anchor)
-        assertEquals("encoded 941x1024", 1024f / 941f, costume.placement.artAspect, 1e-4f)
+        assertEquals("encoded 1024x585", 585f / 1024f, torso.placement.artAspect, 1e-4f)
+        assertEquals("encoded 954x1024", 1024f / 954f, costume.placement.artAspect, 1e-4f)
         assertEquals("encoded 1024x642", 642f / 1024f, fangs.placement.artAspect, 1e-4f)
+        assertTrue("the cape must span wider than the face frame", torso.placement.widthInUnits > costume.placement.widthInUnits)
+        assertTrue("the torso must begin below the mouth", torsoExtent.endInclusive <= -1f)
+        assertTrue("the shirt must continue down the chest", torsoExtent.start <= -3.8f)
         assertTrue("the cowl stops below the $CROWN_UNITS crown", costumeExtent.endInclusive >= CROWN_UNITS)
         assertTrue("the collar stops above the $CHIN_UNITS chin", costumeExtent.start <= CHIN_UNITS)
     }
@@ -1184,7 +1192,7 @@ class LensAnchorTest {
     fun vampire_fangsHideAtRest_thenExtendWithoutMovingTheirRoots() {
         val subject = face()
         val frame = frameOf(subject)
-        val fangs = Lens.Vampire.art[1]
+        val fangs = Lens.Vampire.art[2]
         val shut = LensAnchor.sticker(subject, frame, fangs.placement, frameAspect, openFraction = 0f)
         val open = LensAnchor.sticker(subject, frame, fangs.placement, frameAspect, openFraction = 1f)
         val shutRoot = shut.centerY - shut.halfHeight

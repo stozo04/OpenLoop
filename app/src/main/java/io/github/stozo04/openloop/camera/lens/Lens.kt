@@ -595,16 +595,18 @@ enum class Lens(
 
     /**
      * Vampire — a romantic-goth **prop** that keeps the subject's real face and expression visible.
-     * A lacquer-black widow's-peak cowl and oxblood velvet collar frame the head; two ivory upper
-     * canines extend when the mouth opens. The product choice and research are in
+     * A lacquer-black widow's-peak cowl and oxblood velvet collar frame the head, while a separate
+     * tuxedo and cape continue over the shoulders; two ivory upper canines extend when the mouth
+     * opens. The product choice and research are in
      * `docs/PRD-camera-lenses.md` §17.
      *
-     * The two layers belong to different anatomy. The frame is rigid on [LensAnchorPoint.FACE].
-     * The fangs are on [LensAnchorPoint.MOUTH], with their top edge authored at the top of the
-     * bitmap and [MouthOpenSpec] scaling the offset and size together. With `upInUnits` equal to
-     * negative half-height, that edge stays on the mouth while the tips grow downward.
+     * The torso and frame scale from [LensAnchorPoint.FACE]; separating them lets the garment reach
+     * the chest without enlarging the face opening. The fangs are on [LensAnchorPoint.MOUTH], with
+     * their top edge authored at the top of the bitmap and [MouthOpenSpec] scaling the offset and
+     * size together. With `upInUnits` equal to negative half-height, that edge stays on the mouth
+     * while the tips grow downward.
      *
-     * Both WebPs are rendered from the committed RGBA sources in `swarm/art/` by
+     * All WebPs are rendered from the committed sources in `swarm/art/` by
      * `swarm/tools/render_lens_art.py`; the encoded dimensions below are the measured ratios.
      */
     Vampire(
@@ -614,14 +616,24 @@ enum class Lens(
         thumbnailRes = R.drawable.lens_vampire,
         art = listOf(
             LensArt(
+                drawableRes = R.drawable.lens_vampire_torso_art,
+                placement = LensPlacement(
+                    // Broad enough to cover both shoulders while preserving the face opening.
+                    widthInUnits = 4.8f,
+                    // Encoded 1024x585.
+                    artAspect = 585f / 1024f,
+                    // Top -1.13 overlaps the collar; bottom -3.87 carries the shirt down the chest.
+                    upInUnits = -2.5f,
+                ),
+            ),
+            LensArt(
                 drawableRes = R.drawable.lens_vampire_frame_art,
                 placement = LensPlacement(
                     // 3.0 units frames a 1.55-unit head without swallowing the central face opening.
                     widthInUnits = 3.0f,
-                    // Encoded 941x1024.
-                    artAspect = 1024f / 941f,
-                    // Top +1.28 clears the +1.25 crown; the widow's point lands at about +0.40,
-                    // just above the +0.30 brow; the clasp settles near the chin.
+                    // Encoded 954x1024.
+                    artAspect = 1024f / 954f,
+                    // Top +1.26 clears the +1.25 crown; the widow's point lands above the brow.
                     upInUnits = -0.35f,
                 ),
             ),
