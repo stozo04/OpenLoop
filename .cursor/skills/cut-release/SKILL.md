@@ -65,9 +65,11 @@ history, and GitHub's PR data are authoritative; branch names and PR titles are 
 4. The bump PR is merged but `releases/openloop-<next>-<code>.aab` doesn't exist locally → resume
    at **Step 3/4** (capture the sha, build).
 5. The `.aab` exists but no tag matches its version → you're at **Stop B**, waiting on upload
-   confirmation. Do not tag.
+   confirmation. The buildSha should be in `releases/openloop-<version>-<code>.buildsha`. Do not tag.
 6. A tag exists for the current `versionName` → already done; say so and stop.
-7. Current `versionName` == latest tag and no open release PR exists → nothing in flight; a new
+7. Current `versionName` > latest tag but no bump PR exists (open or merged) → an unmerged bump
+   commit exists; resume at **Step 2** (sweep + create PR).
+8. Current `versionName` == latest tag and no open release PR exists → nothing in flight; a new
    release starts at **Step 1**.
 
 GitHub issues and PRs share one number sequence. If `gh pr view <user-number>` says the number is
@@ -123,6 +125,8 @@ you're stopped here, waiting for a human review.
   the jar as verified.
 - Copy to `releases/openloop-<version>-<code>.aab` (create `releases/` if missing — already
   covered by the repo's blanket `*.aab` `.gitignore` rule, no new ignore entry needed).
+- Write the buildSha to `releases/openloop-<version>-<code>.buildsha` so Step 7 can use it on
+  resume without re-determining the cutoff.
 
 ## Step 5 — Lesson 040 check: did a new native/JNI/reflection dependency land?
 
@@ -162,6 +166,8 @@ to "just do it all" — the tag means "this shipped," and nothing here can confi
 the owner.
 
 ## Step 7 (after Stop B clears) — cut the tag
+
+- Read the buildSha from `releases/openloop-<version>-<code>.buildsha` (written in Step 4).
 
 ```powershell
 .\scripts\tag-release.ps1 -Version <version> -Sha <buildSha> `
