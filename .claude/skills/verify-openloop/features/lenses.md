@@ -17,11 +17,9 @@ Live face effects on the camera viewfinder. The bottom-left drawer opens a carou
 `lenses-open` / `lenses-pick` / `lenses-clear` are driven by a loop; the rest of this file is the
 manual recipe for the sub-features it cannot reach.
 
-> **Not yet seen passing.** The loop was written in a container with no Android SDK and no
-> emulator, so it has proved nothing yet — `INVENTORY.md` carries it as `loop not yet run`, not
-> `automated`. `scripts/run-verification-loops.py` runs it, so the first pre-PR sweep on a machine
-> with an AVD is what settles it. Treat a red result there as a product bug until its evidence
-> says otherwise.
+> **Automated 2026-09-03.** The loop passed on the Pixel 8 API 37 AVD and `INVENTORY.md`
+> records the drawer + catalogue surface as automated. It proves open, pick and clear; face
+> tracking and baked pixels still need the visual checks below.
 
 ```text
 python .claude/skills/verify-openloop/helpers/lenses_loop.py
