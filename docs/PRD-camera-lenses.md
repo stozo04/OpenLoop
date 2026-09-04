@@ -978,7 +978,8 @@ a hardware QA boundary.
 `python swarm/tools/render_lens_art.py` removes only border-connected light backdrop pixels from
 the generated costume sources, thresholds near-invisible alpha below 8, crops with an 8 px margin,
 fits the longest edge to the renderer's 1024 px cap, and encodes WebP at quality 90. Its built-in
-self-check proves that an enclosed white shirt reaching the bottom edge remains opaque. The frame
+self-check proves that a closed central face opening clears while a white shirt reaching the bottom
+edge remains opaque. The frame
 measures x ±1.50 face units and y +1.260 through −1.960. The torso measures x ±2.40 and y −1.129
 through −3.871, overlapping the collar while continuing well below the chin.
 

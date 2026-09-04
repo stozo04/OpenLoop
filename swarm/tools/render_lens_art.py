@@ -194,7 +194,11 @@ def save(rgb, alpha, out_w, path: Path):
     return img
 
 
-def cut_out_connected_light_background(image: Image.Image) -> Image.Image:
+def cut_out_connected_light_background(
+    image: Image.Image,
+    *,
+    clear_center: bool = False,
+) -> Image.Image:
     """Turn a generated light checkerboard backdrop into alpha without touching enclosed whites."""
     rgb = np.array(image.convert("RGB"))
     channel_spread = rgb.max(axis=2) - rgb.min(axis=2)
@@ -203,6 +207,9 @@ def cut_out_connected_light_background(image: Image.Image) -> Image.Image:
     seeds[0] = light_neutral[0]
     seeds[:, 0] = light_neutral[:, 0]
     seeds[:, -1] = light_neutral[:, -1]
+    if clear_center:
+        center = image.height // 2, image.width // 2
+        seeds[center] = light_neutral[center]
     background = binary_propagation(seeds, mask=light_neutral)
 
     # Eat two neutral antialias pixels at the garment boundary, then rebuild a soft alpha edge.
@@ -217,7 +224,7 @@ def cut_out_connected_light_background(image: Image.Image) -> Image.Image:
 
 
 def check_light_background_cutout() -> None:
-    """Prove that a white shirt reaching the lower edge is not mistaken for background."""
+    """Prove that a face hole clears while a white shirt remains opaque."""
     pixels = np.full((11, 11, 3), 240, dtype=np.uint8)
     pixels[3, 3:8] = 0
     pixels[3:, 3] = 0
@@ -227,17 +234,31 @@ def check_light_background_cutout() -> None:
     assert alpha[0, 0] == 0
     assert alpha[-1, 5] > 240
 
+    ring = np.full((11, 11, 3), 240, dtype=np.uint8)
+    ring[2, 2:9] = 0
+    ring[8, 2:9] = 0
+    ring[2:9, 2] = 0
+    ring[2:9, 8] = 0
+    ring_alpha = np.array(
+        cut_out_connected_light_background(
+            Image.fromarray(ring),
+            clear_center=True,
+        ).getchannel("A"),
+    )
+    assert ring_alpha[5, 5] == 0
+
 
 def prepare_generated(
     source: str,
     output: str,
     *,
     cutout_light_background: bool = False,
+    clear_center: bool = False,
 ) -> Image.Image:
     """Crop and encode an image-generated source without inventing costume pixels."""
     image = Image.open(SILHOUETTES / source)
     if cutout_light_background:
-        image = cut_out_connected_light_background(image)
+        image = cut_out_connected_light_background(image, clear_center=clear_center)
     pixels = np.array(image.convert("RGBA"))
     pixels[..., 3] = np.where(pixels[..., 3] >= ALPHA_FLOOR, pixels[..., 3], 0)
     image = Image.fromarray(pixels)
@@ -417,6 +438,7 @@ def render_vampire() -> None:
         "lens_vampire_frame_source.png",
         "lens_vampire_frame_art.webp",
         cutout_light_background=True,
+        clear_center=True,
     )
     fangs = prepare_generated("lens_vampire_fangs_source.png", "lens_vampire_fangs_art.webp")
 
