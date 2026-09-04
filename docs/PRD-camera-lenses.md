@@ -827,3 +827,246 @@ separate commit from §16.6's placement fix and can be reverted on its own.
 an attempt to composite them onto the owner's capture required inpainting the shipped art out of it
 first, and that destroyed his beard, so it was thrown away rather than presented as evidence. What
 the art looks like on a real bearded face at real size remains the owner's check.
+
+---
+
+## 17. 2026-09-03 — PRD: Vampire, the spooky lens
+
+> **Status: approved and implemented on 2026-09-03.**
+
+### 17.1 Problem and product answer
+
+OpenLoop needs one Halloween lens that is recognizable in a thumbnail, becomes more fun in motion,
+and is polished enough to record and share rather than merely try once. The answer is **Vampire**:
+a romantic-goth prop lens with a lacquer-black widow's-peak cowl, a black-and-burgundy velvet high
+collar, and ivory fangs that lengthen when the wearer opens their mouth.
+
+The tone is glamorous and playful, not gory. The wearer's eyes, nose, skin and expression remain
+theirs. At rest it reads as a complete costume; opening the mouth supplies the reveal that makes a
+short loop worth sending.
+
+This is evidence-led rather than a seasonal guess:
+
+* Pinterest's 2026 global trend report calls out **vampire beauty +90%**, **dark romantic make-up
+  +160%**, and **gothic coffin nails +180%**, led by Gen Z and Millennials
+  ([Pinterest Predicts 2026](https://business.pinterest.com/pdf/pinterest-predicts/2026-trend-report/),
+  English-language search comparison through August 2025).
+* The US National Retail Federation's 2025 survey still ranked vampire second among adult costumes,
+  planned by 2.7 million adults. That gives the concept durable recognition beyond one licensed
+  character or one year's meme
+  ([NRF Halloween survey](https://nrf.com/media-center/press-releases/nrf-consumer-survey-finds-halloween-spending-to-reach-record-13-1-billion)).
+* Snap's current face-effects model explicitly treats mouth-open state and 2D face attachments as
+  native building blocks, while its optimization guidance ties broad reach to few resources,
+  compressed textures and cross-device testing
+  ([Face Effects](https://developers.snap.com/lens-studio/4.55.1/references/guides/lens-features/tracking/face/face-effects-overview),
+  [Performance and Optimization](https://developers.snap.com/lens-studio/publishing/optimization/performance-optimization-guide)).
+
+### 17.2 Why this concept wins
+
+| Candidate               | What works                         | Why it loses here                                       |
+| ----------------------- | ---------------------------------- | ------------------------------------------------------- |
+| Romantic vampire        | Trend-backed, iconic, mouth reveal | **Chosen**                                              |
+| Witch                   | Broadly recognizable               | Another hat is too close to Cowboy; little video payoff |
+| Pumpkin or skull head   | Strong silhouette, easy thumbnail  | Repeats the existing opaque character-head pattern      |
+| Horror clown            | Snap has seasonal precedent        | Face paint needs a new mask path to look convincing     |
+| Ghost or background VFX | Atmospheric                        | Needs segmentation or particles outside this lens slice |
+
+Vampire is the only option that adds a new kind of moment while reusing proven machinery. It is
+the Elvis pattern—photographic props around a real face—plus the existing Twisted Tongue mouth
+response. No renderer work is required.
+
+### 17.3 Experience and art direction
+
+The first frame must read in this order: **face → fangs → velvet silhouette**. The lens must not
+bleach skin, recolor eyes, cover brows, or prescribe gender. Its drama comes from materials and
+silhouette: cool black lacquer, charcoal velvet, a deep oxblood satin lining, an aged-silver ruby
+bow-tie clasp, a narrow white shirtfront, warm ivory teeth and one restrained crimson glint.
+
+Three transparent WebP layers keep the face frame independent from the upper-body garment:
+
+1. `lens_vampire_torso_art.webp` on `FACE`: a broad velvet cape, lapels, bow tie and pleated tuxedo
+   shirt extending from the base of the neck down the chest and across both shoulders.
+2. `lens_vampire_frame_art.webp` on `FACE`: widow's-peak cowl above the brow and raised collar
+   outside the cheeks, with the entire central face left transparent.
+3. `lens_vampire_fangs_art.webp` on `MOUTH`: two upper canines whose top edge stays at the mouth
+   anchor while `MouthOpenSpec` extends them downward.
+
+`lens_vampire.webp` is a 320x320 carousel chip composed from those exact layers, never redrawn.
+The final art is original image-generated material, not copied character or costume photography.
+The prompt and generated source are recorded with the implementation; alpha is inspected after
+encoding rather than inferred from how an image viewer displays it.
+
+### 17.4 Scope, constraints and non-goals
+
+In scope:
+
+* one `Lens.Vampire` catalogue entry and four original WebP assets;
+* measured face-unit placement, including the brow and chin rows already established here;
+* a visible mouth-open fang response using the current easing and tracker;
+* existing two-face, front/back, preview/recording and carousel behavior;
+* focused catalogue/geometry assertions, installed-app evidence, store copy and README alignment.
+
+Not in scope:
+
+* a new shader, face mesh, segmentation, particles, audio, skin smoothing or eye recoloring;
+* hand-flick interaction—the costume and fangs are worn props, so `interaction = NONE`;
+* pose tracking or body segmentation; the garment follows the existing face scale and rotation;
+* licensed Dracula, Nosferatu or film likenesses;
+* a category row or seasonal carousel architecture for a single lens.
+
+The implementation must add no dependency, camera rebind or GL program. Each texture stays within
+the renderer's 1024 px cap and is cropped to useful pixels. Existing catalogue-driven paths remain
+the source of truth.
+
+### 17.5 Success criteria
+
+1. A person can identify “vampire” from the 56 dp unselected carousel chip.
+2. At rest the cowl and collar frame the face while the bow tie sits at the neck and the shirt,
+   lapels and cape continue across the chest and both shoulders.
+3. Opening the mouth visibly lengthens both fangs from their upper attachment without sliding the
+   roots, inflating around the lips or covering the chin.
+4. A head tilt and open-mouth reveal remain steady for both tracked faces, on front and back camera,
+   and the recorded MP4 matches the live preview.
+5. The effect adds no renderer or dependency work and preserves the no-lens frame rate behavior.
+6. Final-head `pre-pr-sweep.ps1` is green; installed-art hashes match the repo assets; the PR carries
+   a real-face screenshot or video-frame proof plus an explicit hardware QA checklist.
+
+### 17.6 Minimal implementation and verification plan
+
+1. Generate separate frame, torso and fang cut-outs, inspect them at actual lens scale, crop and
+   encode to WebP, then compose the chip from those same layers.
+2. Measure encoded alpha bounds. Solve `widthInUnits`, `artAspect`, `upInUnits` and fang
+   `restFraction` from anatomy and the anchored-edge equation; do not nudge against a screenshot.
+3. Add `Lens.Vampire` only. Reuse `FACE`, `MOUTH` and `MouthOpenSpec`; do not touch
+   `LensSurfaceProcessor`.
+4. Add the smallest geometry checks that existing catalogue tests cannot prove: the torso spans the
+   shoulders and chest, the face opening stays clear, and fang roots stay attached from shut to open.
+5. Run the focused JVM checks, generate a schematic preview, then run the full final-commit sweep and
+   the installed lens verifier. Judge tracking and shareability only from a real face, never from the
+   schematic or a painting.
+
+### 17.7 Open question for sign-off
+
+Approve **Vampire** as described: romantic-goth, real face visible, three generated photographic
+layers, and a mouth-open fang reveal. The default display name is the direct, searchable
+**“Vampire”** rather than a branded name.
+
+### 17.8 Implementation record
+
+The owner approved the concept on 2026-09-03. The shipped implementation is one catalogue entry
+using the existing renderer: `FACE` for the upper-body costume and face frame, `MOUTH` plus
+`MouthOpenSpec(0)` for the fangs, and no interaction or new dependency. The first installed portrait
+pass used `0.58`, then the emulator pass shortened the rest state to `0.40`. Owner hardware on
+2026-09-04 showed that `0.40` still read as always-on fangs with a closed mouth, so the final state
+hides them completely. The full open state is unchanged and the tested upper edge remains fixed,
+making the jaw drop a reveal rather than merely a size change.
+
+The same hardware review rejected a compact formalwear revision because its bow tie and shirt looked
+attached to the chin. The final design therefore separates the raised face collar from a broad
+upper-body layer. The bow now sits at the base of the neck, the pleated shirt continues down the
+chest, and the cape and lapels span both shoulders. The body layer follows face scale and rotation;
+there is deliberately no pose-tracking dependency, so independent head-versus-torso motion remains
+a hardware QA boundary.
+
+| Asset                              | Encoded size | File size | Source                                      |
+| ---------------------------------- | ------------ | --------- | ------------------------------------------- |
+| `lens_vampire_torso_art.webp`      | 1024×585     | 65.3 KB   | `swarm/art/lens_vampire_torso_source.png`   |
+| `lens_vampire_frame_art.webp`      | 954×1024     | 108.6 KB  | `swarm/art/lens_vampire_frame_source.png`   |
+| `lens_vampire_fangs_art.webp`      | 1024×642     | 57.8 KB   | `swarm/art/lens_vampire_fangs_source.png`   |
+| `lens_vampire.webp` carousel chip  | 320×320      | 18.7 KB   | composed from the three encoded layers      |
+
+`python swarm/tools/render_lens_art.py` removes only border-connected light backdrop pixels from
+the generated costume sources, thresholds near-invisible alpha below 8, crops with an 8 px margin,
+fits the longest edge to the renderer's 1024 px cap, and encodes WebP at quality 90. Its built-in
+self-check proves that a closed central face opening clears while a white shirt reaching the bottom
+edge remains opaque. The frame
+measures x ±1.50 face units and y +1.260 through −1.960. The torso measures x ±2.40 and y −1.129
+through −3.871, overlapping the collar while continuing well below the chin.
+
+The production sources were generated with the built-in image generator. The committed PNGs, not
+the transient generation folder, are the reproducible inputs. The torso and revised frame arrived
+as opaque RGB checkerboard renders despite explicit alpha requests, so the deterministic render
+step performs the connected-background cut-out and preserves enclosed costume whites.
+
+**Costume frame prompt:**
+
+> Use case: stylized-concept. Asset type: production AR face-lens transparent bitmap layer for an
+> Android camera app. Create one original, premium romantic-goth vampire costume frame that
+> surrounds but does not cover a real human face. Combine a sculpted lacquer-black widow's-peak
+> cowl above the forehead with a dramatic high black velvet collar around the lower sides, deep
+> oxblood satin lining, and one small aged-silver clasp below the chin. Costume pieces only;
+> absolutely no person, face, skin, eyes, mouth, teeth, head, shoulders, mannequin, or background.
+> Photoreal front-facing studio product render, Snapchat-quality baked 3D prop, detailed hair
+> strands, velvet nap, satin sheen, subtle aged metal, glamorous and playful rather than gory.
+> Perfectly symmetrical straight-on orthographic view; cowl fills the upper third, collar rises
+> along both outer cheek areas and meets below the chin; a large clean transparent opening occupies
+> the entire center for the user's real face; all costume parts fully inside the canvas with modest
+> transparent margin; no perspective or three-quarter angle. Soft cool key light from upper left
+> with restrained warm rim light; rich dimensional materials readable over both bright and dark
+> camera scenes. Near-black, charcoal, deep oxblood burgundy, restrained aged silver. Genuinely
+> transparent RGBA background and central face opening; clean anti-aliased edges; no green-screen
+> background, detached drop shadow, text, logo, watermark, bats, blood, jewelry, makeup, or extra
+> objects; original design with no recognizable film character likeness; designed to be cropped
+> and downscaled to 1024 pixels without losing material detail. Avoid cartoon, flat vector,
+> illustration, Halloween clip art, gore, white skin, red eyes, face mask, horns, cape shoulders
+> extending beyond frame, and asymmetric hair.
+
+**Rejected 2026-09-04 compact-formalwear iteration:**
+
+> Edit the FIRST image only; it is the production transparent RGBA face-overlay source. Preserve
+> its canvas, exact lacquer-black widow's-peak hair, oxblood velvet high collar, silhouette,
+> lighting, textures, central transparent face opening, and overall photoreal quality. Use the
+> SECOND image only as a simple silhouette reference for Dracula formalwear. At the bottom center
+> of the first overlay, replace the existing small jeweled throat bow/clasp treatment with a
+> clearly recognizable elegant black velvet bow tie with subtle oxblood satin inner highlights.
+> Add only a SHORT, narrow formal shirtfront directly below the chin: a small crisp white triangular
+> shirt opening, two tiny dark buttons, and restrained black velvet lapel edges. Keep this
+> formalwear centered and symmetrical, cropped well before the shoulders, and contained inside the
+> existing lower collar footprint so it stays believable when anchored to a tracked face. Retain a
+> small aged-silver ruby clasp as the bow-tie knot detail. Do not add a torso, broad shoulders,
+> jacket sleeves, skin, face, facial features, ears, fangs, mouth, bat, text, watermark, opaque
+> background, or white background. The entire central head/face opening and all space outside the
+> costume must remain truly transparent alpha. Output a single high-resolution RGBA PNG suitable
+> as a production AR overlay, matching the first image's dimensions and composition.
+
+The owner rejected that result after seeing it on hardware: keeping the formalwear inside the face
+frame made it look attached to the chin. The final art direction split the costume into two assets.
+The face-frame edit removed the clasp and bow while preserving the exact widow's-peak hair, raised
+black-and-oxblood collar, face opening, material finish and symmetry. The new upper-body brief was:
+
+> Create a separate front-facing production AR costume overlay that begins at the base of the neck
+> and continues down the upper chest. Use a large black velvet bow tie with oxblood accents and an
+> aged-silver ruby clasp, a crisp pleated white tuxedo shirt with three black buttons, black satin
+> lapels, and a sweeping black velvet cape with deep oxblood lining spread naturally across both
+> shoulders. Leave a broad transparent U-shaped opening above the bow for the wearer's real neck
+> and face. Costume only: no person, skin, head, hands, fangs, text, logo or licensed likeness.
+> Premium photoreal baked-3D materials, symmetrical straight-on view, clean anti-aliased edges,
+> glamorous rather than gory, and enough shoulder width and chest depth to feel worn instead of
+> floating below the chin.
+
+Repeated alpha-cleanup generations still returned opaque checkerboards. Rather than accepting a
+visual simulation of transparency, the committed renderer cuts out only the exterior-connected
+light backdrop. That deterministic rule leaves the enclosed white tuxedo shirt intact.
+
+**Fang prompt:**
+
+> Use case: stylized-concept. Asset type: production AR face-lens transparent bitmap layer for an
+> Android camera app. Create a matched pair of elegant vampire upper canine fangs as one transparent
+> asset. The two fangs hang straight downward from an invisible upper gum line and are separated by
+> a wide empty center so the user's real front teeth and mouth remain visible. Exactly two upper
+> canine teeth only; no mouth, lips, gums, face, skin, lower teeth, tongue, blood drip, or background.
+> Photoreal baked 3D dental prop matching a premium romantic-goth vampire costume; warm ivory enamel
+> with subtle translucency at the tips, tiny natural surface detail, soft wet gloss, restrained cool
+> shadow at each root, one extremely subtle dark-crimson specular glint but no gore. Perfectly
+> symmetrical straight-on orthographic view; both roots aligned on the same horizontal top line;
+> fangs point downward and slightly inward; generous transparent gap between them; the entire asset
+> is wide and shallow with tight transparent margins; roots are the topmost visible pixels so scaling
+> from the top edge makes the fangs extend out of the mouth. Same soft cool upper-left key and warm
+> rim as a polished studio product render. Warm ivory, pearl white, faint cool gray, one restrained
+> deep-crimson reflection. Genuinely transparent RGBA background; crisp anti-aliased edges; no green
+> screen, text, logo, watermark, extra teeth, mouth anatomy, jaw, gums, blood, drops, splatter,
+> Halloween clip art, or recognizable character likeness; optimized to downscale cleanly for a 2D
+> face attachment. Avoid cartoon fangs, plastic novelty teeth, full dentures, four fangs, tusks,
+> horns, red background, gore, asymmetry, and perspective angle.
+
+Installed evidence is in [`e2e/2026-09-03-vampire-lens-proof.md`](e2e/2026-09-03-vampire-lens-proof.md).

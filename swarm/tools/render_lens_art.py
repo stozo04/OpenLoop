@@ -1,12 +1,16 @@
 #!/usr/bin/env python
-"""Render Cowboy's shipped WebP art from its committed silhouettes.
+"""Render the shipped Cowboy and Vampire WebP lens art from committed sources.
 
 Elvis's photoreal assets arrived as opaque binaries: nobody can re-derive them, and a change means
 re-running a pipeline that is not in this repo. Cowboy's are **generated here**, so the art has the
 same provenance as the code — the silhouettes in `swarm/art/` carry the tracing that produced them
 (`docs/PRD-camera-lenses.md` §16.1), and everything below turns them into lit, textured surfaces.
 
-Run it from the repo root; it overwrites the three assets in `drawable-nodpi/`:
+Vampire's image-generated sources are committed beside those silhouettes. This tool removes either
+near-invisible alpha or the border-connected light backdrop, crops the useful pixels, fits each
+layer under the renderer's 1024 px cap, and composes the carousel chip from the shipped layers.
+
+Run it from the repo root; it overwrites the seven assets in `drawable-nodpi/`:
 
     python swarm/tools/render_lens_art.py
 
@@ -47,6 +51,7 @@ from PIL import Image, ImageDraw
 from scipy.ndimage import (
     binary_dilation,
     binary_erosion,
+    binary_propagation,
     distance_transform_edt,
     gaussian_filter,
     gaussian_filter1d,
@@ -62,6 +67,7 @@ DRAWABLES = ROOT / "app/src/main/res/drawable-nodpi"
 SS = 3          # supersample factor; the alpha edge is what needs it
 OUT_W = 1024    # LensSurfaceProcessor.MAX_ART_PX
 QUALITY = 90
+ALPHA_FLOOR = 8
 
 
 # ------------------------------------------------------------------ silhouette rasterising
@@ -186,6 +192,90 @@ def save(rgb, alpha, out_w, path: Path):
     img.save(path, format="WEBP", quality=QUALITY, method=6)
     print(f"  {path.name}  {img.size[0]}x{img.size[1]}  {path.stat().st_size / 1024:.1f} KB")
     return img
+
+
+def cut_out_connected_light_background(
+    image: Image.Image,
+    *,
+    clear_center: bool = False,
+) -> Image.Image:
+    """Turn a generated light checkerboard backdrop into alpha without touching enclosed whites."""
+    rgb = np.array(image.convert("RGB"))
+    channel_spread = rgb.max(axis=2) - rgb.min(axis=2)
+    light_neutral = (channel_spread <= 24) & (rgb.min(axis=2) >= 170)
+    seeds = np.zeros(light_neutral.shape, dtype=bool)
+    seeds[0] = light_neutral[0]
+    seeds[:, 0] = light_neutral[:, 0]
+    seeds[:, -1] = light_neutral[:, -1]
+    if clear_center:
+        center = image.height // 2, image.width // 2
+        seeds[center] = light_neutral[center]
+    background = binary_propagation(seeds, mask=light_neutral)
+
+    # Eat two neutral antialias pixels at the garment boundary, then rebuild a soft alpha edge.
+    neutral_fringe = (channel_spread <= 30) & (rgb.min(axis=2) >= 70)
+    for _ in range(2):
+        background |= binary_dilation(background) & neutral_fringe
+    foreground = ~binary_dilation(background)
+    alpha = np.clip(gaussian_filter(foreground.astype(float), 0.65), 0, 1)
+
+    rgba = np.dstack((rgb, np.round(alpha * 255).astype(np.uint8)))
+    return Image.fromarray(rgba, "RGBA")
+
+
+def check_light_background_cutout() -> None:
+    """Prove that a face hole clears while a white shirt remains opaque."""
+    pixels = np.full((11, 11, 3), 240, dtype=np.uint8)
+    pixels[3, 3:8] = 0
+    pixels[3:, 3] = 0
+    pixels[3:, 7] = 0
+    pixels[4:, 4:7] = 255
+    alpha = np.array(cut_out_connected_light_background(Image.fromarray(pixels)).getchannel("A"))
+    assert alpha[0, 0] == 0
+    assert alpha[-1, 5] > 240
+
+    ring = np.full((11, 11, 3), 240, dtype=np.uint8)
+    ring[2, 2:9] = 0
+    ring[8, 2:9] = 0
+    ring[2:9, 2] = 0
+    ring[2:9, 8] = 0
+    ring_alpha = np.array(
+        cut_out_connected_light_background(
+            Image.fromarray(ring),
+            clear_center=True,
+        ).getchannel("A"),
+    )
+    assert ring_alpha[5, 5] == 0
+
+
+def prepare_generated(
+    source: str,
+    output: str,
+    *,
+    cutout_light_background: bool = False,
+    clear_center: bool = False,
+) -> Image.Image:
+    """Crop and encode an image-generated source without inventing costume pixels."""
+    image = Image.open(SILHOUETTES / source)
+    if cutout_light_background:
+        image = cut_out_connected_light_background(image, clear_center=clear_center)
+    pixels = np.array(image.convert("RGBA"))
+    pixels[..., 3] = np.where(pixels[..., 3] >= ALPHA_FLOOR, pixels[..., 3], 0)
+    image = Image.fromarray(pixels)
+    bbox = image.getchannel("A").getbbox()
+    if bbox is None:
+        raise ValueError(f"{source} has no visible pixels")
+    left, top, right, bottom = bbox
+    pad = 8
+    image = image.crop((max(0, left - pad), max(0, top - pad),
+                        min(image.width, right + pad), min(image.height, bottom + pad)))
+    scale = min(1.0, OUT_W / max(image.size))
+    if scale < 1.0:
+        image = image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
+    out = DRAWABLES / output
+    image.save(out, format="WEBP", quality=QUALITY, method=6)
+    print(f"  {out.name}  {image.width}x{image.height}  {out.stat().st_size / 1024:.1f} KB")
+    return image
 
 
 # ------------------------------------------------------------------ the hat
@@ -338,6 +428,45 @@ def render_thumbnail(hat: Image.Image, mustache: Image.Image) -> None:
     print(f"  {out.name}  {size}x{size}  {out.stat().st_size / 1024:.1f} KB")
 
 
+def render_vampire() -> None:
+    torso = prepare_generated(
+        "lens_vampire_torso_source.png",
+        "lens_vampire_torso_art.webp",
+        cutout_light_background=True,
+    )
+    frame = prepare_generated(
+        "lens_vampire_frame_source.png",
+        "lens_vampire_frame_art.webp",
+        cutout_light_background=True,
+        clear_center=True,
+    )
+    fangs = prepare_generated("lens_vampire_fangs_source.png", "lens_vampire_fangs_art.webp")
+
+    size = 320
+    chip = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    torso_width = 318
+    torso_height = round(torso.height * torso_width / torso.width)
+    torso_scaled = torso.resize((torso_width, torso_height), Image.LANCZOS)
+    chip.alpha_composite(torso_scaled, ((size - torso_width) // 2, 102))
+
+    frame_height = 244
+    frame_width = round(frame.width * frame_height / frame.height)
+    frame_scaled = frame.resize((frame_width, frame_height), Image.LANCZOS)
+    chip.alpha_composite(frame_scaled, ((size - frame_width) // 2, 8))
+
+    fang_width = 92
+    fang_height = round(fangs.height * fang_width / fangs.width)
+    fangs_scaled = fangs.resize((fang_width, fang_height), Image.LANCZOS)
+    chip.alpha_composite(fangs_scaled, ((size - fang_width) // 2, 177))
+
+    out = DRAWABLES / "lens_vampire.webp"
+    chip.save(out, format="WEBP", quality=QUALITY, method=6)
+    print(f"  {out.name}  {size}x{size}  {out.stat().st_size / 1024:.1f} KB")
+
+
 if __name__ == "__main__":
+    check_light_background_cutout()
     print("rendering Cowboy art:")
     render_thumbnail(render_hat(), render_mustache())
+    print("rendering Vampire art:")
+    render_vampire()

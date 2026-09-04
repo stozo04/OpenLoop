@@ -6,7 +6,7 @@ description: >-
   approval and Play Console upload confirmation. Use when the user says "/cut-release", "cut a
   release", "cut release", "ship a release", "start the release process", "bump the version and
   release", or wants to move a merged `main` toward a tagged Play release. Depends on
-  `scripts/tag-release.ps1` (tags a verified merge-commit sha, never a moving branch) and
+  `scripts/tag-release.ps1` (tags the verified final included merge sha, never a moving branch) and
   `scripts/pre-pr-sweep.ps1` (the PR gate). Does not touch Play Console directly — it hands off
   the signed `.aab` and drafted release-notes text for the owner to upload by hand.
 ---
@@ -18,13 +18,15 @@ A release is one long process with two owner-only gates in the middle: a require
 access to Play Console exists in this session). This skill walks every mechanical step around
 those two gates and refuses to substitute for either one, no matter how the request is phrased.
 
-**Ground truth this skill reads, and never duplicates:**
+**Ground truth this skill reads only when the detected stage needs it, and never duplicates:**
 
 - [`docs/play-store/release-signing-and-aab.md`](../../../docs/play-store/release-signing-and-aab.md) —
-  the full mechanical build/sign/tag steps
-- [`docs/DEFINITION_OF_DONE.md`](../../../docs/DEFINITION_OF_DONE.md) — the pre-PR sweep gate
-- `scripts/pre-pr-sweep.ps1`, `scripts/tag-release.ps1` — read `Get-Help` / the header comment
-  before invoking either; don't reimplement what they already verify
+  read the relevant build/sign/tag section for the current stage
+- [`docs/DEFINITION_OF_DONE.md`](../../../docs/DEFINITION_OF_DONE.md) and
+  `scripts/pre-pr-sweep.ps1` — read before Step 2 or when diagnosing its receipt; a merged PR has
+  already cleared this gate, so do not reload or rerun it during a post-merge resume
+- `scripts/tag-release.ps1` — read `Get-Help` / the header comment before Step 7; don't
+  reimplement what it already verifies
 
 Versioning pattern observed 1.0.47 → 1.0.49: `versionName`'s last segment always equals
 `versionCode` (both live in `app/build.gradle.kts`). Read the current values yourself before
@@ -51,19 +53,26 @@ new scheme.
 
 ## Detect where the release currently stands
 
-Don't assume you're starting at Step 1. Work out the stage first:
+Don't assume you're starting at Step 1. Work out the stage first. Version contents, commit
+history, and GitHub's PR data are authoritative; branch names and PR titles are only hints.
 
 1. Read current `versionCode`/`versionName` (`app/build.gradle.kts`) and the latest tag
    (`git tag --sort=-v:refname` or `gh release list`).
-2. A `chore/release-<next-version>` branch/PR exists and is open → resume at **Step 2** or
+2. Locate the commit that changed the version after the latest tag and resolve the PR that
+   merged it. Do not assume the bump lives in a `chore/release-*` branch.
+3. The bump PR is open → resume at **Step 2** or
    **Stop A**, depending on whether the sweep+PR already happened.
-3. That PR is merged but `releases/openloop-<next>-<code>.aab` doesn't exist locally → resume
+4. The bump PR is merged but `releases/openloop-<next>-<code>.aab` doesn't exist locally → resume
    at **Step 3/4** (capture the sha, build).
-4. The `.aab` exists but no tag matches its version → you're at **Stop B**, waiting on upload
+5. The `.aab` exists but no tag matches its version → you're at **Stop B**, waiting on upload
    confirmation. Do not tag.
-5. A tag exists for the current `versionName` → already done; say so and stop.
-6. Current `versionName` == latest tag and no open release PR exists → nothing in flight; a new
+6. A tag exists for the current `versionName` → already done; say so and stop.
+7. Current `versionName` == latest tag and no open release PR exists → nothing in flight; a new
    release starts at **Step 1**.
+
+GitHub issues and PRs share one number sequence. If `gh pr view <user-number>` says the number is
+not a PR, inspect the recent merged PRs and the version-bump history, report the correction, and
+do not silently treat an issue number as a merge sha.
 
 ## Step 1 — Bump the version
 
@@ -92,16 +101,22 @@ you're stopped here, waiting for a human review.
 
 ## Step 3 (after Stop A clears) — capture the real build sha
 
-- Confirm the merge: `gh pr view <n> --json state,mergedAt,mergeCommit --jq '.mergeCommit.oid'`.
-- Use that merge commit sha — **not** `git rev-parse origin/main`. `origin/main` is only correct
-  if nothing else merged in the gap between this PR and now, which is exactly the race this
-  whole skill exists to close (the issue that prompted this skill: 1.0.49 was tagged against
-  `main` by luck). This is a deliberate correction from the issue's own suggested command.
-- `git fetch origin`; verify the sha is an ancestor of `origin/main`.
+- Confirm the bump merge with
+  `gh pr view <n> --json state,mergedAt,mergeCommit --jq '.mergeCommit.oid'`.
+- After `git fetch origin`, inspect merges between the bump merge and `origin/main`. If later PRs
+  exist, establish the release cutoff before building:
+  - If the owner explicitly named the latest merged PR as the release cutoff, resolve that PR's
+    `mergeCommit.oid` and use it after confirming it still contains the intended version.
+  - Otherwise ask which later PRs belong in this release. Do not silently build the older bump
+    merge and omit fixes, or silently build a moving `origin/main`.
+- Call the chosen final included PR merge commit the **build sha**. With no later included PR,
+  the build sha is the bump PR's merge commit.
+- Verify `app/build.gradle.kts` at the build sha contains the intended version and verify the sha
+  is an ancestor of `origin/main`.
 
 ## Step 4 — Build the signed AAB
 
-- Build from that exact merge sha: `git switch --detach <mergeCommitOid>` (or use a worktree).
+- Build from that exact build sha: `git switch --detach <buildSha>` (or use a worktree).
 - `.\gradlew.bat :app:bundleRelease` (`JAVA_HOME` = Android Studio's bundled JBR, per
   `DEFINITION_OF_DONE.md`'s environment notes).
 - `jarsigner -verify -verbose app/build/outputs/bundle/release/app-release.aab` — must report
@@ -111,8 +126,8 @@ you're stopped here, waiting for a human review.
 
 ## Step 5 — Lesson 040 check: did a new native/JNI/reflection dependency land?
 
-- Diff dependency surfaces between the previous tag and this merge sha:
-  `git diff <prev-tag>..<sha> -- app/build.gradle.kts gradle/libs.versions.toml`.
+- Diff dependency surfaces between the previous tag and the build sha:
+  `git diff <prev-tag>..<buildSha> -- app/build.gradle.kts gradle/libs.versions.toml`.
 - New dependency shipping native code, JNI, or heavy reflection (MediaPipe, ML Kit modules,
   etc.) landed → [Lesson 040](../../../docs/lessons_learned/040-run-the-release-apk-when-a-native-dependency-lands.md)
   applies: build and install the release APK (`:app:assembleRelease`) on an emulator from the
@@ -126,8 +141,10 @@ Draft two separate files (gitignored — owner-only, never commit) — mirror th
 owner hand-wrote for 1.0.49:
 
 1. **GitHub release notes** (technical) — `docs/local/github-release-notes-<version>.md` — from
-   merged PRs since the previous tag (`git log <prev-tag>..<sha> --oneline`, grouped by area).
-   This is only the curated alternative: `tag-release.ps1` defaults to `gh --generate-notes` in
+   merged PRs through the build sha since the previous tag
+   (`git log <prev-tag>..<buildSha> --oneline`, grouped by area).
+   Use the build sha as the upper bound. This is only the curated alternative:
+   `tag-release.ps1` defaults to `gh --generate-notes` in
    Step 7, which needs no draft at all. Offer this file only in case the owner wants a
    hand-curated summary instead.
 2. **Play Console "What's new"** (user-facing) — `docs/local/play-notes-<version>.md` — short,
@@ -147,7 +164,7 @@ the owner.
 ## Step 7 (after Stop B clears) — cut the tag
 
 ```powershell
-.\scripts\tag-release.ps1 -Version <version> -Sha <mergeCommitOid> `
+.\scripts\tag-release.ps1 -Version <version> -Sha <buildSha> `
   [-Title "<version> — <one-line highlight>"] `
   [-NotesFile docs/local/github-release-notes-<version>.md]   # omit to use --generate-notes (default)
 ```
@@ -170,8 +187,8 @@ Report both. Do not add a vitals/quality check here — see "Owner call" above.
    own (a review only a second human account can give; a Play Console upload).
 2. Never type, or ask the owner to type, `versionCode`/`versionName` — read them from
    `app/build.gradle.kts`.
-3. Never derive the merge sha from a branch name or `origin/main` — always resolve it from the
-   actual merged PR (`mergeCommitOid`).
+3. Never derive the build sha from a branch name or `origin/main` — resolve it from the final
+   included merged PR (`mergeCommitOid`) and verify the intended version at that sha.
 4. Never gather or gate on Play vitals numbers — out of scope for this skill per the
    2026-08-28 owner call; the other docs still document them as a separate manual step.
 5. Never attach the `.aab`, an unsigned APK, or any binary to the GitHub release —
