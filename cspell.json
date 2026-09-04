@@ -13,6 +13,7 @@
     "**/*.svg",
     "**/*.ico",
     "**/lint-baseline.xml",
+    "package-lock.json",
     "gradle/wrapper/**",
     "cspell.json",
     ".idea/dictionaries/**",

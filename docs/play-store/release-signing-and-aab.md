@@ -60,6 +60,10 @@ bump PR, and stop the release if a row is red. A monthly reminder issue does the
 ./gradlew :app:bundleRelease
 ```
 
+Before each release upload, run the `Pixel_8_API34` save lane in
+[`oem-regression-testing.md`](../guides/oem-regression-testing.md). JVM tests prove the SDK-to-FGS
+mapping on every PR; this release lane proves Android 14 starts the real foreground service and saves.
+
 Output: **`app/build/outputs/bundle/release/app-release.aab`**. With `keystore.properties` present
 it's signed with your upload key; without it the bundle still builds but is unsigned (fine for
 local checks, not for upload).

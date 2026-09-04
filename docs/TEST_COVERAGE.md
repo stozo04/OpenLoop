@@ -88,14 +88,15 @@ LG hardware codec). Stock emulators cannot spoof Samsung/LG identity or vendor c
 
 | Lane                       | What                                                                          | Where                        |
 | -------------------------- | ----------------------------------------------------------------------------- | ---------------------------- |
-| API 34 FGS                 | `Pixel_8_API34` AVD + save smoke; Robolectric `ForegroundInfo` tests          | Emulator + `test/`           |
+| API 34 FGS                 | Robolectric every sweep; `Pixel_8_API34` save smoke for FGS changes/releases  | Emulator + `test/`           |
 | Samsung app logic          | `DeviceMediaHintsOemRobolectricTest` (ShadowBuild)                            | `test/`                      |
 | Samsung vendor codecs      | `samsung-rtl-sweep.ps1` on Samsung Remote Test Lab                            | Real Galaxy                  |
 | LG `start failed` recovery | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` | `androidTest/` on any device |
 
-The **4-emulator pixel sweep** (`Pixel_6` → `Pixel_8` → `Pixel_10_Pro_Fold` → `Pixel_8_API34`)
-is documented in `.claude/skills/run-e2e-pixel-sweep/SKILL.md`. Run the full OEM matrix before
-media-pipeline or FGS changes.
+The default pixel sweep runs the full scripted flow and output-quality gate on `Pixel_8`.
+Add `Pixel_10_Pro_Fold` for posture/preview changes and `Pixel_8_API34` for FGS/WorkManager changes
+and each release. `Pixel_6` duplicated the default lane; the risk-based matrix is documented in
+`.claude/skills/run-e2e-pixel-sweep/SKILL.md`.
 
 ---
 

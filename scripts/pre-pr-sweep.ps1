@@ -3,20 +3,24 @@
     The pre-PR sweep — every class of error/warning OpenLoop knows how to detect, run to ZERO.
 
 .DESCRIPTION
-    Runs, in order, and reports every gate (it does not stop at the first red):
-      1. Gradle: clean assembleDebug + assembleRelease — BUILD SUCCESSFUL, exit 0, zero `e:` AND zero
+    Runs the fast text gates first, then every build/device gate, and reports every result (it does not
+    stop at the first red):
+      1. Gradle: assembleDebug + assembleRelease + Lint + JVM tests in one invocation — BUILD SUCCESSFUL,
+         exit 0, zero `e:` AND zero
          source-attributed `w: file:…` (Kotlin warnings are already fatal via allWarningsAsErrors; build-script
          deprecations are caught here; KGP's environmental daemon notices are not findings).
       2. 16 KB alignment: zipalign -c -P 16 on the release APK — every .so "(OK)", none "(OK - compressed)".
-      3. Android Lint (Engine 1): 0 Error/Fatal AND 0 Warning in lint-results-debug.xml. The version-freshness
+      3. Android Lint (Engine 1): parse the merged run's report; 0 Error/Fatal AND 0 Warning in
+         lint-results-debug.xml. The version-freshness
          checks (GradleDependency, NewerVersionAvailable, AndroidGradlePluginVersion) are reported but never fail
          the gate — they flip whenever upstream publishes and a gate that goes red on somebody else's schedule
          is a flaky gate (docs/STATIC_ANALYSIS.md).
-      4. JVM unit tests: 0 failures, 0 errors, tests > 0 (counted from the XML, never from BUILD SUCCESSFUL).
+      4. JVM unit tests: parse the merged run's report; 0 failures, 0 errors, tests > 0 (counted from the
+         XML, never from BUILD SUCCESSFUL).
       5. Instrumented tests (unless -SkipConnected): same, from the connected XML.
       5b. Autonomous onboarding loop via scripts/run-verification-loops.py --changed.
-         Starts in the background after a green debug APK so it overlaps lint/unit/text gates.
-         One emulator — does not overlap connectedDebugAndroidTest. Skip with -SkipConnected.
+         Starts after a green merged Gradle run. One emulator — does not overlap
+         connectedDebugAndroidTest. Skip with -SkipConnected.
       6. Markdown: markdownlint-cli2, table alignment (scripts/md-table-align.py), and relative-link checks on
          changed Markdown (all Markdown after any delete/rename) — all zero.
       7. Spelling: cspell over every tracked text file (Markdown, Kotlin, XML, scripts, configs) — zero unknown words.
@@ -27,7 +31,8 @@
          to build/inspect-export/. Pass -SkipInspectCode ONLY where Studio is unavailable; the receipt then says
          so and the PR description must say so too.
 
-    On an all-green run it writes build/sweep-receipt.json {sha, treeClean, gates, inspectCode}. The Claude Code
+    On an all-green run it writes build/sweep-receipt.json {sha, treeClean, cleanBuild, gates,
+    durationSec, inspectCode}. The Claude Code
     PreToolUse hook (scripts/hooks/require-sweep.mjs) refuses `gh pr create` / GitHub create_pull_request unless a
     receipt exists for the CURRENT HEAD on a clean tree — so the sweep is definitionally the last thing that runs
     after the final commit. Design + rationale: docs/DEFINITION_OF_DONE.md, docs/STATIC_ANALYSIS.md.
@@ -37,9 +42,11 @@
 .PARAMETER SkipConnected   Skip connectedDebugAndroidTest and the onboarding loop (no emulator/device attached).
                            A skip means onboarding is not verified.
 .PARAMETER DocsOnly        Text gates only (6-9). For docs-only branches — the receipt records it.
+.PARAMETER Clean           Prepend Gradle clean. Use after build-tool/dependency changes or suspected stale outputs.
 
 .EXAMPLE
     .\scripts\pre-pr-sweep.ps1
+    .\scripts\pre-pr-sweep.ps1 -Clean                    # cold build/tooling verification
     .\scripts\pre-pr-sweep.ps1 -SkipConnected -SkipInspectCode   # agent session without Studio or an emulator
 #>
 [CmdletBinding()]
@@ -47,7 +54,8 @@ param(
     [string]$InspectExport = "build/inspect-export/index.html",
     [switch]$SkipInspectCode,
     [switch]$SkipConnected,
-    [switch]$DocsOnly
+    [switch]$DocsOnly,
+    [switch]$Clean
 )
 
 $ErrorActionPreference = "Continue"
@@ -60,8 +68,12 @@ $log = Join-Path $root "build/sweep.log"
 
 if (-not $env:JAVA_HOME) { $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr" }
 $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } elseif ($env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT } else { "$env:LOCALAPPDATA\Android\Sdk" }
+$markdownLint = Join-Path $root "node_modules/markdownlint-cli2/markdownlint-cli2-bin.mjs"
+$markdownLinkCheck = Join-Path $root "node_modules/markdown-link-check/markdown-link-check"
+$cspell = Join-Path $root "node_modules/cspell/bin.mjs"
 
 $results = [ordered]@{}
+$timings = [ordered]@{}
 $loopProc = $null
 $loopStartError = $null
 $loopLog = Join-Path $root "build/verification-loops.log"
@@ -70,16 +82,20 @@ function Gate([string]$name, [scriptblock]$body) {
     Write-Host ""
     Write-Host "== $name" -ForegroundColor Cyan
     "== $name" | Add-Content $log
+    $sw = [Diagnostics.Stopwatch]::StartNew()
     try {
         $verdict = & $body
         if ($verdict -isnot [string]) { $verdict = "PASS" }
     } catch {
         $verdict = "FAIL: $($_.Exception.Message)"
     }
-    $ok = $verdict -like "PASS*" -or $verdict -like "SKIPPED*"
+    $sw.Stop()
     $color = if ($verdict -like "PASS*") { "Green" } elseif ($verdict -like "SKIPPED*") { "Yellow" } else { "Red" }
     Write-Host "   -> $verdict" -ForegroundColor $color
     "   -> $verdict" | Add-Content $log
+    Write-Host ("   [{0:N1}s]" -f $sw.Elapsed.TotalSeconds) -ForegroundColor DarkGray
+    ("   [{0:N1}s]" -f $sw.Elapsed.TotalSeconds) | Add-Content $log
+    $script:timings[$name] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
     $script:results[$name] = $verdict
 }
 
@@ -108,23 +124,41 @@ function Sum-JUnit([string]$dir) {
     return @{ Tests = $t; Failures = $f; Errors = $e }
 }
 
-# ---------------------------------------------------------------------------- build gates
+# ---------------------------------------------------------------------------- build gates (invoked after text gates)
+$buildGates = {
 if (-not $DocsOnly) {
-    Gate "1. clean assembleDebug assembleRelease (0 e:, 0 w:)" {
-        $r = Run-Gradle @("clean", "assembleDebug", "assembleRelease")
+    $buildGateName = "1. assembleDebug assembleRelease + lint + JVM tests (0 e:, 0 w:)"
+    $unitResultsDir = Join-Path $root "app/build/test-results/testDebugUnitTest"
+    $lintResults = Join-Path $root "app/build/reports/lint-results-debug.xml"
+    Gate $buildGateName {
+        # Dropping `clean` preserves Gradle's cache, but stale reports must never count as this run.
+        if (Test-Path -LiteralPath $unitResultsDir) {
+            Remove-Item -LiteralPath $unitResultsDir -Recurse -Force
+        }
+        if (Test-Path -LiteralPath $lintResults) { Remove-Item -LiteralPath $lintResults -Force }
+        $tasks = @(
+            "assembleDebug",
+            "assembleRelease",
+            ":app:lintDebug",
+            ":app:testDebugUnitTest",
+            "--parallel",
+            "--build-cache",
+            "--continue"
+        )
+        if ($Clean) { $tasks = [string[]]"clean" + $tasks }
+        $r = Run-Gradle $tasks
         $errs = @($r.Lines | Where-Object { $_ -match '^e: ' })
         # Source-attributed warnings only (`w: file:///…:line:col`): Kotlin compiler + build-script
         # deprecations. KGP also prints environmental `w:` notices ("Detected multiple Kotlin daemon
         # sessions") that no code change can clear — those are not findings.
         $warns = @($r.Lines | Where-Object { $_ -match '^w: file:' })
         $ok = ($r.Code -eq 0) -and ($r.Lines -match 'BUILD SUCCESSFUL') -and $errs.Count -eq 0 -and $warns.Count -eq 0
-        if ($ok) { return "PASS (exit 0, BUILD SUCCESSFUL, 0 e:, 0 w:)" }
+        if ($ok) { return "PASS (exit 0, BUILD SUCCESSFUL, 0 e:, 0 w:; clean=$([bool]$Clean))" }
         return "FAIL: exit=$($r.Code) e:=$($errs.Count) w:=$($warns.Count) — first: $(($errs + $warns | Select-Object -First 1))"
     }
 
-    # Start the onboarding proof as soon as the debug APK exists. Connected tests wait
-    # until it finishes because both drive the same emulator.
-    if (-not $SkipConnected -and ($results["1. clean assembleDebug assembleRelease (0 e:, 0 w:)"] -like "PASS*")) {
+    # Connected tests wait until the onboarding proof finishes because both drive the same emulator.
+    if (-not $SkipConnected -and ($results[$buildGateName] -like "PASS*")) {
         try {
             if (Test-Path $loopLog) { Remove-Item $loopLog -Force }
             if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
@@ -154,9 +188,8 @@ if (-not $DocsOnly) {
     }
 
     Gate "3. Android Lint — 0 errors, 0 warnings (freshness checks advisory)" {
-        $r = Run-Gradle @(":app:lintDebug")
         $xml = "app/build/reports/lint-results-debug.xml"
-        if ($r.Code -ne 0 -or -not (Test-Path $xml)) { return "FAIL: lint exit=$($r.Code), report=$(Test-Path $xml)" }
+        if (-not (Test-Path $xml)) { return "FAIL: no lint report (merged Gradle run did not reach lintDebug)" }
         [xml]$doc = Get-Content $xml -Raw
         $advisory = @("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
         $issues = @($doc.issues.issue)
@@ -167,11 +200,11 @@ if (-not $DocsOnly) {
     }
 
     Gate "4. JVM unit tests — 0 failures" {
-        $r = Run-Gradle @(":app:testDebugUnitTest")
         $s = Sum-JUnit "app/build/test-results/testDebugUnitTest"
-        if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
-        return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
+        if ($s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
+        return "FAIL: tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
     }
+}
 }
 
 # ---------------------------------------------------------------------------- text gates
@@ -183,25 +216,14 @@ $listFile = Join-Path $root "build/sweep-files.txt"
 $text | Set-Content $listFile -Encoding utf8
 
 Gate "6a. markdownlint-cli2 — 0 findings" {
-    # Windows rejects one command line containing every tracked Markdown path.
-    $failed = $false
-    $summary = @()
-    $linted = 0
-    for ($i = 0; $i -lt $md.Count; $i += 40) {
-        $last = [Math]::Min($i + 39, $md.Count - 1)
-        $batch = @($md[$i..$last] | ForEach-Object { ":$_" })
-        $out = & npx --yes markdownlint-cli2 @batch 2>&1
-        $out | Add-Content $log
-        foreach ($line in $out) {
-            if ($line -match '^Linting: (\d+) files?$') { $linted += [int]$Matches[1] }
-        }
-        if ($LASTEXITCODE -ne 0) {
-            $failed = $true
-            $summary += @($out | Where-Object { $_ -match 'Summary:' })
-        }
-    }
-    if (-not $failed -and $linted -eq $md.Count) { return "PASS ($linted files)" }
-    return "FAIL: linted=$linted expected=$($md.Count) $($summary -join ' ')"
+    if (-not (Test-Path -LiteralPath $markdownLint)) { return "FAIL: pinned npm tools missing (run npm ci --ignore-scripts)" }
+    # Invoke Node directly: one tracked-file-scoped process without cmd.exe's 8,191-character limit.
+    $out = & node $markdownLint @($md | ForEach-Object { ":$_" }) 2>&1
+    $code = $LASTEXITCODE
+    $out | Add-Content $log
+    $linted = @($out | ForEach-Object { if ($_ -match '^Linting: (\d+) files?$') { [int]$Matches[1] } } | Measure-Object -Sum).Sum
+    if ($code -eq 0 -and $linted -eq $md.Count) { return "PASS ($linted files)" }
+    return "FAIL: exit=$code linted=$linted expected=$($md.Count) $(($out | Where-Object { $_ -match 'Summary:' }) -join ' ')"
 }
 
 Gate "6b. Markdown table alignment (IDE-faithful) — 0 misaligned" {
@@ -223,15 +245,18 @@ $linkMd = if ($removedOrRenamed.Count -gt 0) {
 
 Gate "6c. markdown-link-check — changed docs (all after delete/rename)" {
     if (-not $linkBase) { return "FAIL: cannot find merge-base with origin/main" }
+    if ($linkMd.Count -gt 0 -and -not (Test-Path -LiteralPath $markdownLinkCheck)) { return "FAIL: pinned npm tools missing (run npm ci --ignore-scripts)" }
     $dead = 0
+    $toolFailed = $false
     foreach ($f in $linkMd) {
-        $out = & npx --yes markdown-link-check --config .markdown-link-check.json -q $f 2>&1
+        $out = & node $markdownLinkCheck --config .markdown-link-check.json -q $f 2>&1
+        if ($LASTEXITCODE -ne 0) { $toolFailed = $true }
         $out | Add-Content $log
         $dead += @($out | Where-Object { $_ -match '\[✖\]|\[x\]|ERROR:' }).Count
     }
     $scope = if ($removedOrRenamed.Count -gt 0) { "all; delete/rename detected" } else { "changed" }
-    if ($dead -eq 0) { return "PASS ($($linkMd.Count) files; $scope)" }
-    return "FAIL: $dead dead link(s) — see build/sweep.log"
+    if (-not $toolFailed -and $dead -eq 0) { return "PASS ($($linkMd.Count) files; $scope)" }
+    return "FAIL: tool-failed=$toolFailed dead-links=$dead — see build/sweep.log"
 }
 
 Gate "6d. Harness skill trees byte-identical (.claude/.cursor/.codex)" {
@@ -256,7 +281,8 @@ Gate "6e. Script self-checks (scripts/test-*.py) — all green" {
 
 Gate "7. cspell over every tracked text file — 0 unknown words" {
     # `--file-list <path>` exits 1 silently on Windows; feeding the list on stdin works everywhere.
-    $out = Get-Content $listFile | npx --yes cspell --no-progress --file-list stdin 2>&1
+    if (-not (Test-Path -LiteralPath $cspell)) { return "FAIL: pinned npm tools missing (run npm ci --ignore-scripts)" }
+    $out = Get-Content $listFile | node $cspell --no-progress --file-list stdin 2>&1
     $out | Add-Content $log
     if ($LASTEXITCODE -eq 0) { return "PASS ($($text.Count) files)" }
     return "FAIL: $(($out | Where-Object { $_ -match 'Issues found' }) -join ' ') — add legit terms to cspell.json words"
@@ -267,7 +293,7 @@ Gate "8a. JSON validity" {
     foreach ($f in (Tracked @("*.json"))) {
         $raw = Get-Content $f -Raw
         if ($f -eq "cspell.json") { $raw = [regex]::Replace($raw, '(?m)^\s*//.*$', '') }
-        try { $null = $raw | ConvertFrom-Json } catch { $bad += $f }
+        try { [System.Text.Json.JsonDocument]::Parse($raw).Dispose() } catch { $bad += $f }
     }
     if ($bad.Count -eq 0) { return "PASS" }
     return "FAIL: $($bad -join ', ')"
@@ -316,6 +342,8 @@ Gate "9. Inspect Code export (Engine 2) — 0 hard findings in tracked files" {
     if ($SkipInspectCode) { return "SKIPPED (-SkipInspectCode: say so in the PR; the owner runs Inspect Code before merge)" }
     return "FAIL: no export at $InspectExport. Android Studio → Code → Inspect Code → scope 'OpenLoop Tracked' → Export → HTML → build/inspect-export/"
 }
+
+& $buildGates
 
 Gate "5b. Onboarding loop — autonomous first-run + returning-user proof" {
     if ($DocsOnly) { return "SKIPPED (docs-only)" }
@@ -371,10 +399,12 @@ $receipt = [ordered]@{
     at                 = (Get-Date -Format o)
     treeClean          = ($dirty.Count -eq 0)
     docsOnly           = [bool]$DocsOnly
+    cleanBuild         = [bool]$Clean
     inspectCode        = $inspect
     connected          = (-not $SkipConnected) -and (-not $DocsOnly)
     onboardingLoop     = if ($loopVerdict -like "PASS*") { "passed" } elseif ($loopVerdict -like "SKIPPED*") { "skipped" } else { "failed" }
     gates              = $results
+    durationSec        = $timings
 }
 $receiptPath = Join-Path $root "build/sweep-receipt.json"
 if ($failed.Count -gt 0) {
