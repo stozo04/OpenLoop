@@ -5,7 +5,7 @@ Live face effects on the camera viewfinder. The bottom-left drawer opens a carou
 ## Sub-features
 
 - `lenses-open` opens the drawer (`Lenses and Photo Booth` / `lens_button`) and shows the Lenses tab (`camera_lenses`) plus carousel (`lens_carousel`).
-- `lenses-pick` selects a catalogue thumb by display name / `lens_thumb_*` (Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue, Elvis, Cowboy).
+- `lenses-pick` selects a catalogue thumb by display name / `lens_thumb_*` (Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue, Elvis, Cowboy, Vampire).
 - `lenses-clear` deselects by tapping the active thumb again, or closes the drawer (`Close lenses` / `lens_close`).
 - `lenses-one-face` — with one detectable face, the active lens sticks to that face (preview).
 - `lenses-two-faces` — with two detectable faces, **both** get the same lens (preview and, if recording, the saved clip). A third face does not steal a slot.
@@ -28,7 +28,7 @@ python .codex/skills/verify-openloop/helpers/lenses_loop.py
 VERIFY_LENS="Elvis" python .codex/skills/verify-openloop/helpers/lenses_loop.py
 ```
 
-It opens the drawer, scrolls the carousel to the named lens (**Cowboy** by default — the newest
+It opens the drawer, scrolls the carousel to the named lens (**Vampire** by default — the newest
 entry, and the one a registration slip would strand off-screen), wears it, and taps it off again.
 Each state is read two ways out of one dump: the active-lens name pill and the thumbnail's own
 `selected` flag. Nothing is recorded, and it makes no claim about the lens landing on a face — see

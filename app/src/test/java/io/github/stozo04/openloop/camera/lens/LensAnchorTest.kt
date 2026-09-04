@@ -1161,6 +1161,39 @@ class LensAnchorTest {
         )
     }
 
+    // ---------------------------------------------------------------- Vampire lens geometry
+
+    @Test
+    fun vampire_isAPropWithMeasuredLayersOnTheRightAnatomy() {
+        val costume = Lens.Vampire.art[0]
+        val fangs = Lens.Vampire.art[1]
+        val costumeExtent = extentInUnits(costume)
+
+        assertEquals("Vampire", Lens.Vampire.displayName)
+        assertNull("Vampire frames the subject's real face", Lens.Vampire.features)
+        assertEquals(LensInteraction.NONE, Lens.Vampire.interaction)
+        assertEquals(LensAnchorPoint.FACE, costume.placement.anchor)
+        assertEquals(LensAnchorPoint.MOUTH, fangs.placement.anchor)
+        assertEquals("encoded 941x1024", 1024f / 941f, costume.placement.artAspect, 1e-4f)
+        assertEquals("encoded 1024x642", 642f / 1024f, fangs.placement.artAspect, 1e-4f)
+        assertTrue("the cowl stops below the $CROWN_UNITS crown", costumeExtent.endInclusive >= CROWN_UNITS)
+        assertTrue("the collar stops above the $CHIN_UNITS chin", costumeExtent.start <= CHIN_UNITS)
+    }
+
+    @Test
+    fun vampire_fangsExtendFromTheMouth_withoutMovingTheirRoots() {
+        val subject = face()
+        val frame = frameOf(subject)
+        val fangs = Lens.Vampire.art[1]
+        val shut = LensAnchor.sticker(subject, frame, fangs.placement, frameAspect, openFraction = 0f)
+        val open = LensAnchor.sticker(subject, frame, fangs.placement, frameAspect, openFraction = 1f)
+        val shutRoot = shut.centerY - shut.halfHeight
+        val openRoot = open.centerY - open.halfHeight
+
+        assertTrue("opening the mouth must visibly lengthen the fangs", open.halfHeight > shut.halfHeight * 2.4f)
+        assertEquals("the upper roots must stay attached to the mouth", shutRoot, openRoot, tolerance)
+    }
+
     // ---------------------------------------------------------------- character head coverage
 
     @Test

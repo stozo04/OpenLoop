@@ -592,6 +592,55 @@ enum class Lens(
             ),
         ),
     ),
+
+    /**
+     * Vampire — a romantic-goth **prop** that keeps the subject's real face and expression visible.
+     * A lacquer-black widow's-peak cowl and oxblood velvet collar frame the head; two ivory upper
+     * canines extend when the mouth opens. The product choice and research are in
+     * `docs/PRD-camera-lenses.md` §17.
+     *
+     * The two layers belong to different anatomy. The frame is rigid on [LensAnchorPoint.FACE].
+     * The fangs are on [LensAnchorPoint.MOUTH], with their top edge authored at the top of the
+     * bitmap and [MouthOpenSpec] scaling the offset and size together. With `upInUnits` equal to
+     * negative half-height, that edge stays on the mouth while the tips grow downward.
+     *
+     * Both WebPs are rendered from the committed RGBA sources in `swarm/art/` by
+     * `swarm/tools/render_lens_art.py`; the encoded dimensions below are the measured ratios.
+     */
+    Vampire(
+        displayName = "Vampire",
+        // The cowl, collar and fangs are worn props. A spin would tear them off the face.
+        interaction = LensInteraction.NONE,
+        thumbnailRes = R.drawable.lens_vampire,
+        art = listOf(
+            LensArt(
+                drawableRes = R.drawable.lens_vampire_frame_art,
+                placement = LensPlacement(
+                    // 3.0 units frames a 1.55-unit head without swallowing the central face opening.
+                    widthInUnits = 3.0f,
+                    // Encoded 941x1024.
+                    artAspect = 1024f / 941f,
+                    // Top +1.28 clears the +1.25 crown; the widow's point lands at about +0.40,
+                    // just above the +0.30 brow; the clasp settles near the chin.
+                    upInUnits = -0.35f,
+                ),
+            ),
+            LensArt(
+                drawableRes = R.drawable.lens_vampire_fangs_art,
+                placement = LensPlacement(
+                    // The pair spans the 0.8-unit resting mouth at full reveal.
+                    widthInUnits = 1.0f,
+                    // Encoded 1024x642.
+                    artAspect = 642f / 1024f,
+                    // Negative half-height pins the authored top edge to the mouth anchor.
+                    upInUnits = -(642f / 1024f) / 2f,
+                    anchor = LensAnchorPoint.MOUTH,
+                    // Short resting canines keep the smile readable; opening adds a 150% reveal.
+                    mouthOpen = MouthOpenSpec(restFraction = 0.40f),
+                ),
+            ),
+        ),
+    ),
     ;
 
     /**

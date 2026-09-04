@@ -295,7 +295,7 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] No `xmlns:android` outside `app/src/*/res/` (AndroidManifest excepted): an XML file the app
       never packages cannot resolve that schema in any IDE, and reports `URI is not registered`
       on every open. Generator input carries plain attribute names. Checked by sweep gate 8c
-- [ ] Generated art regenerates byte-identically: a change to `swarm/art/*.xml` or
+- [ ] Generated art regenerates byte-identically: a change to `swarm/art/*` or
       `swarm/tools/render_lens_art.py` means re-running `python swarm/tools/render_lens_art.py`
       (needs `numpy`, `Pillow`, `scipy`) and confirming `git status` on `drawable-nodpi/` is clean,
       or committing the regenerated WebP. The provenance claim in PRD §16 is only true if this runs

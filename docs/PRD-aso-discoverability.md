@@ -483,7 +483,7 @@ Ordered. **Batch steps 2–4 into a single submission** to avoid the back-of-que
 > not loops alone. Verified:
 >
 > - **Seven lenses ship** — Broccoli, Shades, Pizza Face, Football, Dog, Twisted Tongue, Elvis (`camera/lens/Lens.kt`; Big Mouth and Bug Eyes were removed in #134).
->   *(Count as of 2026-09-03: **eight**, with Cowboy — [`PRD-camera-lenses.md`](PRD-camera-lenses.md) §16. The 2026-08-09 note is left as written; only the tally moves, and none of the title reasoning below turns on it.)*
+>   *(Count as of 2026-09-03: **nine**, with Cowboy and Vampire — [`PRD-camera-lenses.md`](PRD-camera-lenses.md) §§16–17. The 2026-08-09 note is left as written; only the tally moves, and none of the title reasoning below turns on it.)*
 > - **Photo capture is built** — [PR #120, `feat(camera): photo capture mode (v1.0.37)`](https://github.com/stozo04/OpenLoop/pull/120),
 >   merged 2026-08-09, adding a photo mode across `CameraScreen`, `OpenLoopUiState`,
 >   `VideoStorageRepository` and `MediaStoreVideoPublisher`, with its own

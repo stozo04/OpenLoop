@@ -14,7 +14,7 @@ broken accessibility contract; a thumb that highlights while no pill appears mea
 never took the lens. Both reads come from one dump, because a dump costs seconds and re-dumping
 between them is a race.
 
-The lens it drives defaults to the catalogue's newest entry, **Cowboy**. That is the point: a new
+The lens it drives defaults to the catalogue's newest entry, **Vampire**. That is the point: a new
 lens is one enum entry plus its art, and the failure this catches is that entry not reaching the
 tray at all — a missing drawable, a thumbnail that never composes, a name that never renders. Set
 `VERIFY_LENS` to drive a different one.
@@ -70,7 +70,7 @@ LENSES_TAB = "Lenses"
 # same row as the thumbnails, so it doubles as proof the carousel is up and as the y to swipe on.
 CLOSE_LENSES = "Close lenses"
 VIDEO_SHUTTER = "Start recording"
-LENS = os.environ.get("VERIFY_LENS", "").strip() or "Cowboy"
+LENS = os.environ.get("VERIFY_LENS", "").strip() or "Vampire"
 
 # The carousel is a LazyRow: entries past the fold are not composed until scrolled to, which is
 # exactly how LensCarouselTest started failing when the catalogue reached seven (PRD §13).

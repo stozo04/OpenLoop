@@ -1,12 +1,16 @@
 #!/usr/bin/env python
-"""Render Cowboy's shipped WebP art from its committed silhouettes.
+"""Render the shipped Cowboy and Vampire WebP lens art from committed sources.
 
 Elvis's photoreal assets arrived as opaque binaries: nobody can re-derive them, and a change means
 re-running a pipeline that is not in this repo. Cowboy's are **generated here**, so the art has the
 same provenance as the code — the silhouettes in `swarm/art/` carry the tracing that produced them
 (`docs/PRD-camera-lenses.md` §16.1), and everything below turns them into lit, textured surfaces.
 
-Run it from the repo root; it overwrites the three assets in `drawable-nodpi/`:
+Vampire's original image-generated RGBA sources are committed beside those silhouettes. This tool
+removes near-invisible background alpha, crops the useful pixels, fits each layer under the
+renderer’s 1024 px cap, and composes the carousel chip from the same two shipped layers.
+
+Run it from the repo root; it overwrites the six assets in `drawable-nodpi/`:
 
     python swarm/tools/render_lens_art.py
 
@@ -62,6 +66,7 @@ DRAWABLES = ROOT / "app/src/main/res/drawable-nodpi"
 SS = 3          # supersample factor; the alpha edge is what needs it
 OUT_W = 1024    # LensSurfaceProcessor.MAX_ART_PX
 QUALITY = 90
+ALPHA_FLOOR = 8
 
 
 # ------------------------------------------------------------------ silhouette rasterising
@@ -186,6 +191,27 @@ def save(rgb, alpha, out_w, path: Path):
     img.save(path, format="WEBP", quality=QUALITY, method=6)
     print(f"  {path.name}  {img.size[0]}x{img.size[1]}  {path.stat().st_size / 1024:.1f} KB")
     return img
+
+
+def prepare_generated(source: str, output: str) -> Image.Image:
+    """Crop and encode an image-generated RGBA source without inventing new pixels."""
+    pixels = np.array(Image.open(SILHOUETTES / source).convert("RGBA"))
+    pixels[..., 3] = np.where(pixels[..., 3] >= ALPHA_FLOOR, pixels[..., 3], 0)
+    image = Image.fromarray(pixels)
+    bbox = image.getchannel("A").getbbox()
+    if bbox is None:
+        raise ValueError(f"{source} has no visible pixels")
+    left, top, right, bottom = bbox
+    pad = 8
+    image = image.crop((max(0, left - pad), max(0, top - pad),
+                        min(image.width, right + pad), min(image.height, bottom + pad)))
+    scale = min(1.0, OUT_W / max(image.size))
+    if scale < 1.0:
+        image = image.resize((round(image.width * scale), round(image.height * scale)), Image.LANCZOS)
+    out = DRAWABLES / output
+    image.save(out, format="WEBP", quality=QUALITY, method=6)
+    print(f"  {out.name}  {image.width}x{image.height}  {out.stat().st_size / 1024:.1f} KB")
+    return image
 
 
 # ------------------------------------------------------------------ the hat
@@ -338,6 +364,29 @@ def render_thumbnail(hat: Image.Image, mustache: Image.Image) -> None:
     print(f"  {out.name}  {size}x{size}  {out.stat().st_size / 1024:.1f} KB")
 
 
+def render_vampire() -> None:
+    frame = prepare_generated("lens_vampire_frame_source.png", "lens_vampire_frame_art.webp")
+    fangs = prepare_generated("lens_vampire_fangs_source.png", "lens_vampire_fangs_art.webp")
+
+    size = 320
+    chip = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    frame_height = 304
+    frame_width = round(frame.width * frame_height / frame.height)
+    frame_scaled = frame.resize((frame_width, frame_height), Image.LANCZOS)
+    chip.alpha_composite(frame_scaled, ((size - frame_width) // 2, 8))
+
+    fang_width = 92
+    fang_height = round(fangs.height * fang_width / fangs.width)
+    fangs_scaled = fangs.resize((fang_width, fang_height), Image.LANCZOS)
+    chip.alpha_composite(fangs_scaled, ((size - fang_width) // 2, 214))
+
+    out = DRAWABLES / "lens_vampire.webp"
+    chip.save(out, format="WEBP", quality=QUALITY, method=6)
+    print(f"  {out.name}  {size}x{size}  {out.stat().st_size / 1024:.1f} KB")
+
+
 if __name__ == "__main__":
     print("rendering Cowboy art:")
     render_thumbnail(render_hat(), render_mustache())
+    print("rendering Vampire art:")
+    render_vampire()
