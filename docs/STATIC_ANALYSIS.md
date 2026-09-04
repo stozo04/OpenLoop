@@ -190,7 +190,7 @@ equivalent of Grazie grammar — but for the classes it covers it is the same ba
 no baseline.** (It used to be advisory and scoped to changed files while the docs carried ~600
 legacy hits; those were cleared on 2026-08-25 and the gate went hard.)
 
-### The tools (all run via `npx` / `python`, no committed `node_modules`)
+### The tools (npm CLIs are exactly pinned; `node_modules` stays uncommitted)
 
 | Tool                                                                   | Config (committed)               | Approximates (Engine 2 finding)                                                                                                                                                                                                            |
 | ---------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -218,10 +218,11 @@ Grazie (Tier 2) finding, and the prose is American.
 or by hand, whole repo:
 
 ```bash
-npx --yes markdownlint-cli2 $(git ls-files '*.md')
+npm ci --ignore-scripts
+./node_modules/.bin/markdownlint-cli2 $(git ls-files '*.md')
 python scripts/md-table-align.py            # add --fix to rewrite
-for f in $(git ls-files '*.md'); do npx --yes markdown-link-check --config .markdown-link-check.json -q "$f"; done
-git ls-files '*.md' '*.kt' '*.kts' '*.xml' '*.yml' '*.ps1' '*.py' '*.mjs' '*.json' '*.html' | npx --yes cspell --no-progress --file-list stdin
+for f in $(git ls-files '*.md'); do ./node_modules/.bin/markdown-link-check --config .markdown-link-check.json -q "$f"; done
+git ls-files '*.md' '*.kt' '*.kts' '*.xml' '*.yml' '*.ps1' '*.py' '*.mjs' '*.json' '*.html' | ./node_modules/.bin/cspell --no-progress --file-list stdin
 python scripts/sync-ide-dictionary.py --check
 ```
 

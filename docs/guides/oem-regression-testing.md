@@ -15,7 +15,7 @@ LG phone when it isn't.
 | [`docs/lessons_learned/024-fgs-type-constant-api-gating.md`](../lessons_learned/024-fgs-type-constant-api-gating.md) | FGS type must gate on the API that *added* the constant |
 
 **Agent skills** (same content, runnable commands): `.claude/skills/run-e2e-pixel-sweep/SKILL.md`
-(OEM lanes + 4-emulator sweep) and `.claude/skills/run-e2e/SKILL.md` (manual E2E + quick table).
+(default Pixel 8 flow + risk-triggered lanes) and `.claude/skills/run-e2e/SKILL.md` (manual E2E + quick table).
 
 ---
 
@@ -57,9 +57,11 @@ emulator -list-avds   # should include Pixel_8_API34
 
 ### How to run
 
-**Option A — part of the 4-device pixel sweep** (import path, scripted):
+**Option A — conditional pixel-sweep lane** (import path, scripted):
 
-Order: `Pixel_6` → `Pixel_8` → `Pixel_10_Pro_Fold` → **`Pixel_8_API34`** (last = mandatory FGS gate).
+Run `Pixel_8_API34` for FGS, WorkManager, notification, or manifest service changes and once per
+release. The default `Pixel_8` lane covers the same end-to-end flow; the API-34 lane adds real
+platform validation that the foreground service starts and saves.
 
 See `.claude/skills/run-e2e-pixel-sweep/SKILL.md` for the full sweep.
 
@@ -213,13 +215,13 @@ Pass: `tests=1 failures=0 errors=0`.
 
 ## Quick reference — which command when?
 
-| You're changing…                           | Run at minimum                                                                |
-| ------------------------------------------ | ----------------------------------------------------------------------------- |
-| FGS / WorkManager                          | API 34 unit + Robolectric FGS tests; API 34 AVD save smoke                    |
-| `DeviceMediaHints` / Samsung encoder order | `DeviceMediaHintsOemRobolectricTest` + `SamsungReversePreviewRegressionTest`  |
-| `VideoReverser` / reverse pipeline         | 4-emulator pixel sweep + Samsung RTL if Samsung-specific                      |
-| Anything touching save/render              | Pixel sweep includes API 34; grep logcat for FGS CRASH row                    |
-| LG codec fallback logic                    | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback` |
+| You're changing…                           | Run at minimum                                                                      |
+| ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| FGS / WorkManager                          | API 34 unit + Robolectric FGS tests; API 34 AVD save smoke                          |
+| `DeviceMediaHints` / Samsung encoder order | `DeviceMediaHintsOemRobolectricTest` + `SamsungReversePreviewRegressionTest`        |
+| `VideoReverser` / reverse pipeline         | Pixel 8 sweep + Fold when preview/posture changes + Samsung RTL if Samsung-specific |
+| Anything touching save/render              | Pixel 8 sweep; add API 34 for FGS/WorkManager/service-manifest changes              |
+| LG codec fallback logic                    | `VideoReverserTest#reverse_recoversFromCodecStartFailure_viaSoftwareFallback`       |
 
 ---
 

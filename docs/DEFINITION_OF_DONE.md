@@ -12,7 +12,7 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 
 - "Not my change" is **not** a reason to leave a red build. If you touch a module and its tests don't compile or don't pass, you fix them as part of the work. If the fix is genuinely out of scope, you **stop and flag it to the owner and get explicit direction** — you do not open a PR on top of a known-broken baseline.
 - A PR must be opened only from a **fully green** state: clean debug + release build, **0 test failures**, **0 lint errors, 0 lint warnings, 0 compiler warnings, 0 Markdown/spelling/inspection findings**. A known failing test in the branch is a release blocker, full stop.
-- **The pre-PR sweep is the gate, and it is mechanical.** `.\scripts\pre-pr-sweep.ps1` runs every check below and writes `build/sweep-receipt.json` only when all of them are green. A Claude Code `PreToolUse` hook (`scripts/hooks/require-sweep.mjs`, wired in `.claude/settings.json`) refuses `gh pr create` and the GitHub `create_pull_request` tool unless that receipt exists **for the current `HEAD` on a clean tree** — so the sweep is, by construction, the last thing that runs after the final commit. Humans run the same script; there is no other route to a PR.
+- **The pre-PR sweep is the gate, and it is mechanical.** `.\scripts\pre-pr-sweep.ps1` runs every check below and writes `build/sweep-receipt.json` only when all of them are green. The receipt records whether `-Clean` ran and the duration of every gate. A Claude Code `PreToolUse` hook (`scripts/hooks/require-sweep.mjs`, wired in `.claude/settings.json`) refuses `gh pr create` and the GitHub `create_pull_request` tool unless that receipt exists **for the current `HEAD` on a clean tree** — so the sweep is, by construction, the last thing that runs after the final commit. Humans run the same script; there is no other route to a PR.
 - If you discover the breakage was already on `main`, that makes it **more** urgent, not less — a broken gate on `main` means the safety net is down for every future change. Repair it (or escalate) immediately; never build on top of it.
 - Capture the green proof (build verdict + exit 0 + test counts, per the gate below) in the PR.
 
@@ -158,13 +158,15 @@ changing the script.
 >
 > ```powershell
 > .\scripts\pre-pr-sweep.ps1                         # full sweep — emulator/device attached, Inspect Code export present
+> .\scripts\pre-pr-sweep.ps1 -Clean                  # cold build after build-tool/dependency changes or suspected stale outputs
 > .\scripts\pre-pr-sweep.ps1 -SkipConnected -SkipInspectCode   # what an agent without Studio/emulator can run; the PR must say so
 > ```
 >
 > It reports every gate (it never stops at the first red), logs to `build/sweep.log`, and writes
-> `build/sweep-receipt.json` on green. Gate **5b** (the onboarding loop) starts in the background
-> after a green debug APK so it overlaps lint, JVM tests, and the text gates. The steps below are
-> what it runs, kept here so a human can reproduce any one of them by hand.
+> `build/sweep-receipt.json` on green. Fast text gates run first, build + Lint + JVM tests share one
+> Gradle invocation, then gate **5b** (the onboarding loop) runs before instrumented tests so the two
+> never contend for one emulator. The steps below are what it runs, kept here so a human can reproduce
+> any one of them by hand.
 
 ### 0. Baseline — before you change anything
 
@@ -282,7 +284,7 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] M3 — instruction changes went into the shared `docs/OPERATING_INSTRUCTIONS.md` / `docs/OPENLOOP_INSTRUCTIONS.md`; root `CLAUDE.md` / `AGENTS.md` are still content-free pointers, still byte-identical
 - [ ] M4 — anything moved/renamed/deleted was `git grep`-ed repo-wide under BOTH names; broken anchors, false statements (allowlists, folder maps, counts, "this file") and wrong pointers fixed — link-check alone is not this check
 - [ ] Baseline green before changes (clean assembleDebug)
-- [ ] clean assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:
+- [ ] assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:; `-Clean` used after build-tool/dependency changes or suspected stale outputs
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
 - [ ] Tracked-file hygiene + Gitleaks pass: no gitignored/generated files or secrets (API keys, tokens, passwords, signing material, or other credentials) are committed
 - [ ] Release bump only: Play technical quality check done (vitals Memory rows under threshold, bundle App optimization High) — numbers pasted here
