@@ -635,8 +635,8 @@ enum class Lens(
                     // Negative half-height pins the authored top edge to the mouth anchor.
                     upInUnits = -(642f / 1024f) / 2f,
                     anchor = LensAnchorPoint.MOUTH,
-                    // Short resting canines keep the smile readable; opening adds a 150% reveal.
-                    mouthOpen = MouthOpenSpec(restFraction = 0.40f),
+                    // Hidden at rest so opening the mouth is a reveal, not merely a size change.
+                    mouthOpen = MouthOpenSpec(restFraction = 0f),
                 ),
             ),
         ),

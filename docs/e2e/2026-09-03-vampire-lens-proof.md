@@ -10,12 +10,12 @@
 
 | Check                               | Result                                                                                                          |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Focused geometry tests              | `LensAnchorTest`: 87 tests, 0 failures, including fixed fang roots and 2.5× mouth-open growth                   |
+| Focused geometry tests              | `LensAnchorTest`: hidden rest state, full mouth-open reveal and fixed fang roots                                |
 | Full JVM suite before final sweep   | 647 tests, 0 failures, 0 errors, 0 skipped                                                                      |
 | Connected instrumentation preflight | 123 tests, 0 failures, 0 errors                                                                                 |
 | Installed catalogue loop            | `PASS ... lens=Vampire drawer=open pick->clear took=39s`                                                        |
 | Encoded art in APK                  | SHA-256 matched the three repository WebPs byte-for-byte                                                        |
-| Live closed-mouth bind              | Public-domain Mona Lisa fixture: short canines, face opening and collar all rendered                            |
+| Live closed-mouth bind              | Public-domain Mona Lisa fixture: pre-hardware `0.40` fang scale, retained as iteration evidence                 |
 | Mouth-open response                 | Original fictional generated portrait: long fangs, roots at the upper mouth, eyes/brows/nose/expression visible |
 | Recording bake                      | 5 s capture reached Trim as a 9.20 s virtual-camera clip with Vampire in preview and every filmstrip tile       |
 
@@ -29,9 +29,14 @@ OpenLoopLens: Lens output targets=3 size=1280x960 inputDet=-1.0 outputDet=-1.0
 
 | File                                                                                                           | What it proves                                                                                                                                     |
 | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`2026-09-03-vampire-closed-fixture.webp`](2026-09-03-vampire-closed-fixture.webp)                             | Final `restFraction = 0.40`: recognizable but restrained closed-mouth fangs; the costume leaves the central face visible                           |
+| [`2026-09-03-vampire-closed-fixture.webp`](2026-09-03-vampire-closed-fixture.webp)                             | Superseded `restFraction = 0.40` emulator pass; owner hardware later showed the closed-mouth fangs were still too prominent                        |
 | [`2026-09-03-vampire-open-mouth-generated-fixture.webp`](2026-09-03-vampire-open-mouth-generated-fixture.webp) | Wide-open mouth drives the full fang reveal without covering the eyes, brows, nose, or expression; the portrait is fictional and verification-only |
 | [`2026-09-03-vampire-baked-trim.webp`](2026-09-03-vampire-baked-trim.webp)                                     | The effect is baked into the captured clip and its Trim filmstrip, not limited to the live preview                                                 |
+
+Owner front-camera QA on 2026-09-04 confirmed the costume placement and full-open fang treatment
+on a real face. It also rejected the `0.40` closed-mouth state as visibly always-on, so the follow-up
+sets `restFraction = 0`. The personal QA photos were reviewed locally and are intentionally not
+committed to this public repository; the zero-rest behavior still requires one owner retest.
 
 The closed fixture is a flat public-domain painting already committed as
 `app/src/androidTest/assets/face_fixture.jpg`. The open-mouth fixture was generated specifically for

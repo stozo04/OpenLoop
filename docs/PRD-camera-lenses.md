@@ -952,11 +952,12 @@ layers, and a mouth-open fang reveal. The default display name is the direct, se
 ### 17.8 Implementation record
 
 The owner approved the concept on 2026-09-03. The shipped implementation is one catalogue entry
-using the existing renderer: `FACE` for the costume frame, `MOUTH` plus `MouthOpenSpec(0.40)` for
-the fangs, and no interaction or new dependency. The first installed portrait pass used `0.58`;
-the canines read as pasted-on bars with a closed mouth, so the one planned scale revision shortened
-the rest state to `0.40`. The full open state is unchanged, making the reveal 2.5 times the resting
-height while the tested upper edge remains fixed.
+using the existing renderer: `FACE` for the costume frame, `MOUTH` plus `MouthOpenSpec(0)` for the
+fangs, and no interaction or new dependency. The first installed portrait pass used `0.58`, then
+the emulator pass shortened the rest state to `0.40`. Owner hardware on 2026-09-04 showed that
+`0.40` still read as always-on fangs with a closed mouth, so the final state hides them completely.
+The full open state is unchanged and the tested upper edge remains fixed, making the jaw drop a
+reveal rather than merely a size change.
 
 | Asset                              | Encoded size | File size | Source                                      |
 | ---------------------------------- | ------------ | --------- | ------------------------------------------- |

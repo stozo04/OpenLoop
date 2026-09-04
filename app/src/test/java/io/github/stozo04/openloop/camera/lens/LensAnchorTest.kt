@@ -1181,7 +1181,7 @@ class LensAnchorTest {
     }
 
     @Test
-    fun vampire_fangsExtendFromTheMouth_withoutMovingTheirRoots() {
+    fun vampire_fangsHideAtRest_thenExtendWithoutMovingTheirRoots() {
         val subject = face()
         val frame = frameOf(subject)
         val fangs = Lens.Vampire.art[1]
@@ -1190,7 +1190,8 @@ class LensAnchorTest {
         val shutRoot = shut.centerY - shut.halfHeight
         val openRoot = open.centerY - open.halfHeight
 
-        assertTrue("opening the mouth must visibly lengthen the fangs", open.halfHeight > shut.halfHeight * 2.4f)
+        assertEquals("a closed mouth must show no fang pixels", 0f, shut.halfHeight, tolerance)
+        assertTrue("opening the mouth must reveal the fangs", open.halfHeight > 0f)
         assertEquals("the upper roots must stay attached to the mouth", shutRoot, openRoot, tolerance)
     }
 
