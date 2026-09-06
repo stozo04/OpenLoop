@@ -332,10 +332,18 @@ dependencies {
     baselineProfile(project(":baselineprofile"))
 }
 
-// Crashlytics mapping upload + Firebase config only when the console JSON is present locally.
 // See ReverseCrashlytics.kt and app/google-services.json.README.
 // Conditional, so it cannot live in the `plugins {}` block; pluginManager is the non-legacy API.
 if (file("google-services.json").exists()) {
     pluginManager.apply("com.google.gms.google-services")
     pluginManager.apply("com.google.firebase.crashlytics")
+} else {
+    tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+        doFirst {
+            throw GradleException(
+                "Release builds require app/google-services.json. " +
+                    "Download the OpenLoop Android config from Firebase; see app/google-services.json.README."
+            )
+        }
+    }
 }

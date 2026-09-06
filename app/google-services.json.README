@@ -6,11 +6,26 @@ or CLI (project `openloop-8c266`):
 ```bash
 npx -y firebase-tools@latest apps:sdkconfig ANDROID \
   1:95815153197:android:c30254bb713d1e6ae96aa4 \
-  --project openloop-8c266
+  --project openloop-8c266 --out app/google-services.json
 ```
 
-Save stdout (JSON only) as `app/google-services.json`.
+Run from the repository root. The CLI writes the JSON directly to app/google-services.json.
 
 Setup and Crashlytics triage: `ReverseCrashlytics.kt` and the `/crashlytics-triage` skill (`.claude/skills/crashlytics-triage/SKILL.md`).
 
 This file is not used by the build; the JSON is gitignored.
+
+Release APKs and bundles fail at preReleaseBuild if app/google-services.json is missing.
+Debug builds remain available without Firebase configuration. With the file present,
+the Google Services plugin validates the JSON and matching Android package, and
+the Crashlytics plugin uploads the release mapping file.
+
+Run the missing-config regression check with JAVA_HOME set to your JDK:
+
+```bash
+python scripts/verify-firebase-release-gate.py
+```
+
+Run this check alone, with no other Gradle builds running. It temporarily moves the
+local config aside and restores it in a finally block. An interrupted process can
+leave app/google-services.json.guard-test.tmp; restore that file before rebuilding.
