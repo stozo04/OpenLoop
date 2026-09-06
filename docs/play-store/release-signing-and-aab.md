@@ -48,6 +48,12 @@ keyPassword=********
 
 ## 3. Build the signed AAB
 
+Restore the gitignored `app/google-services.json` for the OpenLoop Android app before building.
+Download instructions are in [app/google-services.json.README](../../app/google-services.json.README).
+Both release APKs and bundles fail at `preReleaseBuild` when it is missing. Debug builds can
+still run without Firebase. Check the guard with `python scripts/verify-firebase-release-gate.py`
+while no other Gradle build is running.
+
 **Every release starts with the Play technical quality check** — the standing checklist in
 [README → Technical quality requirements](README.md#technical-quality-requirements-enforced-feb--apr-2027):
 Android vitals *Memory* rows under threshold (P90 per process state, P90/P50 below 3.5×) and the live
