@@ -29,11 +29,11 @@ This directory is the maintained source for verifying the user-facing behavior o
 
 ## Feature entry contract
 
-Each feature file starts with an H1 title and one paragraph describing the user-visible behavior. It then uses exactly four H2 sections in this order: `Sub-features`, `How to get to it (user POV)`, `Driving it with control.ps1`, `Gotchas`.
+Each feature file starts with an H1 title and one paragraph describing the user-visible behavior. Include these sections in order: `Sub-features`, `How to get to it (user POV)`, `Driving it with control.ps1`, `Gotchas`. An optional autonomous check section may sit beside the recipe it verifies.
 
 ## Completeness gate (before claiming the map is current)
 
-Follow the **global** Cursor rule `feature-map-completeness` (all projects). OpenLoop specifics:
+This project-local gate applies equally to Claude Code, Cursor, and Codex:
 
 1. **Inventory** from (in order): `app/src/main/res/values/strings.xml` section comments; tappable chrome in `CameraScreen` / `GalleryScreen` / `BoomerangEditorScreen` / `EditorBottomToolbar` / lens carousel; sealed `OpenLoopUiState` routes. Treat `docs/PRD-*.md` as **optional** extras — many features shipped before PRDs existed.
 2. **Diff** each item → `mapped` | `folded into <file>` | `missing` | `out of scope (why)`. Use [INVENTORY.md](./INVENTORY.md) when auditing.

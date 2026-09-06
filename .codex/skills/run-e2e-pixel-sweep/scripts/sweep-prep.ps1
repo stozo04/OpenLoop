@@ -19,7 +19,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$Avd,
   [Parameter(Mandatory = $true)][string]$ArtifactDir,
-  [string]$RepoRoot = "C:\Users\gates\Personal\OpenRang", # Rebranding: rename to OpenLoop manually
+  [string]$RepoRoot = (Resolve-Path "$PSScriptRoot/../../../..").Path,
   [string]$VideoName = "google-pro-fold-video.mp4"
 )
 $ErrorActionPreference = 'Stop'

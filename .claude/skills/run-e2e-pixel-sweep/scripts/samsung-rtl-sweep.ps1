@@ -18,15 +18,14 @@
 param(
   [string]$Serial,
   [Parameter(Mandatory = $true)][string]$ArtifactDir,
-  [string]$RepoRoot = "C:\Users\gates\Personal\OpenRang",
+  [string]$RepoRoot = (Resolve-Path "$PSScriptRoot/../../../..").Path,
   [switch]$SkipQualityGate
 )
 $ErrorActionPreference = 'Stop'
 $skill = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoSkill = Join-Path $RepoRoot ".claude\skills\run-e2e-pixel-sweep\scripts"
-$e2eSkill = Join-Path $RepoRoot ".claude\skills\run-e2e\scripts"
+$e2eSkill = Join-Path $skill '..\..\run-e2e\scripts'
 
-foreach ($dir in @($skill, $repoSkill, $e2eSkill)) {
+foreach ($dir in @($skill, $e2eSkill)) {
   if (-not (Test-Path $dir)) { Write-Error "Skill scripts missing: $dir"; exit 1 }
 }
 

@@ -27,7 +27,7 @@ $Package = 'io.github.stozo04.openloop'
 $Activity = 'io.github.stozo04.openloop/.MainActivity'
 $SkillDir = Split-Path -Parent $PSScriptRoot
 $RepoRoot = (Resolve-Path (Join-Path $SkillDir '..\..\..')).Path
-$Uiauto = Join-Path $RepoRoot '.claude\skills\run-e2e\scripts\uiauto.ps1'
+$Uiauto = Join-Path $SkillDir '..\run-e2e\scripts\uiauto.ps1'
 $Apk = Join-Path $RepoRoot 'app\build\outputs\apk\debug\app-debug.apk'
 
 function Get-Adb {

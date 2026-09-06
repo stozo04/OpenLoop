@@ -1,13 +1,16 @@
 ---
 name: reset-storage
-description: Reset OpenLoop's onboarding flag on a connected device/emulator so the first-run onboarding flow shows again on next launch. Use whenever the user says "reset storage", "/reset-storage", "reset onboarding", "show onboarding again", or wants to re-test the first-run experience. This is a fast, surgical, single-purpose delete — it removes ONLY the onboarding DataStore file and touches nothing else (recorded videos, thumbnails, and other state are always preserved).
+description: Reset OpenLoop's preferences DataStore on a selected test device/emulator so onboarding shows on next launch. Use when the user says "reset storage", "/reset-storage", "reset onboarding", or "show onboarding again". Deleting this file also resets the speed-curve intro and saved-loop count; recorded videos and thumbnails are preserved.
 ---
 
 # reset-storage — re-show OpenLoop onboarding (fast)
 
-Delete OpenLoop's onboarding DataStore file on a connected device so the next launch shows
-onboarding again. **This skill does exactly one thing and nothing else** — no video counting, no
-keep-vs-delete question, no screenshots, no waking the screen. Be fast.
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
+Delete OpenLoop's preferences DataStore file on the selected test device so the next launch shows
+onboarding again. The same file also holds `has_seen_speed_curve_intro` and `saved_loop_count`.
+State these reset effects before acting. If the request requires preserving those values, do not
+use this whole-file delete. Preserve media; do not substitute `pm clear` or uninstall.
 
 ## Ground truth (verified against source — keep these in sync with the code)
 
@@ -33,7 +36,7 @@ adb: try `adb` on PATH, else `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`
 
 - **No device** → stop, tell the user to start an emulator / connect a device. Don't guess.
 - **Exactly one** → use it.
-- **Multiple** → ask which, then pass `-s <serial>` on every call.
+- **Multiple** → use the serial already selected in the conversation; ask only if the target remains ambiguous. Pass `-s <serial>` on every call.
 
 ## Step 2 — Delete the onboarding flag (the whole job)
 
@@ -49,10 +52,13 @@ adb -s <serial> shell run-as io.github.stozo04.openloop rm -f files/datastore/op
 (a release build is installed), say so — don't silently fall through; the fast path needs the
 debug build.
 
-That's it. The next launch shows onboarding (the key defaults to `false` when the file is gone).
-Tell the user it's done. Only relaunch / screenshot if the user explicitly asks.
+Check each command's exit code immediately. Then run
+`adb -s <serial> shell run-as io.github.stozo04.openloop ls files/datastore` and require a successful
+directory listing without `openloop_preferences.preferences_pb`. A failed listing is not proof of
+deletion. Report the file reset and the three affected preferences; only claim the onboarding UI
+was verified if you launched and observed it. Relaunch / screenshot only if requested.
 
-## Windows gotchas (only relevant if you do verify)
+## Windows gotchas
 
 - Run any adb command that contains an on-device path (`/sdcard/...`) from **PowerShell**, not Git
   Bash — MSYS rewrites the leading-slash path and the pull fails. (Or prefix with `MSYS_NO_PATHCONV=1`.)
@@ -68,4 +74,4 @@ Tell the user it's done. Only relaunch / screenshot if the user explicitly asks.
 | Reset onboarding (the only mode) | force-stop, then `adb -s <serial> shell run-as io.github.stozo04.openloop rm -f files/datastore/openloop_preferences.preferences_pb` |
 | Relaunch (only if asked)         | `adb -s <serial> shell am start -n io.github.stozo04.openloop/.MainActivity`                                                         |
 
-DataStore reference: [Google's DataStore guide](https://developer.android.com/topic/libraries/architecture/datastore). The repo's usage is one boolean (`has_completed_onboarding`) in `data/UserPreferencesRepository.kt`.
+DataStore reference: [Google's DataStore guide](https://developer.android.com/topic/libraries/architecture/datastore). Read the current keys in `data/UserPreferencesRepositoryImpl.kt` before resetting; the preferences file is shared.

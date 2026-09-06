@@ -16,7 +16,7 @@
 param(
   [string]$Serial,
   [Parameter(Mandatory = $true)][string]$ArtifactDir,
-  [string]$RepoRoot = "C:\Users\gates\Personal\OpenRang",
+  [string]$RepoRoot = (Resolve-Path "$PSScriptRoot/../../../..").Path,
   [string]$VideoName = "google-pro-fold-video.mp4"
 )
 $ErrorActionPreference = 'Stop'

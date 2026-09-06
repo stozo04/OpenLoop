@@ -5,8 +5,9 @@
 > iteration 2 confirmed a zero-change clean sweep on all three devices. Historical reports were
 > archived during doc cleanup. BUG-2 (skip-at-input corruption for >30 fps sources) was fixed in
 > `6a5f266` alongside issue #170 — subsampling now decides at decoder output — but has never been
-> verified against a real >30 fps source. Re-run this loop after any media-pipeline change, or
-> whenever a Pixel-family regression is suspected.
+> verified against a real >30 fps source. Run this historical three-device loop only when
+> explicitly requested. For ordinary regression work, use the current risk-based lanes in
+> `run-e2e-pixel-sweep`.
 
 ## THE GOAL
 
@@ -44,8 +45,7 @@ needed a mid-run fix doesn't count; the next iteration must confirm).
    `main`. Never commit the video (gitignored).
 4. **Do not trust training data.** Before any claim about Android API behavior or any fix
    design, WebSearch `developer.android.com` scoped to the repo's actual versions (re-read the
-   table in `docs/OPENLOOP_INSTRUCTIONS.md` / `gradle/libs.versions.toml` — currently targetSdk 36, Kotlin 2.3.21,
-   Media3 1.10.1, CameraX 1.6.1). Pure-math fixes verified by device evidence in front of you
+   table in `docs/OPENLOOP_INSTRUCTIONS.md` / `gradle/libs.versions.toml`). Pure-math fixes verified by device evidence in front of you
    are exempt; API usage is not.
 
 ## Running one iteration
@@ -72,7 +72,7 @@ needed a mid-run fix doesn't count; the next iteration must confirm).
    those files are allowed but must be minimal, and any behavior change that also reaches the
    Samsung path (BUG-1's was: at-cap sources now feed all frames through pass 1) must be called
    out LOUDLY in the report + STATE.md with an S23 re-verify recommendation.
-4. **Fix** → full JVM suite green (`:app:testDebugUnitTest`, 191+ passing, 0 failures — count
+4. **Fix** → full JVM suite green (`:app:testDebugUnitTest`, tests > 0, 0 failures — count
    from the XML results, not `BUILD SUCCESSFUL`) → `:app:lintDebug` zero new errors → rebuild →
    re-run the failing device → confirm the logcat/gate signature is GONE (never verify by UI
    appearance alone) → **`pm clear` before the re-run or the trim-keyed reverse cache serves

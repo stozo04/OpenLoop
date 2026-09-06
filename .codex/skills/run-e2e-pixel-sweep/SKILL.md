@@ -16,6 +16,8 @@ description: >-
 
 # run-e2e-pixel-sweep — the repeatable risk-based OpenLoop sweep
 
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
 Proven end-to-end on 2026-06-04 (fold-loop iterations 1–2 + scripted validation runs on
 Pixel 6 and the Fold) and 2026-06-22 (API-34 FGS fix verification on `Pixel_8_API34`).
 The default `Pixel_8` sweep is ≈ 10 minutes; each risk-triggered lane adds ≈ 10 minutes. Run the
@@ -81,7 +83,7 @@ pwsh <skill>\scripts\drive-flow.ps1 -Serial $serial -ArtifactDir $dir   # [-Fold
 pwsh <skill>\scripts\quality-gate.ps1 -Serial $serial -ArtifactDir $dir
 
 # 4. Scan the whole capture for crash/timeout/churn signatures.
-pwsh <repo>\.claude\skills\run-e2e\scripts\scan-logcat.ps1 -LogFile $dir\logcat.txt
+pwsh <repo>\.codex\skills\run-e2e\scripts\scan-logcat.ps1 -LogFile $dir\logcat.txt
 
 # 5. Kill before the next device; wait until it's gone from `adb devices`.
 adb -s $serial emu kill

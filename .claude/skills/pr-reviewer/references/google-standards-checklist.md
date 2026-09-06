@@ -1,8 +1,8 @@
 # Google Android Standards — Review Checklist
 
 This is the full checklist the PR reviewer evaluates against. Each item maps to an official
-Google documentation source. The reviewer must web-search for the latest version of each
-source before reviewing — this file provides the structure, not the final word on current
+Google documentation source. The reviewer must web-search current guidance for each applicable
+source before making a standards claim — this file provides the structure, not the final word on current
 standards.
 
 ---
@@ -115,7 +115,7 @@ standards.
 
 **Source:** <https://developer.android.com/training/testing/fundamentals>
 
-- [ ] Unit tests exist for every file with business logic (ViewModel, Repository, processors)
+- [ ] Existing or new tests meaningfully cover the changed behavior and its material failure paths
 - [ ] Fakes preferred over mocks for Flow-based interfaces (more readable, more maintainable)
 - [ ] `TestDispatcher` (Unconfined or Standard) replaces `Dispatchers.Main` via test rule
 - [ ] UI regression tests for layout-critical composables (Compose Testing APIs)

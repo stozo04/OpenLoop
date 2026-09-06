@@ -24,7 +24,7 @@ they differ enormously in how headless-runnable they are. OpenLoop treats them a
 
 ---
 
-## Tier 1 — Android Lint (automated gate, runs on every review)
+## Tier 1 — Android Lint (automated gate for code changes)
 
 Lint is deterministic and CI-safe, so it is wired directly into the `pr-reviewer` skill
 (Phase 3.5) and into the sweep, and is a **hard merge gate**: zero lint **errors and warnings**.
@@ -33,6 +33,10 @@ The sweep parses `lint-results-debug.xml` itself rather than flipping `abortOnEr
 The version-freshness checks (`GradleDependency`, `NewerVersionAvailable`,
 `AndroidGradlePluginVersion`) are **advisory**: their messages embed a moving upstream version, so
 they self-invalidate on a schedule nobody here controls (see "Message drift" below).
+
+A review may reuse the green sweep receipt and reports for the exact reviewed commit. A branch
+changing only Markdown uses the existing `-DocsOnly` gate (`DEFINITION_OF_DONE.md` M2); report
+Android checks as not run, not as passing.
 
 ### Configuration (already in `app/build.gradle.kts`)
 

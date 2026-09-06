@@ -70,10 +70,10 @@ def normalized(path, harness):
 
 def same_content(a, a_harness, b, b_harness):
     """True when two copies differ only in which harness tree they point at."""
-    if filecmp.cmp(a, b, shallow=False):  # contents, never size + mtime — a checkout rewrites those
-        return True
     na = normalized(a, a_harness)
-    return na is not None and na == normalized(b, b_harness)
+    if na is not None:
+        return na == normalized(b, b_harness)
+    return filecmp.cmp(a, b, shallow=False)
 
 
 def tracked(harness):

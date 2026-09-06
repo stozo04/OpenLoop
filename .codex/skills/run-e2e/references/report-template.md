@@ -10,7 +10,7 @@ a skipped step or an unverified claim is itself a finding.
 **Build:** versionName <x.y.z> (versionCode <n>) · debug APK
 **Device:** <manufacturer model> · Android <release> (API <sdk>) · <abi> · serial <emulator-XXXX>
 **Branch / commit:** <branch> @ <short-sha>
-**Driver:** Claude Code `run-e2e` skill
+**Driver:** <actual harness/model> `run-e2e` skill
 **Logcat:** <path to captured logcat file>
 
 ## Verdict

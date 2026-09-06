@@ -9,11 +9,13 @@ description: >-
   end test", "/run-e2e", "full app test on the emulator", "exercise the editor tabs", "smoke test
   the boomerang flow", or wants the app driven through its real UI (not unit tests) with a logcat
   findings report at the end. Drives via adb input + uiautomator (NOT screenshots, which hit a
-  per-session image limit). Also see sibling skill `run-e2e-pixel-sweep` for the 4-emulator sweep,
+  per-session image limit). Also see sibling skill `run-e2e-pixel-sweep` for the risk-based sweep,
   API-34 FGS gate, Samsung RTL sweep, and OEM regression lanes.
 ---
 
 # run-e2e — OpenLoop end-to-end emulator test
+
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
 
 Drive the real app through its full happy path, change one thing on every editor tab, watch
 LogCat the entire time, and hand back a written findings report. The point is to catch the
@@ -32,7 +34,7 @@ run them with `pwsh <skill>/scripts/<name>.ps1 ...`. The app package is
 - For **Android 14 (API 34) FGS regression** (Crashlytics 9663c743 family), use AVD
   **`Pixel_8_API34`**. Create if missing:
   `pwsh <repo>\.claude\skills\run-e2e-pixel-sweep\scripts\create-api34-avd.ps1`.
-  This is also the **4th and final device** in the `run-e2e-pixel-sweep` repeatable sweep.
+  This lane runs for FGS/WorkManager changes and releases; follow `run-e2e-pixel-sweep` for lane selection.
 - A JDK for the build: `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"`.
 - You're at the repo root for Gradle. If the working dir has drifted, call Gradle with an explicit
   project dir: `& "<repo>\gradlew.bat" -p "<repo>" ...`.
@@ -74,11 +76,10 @@ adb -s $Serial logcat > C:\Users\<you>\AppData\Local\Temp\openloop_e2e\logcat_<t
 adb -s $Serial shell am start -n io.github.stozo04.openloop/.MainActivity
 ```
 
-For *terminal* events (reverse done, render finished) use the **Monitor** tool with a `tail -f |
-grep` filter rather than polling — but note Monitor only sees lines appended **after** it arms, so
-fast events can complete before it starts; always also grep the file directly to confirm. The
-reverse preview can run up to **120 s before it times out**, so size waits accordingly (don't
-declare a stall before then).
+Poll the captured logcat file for terminal events (reverse done, render finished), using bounded
+waits. This also finds events emitted before polling began and requires no harness-specific
+Monitor tool. The reverse preview can run up to **120 s before it times out**, so size waits
+accordingly. A dedicated regression verifier may set a tighter acceptance deadline; preserve it.
 
 ## 3. Drive the flow — one modification per editor tab
 
@@ -89,7 +90,7 @@ image API rejects them after a per-session limit; the uiautomator dump is the re
 
 Steps:
 
-1. **Record** a clip: tap the shutter (~`540,2155` on 1080×2400), wait ~3–4 s, tap again to stop.
+1. **Record** a clip: tap `Start recording`, wait ~3–4 s, tap `Stop recording`.
    Lands on the **Trim** screen.
 2. **Trim tab** — change the trim window by dragging a handle. The handles are touchy:
    - First switch off gesture nav so an edge drag doesn't fire Android's back gesture (which pops

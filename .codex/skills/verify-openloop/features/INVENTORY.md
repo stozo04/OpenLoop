@@ -1,7 +1,7 @@
 # Feature map inventory (audit worksheet)
 
 Fill or refresh this when auditing whether `features/` matches shipped OpenLoop UI.
-Does **not** need to stay perfectly current between audits — the [README completeness gate](./README.md) and the global Cursor rule `feature-map-completeness` are the process; this file is the worksheet.
+Does **not** need to stay perfectly current between audits — the project-local [README completeness gate](./README.md) is the process for every harness; this file is the worksheet.
 
 **PRDs are optional.** Prefer `strings.xml` + UI chrome. Add a PRD column only when a PRD exists.
 

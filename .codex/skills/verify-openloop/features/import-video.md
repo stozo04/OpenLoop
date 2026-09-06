@@ -24,7 +24,7 @@ Preconditions:
 
 - Doctor passes. Gallery open (or camera → Gallery).
 - A fixture under ~30 s is available on the emulator (canonical: `google-pro-fold-video.mp4` when present; often gitignored). Without a fixture, stop after opening the picker and mark remaining steps **verified-unreachable**.
-- Prefer the pixel-sweep drive when the fixture exists: `.claude/skills/run-e2e-pixel-sweep/scripts/drive-flow.ps1`.
+- Prefer the pixel-sweep drive when the fixture exists: `.codex/skills/run-e2e-pixel-sweep/scripts/drive-flow.ps1`.
 - Evidence dir `import-video/` created.
 
 - **Open gallery.** `control.ps1 tap -Label "Gallery"`.
