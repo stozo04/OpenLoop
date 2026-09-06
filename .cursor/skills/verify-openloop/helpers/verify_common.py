@@ -10,6 +10,7 @@ never executed as a verifier; the loops import it as a sibling module.
 """
 from __future__ import annotations
 
+import hashlib
 import html
 import os
 import re
@@ -17,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime
@@ -67,6 +69,7 @@ def run_adb(serial: str, *args: str, check: bool = True) -> subprocess.Completed
         encoding="utf-8",
         errors="replace",
         check=check,
+        timeout=30,
     )
 
 
@@ -295,29 +298,38 @@ def save_screencap(serial: str, path: Path) -> None:
     path.write_bytes(proc.stdout)
 
 
-def package_installed(serial: str) -> bool:
-    out = adb_out(serial, "shell", "pm", "path", PACKAGE, check=False)
-    return "package:" in out
+def installed_apk_sha256(serial: str) -> str | None:
+    paths = adb_out(serial, "shell", "pm", "path", PACKAGE, check=False).strip().splitlines()
+    if len(paths) != 1 or not re.fullmatch(r"package:/[A-Za-z0-9_./=+~-]+", paths[0]):
+        return None
+    result = run_adb(serial, "shell", "sha256sum", paths[0].removeprefix("package:"), check=False)
+    match = re.match(r"^([a-fA-F0-9]{64})\s", result.stdout or "")
+    return match[1].lower() if result.returncode == 0 and match else None
 
 
 def ensure_installed(serial: str) -> None:
     apk = repo_root() / APK_REL
     if not apk.is_file():
-        if package_installed(serial):
-            return
-        fail(f"{PACKAGE} not installed and debug APK missing at {apk}")
+        fail(f"debug APK missing at {apk}; build assembleDebug first")
+    started = time.monotonic()
+    expected = hashlib.sha256(apk.read_bytes()).hexdigest()
+    if installed_apk_sha256(serial) == expected:
+        print(f"APK installation reused: sha256={expected} setupSec={time.monotonic() - started:.3f}")
+        return
     install = subprocess.run(
         ["adb", "-s", serial, "install", "-r", "-g", str(apk)],
         capture_output=True,
         text=True,
         encoding="utf-8",
         errors="replace",
+        timeout=120,
     )
     combined = (install.stdout or "") + (install.stderr or "")
     if install.returncode != 0:
         fail(f"adb install failed: {combined.strip()}")
-    if not package_installed(serial):
-        fail(f"adb install reported success but {PACKAGE} is still missing")
+    if installed_apk_sha256(serial) != expected:
+        fail("adb install reported success but installed APK identity does not match the local APK")
+    print(f"APK installed: sha256={expected} setupSec={time.monotonic() - started:.3f}")
 
 
 def grant_camera(serial: str) -> None:
@@ -337,8 +349,6 @@ def start_activity(serial: str) -> None:
 
 
 def wait_until(predicate, timeout_s: float, interval_s: float = 0.5) -> bool:
-    import time
-
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         if predicate():

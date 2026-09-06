@@ -21,7 +21,12 @@ Sibling skills you must reuse, not copy:
 
 This skill is the feature map plus a thin `helpers/control.ps1` wrapper. The pixel sweep remains the codec/FGS proof. Select recipes for the requested feature and its affected paths; use the whole map only for a whole-map audit. Report any requested entry point you could not exercise.
 
-**Automated onboarding proof.** Run `python scripts/run-verification-loops.py --changed`. It drives the installed app from first launch through the returning-user camera state and exits nonzero when an assertion fails.
+**Automated proof.** The full pre-PR sweep runs every installed-app loop and supplies launch,
+onboarding, and screenshot evidence. Do not repeat those steps solely for the checklist. During
+local iteration, build the current debug APK and use
+`python scripts/run-verification-loops.py --loops onboarding` or other explicit names from
+`--list`. The report lists selected and omitted loops. Shared or unknown changes use `--all`.
+See [verification scope](../../../docs/DEFINITION_OF_DONE.md#choose-verification-scope).
 
 **Completeness:** Before claiming the feature map is current or adding “missing” recipes, run the project-local gate in `features/README.md` (inventory → diff → no silent `missing`). PRDs are optional for mapping existing behavior — OpenLoop shipped many surfaces before PRDs existed; use `strings.xml` + UI chrome first. Worksheet: `features/INVENTORY.md`.
 
@@ -116,6 +121,9 @@ Leave the emulator running unless you started it for this run; if you started it
 
 It calls `.claude/skills/run-e2e/scripts/uiauto.ps1` for dump/tap. Do not reimplement dump parsing.
 
-Onboarding repeatable loop (adb + Python 3 stdlib, no Gradle): `python scripts/run-verification-loops.py --changed`. Recipe: `features/onboarding.md`. Windows: `python` or `py -3`, not Git Bash `python3`.
+Onboarding repeatable loop (adb + Python 3 stdlib, no Gradle):
+`python scripts/run-verification-loops.py --loops onboarding`. A local APK is required; matching
+installed bytes reuse installation, while every assertion still executes. Recipe:
+`features/onboarding.md`. Windows: `python` or `py -3`, not Git Bash `python3`.
 
 For the full editor-tab + logcat report, run `.claude/skills/run-e2e/SKILL.md` and keep that report under `docs/e2e/`. That satisfies **edit-and-save** when you also store the dumps in `$VERIFY_EVIDENCE_DIR/edit-and-save/`. Single-tab claims use `features/edit-trim.md`, `edit-speed.md`, `edit-loop.md`, `edit-filter.md`, `edit-delete.md`, or `edit-save.md`.

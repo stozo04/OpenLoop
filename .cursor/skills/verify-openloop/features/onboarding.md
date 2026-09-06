@@ -18,10 +18,15 @@ First launch shows a single full-bleed trust screen (`Free. Forever.`) with `LET
 Run the autonomous check from the repository root:
 
 ```powershell
-python scripts/run-verification-loops.py --changed
+python scripts/run-verification-loops.py --loops onboarding
 ```
 
-The script installs the current debug APK when one is available, grants CAMERA, resets only the onboarding DataStore, verifies the exact first-run copy and video description, taps `LET'S GO!`, verifies persistence, cold-starts again, and proves the returning user reaches Video mode with the back camera bound. It saves UI XML, screenshots, and logcat under the printed evidence directory and exits nonzero on failure.
+Build the current debug APK first. The script verifies its installed hash and installs only when
+the bytes differ, grants CAMERA, resets the onboarding DataStore, verifies the first-run copy and
+video description, taps `LET'S GO!`, verifies persistence, and cold-starts again to prove Video
+mode with the back camera bound. It saves UI XML, screenshots, and logcat under the printed
+evidence directory and exits nonzero on failure. This targeted run omits the other loops; the
+full PR sweep already includes onboarding and does not need this separate repetition.
 
 For manual diagnosis, use `helpers/control.ps1` and `.cursor/skills/run-e2e/scripts/uiauto.ps1`.
 

@@ -18,7 +18,7 @@
       4. JVM unit tests: parse the merged run's report; 0 failures, 0 errors, tests > 0 (counted from the
          XML, never from BUILD SUCCESSFUL).
       5. Instrumented tests (unless -SkipConnected): same, from the connected XML.
-      5b. Autonomous onboarding loop via scripts/run-verification-loops.py --changed.
+      5b. Installed-app loops via scripts/run-verification-loops.py --all.
          Starts after a green merged Gradle run. One emulator — does not overlap
          connectedDebugAndroidTest. Skip with -SkipConnected.
       6. Markdown: markdownlint-cli2, table alignment (scripts/md-table-align.py), and relative-link checks on
@@ -43,6 +43,7 @@
                            A skip means onboarding is not verified.
 .PARAMETER DocsOnly        Text gates only (6-9). For docs-only branches — the receipt records it.
 .PARAMETER Clean           Prepend Gradle clean. Use after build-tool/dependency changes or suspected stale outputs.
+.PARAMETER RerunTests      Execute JVM tests even when Gradle could reuse their results. Required for releases.
 
 .EXAMPLE
     .\scripts\pre-pr-sweep.ps1
@@ -55,14 +56,26 @@ param(
     [switch]$SkipInspectCode,
     [switch]$SkipConnected,
     [switch]$DocsOnly,
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$RerunTests
 )
 
 $ErrorActionPreference = "Continue"
 $root = (git rev-parse --show-toplevel 2>$null)
 if (-not $root) { Write-Error "Not inside a git checkout."; exit 2 }
 Set-Location $root
+$headAtStart = (git rev-parse HEAD).Trim()
+$dirtyAtStart = @(git status --porcelain)
 New-Item -ItemType Directory -Force build | Out-Null
+$history = Join-Path $root "build/sweep-history/$(Get-Date -Format yyyyMMdd-HHmmss-fffffff)"
+$previous = @("sweep.log", "sweep-receipt.json", "verification-loops.log", "verification-loops.err", "verification-loops-receipt.json")
+foreach ($name in $previous) {
+    $path = Join-Path $root "build/$name"
+    if (Test-Path -LiteralPath $path) {
+        New-Item -ItemType Directory -Force -Path $history -ErrorAction Stop | Out-Null
+        Move-Item -LiteralPath $path -Destination (Join-Path $history $name) -ErrorAction Stop
+    }
+}
 $log = Join-Path $root "build/sweep.log"
 "pre-pr-sweep $(Get-Date -Format o)" | Set-Content $log
 
@@ -74,6 +87,11 @@ $cspell = Join-Path $root "node_modules/cspell/bin.mjs"
 
 $results = [ordered]@{}
 $timings = [ordered]@{}
+$gradleTasks = [ordered]@{}
+$testResults = [ordered]@{}
+$artifacts = [ordered]@{}
+$loopReceipt = $null
+$loopReceiptPath = Join-Path $root "build/verification-loops-receipt.json"
 $loopProc = $null
 $loopStartError = $null
 $loopLog = Join-Path $root "build/verification-loops.log"
@@ -100,9 +118,14 @@ function Gate([string]$name, [scriptblock]$body) {
 }
 
 function Run-Gradle([string[]]$tasks) {
-    $out = & .\gradlew.bat @tasks --console=plain 2>&1
+    $out = & .\gradlew.bat @tasks --profile --console=plain 2>&1
     $code = $LASTEXITCODE
     $out | Add-Content $log
+    foreach ($line in $out) {
+        if ("$line" -match '^> Task (\S+)(?: (.+))?$') {
+            $script:gradleTasks[$Matches[1]] = if ($Matches[2]) { $Matches[2] } else { "EXECUTED" }
+        }
+    }
     return @{ Code = $code; Lines = @($out | ForEach-Object { "$_" }) }
 }
 
@@ -111,17 +134,41 @@ function Tracked([string[]]$globs) {
 }
 
 function Sum-JUnit([string]$dir) {
-    $t = 0; $f = 0; $e = 0
-    Get-ChildItem $dir -Recurse -Filter *.xml -ErrorAction SilentlyContinue | ForEach-Object {
-        # Attribute order differs between the JVM and the connected reports — read each one on its own.
-        $head = Get-Content $_.FullName -Raw
-        if ($head -match '<testsuite\b') {
-            if ($head -match '\btests="(\d+)"') { $t += [int]$Matches[1] }
-            if ($head -match '\bfailures="(\d+)"') { $f += [int]$Matches[1] }
-            if ($head -match '\berrors="(\d+)"') { $e += [int]$Matches[1] }
+    $ErrorActionPreference = "Stop"
+    $t = 0; $f = 0; $e = 0; $skipped = 0; $seconds = 0.0
+    foreach ($file in (Get-ChildItem $dir -Recurse -Filter *.xml)) {
+        [xml]$report = Get-Content -LiteralPath $file.FullName -Raw
+        $suites = $report.SelectNodes('/testsuite | /testsuites/testsuite')
+        if ($suites.Count -eq 0) { throw "No JUnit suite in $($file.FullName)" }
+        foreach ($suite in $suites) {
+            foreach ($attribute in @('tests', 'failures', 'errors')) {
+                if ($suite.GetAttribute($attribute) -notmatch '^\d+$') { throw "Invalid JUnit $attribute in $($file.FullName)" }
+            }
+            if ($suite.SelectNodes('testcase').Count -ne [int]$suite.tests) { throw "JUnit testcase count disagrees with tests in $($file.FullName)" }
+            $t += [int]$suite.tests
+            $f += [int]$suite.failures
+            $e += [int]$suite.errors
+            $skipped += $suite.SelectNodes('testcase/skipped').Count
+            $seconds += [double]$suite.time
         }
     }
-    return @{ Tests = $t; Failures = $f; Errors = $e }
+    return @{ Tests = $t; Failures = $f; Errors = $e; Skipped = $skipped; TestTimeSec = [math]::Round($seconds, 3) }
+}
+
+function Remove-ReportDirectory([string]$path) {
+    $workspace = [IO.Path]::GetFullPath($root).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    $target = [IO.Path]::GetFullPath($path)
+    if (-not $target.StartsWith($workspace, [StringComparison]::OrdinalIgnoreCase)) { throw "Report directory outside checkout: $target" }
+    if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction Stop }
+}
+
+function Test-FullLoopReceipt($receipt, [string[]]$expected, [string]$apkSha) {
+    $selected = @($receipt.selected | Sort-Object)
+    $executed = @($receipt.executed | Where-Object { $_.exitCode -eq 0 } | ForEach-Object { $_.name } | Sort-Object)
+    return $expected.Count -gt 0 -and $apkSha -and $receipt.status -eq "passed" -and
+        $receipt.apkSha256 -eq $apkSha -and @($receipt.skipped).Count -eq 0 -and
+        ($expected -join ',') -eq ($selected -join ',') -and
+        ($expected -join ',') -eq ($executed -join ',')
 }
 
 # ---------------------------------------------------------------------------- build gates (invoked after text gates)
@@ -132,19 +179,22 @@ if (-not $DocsOnly) {
     $lintResults = Join-Path $root "app/build/reports/lint-results-debug.xml"
     Gate $buildGateName {
         # Dropping `clean` preserves Gradle's cache, but stale reports must never count as this run.
-        if (Test-Path -LiteralPath $unitResultsDir) {
-            Remove-Item -LiteralPath $unitResultsDir -Recurse -Force
-        }
-        if (Test-Path -LiteralPath $lintResults) { Remove-Item -LiteralPath $lintResults -Force }
+        Remove-ReportDirectory $unitResultsDir
+        if (Test-Path -LiteralPath $lintResults) { Remove-Item -LiteralPath $lintResults -Force -ErrorAction Stop }
         $tasks = @(
             "assembleDebug",
             "assembleRelease",
             ":app:lintDebug",
-            ":app:testDebugUnitTest",
+            ":app:testDebugUnitTest"
+        )
+        if ($RerunTests) { $tasks += "--rerun" }
+        $tasks += @(
             "--parallel",
             "--build-cache",
-            "--continue"
+            "--continue",
+            "-PopenloopVerification=true"
         )
+        if (-not $SkipConnected) { $tasks += ":app:assembleDebugAndroidTest" }
         if ($Clean) { $tasks = [string[]]"clean" + $tasks }
         $r = Run-Gradle $tasks
         $errs = @($r.Lines | Where-Object { $_ -match '^e: ' })
@@ -153,7 +203,15 @@ if (-not $DocsOnly) {
         # sessions") that no code change can clear — those are not findings.
         $warns = @($r.Lines | Where-Object { $_ -match '^w: file:' })
         $ok = ($r.Code -eq 0) -and ($r.Lines -match 'BUILD SUCCESSFUL') -and $errs.Count -eq 0 -and $warns.Count -eq 0
-        if ($ok) { return "PASS (exit 0, BUILD SUCCESSFUL, 0 e:, 0 w:; clean=$([bool]$Clean))" }
+        if ($ok) {
+            $apkPaths = @("app/build/outputs/apk/debug/app-debug.apk")
+            if (-not $SkipConnected) { $apkPaths += "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk" }
+            foreach ($apk in $apkPaths) {
+                if (-not (Test-Path -LiteralPath $apk)) { return "FAIL: build reported success but APK is missing: $apk" }
+                $script:artifacts[$apk] = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
+            }
+            return "PASS (exit 0, BUILD SUCCESSFUL, 0 e:, 0 w:; clean=$([bool]$Clean))"
+        }
         return "FAIL: exit=$($r.Code) e:=$($errs.Count) w:=$($warns.Count) — first: $(($errs + $warns | Select-Object -First 1))"
     }
 
@@ -164,11 +222,11 @@ if (-not $DocsOnly) {
             if (Test-Path $loopErr) { Remove-Item $loopErr -Force }
             $script:loopProc = Start-Process -FilePath "python" -ArgumentList @(
                 (Join-Path $root "scripts/run-verification-loops.py"),
-                "--changed"
+                "--all", "--report", $loopReceiptPath
             ) -WorkingDirectory $root -PassThru -WindowStyle Hidden `
                 -RedirectStandardOutput $loopLog -RedirectStandardError $loopErr -ErrorAction Stop
             if ($null -eq $script:loopProc) { $script:loopStartError = "Start-Process returned null" }
-            Write-Host "== 5b. Onboarding loop — started in background" -ForegroundColor Cyan
+            Write-Host "== 5b. Installed-app loops — started in background" -ForegroundColor Cyan
         } catch {
             $script:loopStartError = $_.Exception.Message
         }
@@ -177,6 +235,7 @@ if (-not $DocsOnly) {
     Gate "2. zipalign -c -P 16 on the release APK" {
         $apk = @("app/build/outputs/apk/release/app-release-unsigned.apk", "app/build/outputs/apk/release/app-release.apk") | Where-Object { Test-Path $_ } | Select-Object -First 1
         if (-not $apk) { return "FAIL: no release APK found" }
+        $script:artifacts[$apk] = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLowerInvariant()
         $za = Get-ChildItem "$sdk/build-tools" -Directory | Sort-Object Name -Descending | ForEach-Object { Join-Path $_.FullName "zipalign.exe" } | Where-Object { Test-Path $_ } | Select-Object -First 1
         if (-not $za) { return "FAIL: zipalign.exe not found under $sdk/build-tools" }
         $out = & $za -c -P 16 -v 4 $apk 2>&1
@@ -201,7 +260,12 @@ if (-not $DocsOnly) {
 
     Gate "4. JVM unit tests — 0 failures" {
         $s = Sum-JUnit "app/build/test-results/testDebugUnitTest"
-        if ($s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
+        $s.Execution = $gradleTasks[":app:testDebugUnitTest"]
+        $script:testResults["jvm"] = $s
+        if ($RerunTests -and $s.Execution -ne "EXECUTED") { return "FAIL: -RerunTests requested execution, got $($s.Execution)" }
+        if ($s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0 -and $s.Execution -in @("EXECUTED", "FROM-CACHE", "UP-TO-DATE")) {
+            return "PASS ($($s.Tests) tests, $($s.Skipped) skipped, 0 failures, 0 errors; $($s.Execution))"
+        }
         return "FAIL: tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
     }
 }
@@ -234,11 +298,11 @@ Gate "6b. Markdown table alignment (IDE-faithful) — 0 misaligned" {
 }
 
 $linkBase = ("$(& git merge-base HEAD origin/main 2>$null)").Trim()
-$removedOrRenamed = if ($linkBase) { @(& git diff --name-only --diff-filter=DR --find-renames $linkBase HEAD) } else { @() }
+$removedOrRenamed = if ($linkBase) { @(& git diff --name-only --diff-filter=DR --find-renames $linkBase) } else { @() }
 $linkMd = if ($removedOrRenamed.Count -gt 0) {
     $md
 } elseif ($linkBase) {
-    @(& git diff --name-only --diff-filter=ACMRT $linkBase HEAD -- "*.md" | Where-Object { Test-Path $_ })
+    @(& git diff --name-only --diff-filter=ACMRT $linkBase -- "*.md" | Where-Object { Test-Path $_ })
 } else {
     @()
 }
@@ -269,14 +333,19 @@ Gate "6d. Harness skill trees byte-identical (.claude/.cursor/.codex)" {
 Gate "6e. Script self-checks (scripts/test-*.py) — all green" {
     # Free and offline. The other gates prove the TEXT is well-formed; this is the only one that
     # fails when the logic of a script those gates depend on breaks.
-    $bad = @()
-    foreach ($t in (Get-ChildItem scripts/test-*.py)) {
-        $out = & python $t.FullName 2>&1
-        $out | Add-Content $log
-        if ($LASTEXITCODE -ne 0) { $bad += $t.Name }
+    $checks = @(Get-ChildItem scripts/test-*.py)
+    $completed = @($checks | ForEach-Object -Parallel {
+        Set-Location $using:root
+        $out = & python $_.FullName 2>&1
+        $code = $LASTEXITCODE
+        [pscustomobject]@{ Name = $_.Name; Code = $code; Lines = $out }
+    } -ThrottleLimit 3)
+    foreach ($check in ($completed | Sort-Object Name)) {
+        $check.Lines | Add-Content $log
     }
-    if ($bad.Count -eq 0) { return "PASS" }
-    return "FAIL: $($bad -join ', ') — see build/sweep.log"
+    $bad = @($completed | Where-Object { $_.Code -ne 0 } | ForEach-Object { $_.Name })
+    if ($completed.Count -eq $checks.Count -and $checks.Count -gt 0 -and $bad.Count -eq 0) { return "PASS ($($completed.Count) scripts executed)" }
+    return "FAIL: completed=$($completed.Count)/$($checks.Count) failed=$($bad -join ', ') — see build/sweep.log"
 }
 
 Gate "7. cspell over every tracked text file — 0 unknown words" {
@@ -345,7 +414,7 @@ Gate "9. Inspect Code export (Engine 2) — 0 hard findings in tracked files" {
 
 & $buildGates
 
-Gate "5b. Onboarding loop — autonomous first-run + returning-user proof" {
+Gate "5b. Installed-app loops — all shipped verifiers" {
     if ($DocsOnly) { return "SKIPPED (docs-only)" }
     if ($SkipConnected) { return "SKIPPED (-SkipConnected; onboarding is not verified)" }
     if ($loopStartError) { return "FAIL: could not start runner: $loopStartError" }
@@ -358,25 +427,45 @@ Gate "5b. Onboarding loop — autonomous first-run + returning-user proof" {
     if (Test-Path $loopErr) { Get-Content $loopErr | Add-Content $log }
     $tail = ""
     if (Test-Path $loopLog) { $tail = (@(Get-Content $loopLog) | Select-Object -Last 1) }
-    # Underscores are in the class because a loop's name is its `<name>_loop.py` stem, and those
-    # are Python module names: `record_clip`, not `record-clip`. Written when onboarding was the
-    # only loop, this pattern rejected the marker the runner actually printed for the second one.
-    if ($code -eq 0 -and "$tail" -match '^PASS loops=[a-z0-9_,-]+$') { return "PASS ($tail)" }
-    return "FAIL: exit=$code final=$tail — expected a final PASS loops=<names> marker"
+    if (Test-Path -LiteralPath $loopReceiptPath) {
+        $script:loopReceipt = Get-Content -LiteralPath $loopReceiptPath -Raw | ConvertFrom-Json
+    }
+    $expected = @(Get-ChildItem .cursor/skills/verify-openloop/helpers/*_loop.py | ForEach-Object { $_.BaseName -replace '_loop$', '' } | Sort-Object)
+    $currentApk = $artifacts["app/build/outputs/apk/debug/app-debug.apk"]
+    $complete = Test-FullLoopReceipt $loopReceipt $expected $currentApk
+    if ($code -eq 0 -and "$tail" -eq "PASS loops=$($expected -join ',')" -and $complete) { return "PASS ($tail; all executed)" }
+    return "FAIL: exit=$code complete=$complete selected=$($loopReceipt.selected -join ',') expected=$($expected -join ',') final=$tail"
 }
 
 if (-not $DocsOnly) {
     Gate "5. Instrumented tests — 0 failures" {
         if ($SkipConnected) { return "SKIPPED (-SkipConnected; run connectedDebugAndroidTest before the PR)" }
-        $devices = @(& "$sdk/platform-tools/adb.exe" devices 2>$null | Select-String -Pattern "^\S+\s+(device|offline)$")
-        if ($devices.Count -gt 1 -and -not $env:ANDROID_SERIAL) {
-            return "FAIL: $($devices.Count) devices attached and ANDROID_SERIAL is unset — pin one (a Studio-managed emulator that is `offline` will otherwise be picked)"
-        }
+        if (-not $loopReceipt.serial) { return "FAIL: no device serial established by the installed-app runner" }
+        if ($loopReceipt.serial -notmatch '^emulator-\d+$' -and $env:VERIFY_ALLOW_DEVICE -ne '1') { return "FAIL: physical device not authorized for verification" }
+        if ($env:ANDROID_SERIAL -and $env:ANDROID_SERIAL -ne $loopReceipt.serial) { return "FAIL: runner serial differs from ANDROID_SERIAL" }
+        $env:ANDROID_SERIAL = $loopReceipt.serial
+        Remove-ReportDirectory (Join-Path $root "app/build/outputs/androidTest-results/connected")
         $r = Run-Gradle @(":app:connectedDebugAndroidTest")
         $s = Sum-JUnit "app/build/outputs/androidTest-results/connected"
-        if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0) { return "PASS ($($s.Tests) tests, 0 failures, 0 errors)" }
+        $s.Execution = $gradleTasks[":app:connectedDebugAndroidTest"]
+        $script:testResults["connected"] = $s
+        if ($r.Code -eq 0 -and $s.Tests -gt 0 -and $s.Failures -eq 0 -and $s.Errors -eq 0 -and $s.Execution -eq "EXECUTED") {
+            return "PASS ($($s.Tests) tests, $($s.Skipped) skipped, 0 failures, 0 errors; EXECUTED)"
+        }
         return "FAIL: exit=$($r.Code) tests=$($s.Tests) failures=$($s.Failures) errors=$($s.Errors)"
     }
+}
+
+Gate "10. Artifact and source identity" {
+    if ((git rev-parse HEAD).Trim() -ne $headAtStart) { return "FAIL: HEAD changed during the sweep" }
+    if ($loopReceipt -and $loopReceipt.sourceSha -ne $headAtStart) { return "FAIL: installed-app receipt belongs to a different commit" }
+    foreach ($path in $artifacts.Keys) {
+        if (-not (Test-Path -LiteralPath $path)) { return "FAIL: artifact disappeared: $path" }
+        if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $artifacts[$path]) {
+            return "FAIL: artifact changed during the sweep: $path"
+        }
+    }
+    return "PASS ($($artifacts.Count) APK hashes unchanged; same HEAD)"
 }
 
 # ---------------------------------------------------------------------------- verdict + receipt
@@ -391,13 +480,13 @@ foreach ($k in $results.Keys) {
 }
 
 $sha = (git rev-parse HEAD).Trim()
-$dirty = @(git status --porcelain --untracked-files=no)
-$loopVerdict = $results["5b. Onboarding loop — autonomous first-run + returning-user proof"]
+$dirty = @(git status --porcelain)
+$loopVerdict = $results["5b. Installed-app loops — all shipped verifiers"]
 $receipt = [ordered]@{
     sha                = $sha
     branch             = (git branch --show-current).Trim()
     at                 = (Get-Date -Format o)
-    treeClean          = ($dirty.Count -eq 0)
+    treeClean          = ($dirtyAtStart.Count -eq 0 -and $dirty.Count -eq 0)
     docsOnly           = [bool]$DocsOnly
     cleanBuild         = [bool]$Clean
     inspectCode        = $inspect
@@ -405,6 +494,12 @@ $receipt = [ordered]@{
     onboardingLoop     = if ($loopVerdict -like "PASS*") { "passed" } elseif ($loopVerdict -like "SKIPPED*") { "skipped" } else { "failed" }
     gates              = $results
     durationSec        = $timings
+    gradleTasks        = $gradleTasks
+    tests              = $testResults
+    artifacts          = $artifacts
+    verificationLoops  = $loopReceipt
+    rerunTests         = [bool]$RerunTests
+    verificationBuild  = (-not $DocsOnly)
 }
 $receiptPath = Join-Path $root "build/sweep-receipt.json"
 if ($failed.Count -gt 0) {
@@ -416,7 +511,7 @@ if ($failed.Count -gt 0) {
 $receipt | ConvertTo-Json -Depth 4 | Set-Content $receiptPath -Encoding utf8
 Write-Host ""
 if (-not $receipt.treeClean) {
-    Write-Host "SWEEP GREEN for $sha — but the tree has uncommitted tracked changes; commit, then re-run so the receipt matches HEAD." -ForegroundColor Yellow
+    Write-Host "SWEEP GREEN for $sha — but the tree has uncommitted changes; commit, then re-run so the receipt matches HEAD." -ForegroundColor Yellow
 } else {
     Write-Host "SWEEP GREEN for $sha — receipt: build/sweep-receipt.json (inspectCode=$inspect)" -ForegroundColor Green
 }
