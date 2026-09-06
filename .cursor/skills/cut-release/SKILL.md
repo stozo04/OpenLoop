@@ -13,6 +13,8 @@ description: >-
 
 # cut-release — OpenLoop Play release, staged and resumable
 
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
 A release is one long process with two owner-only gates in the middle: a required PR review
 (repo ruleset — 1 approving review, no self-approval) and a Play Console upload (no MCP/tool
 access to Play Console exists in this session). This skill walks every mechanical step around
@@ -66,7 +68,8 @@ history, and GitHub's PR data are authoritative; branch names and PR titles are 
    at **Step 3/4** (capture the sha, build).
 5. The `.aab` exists but no tag matches its version → you're at **Stop B**, waiting on upload
    confirmation. Do not tag.
-6. A tag exists for the current `versionName` → already done; say so and stop.
+6. A tag exists for the current `versionName` → run the two final verification checks before
+   reporting completion. A tag alone does not prove that a GitHub release or verified local AAB exists.
 7. Current `versionName` == latest tag and no open release PR exists → nothing in flight; a new
    release starts at **Step 1**.
 

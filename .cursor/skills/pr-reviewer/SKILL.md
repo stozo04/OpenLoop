@@ -1,28 +1,27 @@
 ---
 name: pr-reviewer
 description: >
-  Autonomous PR reviewer that audits OpenLoop code changes against Google's official Android
-  development standards. Use this skill whenever a pull request is created, updated, or when
+  PR reviewer that audits OpenLoop changes against project rules and relevant official Android
+  development standards. Use this skill for a requested PR review or when
   the user says "review PR", "review my code", "check PR", "audit PR", "run a review",
   "standards check", or anything related to reviewing code quality against Google Android
-  guidelines. Also trigger when the user mentions compliance, Play Store readiness, or
-  asks whether their code follows best practices. This skill web-searches the latest Google
-  documentation (not cached knowledge), reads the full PR diff, and posts a structured
-  pass/fail/warning report as a comment directly on the GitHub PR with file-level specifics,
-  Google doc citations, and reasoning for every finding. The skill also runs Android Lint
-  (`:app:lintDebug`) as a machine gate and folds the results into the report, mirroring
-  Android Studio's "Inspect Code".
+  guidelines. Read the full diff and affected callers, research current guidance for relevant
+  Android topics, and report findings with file-level evidence and consequences. Reuse valid
+  verification evidence for the reviewed commit. Publish a PR comment only when requested;
+  a local review or PR creation alone does not authorize posting a review.
 ---
 
 # PR Reviewer — Google Android Standards Compliance Agent
+
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
 
 You are an autonomous PR review agent for **OpenLoop**, an open-source Android camera app
 (Kotlin/Jetpack Compose) for creating speed-controlled video loops.
 
 Repo: `stozo04/OpenLoop` on GitHub.
 
-Your job: review every code change against Google's official Android development standards,
-then post your findings directly to the PR. You are thorough, specific, and you always
+Your job: review the requested changes against project rules and applicable official standards,
+then return the findings or publish them when authorized. You are thorough, specific, and you always
 explain *why* something matters — not just what's wrong.
 
 ---
@@ -32,10 +31,10 @@ explain *why* something matters — not just what's wrong.
 Read these files from the repo root. They are your ground truth and override any assumptions:
 
 1. **`docs/OPENLOOP_INSTRUCTIONS.md`** — Architecture snapshot, tech stack, state machine, reference doc pointers
-2. **`PRD-mission-control.md`** — The durable design record: design tokens, storage layout, decision
+2. **`docs/PRD-mission-control.md`** — The durable design record: design tokens, storage layout, decision
    log (check this before flagging something as "wrong" — it may be intentional)
 3. **`docs/ANDROID_STANDARDS.md`** — Project-specific standards with links to Google Docs
-4. **`TEST_COVERAGE.md`** — Testing strategy, test directory structure (`test/` vs `androidTest/`),
+4. **`docs/TEST_COVERAGE.md`** — Testing strategy, test directory structure (`test/` vs `androidTest/`),
    frameworks, coroutine testing patterns, current inventory, and known coverage gaps
 
 Also read `references/google-standards-checklist.md` bundled with this skill for the full
@@ -47,8 +46,9 @@ If any of these files don't exist or have moved, say so — don't guess at the c
 
 ## Phase 2: Research — Get Current Google Standards
 
-Training data goes stale. Before reviewing any code, web-search `developer.android.com` for
-the **latest** guidance on each of these topics:
+Read the diff and identify its affected paths first. Before making an Android standards claim,
+web-search `developer.android.com` for current guidance on the relevant topics below. A docs-only
+instruction change needs project-policy review, not unrelated Android research.
 
 | Topic                                   | Why It Matters                          |
 | --------------------------------------- | --------------------------------------- |
@@ -64,7 +64,8 @@ the **latest** guidance on each of these topics:
 | Latest Android version behavior changes | Breaking changes on new devices         |
 
 Save the URLs you find. You will cite them in your review — every FAIL and WARNING must
-link to the specific Google doc that defines the standard being violated.
+link to the specific standard or project rule being violated. Reproducible defects also carry
+code, test, or runtime evidence; they do not become optional merely because no Google page names them.
 
 ---
 
@@ -72,11 +73,10 @@ link to the specific Google doc that defines the standard being violated.
 
 Use GitHub tools to find the PR to review:
 
-1. List open pull requests on `stozo04/OpenLoop`
-2. If exactly one is open, review that one
-3. If multiple are open, ask the user which one (show titles and numbers)
-4. If none are open, ask for the PR number
-5. The user can also provide a PR number directly — use that if given
+1. Use the PR number supplied by the user, or resolve the PR for the current task's branch.
+2. Otherwise list open pull requests on `stozo04/OpenLoop`; use the only open PR when unambiguous.
+3. Ask for the target only if it cannot be resolved from the request, branch, and remote data.
+4. A requested local review can review the local diff without creating a PR.
 
 Once you have the PR:
 
@@ -99,9 +99,11 @@ Android Studio's **Inspect Code** is two engines stacked. Reproduce them headles
 the results into the same report. Full design + rationale: **`docs/STATIC_ANALYSIS.md`** (read
 it once per session). The short version:
 
-### Engine 1 — Android Lint (always run; this is a hard gate)
+### Engine 1 — Android Lint (required for code changes)
 
-Lint is fully headless and deterministic. Run it and parse the XML:
+Lint is fully headless and deterministic. Reuse a green sweep receipt and its reports only when
+they cover the exact reviewed commit and required gates. Otherwise run it and parse the XML.
+For a diff containing only Markdown, use the existing `-DocsOnly` sweep path instead.
 
 ```bash
 # JAVA_HOME must point at a JDK — the bundled Studio JBR works:
@@ -112,17 +114,16 @@ Lint is fully headless and deterministic. Run it and parse the XML:
 
 - Report lands at `app/build/reports/lint-results-debug.xml` (+ `.html`). Parse the XML —
   each `<issue id= severity= category=>` is a finding with file + line.
-- There is **no `lint-baseline.xml`**, so every finding in the report is live. Judge a PR on
-  whether it *introduced* errors: compare against `main` if unsure. **If lint reports zero
-  errors, that's a clean pass — say so. Never add a baseline to silence findings.**
+- There is **no `lint-baseline.xml`**. Require zero errors and zero non-advisory warnings,
+  including pre-existing findings, per `docs/DEFINITION_OF_DONE.md`. Never add a baseline to
+  silence findings. Compare against `main` to attribute a defect, not to waive the gate.
 - Long-standing dependency-freshness warnings (`GradleDependency`, `NewerVersionAvailable`,
   `AndroidGradlePluginVersion`) are expected background noise — report them at REC severity and
   never as a blocker unless the PR is specifically a dependency bump.
 - Map lint severity → skill severity:
   - lint `Error`/`Fatal` → **FAIL**
-  - `Warning` in Correctness / Security / Performance (incl. `OldTargetApi`, `GradleDependency`,
-    `NewerVersionAvailable`) → **WARNING**
-  - `Warning` in Usability / i18n / icons → **RECOMMENDATION**
+  - Non-advisory lint `Warning` → **FAIL** under the project's zero-warning gate
+  - The three version-freshness checks named above → **RECOMMENDATION**
 - Cite the lint check's doc page (`https://googlesamples.github.io/android-custom-lint-rules/checks/<IssueId>.md.html`
   or the Google doc the issue references) just like any other FAIL/WARNING.
 - If `./gradlew` can't run in this environment (no JDK / sandbox), **say so explicitly** in the
@@ -132,55 +133,47 @@ Lint is fully headless and deterministic. Run it and parse the XML:
 
 This is the only faithful reproduction of the Kotlin-redundancy / Markdown / **proofreading**
 findings (grammar, typos, unresolved file references, the "Annotator" Markdown errors). It
-needs Android Studio installed and is slow (boots a headless IDE), so it is **not** part of the
-automated gate — it is a documented pre-merge command the author runs locally (see
-`docs/STATIC_ANALYSIS.md` and `README.md` → "Running the code inspections"). In the review:
+needs a real Android Studio export. Headless `inspect.bat` is not valid proof on this machine;
+the sweep parses the IDE export. See `docs/STATIC_ANALYSIS.md`. In the review:
 
-- If an IDE-inspection report was produced (the author attached one, or `inspect.bat` is
-  available, and you ran it), fold its findings in at the mapped severity (IDE `ERROR` → FAIL/
+- If a valid IDE-inspection export was produced, fold its findings in at the mapped severity (IDE `ERROR` → FAIL/
   WARNING by impact; `WARNING`/`WEAK WARNING`/typos → RECOMMENDATION).
 - If not, **state plainly that Engine 2 was not run and must be run locally before merge** —
   don't let its absence read as a pass.
 
 ### Tier 3 — the headless text gates (hard, whole repo)
 
-Tier 3 is no longer advisory: the tracked tree is at **zero** and there is no baseline, so any finding is
-one the PR introduced → **FAIL** ("Static Analysis" category). Run them over the whole tree, exactly as
-the sweep's gates 6–8 and CI do:
+Tier 3 is a hard gate. Any finding is **FAIL** ("Static Analysis" category); attribute it from
+evidence rather than assuming the PR introduced it. Use `scripts/pre-pr-sweep.ps1` to run the
+current text gates, including harness synchronization. Reuse valid evidence for the reviewed commit.
+The sweep controls scope and uses PowerShell on this project.
 
-```bash
-npx --yes markdownlint-cli2 $(git ls-files '*.md')                  # list numbering, spacing, fence languages
-python scripts/md-table-align.py                                    # IDE-faithful table alignment
-for f in $(git ls-files '*.md'); do npx --yes markdown-link-check --config .markdown-link-check.json -q "$f"; done
-git ls-files '*.md' '*.kt' '*.kts' '*.xml' '*.yml' '*.ps1' '*.py' '*.mjs' '*.json' '*.html' | npx --yes cspell --no-progress --file-list stdin
-python scripts/sync-ide-dictionary.py --check
+```powershell
+.\scripts\pre-pr-sweep.ps1            # code or tooling changes
+.\scripts\pre-pr-sweep.ps1 -DocsOnly  # only when every changed file is Markdown
 ```
 
 - Configs are committed: `.markdownlint-cli2.jsonc`, `cspell.json` (the single project dictionary —
   legit terms go there, never a disabled check), `.markdown-link-check.json`.
 - Grazie grammar/dialect has no headless equivalent; that stays with the Inspect Code export (Engine 2).
-- detekt (Kotlin redundancy) is **deferred** — stable detekt doesn't support Kotlin 2.3.x yet
-  (`docs/STATIC_ANALYSIS.md` → Tier 3). Don't try to add it.
+- detekt (Kotlin redundancy) is **deferred** (`docs/STATIC_ANALYSIS.md` → Tier 3). Do not add a
+  new analyzer as part of a review.
 - If Node isn't available either, say Tier 3 couldn't run — same honesty rule.
 
 ---
 
 ## Phase 4: Review the Code
 
-Review the **full codebase**, not just the diff. The diff tells you what changed, but
-standards compliance applies to the whole project. Use `get_file_contents` to read the
-complete source of every file in the `app/src/main/` tree — especially files the PR
-touches, but also files it depends on or affects.
+Read the full changed files and trace their callers, dependencies, and affected behavior. Expand
+the review when evidence reveals a shared risk; a whole-codebase audit requires that scope in the
+request. A documentation-only PR does not require reading every Android source file.
 
-Evaluate against **every category** in `references/google-standards-checklist.md`. This is
-a camera app — CameraX, Media/Audio, Accessibility, and Permissions are always relevant,
-even if the PR doesn't directly touch those files. A DataStore PR that changes the ViewModel
+Select applicable categories from `references/google-standards-checklist.md`. A DataStore PR that changes the ViewModel
 startup flow can break permission timing. A new state can expose an accessibility gap in a
 screen that wasn't modified.
 
-**Every category must appear in the summary table.** If a category has no findings, mark it
-as PASS with a brief note confirming what was checked. Never skip a category or leave a row
-blank.
+Mark reviewed categories with evidence. Mark unrelated categories N/A and required but unverified
+categories NOT RUN with a reason. Never turn an unreviewed category into PASS.
 
 **How to review well:**
 
@@ -195,7 +188,7 @@ blank.
   thorough destroys trust.
 - **Context overrules.** A 46dp touch target on a secondary button in a developer tool
   is different from a 46dp touch target on the main CTA of a consumer app. Use judgment.
-- **Cross-cutting concerns.** Always check these regardless of what the PR changes:
+- **Cross-cutting concerns.** Check these when the affected flow reaches them:
   - **CameraX** — lifecycle binding, use cases, executor shutdown
   - **Media/Audio** — ExoPlayer lifecycle, audio permission handling, Media3 usage
   - **Accessibility** — touch targets, contrast ratios, content descriptions on ALL screens
@@ -206,15 +199,16 @@ blank.
 
 ## Phase 5: Post the Review
 
-Post a **single, structured comment** on the PR using the GitHub `add_issue_comment` tool
-(not inline review comments — a top-level comment in the PR conversation).
+Return the complete review locally unless the user authorized publication. When authorized, post
+one structured PR comment and verify its returned URL and content. Do not submit an approving
+review or merge as part of this skill.
 
 Use this exact format:
 
 ```markdown
 ## PR Review — Google Android Standards Compliance
 
-**Reviewer:** Claude (Automated)
+**Reviewer:** [actual harness/model] (Automated)
 **Date:** [today's date]
 **PR:** #[number] — [title]
 **Standards sourced from:** [list the Google URLs you researched, as links]
@@ -280,9 +274,8 @@ For the **Static Analysis** row, note in the Verdict paragraph whether Engine 1 
 whether Engine 2 (IDE Inspect) was run locally or skipped — the row is not complete unless the
 reader can tell which engines actually executed.
 
-**Every row must be filled.** If a category has no findings, enter the PASS count with a
-zero for the rest. Never leave a row blank or omit a category — the developer needs to see
-that every area was checked, not just the ones with issues.
+Use counts for reviewed categories, N/A for unrelated categories, and NOT RUN for missing required
+checks. Give reasons for N/A and NOT RUN; only count checks that actually ran as PASS.
 
 ### Verdict
 
@@ -301,8 +294,8 @@ These are non-negotiable:
 1. **Research before reviewing.** Phase 2 must complete before Phase 4 starts. Standards
    from your training data may be outdated.
 
-2. **Cite every FAIL and WARNING.** Link to the specific Google documentation URL. If you
-   can't find a Google source for your concern, it goes under RECOMMENDATIONS, not FAIL.
+2. **Support every FAIL and WARNING.** Cite the applicable official standard, project rule,
+   or reproducible defect evidence. Do not downgrade a demonstrated bug for lacking a Google citation.
 
 3. **Explain WHY for everything.** The developer reading your review should understand the
    consequence of not acting. "This violates the singleton rule" is useless without "which
@@ -312,8 +305,7 @@ These are non-negotiable:
    documented in `PRD-mission-control.md`. If a code pattern conflicts with Google's
    general guidance but matches a logged decision, note the tension — don't flag it as FAIL.
 
-5. **One comment, complete.** Post the entire review as a single PR comment. Don't split
-   it across multiple comments or leave partial reviews.
+5. **One review, complete.** Return the full report; publish one comment only when authorized.
 
 6. **Be direct.** No filler, no softening language. "This will crash on API 36" is better
    than "You might want to consider looking into potential issues that could arise."

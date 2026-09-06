@@ -12,6 +12,8 @@ description: >-
 
 # crashlytics-triage — OpenLoop Crashlytics via Firebase MCP
 
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
 Use the **Firebase MCP server** (`plugin-firebase-firebase` or `npx firebase-tools@latest mcp`)
 to pull live Crashlytics data, prioritize issues, investigate samples, and propose fixes.
 Do not guess from stack frames alone — fetch issue + event data first.
@@ -83,7 +85,7 @@ Call `firebase_get_environment`. Report project, user, and directory. Stop with 
    - [Console](<uri from API if present>)
 ```
 
-Include **rationale** for ordering. **Ask** whether to deep-dive an issue before editing code.
+Include **rationale** for ordering. A triage-only request ends with ranked findings. If the user already requested investigation or fixes, continue within that scope without asking again; ask which issue only when the target cannot be inferred from the request and evidence.
 
 ### Step 3 — Optional dashboard parity
 
@@ -99,7 +101,7 @@ When the user gives an issue id, console URL, or picks one from Mode A:
 4. `crashlytics_list_notes` — resume prior on-call context.
 5. Read stack frames in the repo (`VideoReverser`, `OpenLoopViewModel`, `ReverseCrashlytics`, etc.).
 6. Cross-check [`docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md`](../../../docs/lessons_learned/020-imported-clips-hdr-codec-and-reverse-failure-recovery.md), [`023-media-pipeline-stages-must-count-output-samples.md`](../../../docs/lessons_learned/023-media-pipeline-stages-must-count-output-samples.md), and [`docs/guides/reverse-video-research.md`](../../../docs/guides/reverse-video-research.md) for known reverse/codec incidents.
-7. Produce the investigation plan (do not implement until user confirms):
+7. Produce the investigation plan below. For an authorized fix, continue through implementation and the required verification; for investigation-only work, return the plan without modifying code.
 
 ```markdown
 ## Cause

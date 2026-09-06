@@ -5,6 +5,8 @@ description: Check and repair byte-drift between the three LLM harness skill tre
 
 # harness-sync — keep the three harness skill trees identical
 
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
 This repo is driven by three LLM providers, and each harness auto-discovers skills **only** under
 its own directory: `.claude/skills/`, `.cursor/skills/`, `.codex/skills/`. The content is the same
 project knowledge, so those three trees are copies of one thing and must never diverge. A skill

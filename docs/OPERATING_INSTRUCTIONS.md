@@ -15,9 +15,9 @@ Tests that cannot prove necessity are not added by default.
 ## Workflow
 
 1. Understand the requirements first, then take action. Do not modify code first and guess the intent afterward.
-2. Higher reasoning can be used in the planning phase. In the execution phase, default to medium-low reasoning, or switch to a lighter model for implementation.
-3. Do not keep the highest reasoning mode on throughout.
-4. Do not default to spinning up multiple Agents in parallel. Complete one task in a single thread first, then decide whether to split it.
+2. Match reasoning effort to the difficulty and uncertainty of the work. Keep the configured model unless the user requests a change; do not claim to switch models or effort without a supported tool.
+3. Use the smallest sufficient solution after tracing the affected flow and its callers. Reuse existing code, standard libraries, and installed tools before adding anything.
+4. Work in one thread by default. Delegate only when requested by the user or an applicable project workflow, with independent tasks, clear ownership, and a final review of the combined result.
 5. Only enable skills that are necessary to complete the task. Do not install heavy-process skills.
 6. Produce a minimal plan first, then execute. The plan must clearly state:
    - Goals
@@ -36,18 +36,12 @@ Tests that cannot prove necessity are not added by default.
 
 ## Action Boundaries
 
-1. Before taking action, restate:
-   - What the user truly wants
-   - The scope of this time
-   - Things explicitly not to do
-   - What counts as completion
-2. For any irreversible operation, must wait for user reply with confirmation codeword before executing.
-   - Confirmation codeword is specified by the user.
-   - Without codeword, wrong codeword, or other replies, refuse execution outright.
-3. The following operations are not considered irreversible by default and can be executed:
-   - Git rollback, revert, branch switch
-   - Moving files to the backup directory of the current repository
-   - Running tests, viewing diffs, generating plans, read-only analysis
+1. Treat "can you...", "I want to...", and "help me..." as requests to act. Infer scope from the current request and prior context, then finish the authorized work. Do not stop at a plan, a capability answer, or an offer to continue. Respect explicit limits such as "review only", "no code", "no commits", and "one phase at a time".
+2. Authorization persists across turns. Routine edits, fixes, read-only checks, isolated branches, and preparing a reviewable diff do not need another approval when covered by the request. A request to create a PR authorizes its commit, push, and creation after the required checks; it does not authorize merging or releasing.
+3. Before seeking approval for a remaining action, finish the already-authorized preparation and verification so the user can review the concrete result. Ask only for missing information that materially changes the outcome or for an action outside the existing authorization. Continue independent work while waiting. Never treat silence as approval.
+   - Use reasonable assumptions for routine choices and state material assumptions briefly. Do not invent confirmation codewords or hypothetical-risk approval flows.
+   - Check the actual effect before destructive operations: a reset or rollback can discard uncommitted work; a move can overwrite a destination. Preserve unrelated work and data. Unapproved deletion of user data, history rewriting, external communications, financial actions, merges, and releases need explicit authorization.
+   - Required repository reviews, Play upload confirmation, and tool/sandbox approval gates still apply. Complete the preparation before the gate and never bypass it.
 4. If you find yourself doing any of the following, must stop and switch to a smaller solution:
    - Adding new abstractions, frameworks, or config layers that the current requirement doesn't need
    - Designing ahead for possible future use
@@ -55,6 +49,14 @@ Tests that cannot prove necessity are not added by default.
    - Modifying many unrelated files at once
    - Creating a second implementation to accommodate old logic
    - Using the opportunity to add a complete test suite
+
+## Instruction Priority and Follow-through
+
+The user's current instructions and prior authorization take precedence over project skill guidelines, subject to system/developer instructions and enforced tool permissions. Read skills as procedures within the authorized scope, not as a reason to re-request permission. A triage-only request ends with findings; an authorized fix continues through implementation and verification.
+
+If an instruction or skill causes a pause, permission question, unfinished task, or departure from the request, name and link the exact file, quote the relevant instruction, and explain why it applies. Distinguish an explicit requirement from your interpretation. If automatic approval review rejects an action, identify the action and summarize its stated reason.
+
+Incorporate corrections and new constraints into the active task. Answer side questions briefly, then continue the original objective unless the user cancels or replaces it. Keep a short checkpoint of completed work, evidence, decisions, and remaining steps for long tasks; context changes are not a reason to restart or abandon the task.
 
 ## Testing
 
@@ -66,7 +68,7 @@ Tests are not responsible for filling historical coverage gaps or designing futu
 3. Only add new tests in the following two cases:
    - This change modified behavior, but existing tests don't cover it
    - User explicitly requires adding tests
-4. New tests cover at most 1 main path of the actual change this time, and if necessary, add 1 key failure path.
+4. Add the smallest meaningful check for the changed behavior and its material failure paths. Do not add tests that merely repeat the implementation or assert prose wording.
 5. Prohibit expanding test scope for completeness.
 6. Prohibit using the opportunity to fill tests for unrelated modules.
 7. Prohibit introducing new test frameworks, tools, or infrastructure.
@@ -81,13 +83,13 @@ Before adding any test, must be able to answer:
 - If removed, can existing tests no longer detect this regression
 - Is it more complex than the implementation itself
 
-If test code is longer or more convoluted than the implementation code, default to considering it over-engineering; delete the test or shrink the implementation.
+Prefer a simple test setup, but judge a test by the regression it detects rather than its line count. Do not delete meaningful coverage merely because it is longer than the implementation.
 
-## Model Division of Labor
+Complete the required Definition of Done checks. Once they pass, repeat or broaden testing only after a new change, failure, or unresolved concern. Capture the exit code of the command that matters and independently verify its result (artifact contents, test counts, or remote PR state); a shell exiting 0 is not proof that the task succeeded. Report skipped checks and the limits of the evidence.
 
-- Requirement clarification and solution review: Use stronger models
-- Writing code, modifying code, running tests: Use medium-low spec models, or lighter execution models
-- When the execution model starts stacking architecture, adding compatibility, expanding scope, or adding large test suites: Stop immediately and rewrite the minimal plan
+## Communication
+
+Lead with the result or intended action. Use concise, plain paragraphs; use lists or tables when they make steps or comparisons clearer. Explain findings with concrete evidence and consequences. Avoid filler, stock phrases, and repeated plans. During sustained work, give brief progress updates; the final answer states what changed, what was verified, and any remaining blocker.
 
 ## Pre-Completion Checklist
 
@@ -105,6 +107,8 @@ If test code is longer or more convoluted than the implementation code, default 
 
 ## General Principles
 
-Confirm intent first, then complete acceptance with minimal changes.
+Understand intent first, then complete acceptance with minimal changes.
 Designs that cannot prove necessity are not done by default.
 Tests that cannot prove necessity are not added by default.
+
+Audit record: [project instructions and skills, 2026-09-06](guides/project-agent-audit.md).

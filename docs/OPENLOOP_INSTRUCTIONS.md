@@ -49,9 +49,9 @@ How to invoke one explicitly (`/android-skills:<name>`), keep the plugin scoped 
 
 ## How to Work With Me
 
-### PRD-first — always
+### PRD-first — scale to the task
 
-Before building anything non-trivial: write a PRD covering problem statement, success criteria, scope, constraints, implementation plan, and open questions. Get sign-off before writing code. Check what already exists before proposing custom work.
+For a new feature or architectural change, prepare a PRD covering problem, success criteria, scope, constraints, implementation plan, and open decisions. Check existing code and decisions first. Honor sign-off already given in the conversation; ask only about unresolved product or architectural choices that materially change the outcome. An authorized fix, review, documentation edit, or skill update can proceed with the concise plan in `OPERATING_INSTRUCTIONS.md`; it does not require a separate PRD approval.
 
 **The Architecture Snapshot below (tech stack, source layout, state machine) is the authoritative structural reference. `docs/PRD-mission-control.md` is the durable design record — design tokens, storage layout, decision log; check its decision log before making structural changes.**
 
@@ -61,11 +61,7 @@ Interrogate vague requests. Disagree when something is off. Flag contradictions 
 
 ### Reversibility protocol
 
-Before anything destructive (deleting files, overwriting code, sending communications in my name, financial actions, mass operations):
-
-1. Show the plan.
-2. Flag what is irreversible.
-3. Wait for explicit "proceed."
+Follow `OPERATING_INSTRUCTIONS.md` → Action Boundaries. Complete authorized edits and prepare a reviewable result before asking about a remaining unapproved action. Ordinary source edits are part of an implementation request. Preserve unrelated work and user data; do not treat permission to prepare a PR as permission to merge, publish, send messages, or spend money. Honor existing authorization without requiring another "proceed."
 
 ### Definition of Done — required before "done" or "Ready for PR"
 
@@ -75,9 +71,13 @@ A change is **not done because it compiles.** Before calling any non-trivial cha
 
 **The pre-PR sweep is mandatory and mechanical (owner rule, 2026-08-25):** `.\scripts\pre-pr-sweep.ps1` runs every one of those checks to zero and writes `build/sweep-receipt.json`; the `PreToolUse` hook in `.claude/settings.json` refuses `gh pr create` / `create_pull_request` without a receipt for the current `HEAD` on a clean tree. Run it **after the final commit**. If Android Studio or an emulator is unavailable, pass `-SkipInspectCode` / `-SkipConnected` and say so in the PR — never work around the hook. `-SkipConnected` also skips the onboarding check; that skip means onboarding is not verified.
 
+For a branch changing only `.md` files, the existing `-DocsOnly` sweep is the applicable gate
+(`DEFINITION_OF_DONE.md` M2). Report its scope and any skipped IDE inspection; do not claim app
+builds or device behavior were verified by a documentation check.
+
 ### Note-taking
 
-Capture context, decisions, and open threads continuously. Checkpoint before switching domains or when a conversation runs long. If I say "things changed," re-interview me — don't assume prior context still holds.
+Capture context, decisions, and open threads continuously. Checkpoint before switching domains or when a conversation runs long. If I say "things changed," incorporate the new information, preserve completed work that still applies, and ask only about material gaps. Continue independent authorized work.
 
 ### Working style
 

@@ -199,6 +199,22 @@ def main():
             assert f".{h}/skills/demo/note.md" in body, f".{h} was not retargeted: {body!r}"
         assert run(tmp)[0] == 0, "a retargeted tree must satisfy the check it was written for"
 
+    @case("identical_wrong_targets — identical bytes must not hide foreign harness paths")
+    def _(tmp):
+        for h in HARNESSES:
+            (tmp / f".{h}" / SKILL).write_text(
+                "# demo skill\nread .claude/skills/demo/note.md and .claude\\skills\\demo\\go.ps1\n",
+                encoding="utf-8")
+        code, out = run(tmp)
+        assert code == 1, f"identical foreign paths must fail the check:\n{out}"
+        code, out = run(tmp, "--fix", "--from", "claude")
+        assert code == 0, out
+        for h in HARNESSES:
+            body = (tmp / f".{h}" / SKILL).read_text(encoding="utf-8")
+            assert f".{h}/skills/demo/note.md" in body, body
+            assert f".{h}\\skills\\demo\\go.ps1" in body, body
+        assert run(tmp)[0] == 0, "repair must satisfy the check"
+
     @case("fix_preserves_crlf — a CRLF skill is not silently rewritten to LF")
     def _(tmp):
         (tmp / ".claude" / SKILL).write_bytes(b"# demo skill\r\nedited\r\n")

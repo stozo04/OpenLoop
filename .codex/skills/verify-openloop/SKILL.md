@@ -5,6 +5,8 @@ description: Drive the OpenLoop Android camera app the way a user does (capture,
 
 # Verify OpenLoop
 
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
 Agent-facing control skill. Read cold. Do not invent a second launch path.
 
 Primary surface: Android app, package `io.github.stozo04.openloop`, launcher `io.github.stozo04.openloop/.MainActivity`. Jetpack Compose. No accounts, no backend, no API keys.
@@ -14,14 +16,14 @@ Also present, not this skill's default: the GitHub Pages store site. Ignore it h
 Sibling skills you must reuse, not copy:
 
 - `.codex/skills/run-e2e/` — full capture → editor → save with logcat scan
-- `.codex/skills/run-e2e-pixel-sweep/` — 4-emulator import → save quality gate
+- `.codex/skills/run-e2e-pixel-sweep/` — Pixel 8 import → save quality gate plus risk-triggered lanes
 - `.codex/skills/reset-storage/` — delete onboarding DataStore only
 
-This skill is the feature map plus a thin `helpers/control.ps1` wrapper. The pixel sweep remains the codec/FGS proof. A feature-map pass that skips a mapped entry point is incomplete.
+This skill is the feature map plus a thin `helpers/control.ps1` wrapper. The pixel sweep remains the codec/FGS proof. Select recipes for the requested feature and its affected paths; use the whole map only for a whole-map audit. Report any requested entry point you could not exercise.
 
 **Automated onboarding proof.** Run `python scripts/run-verification-loops.py --changed`. It drives the installed app from first launch through the returning-user camera state and exits nonzero when an assertion fails.
 
-**Completeness:** Before claiming the feature map is current or adding “missing” recipes, run the gate in `features/README.md` (inventory → diff → no silent `missing`). Global Cursor rule: `feature-map-completeness`. PRDs are optional — OpenLoop shipped many surfaces before PRDs existed; use `strings.xml` + UI chrome first. Worksheet: `features/INVENTORY.md`.
+**Completeness:** Before claiming the feature map is current or adding “missing” recipes, run the project-local gate in `features/README.md` (inventory → diff → no silent `missing`). PRDs are optional for mapping existing behavior — OpenLoop shipped many surfaces before PRDs existed; use `strings.xml` + UI chrome first. Worksheet: `features/INVENTORY.md`.
 
 ## Launch
 

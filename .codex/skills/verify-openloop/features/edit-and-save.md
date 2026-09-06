@@ -22,8 +22,8 @@ End-to-end editor smoke: after a clip exists, exercise the major Edit surfaces, 
 Preconditions:
 
 - Doctor passes. Dump shows Trim or the editor.
-- Prefer `.claude/skills/run-e2e-pixel-sweep/scripts/drive-flow.ps1` when `google-pro-fold-video.mp4` is present.
-- Otherwise `.claude/skills/run-e2e/SKILL.md` section 3 (one change per tab) via `control.ps1 tap`.
+- Prefer `.codex/skills/run-e2e-pixel-sweep/scripts/drive-flow.ps1` when `google-pro-fold-video.mp4` is present.
+- Otherwise `.codex/skills/run-e2e/SKILL.md` section 3 (one change per tab) via `control.ps1 tap`.
 - Evidence dir `edit-and-save/` created. Logcat on before save.
 
 - Drive each linked recipe in order (Trim → Speed → Loop → Filter → Save). Skip Delete on the happy path.

@@ -5,6 +5,8 @@ description: Create one autonomous installed-APK verifier for a named OpenLoop f
 
 # Create Verifier
 
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
 Create exactly one verifier for the feature the user named. Do not plan or implement other feature verifiers.
 
 ## Outcome

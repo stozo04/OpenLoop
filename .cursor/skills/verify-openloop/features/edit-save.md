@@ -20,7 +20,7 @@ Preconditions:
 
 - Doctor passes. Editor showing `Save boomerang`.
 - Prefer at least one intentional edit from [edit-trim](./edit-trim.md) / [edit-speed](./edit-speed.md) / [edit-loop](./edit-loop.md) / [edit-filter](./edit-filter.md) before save when proving those features; bare save after Trim→SAVE is still a valid export smoke.
-- Start logcat before tap (`.claude/skills/run-e2e/scripts/scan-logcat.ps1` afterward).
+- Start logcat before tap (`.cursor/skills/run-e2e/scripts/scan-logcat.ps1` afterward).
 - Evidence dir `edit-save/` created.
 - Count Gallery tiles before save.
 
@@ -34,4 +34,4 @@ Preconditions:
 - Share sheet **is** success — dismissing with BACK is normal.
 - Save without changing tabs still exports defaults (often Boomerang direction + default speed).
 - Failure snackbar + debug report is a support path, not the happy path.
-- Orchestrated multi-tab run: [edit-and-save](./edit-and-save.md). Pixel sweep: `.claude/skills/run-e2e-pixel-sweep/`.
+- Orchestrated multi-tab run: [edit-and-save](./edit-and-save.md). Pixel sweep: `.cursor/skills/run-e2e-pixel-sweep/`.

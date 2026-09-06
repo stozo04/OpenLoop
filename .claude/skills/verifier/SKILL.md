@@ -5,6 +5,8 @@ description: Run the installed-APK regression verifier for OpenLoop issue #170, 
 
 # Reverse Preview Trim Verifier
 
+Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
+
 From the repository root, run:
 
 ```powershell

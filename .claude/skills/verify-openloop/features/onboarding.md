@@ -29,7 +29,7 @@ For manual diagnosis, use `helpers/control.ps1` and `.claude/skills/run-e2e/scri
 
 - Onboarding is one page now, not three. Recipes that tap through page dots are stale.
 - Camera permission is not an onboarding page. The autonomous check grants CAMERA so it can prove the post-onboarding destination.
-- The check deletes only `files/datastore/openloop_preferences.preferences_pb`; gallery videos remain intact.
+- The check deletes `files/datastore/openloop_preferences.preferences_pb`; this also resets the speed-curve intro and saved-loop count. Gallery videos remain intact. Use a dedicated test fixture.
 - `run-as` works on debug builds. Release installs are not this skill's target.
 - Do not use a user's personal DataStore as the first-run fixture.
 - On Windows, use `python` or `py -3`; Git Bash `python3` may resolve to a broken Scripts shim.
