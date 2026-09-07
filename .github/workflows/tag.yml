@@ -34,8 +34,10 @@ on:
         type: boolean
         default: false
 
+# Creating a tag and a GitHub release is a write. Tags are not covered by the branch ruleset, so
+# the job's own GITHUB_TOKEN is enough here — no PAT or App token needed for run 2.
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: openloop-release
@@ -46,7 +48,7 @@ jobs:
     name: Cut tag and GitHub release
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
 
     steps:
       - name: Checkout
@@ -54,7 +56,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
       # tag-release.ps1 warns when releases/openloop-<version>-<code>.aab is missing. In CI it
       # always would be, which turns a real safety check into noise — so pull the artifact the
