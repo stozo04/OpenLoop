@@ -47,7 +47,7 @@ jobs:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           if [[ -z "$RELEASE_TOKEN" ]]; then
-            echo "::error::RELEASE_TOKEN is not set. A real release run pushes the bump branch and merges its own PR, which needs a fine-grained PAT with contents and pull-requests write. Add it as a repository secret, or re-run with dry_run to build only."
+            echo "::error::RELEASE_TOKEN is not set. A real release run pushes the bump branch and merges its own PR, which needs a credential that can bypass the ruleset — a fine-grained PAT, or a GitHub App token. Add it as a repository secret, or re-run with dry_run to build only."
             exit 1
           fi
           echo "RELEASE_TOKEN is present."
@@ -195,7 +195,12 @@ jobs:
           echo "Keystore opens and contains the alias."
 
       - name: Build the release bundle
-        run: ./gradlew :app:bundleRelease --no-daemon --stacktrace
+        run: |
+          set -euo pipefail
+          # gradlew is mode 100644 in the index — git on Windows does not track the executable
+          # bit, so a Linux runner checks it out non-executable. Set it here rather than assuming.
+          chmod +x gradlew
+          ./gradlew :app:bundleRelease --no-daemon --stacktrace
 
       - name: Verify the signature
         id: sign
