@@ -11,9 +11,9 @@ name: Release · build signed AAB
 # so `bundleRelease` succeeding and `jarsigner -verify` passing is the gate this flow adds.
 #
 # Secrets: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD, GOOGLE_SERVICES_JSON are
-# needed by every run. RELEASE_TOKEN (a fine-grained PAT with contents + pull-requests write) is
-# needed only by a real run, which pushes a branch and merges its own PR; a dry run falls back to
-# the job's GITHUB_TOKEN because it only ever reads.
+# needed by every run. RELEASE_TOKEN (a credential that can bypass the branch ruleset — a
+# fine-grained PAT or a GitHub App token) is needed only by a real run, which pushes a branch and
+# merges its own PR; a dry run falls back to the job's GITHUB_TOKEN because it only ever reads.
 
 on:
   workflow_dispatch:
@@ -162,8 +162,26 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # gradle-wrapper.jar is gitignored in this repo (.gitignore), so ./gradlew has no engine
+      # behind it on a fresh checkout. Take the version the wrapper pins and have setup-gradle
+      # provide exactly that — same Gradle the wrapper would have downloaded, read from the same
+      # file, so upgrading the wrapper still moves CI with it.
+      - name: Read the pinned Gradle version
+        id: gradle_version
+        run: |
+          set -euo pipefail
+          version=$(grep -oP 'gradle-\K[0-9.]+(?=-bin\.zip)' gradle/wrapper/gradle-wrapper.properties)
+          if [[ -z "$version" ]]; then
+            echo "::error::Could not read the Gradle version from gradle/wrapper/gradle-wrapper.properties."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Wrapper pins Gradle $version"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ steps.gradle_version.outputs.version }}
 
       # keystore.properties and google-services.json are both gitignored, so CI has to
       # reconstitute them. Actions masks these values in the log.
@@ -195,12 +213,7 @@ jobs:
           echo "Keystore opens and contains the alias."
 
       - name: Build the release bundle
-        run: |
-          set -euo pipefail
-          # gradlew is mode 100644 in the index — git on Windows does not track the executable
-          # bit, so a Linux runner checks it out non-executable. Set it here rather than assuming.
-          chmod +x gradlew
-          ./gradlew :app:bundleRelease --no-daemon --stacktrace
+        run: gradle :app:bundleRelease --no-daemon --stacktrace
 
       - name: Verify the signature
         id: sign
