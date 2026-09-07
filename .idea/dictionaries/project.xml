@@ -124,6 +124,7 @@
       <w>edge-to-edge</w>
       <w>egl</w>
       <w>einval</w>
+      <w>elif</w>
       <w>emma</w>
       <w>emulator</w>
       <w>endgroup</w>
@@ -308,6 +309,7 @@
       <w>nullness</w>
       <w>numpy</w>
       <w>nums</w>
+      <w>numstat</w>
       <w>objdump</w>
       <w>oes</w>
       <w>omxc</w>
@@ -414,6 +416,7 @@
       <w>stateflow</w>
       <w>stdlib</w>
       <w>stomion</w>
+      <w>storepass</w>
       <w>storetype</w>
       <w>stozo</w>
       <w>stuttery</w>
@@ -432,6 +435,7 @@
       <w>techbloat</w>
       <w>techrt</w>
       <w>telehealth</w>
+      <w>temurin</w>
       <w>testsrc</w>
       <w>testtag</w>
       <w>tflite</w>
