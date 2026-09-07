@@ -10,8 +10,10 @@ name: Release · build signed AAB
 # RELEASE variant — R8, resource shrinking, the baseline profile, #178's Firebase guard, signing —
 # so `bundleRelease` succeeding and `jarsigner -verify` passing is the gate this flow adds.
 #
-# Secrets required: RELEASE_TOKEN, KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD,
-# GOOGLE_SERVICES_JSON.
+# Secrets: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD, GOOGLE_SERVICES_JSON are
+# needed by every run. RELEASE_TOKEN (a fine-grained PAT with contents + pull-requests write) is
+# needed only by a real run, which pushes a branch and merges its own PR; a dry run falls back to
+# the job's GITHUB_TOKEN because it only ever reads.
 
 on:
   workflow_dispatch:
@@ -33,15 +35,23 @@ jobs:
     name: Bump · build · sign
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
 
     steps:
+      # A real run pushes a branch and merges a PR, which github-actions[bot] cannot do here.
+      # Say so now, by name, instead of dying halfway through with a 403.
+      - name: Require the PAT for a real run
+        if: ${{ !inputs.dry_run && secrets.RELEASE_TOKEN == '' }}
+        run: |
+          echo "::error::RELEASE_TOKEN is not set. A real release run pushes the bump branch and merges its own PR, which needs a fine-grained PAT with contents and pull-requests write. Add it as a repository secret, or re-run with dry_run to build only."
+          exit 1
+
       - name: Checkout main
         uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
 
       # Read the version rather than accepting it as input — the owner should never type a
       # versionCode, and a typo here ships the wrong number to Play.
@@ -160,6 +170,12 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           set -euo pipefail
+          for required in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD GOOGLE_SERVICES_JSON; do
+            if [[ -z "${!required}" ]]; then
+              echo "::error::Secret $required is not set. Every run needs the signing material."
+              exit 1
+            fi
+          done
           printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
           printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
           {
