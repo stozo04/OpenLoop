@@ -39,12 +39,18 @@ jobs:
 
     steps:
       # A real run pushes a branch and merges a PR, which github-actions[bot] cannot do here.
-      # Say so now, by name, instead of dying halfway through with a 403.
+      # Say so now, by name, instead of dying halfway through with a 403. The check lives in the
+      # shell rather than in `if:` because `secrets` is not an allowed context in a step condition.
       - name: Require the PAT for a real run
-        if: ${{ !inputs.dry_run && secrets.RELEASE_TOKEN == '' }}
+        if: ${{ !inputs.dry_run }}
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          echo "::error::RELEASE_TOKEN is not set. A real release run pushes the bump branch and merges its own PR, which needs a fine-grained PAT with contents and pull-requests write. Add it as a repository secret, or re-run with dry_run to build only."
-          exit 1
+          if [[ -z "$RELEASE_TOKEN" ]]; then
+            echo "::error::RELEASE_TOKEN is not set. A real release run pushes the bump branch and merges its own PR, which needs a fine-grained PAT with contents and pull-requests write. Add it as a repository secret, or re-run with dry_run to build only."
+            exit 1
+          fi
+          echo "RELEASE_TOKEN is present."
 
       - name: Checkout main
         uses: actions/checkout@v6
