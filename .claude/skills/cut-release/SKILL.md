@@ -1,204 +1,175 @@
 ---
 name: cut-release
 description: >-
-  Walks the full OpenLoop Play release process — version bump, sweep, PR, merge, signed AAB
-  build, GitHub release/tag — stopping at the two points only the owner can clear: PR review
-  approval and Play Console upload confirmation. Use when the user says "/cut-release", "cut a
-  release", "cut release", "ship a release", "start the release process", "bump the version and
-  release", or wants to move a merged `main` toward a tagged Play release. Depends on
-  `scripts/tag-release.ps1` (tags the verified final included merge sha, never a moving branch) and
-  `scripts/pre-pr-sweep.ps1` (the PR gate). Does not touch Play Console directly — it hands off
-  the signed `.aab` and drafted release-notes text for the owner to upload by hand.
+  Runs the OpenLoop Play release, which is two dispatched GitHub Actions workflows rather than a
+  local sequence: `release.yml` bumps the version, merges its own bump PR, then builds and signs
+  the AAB from the resulting merge sha and publishes it as a run artifact; `tag.yml` cuts the tag
+  afterwards. Use when the user says "/cut-release", "cut a release", "cut release", "ship a
+  release", "start the release process", "bump the version and release", or wants to move a merged
+  `main` toward a tagged Play release. The only manual step is uploading the `.aab` to Play
+  Console; the tag still means "this shipped", so it is cut after that upload, never before.
 ---
 
-# cut-release — OpenLoop Play release, staged and resumable
+# cut-release — OpenLoop Play release
 
 Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) for authorization, scope, verification, and blocker reporting.
 
-A release is one long process with two owner-only gates in the middle: a required PR review
-(repo ruleset — 1 approving review, no self-approval) and a Play Console upload (no MCP/tool
-access to Play Console exists in this session). This skill walks every mechanical step around
-those two gates and refuses to substitute for either one, no matter how the request is phrased.
+**Releases run in GitHub Actions as of 2026-09-07.** Do not bump the version by hand, do not
+build the bundle locally, and do not cut the tag with a local script — the pipeline does all of
+it, with guards that a manual run does not have. Your job is to dispatch the right workflow,
+read what it reports, and stop at the one gate a workflow cannot clear.
 
-**Ground truth this skill reads only when the detected stage needs it, and never duplicates:**
+## How a release runs
 
-- [`docs/play-store/release-signing-and-aab.md`](../../../docs/play-store/release-signing-and-aab.md) —
-  read the relevant build/sign/tag section for the current stage
-- [`docs/DEFINITION_OF_DONE.md`](../../../docs/DEFINITION_OF_DONE.md) and
-  `scripts/pre-pr-sweep.ps1` — read before Step 2 or when diagnosing its receipt; a merged PR has
-  already cleared this gate, so do not reload or rerun it during a post-merge resume
-- `scripts/tag-release.ps1` — read `Get-Help` / the header comment before Step 7; don't
-  reimplement what it already verifies
+**Run 1 — `Release · build signed AAB` (`.github/workflows/release.yml`)**
 
-Versioning pattern observed 1.0.47 → 1.0.49: `versionName`'s last segment always equals
-`versionCode` (both live in `app/build.gradle.kts`). Read the current values yourself before
-every step — never ask the owner to type them, and never assume the pattern holds without
-checking; if a future release breaks the 1:1 mapping, stop and ask rather than guessing a
-new scheme.
+Reads the current `versionCode`, bumps it, opens and merges its own bump PR, resolves the merge
+sha, then builds and signs from that exact sha and publishes the `.aab` plus drafted notes as a
+run artifact. Guards it enforces, so you do not have to:
 
-## Owner call (2026-08-28, issue #158 answers) — binding, read before doing anything
+- `versionName` must equal `1.0.<versionCode>` before it will bump; it stops rather than guess a
+  new scheme if that convention ever breaks
+- the bump diff must be exactly +2/−2 in `app/build.gradle.kts`
+- the build sha must be an ancestor of `origin/main`, with the intended version at that sha
+- the keystore must open with the configured alias before the build starts
+- `jarsigner -verify` must report `jar verified`
 
-1. Skill name is `cut-release` (this file).
-2. This skill **does** draft Play Console "What's new" text (Step 6).
-3. This skill does **not** run or gate on the Play technical-quality vitals check (Android
-   vitals *Memory* rows, *App optimization*). That check is still documented as a release
-   requirement elsewhere — `DEFINITION_OF_DONE.md` ("Release bumps carry one more check") and
-   `release-signing-and-aab.md` §3 ("Every release starts with...") — this skill deliberately
-   does not perform or enforce it. If a bump PR's checklist template asks for vitals numbers,
-   write `N/A — vitals check out of scope for /cut-release, owner call 2026-08-28 (issue #158)`
-   rather than leaving the line blank or trying to gather the numbers.
-4. **Final success for the whole flow is exactly two checks, nothing more:**
-   1. `releases/openloop-<version>-<code>.aab` exists and its signature verifies
-      (`jarsigner -verify`).
-   2. `gh release view <version>` returns the release (it's live on GitHub).
-   Do not reintroduce the vitals check, or anything else, as a third gate.
+`dry_run: true` builds `main` as it stands with no bump, PR or merge. Use it to prove the build
+half after any change to the workflow, the toolchain, or the signing secrets.
 
-## Detect where the release currently stands
+**Run 2 — `Release · tag` (`.github/workflows/tag.yml`)**
 
-Don't assume you're starting at Step 1. Work out the stage first. Version contents, commit
-history, and GitHub's PR data are authoritative; branch names and PR titles are only hints.
+Takes `version`, `sha`, optional `title`, and the release run's `run_id`. Downloads that run's
+bundle so `scripts/tag-release.ps1`'s "was this actually built" check is real, then calls the
+script unmodified to cut the tag and GitHub release.
 
-1. Read current `versionCode`/`versionName` (`app/build.gradle.kts`) and the latest tag
-   (`git tag --sort=-v:refname` or `gh release list`).
-2. Locate the commit that changed the version after the latest tag and resolve the PR that
-   merged it. Do not assume the bump lives in a `chore/release-*` branch.
-3. The bump PR is open → resume at **Step 2** or
-   **Stop A**, depending on whether the sweep+PR already happened.
-4. The bump PR is merged but `releases/openloop-<next>-<code>.aab` doesn't exist locally → resume
-   at **Step 3/4** (capture the sha, build).
-5. The `.aab` exists but no tag matches its version → you're at **Stop B**, waiting on upload
-   confirmation. Do not tag.
-6. A tag exists for the current `versionName` → run the two final verification checks before
-   reporting completion. A tag alone does not prove that a GitHub release or verified local AAB exists.
-7. Current `versionName` == latest tag and no open release PR exists → nothing in flight; a new
-   release starts at **Step 1**.
+## What you do
 
-GitHub issues and PRs share one number sequence. If `gh pr view <user-number>` says the number is
-not a PR, inspect the recent merged PRs and the version-bump history, report the correction, and
-do not silently treat an issue number as a merge sha.
+1. Dispatch run 1. From a machine with `gh`: `gh workflow run release.yml` (add
+   `-f dry_run=true` for a build-only run). Otherwise tell the owner to run it from the Actions
+   tab — you cannot dispatch it from a session without `gh`, and should say so plainly rather
+   than falling back to doing the release by hand.
+2. When it finishes, read the run summary: it prints the version, the build sha, the bundle path
+   and the exact `tag.yml` inputs to use next.
+3. Hand the owner the artifact link and the drafted notes. **Stop there** — see below.
+4. After the owner confirms the Play upload, dispatch run 2 with the version, sha and run id from
+   that summary.
 
-## Step 1 — Bump the version
+## Stop — wait for the Play upload (hard stop)
 
-- Next `versionCode` = current + 1. Next `versionName` = `"1.0.<next versionCode>"`.
-- Branch `chore/release-<next-version>` off `main`.
-- Edit only `versionCode` and `versionName` in `app/build.gradle.kts`.
-- Commit: `chore(release): bump to <version> (versionCode <code>)` — bare message, no body
-  needed (matches PR #157's bump commit).
+Nothing in this session can upload to Play Console or confirm that someone did. **Do not dispatch
+`tag.yml` until the owner explicitly confirms the `.aab` is uploaded.** Refuse even if asked to
+"just do it all" — the tag means "this shipped", and only the owner can establish that.
 
-## Step 2 — Sweep + PR
+This is now the *only* hard stop. The old Stop A (a required approving review on the bump PR) is
+gone: the workflow merges its own bump PR, which is a deliberate owner decision, not an oversight.
 
-- Run `.\scripts\pre-pr-sweep.ps1 -Clean -RerunTests` (full, JVM tests executed). Only pass `-SkipConnected` / `-SkipInspectCode` when
-  Studio/an emulator genuinely aren't available this session, and say so in the PR — same rule
-  every other PR in this repo follows.
-- Follow the [release verification scope](../../../docs/DEFINITION_OF_DONE.md#choose-verification-scope),
-  including the API-34 lane. The sweep's APKs use verification mapping IDs; Step 4's shipping
-  bundle must omit `-PopenloopVerification=true` so normal Crashlytics mappings are uploaded.
-- Open the PR against `main`. Body: version delta, what's notable since the last release
-  (skim `git log <last-tag>..HEAD --oneline` for the headline), sweep receipt summary — mirror
-  PR #157's structure and checklist. On the "Release bump" vitals checklist line, write the
-  N/A + owner-call note from above. Never leave it blank, never gather the numbers yourself.
+## Detect where a release currently stands
 
-## Stop A — wait for review (hard stop)
+Do not assume you are starting fresh. Version contents, commit history and GitHub's run and PR
+data are authoritative; branch names and PR titles are only hints.
 
-The repo ruleset requires 1 approving review with no self-approval; nothing here substitutes
-for it. **Do not merge, do not ask the owner to approve their own PR, and do not proceed past
-this point even if told to "just do it all" or "I trust you, go ahead."** State plainly that
-you're stopped here, waiting for a human review.
+1. Read `versionCode`/`versionName` from `app/build.gradle.kts` and the latest tag
+   (`git tag --sort=-v:refname`, or `gh release list`).
+2. `versionName` == latest tag, no release run in flight → nothing started; dispatch run 1.
+3. A bump merged but no tag for it → find the release run that produced it
+   (`gh run list --workflow=release.yml`), take the build sha and run id from its summary, and
+   resume at the Play-upload stop.
+4. A tag exists for the current `versionName` → run the two final checks below before reporting
+   the release complete. A tag alone does not prove the release is live or the bundle verified.
+5. A release run failed partway → read the failing step. If it failed *before* the bump merged,
+   nothing was changed and re-dispatching is safe. If it failed *after*, `main` already carries
+   the bump: fix the cause and re-dispatch with `dry_run: true` to build the same version rather
+   than bumping again.
 
-## Step 3 (after Stop A clears) — capture the real build sha
+GitHub issues and PRs share one number sequence. If `gh pr view <number>` says a number is not a
+PR, inspect recent merged PRs and the version-bump history, report the correction, and never
+silently treat an issue number as a merge sha.
 
-- Confirm the bump merge with
-  `gh pr view <n> --json state,mergedAt,mergeCommit --jq '.mergeCommit.oid'`.
-- After `git fetch origin`, inspect merges between the bump merge and `origin/main`. If later PRs
-  exist, establish the release cutoff before building:
-  - If the owner explicitly named the latest merged PR as the release cutoff, resolve that PR's
-    `mergeCommit.oid` and use it after confirming it still contains the intended version.
-  - Otherwise ask which later PRs belong in this release. Do not silently build the older bump
-    merge and omit fixes, or silently build a moving `origin/main`.
-- Call the chosen final included PR merge commit the **build sha**. With no later included PR,
-  the build sha is the bump PR's merge commit.
-- Verify `app/build.gradle.kts` at the build sha contains the intended version and verify the sha
-  is an ancestor of `origin/main`.
+## No sweep on a release bump
 
-## Step 4 — Build the signed AAB
+`scripts/pre-pr-sweep.ps1` is the gate for **feature and bug PRs**. It does not run on a release
+bump, and that is deliberate: the bump diff is two lines in `app/build.gradle.kts`, and nothing
+the sweep checks — JVM tests, lint, warnings-as-errors, spelling, links, secrets — can be
+affected by changing an integer. Every commit a release carries already passed the sweep on its
+own PR.
 
-- Build from that exact build sha: `git switch --detach <buildSha>` (or use a worktree).
-- `.\gradlew.bat :app:bundleRelease` (`JAVA_HOME` = Android Studio's bundled JBR, per
-  `DEFINITION_OF_DONE.md`'s environment notes).
-- `jarsigner -verify -verbose app/build/outputs/bundle/release/app-release.aab` — must report
-  the jar as verified.
-- Copy to `releases/openloop-<version>-<code>.aab` (create `releases/` if missing — already
-  covered by the repo's blanket `*.aab` `.gitignore` rule, no new ignore entry needed).
+What feature PRs never cover is the **release variant**: R8, resource shrinking, the baseline
+profile, the Firebase config guard, signing. A green debug tree can still fail to build, or ship
+a broken app, in release. `bundleRelease` succeeding and `jarsigner` verifying is therefore the
+gate a release adds, and run 1 performs it every time.
 
-## Step 5 — Lesson 040 check: did a new native/JNI/reflection dependency land?
+Do not add the sweep back into the release flow, and do not treat its absence as a missing step
+to apologize for in a PR body.
 
-- Diff dependency surfaces between the previous tag and the build sha:
-  `git diff <prev-tag>..<buildSha> -- app/build.gradle.kts gradle/libs.versions.toml`.
-- New dependency shipping native code, JNI, or heavy reflection (MediaPipe, ML Kit modules,
-  etc.) landed → [Lesson 040](../../../docs/lessons_learned/040-run-the-release-apk-when-a-native-dependency-lands.md)
-  applies: build and install the release APK (`:app:assembleRelease`) on an emulator from the
-  merge sha, drive the feature that dependency serves, confirm no R8-only crash before handoff.
-- Nothing native/JNI landed → say so explicitly and skip. Don't run a device check that has
-  nothing to verify.
+## Lesson 040 — native dependencies
 
-## Step 6 — Draft release notes, then hand off
+Run 1 diffs `gradle/libs.versions.toml` against the previous tag and emits a warning if the
+dependency catalog moved. That is a detector, not a verification. If the warning fires and
+something native, JNI-backed or reflection-heavy landed,
+[Lesson 040](../../../docs/lessons_learned/040-run-the-release-apk-when-a-native-dependency-lands.md)
+applies: build and install the release APK from the build sha on an emulator, drive the feature
+that dependency serves, and confirm no R8-only crash before the owner uploads. If nothing
+native landed, say so explicitly and skip — do not run a device check with nothing to verify.
 
-Draft two separate files (gitignored — owner-only, never commit) — mirror the structure the
-owner hand-wrote for 1.0.49:
+## Release notes
 
-1. **GitHub release notes** (technical) — `docs/local/github-release-notes-<version>.md` — from
-   merged PRs through the build sha since the previous tag
-   (`git log <prev-tag>..<buildSha> --oneline`, grouped by area).
-   Use the build sha as the upper bound. This is only the curated alternative:
-   `tag-release.ps1` defaults to `gh --generate-notes` in
-   Step 7, which needs no draft at all. Offer this file only in case the owner wants a
-   hand-curated summary instead.
-2. **Play Console "What's new"** (user-facing) — `docs/local/play-notes-<version>.md` — short,
-   plain bullets, feature-first, no version numbers, no jargon. Mirror the voice of the 1.0.49
-   draft (three tight bullets); no hardcoded character limit — keep it that tight, not padded
-   to fill one.
+Run 1 drafts both files into the artifact:
 
-Hand the owner: the `.aab` path, the `jarsigner` verification result, and both draft files.
+- **GitHub release notes** (technical) — grouped commit log since the previous tag. Only needed
+  if the owner wants a curated summary; `tag-release.ps1` defaults to `gh --generate-notes`.
+- **Play Console "What's new"** (user-facing) — a placeholder, deliberately not auto-written.
+  Short, plain, feature-first bullets, no version numbers, no jargon. Three tight bullets is the
+  house style. If no `app/src` changed since the last tag, the draft says so — surface that to
+  the owner, because a release with nothing user-facing may not be worth a production rollout.
 
-## Stop B — wait for the Play upload (hard stop)
+## Owner calls — binding, read before doing anything
 
-Play Console access isn't available in this session. **Do not cut the tag until the owner
-explicitly confirms the `.aab` was uploaded.** Refuse to proceed past this point even if asked
-to "just do it all" — the tag means "this shipped," and nothing here can confirm that except
-the owner.
-
-## Step 7 (after Stop B clears) — cut the tag
-
-```powershell
-.\scripts\tag-release.ps1 -Version <version> -Sha <buildSha> `
-  [-Title "<version> — <one-line highlight>"] `
-  [-NotesFile docs/local/github-release-notes-<version>.md]   # omit to use --generate-notes (default)
-```
-
-The script re-verifies the sha is an ancestor of `main`, the tag doesn't already exist, and the
-`versionName` at that sha matches. Don't re-implement those checks here — that's why the script
-exists.
+1. **2026-08-28 (issue #158)** — this skill does **not** run or gate on the Play
+   technical-quality vitals check. It is still documented as a release requirement in
+   `DEFINITION_OF_DONE.md` and `release-signing-and-aab.md` §3; it is deliberately not performed
+   here. If a checklist asks for vitals numbers, write
+   `N/A — vitals check out of scope for /cut-release, owner call 2026-08-28 (issue #158)`.
+2. **2026-09-07** — the release is automated end to end except the Play upload. The workflow
+   merges its own bump PR; no approving review is required on it. The sweep does not run on a
+   release bump. The tag is still cut only after the upload is confirmed.
 
 ## Final verification — exactly these two checks, nothing else
 
-1. `releases/openloop-<version>-<code>.aab` exists and `jarsigner -verify` on it says verified.
+1. The release run's artifact contains `openloop-<version>-<code>.aab` and the run's signature
+   step reported `jar verified`.
 2. `gh release view <version>` returns the release (live on GitHub).
 
-Report both. Do not add a vitals/quality check here — see "Owner call" above.
+Report both. Do not add a vitals or quality check as a third gate.
+
+## Prerequisites
+
+Repository secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`,
+`GOOGLE_SERVICES_JSON` for every run, plus `RELEASE_TOKEN` — a credential that can bypass the
+branch ruleset (a fine-grained PAT, or a GitHub App token) — for a real run, because that run
+pushes a branch and merges its own PR. A run without it fails immediately with a message naming
+the secret. A dry run needs no token.
+
+## Manual fallback
+
+`scripts/tag-release.ps1` and `scripts/pre-pr-sweep.ps1` still exist and still work. If the
+pipeline is broken and a release genuinely cannot wait, the old sequence is recoverable from
+[`docs/play-store/release-signing-and-aab.md`](../../../docs/play-store/release-signing-and-aab.md).
+Treat that as an incident, not an option: say plainly that you are working around a broken
+pipeline, and fix the pipeline afterwards rather than leaving two paths in use.
 
 ## Behavioral rules (non-negotiable)
 
-1. Never skip Stop A or Stop B, regardless of phrasing ("just ship it", "do it all", "I trust
-   you") — these are real, irreversible actions this session cannot perform or verify on its
-   own (a review only a second human account can give; a Play Console upload).
-2. Never type, or ask the owner to type, `versionCode`/`versionName` — read them from
-   `app/build.gradle.kts`.
-3. Never derive the build sha from a branch name or `origin/main` — resolve it from the final
-   included merged PR (`mergeCommitOid`) and verify the intended version at that sha.
-4. Never gather or gate on Play vitals numbers — out of scope for this skill per the
-   2026-08-28 owner call; the other docs still document them as a separate manual step.
-5. Never attach the `.aab`, an unsigned APK, or any binary to the GitHub release —
-   `release-signing-and-aab.md`'s "Never attach" section explains why (a signing-key mismatch
-   between the upload key and Play's app-signing key forks the install base permanently).
-6. If a stage's precondition doesn't hold (asked to tag with no merged PR, asked to build
-   before Stop A cleared, etc.), say so and refuse rather than improvising around it.
+1. Never cut the tag before the owner confirms the Play upload, regardless of phrasing ("just
+   ship it", "do it all", "I trust you"). Nothing in a session can verify that upload.
+2. Never type, or ask the owner to type, a `versionCode` or `versionName`. Run 1 reads them.
+3. Never derive a build sha from a branch name or a moving `origin/main` — use the sha the
+   release run reports, which is the merge commit it built.
+4. Never gather or gate on Play vitals numbers — out of scope per the 2026-08-28 owner call.
+5. Never attach the `.aab`, an unsigned APK, or any binary to the GitHub release.
+   `release-signing-and-aab.md`'s "Never attach" section explains why: a signing-key mismatch
+   between the upload key and Play's app-signing key forks the install base permanently. The
+   bundle lives in the workflow run's artifacts, which is not the same thing.
+6. Never do the release by hand because dispatching is inconvenient. If you cannot dispatch the
+   workflow from this session, say so and hand it to the owner.
+7. If a stage's precondition does not hold, say so and refuse rather than improvising around it.
