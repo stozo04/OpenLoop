@@ -1,0 +1,289 @@
+name: Release · build signed AAB
+
+# Run 1 of 2. Bumps the version, merges its own bump PR, builds and signs the AAB from the
+# resulting merge sha, and publishes it as a run artifact. The owner uploads that .aab to Play,
+# then dispatches tag.yml (run 2) to cut the tag — so the tag keeps meaning "this shipped".
+#
+# There is deliberately NO pre-PR sweep here. The bump diff is two lines in app/build.gradle.kts;
+# nothing in the sweep can be affected by changing an integer, and every commit this release
+# carries already passed the sweep on its own feature PR. What feature PRs never cover is the
+# RELEASE variant — R8, resource shrinking, the baseline profile, #178's Firebase guard, signing —
+# so `bundleRelease` succeeding and `jarsigner -verify` passing is the gate this flow adds.
+#
+# Secrets: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD, GOOGLE_SERVICES_JSON are
+# needed by every run. RELEASE_TOKEN (a credential that can bypass the branch ruleset — a
+# fine-grained PAT or a GitHub App token) is needed only by a real run, which pushes a branch and
+# merges its own PR; a dry run falls back to the job's GITHUB_TOKEN because it only ever reads.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build only — no bump, no PR, no merge. Builds main as it stands."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openloop-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Bump · build · sign
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+    steps:
+      # A real run pushes a branch and merges a PR, which github-actions[bot] cannot do here.
+      # Say so now, by name, instead of dying halfway through with a 403. The check lives in the
+      # shell rather than in `if:` because `secrets` is not an allowed context in a step condition.
+      - name: Require the PAT for a real run
+        if: ${{ !inputs.dry_run }}
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [[ -z "$RELEASE_TOKEN" ]]; then
+            echo "::error::RELEASE_TOKEN is not set. A real release run pushes the bump branch and merges its own PR, which needs a credential that can bypass the ruleset — a fine-grained PAT, or a GitHub App token. Add it as a repository secret, or re-run with dry_run to build only."
+            exit 1
+          fi
+          echo "RELEASE_TOKEN is present."
+
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      # Read the version rather than accepting it as input — the owner should never type a
+      # versionCode, and a typo here ships the wrong number to Play.
+      - name: Read current version
+        id: current
+        run: |
+          set -euo pipefail
+          code=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts)
+          name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          # The repo's convention since 1.0.47: versionName's last segment == versionCode. If that
+          # ever breaks, a guessed scheme would be worse than stopping.
+          if [[ "$name" != "1.0.$code" ]]; then
+            echo "::error::versionName '$name' does not match 1.0.<versionCode> ($code). The 1:1 mapping broke — decide the scheme by hand before releasing."
+            exit 1
+          fi
+          next=$((code + 1))
+          {
+            echo "code=$code"
+            echo "name=$name"
+            echo "next_code=$next"
+            echo "next_name=1.0.$next"
+          } >> "$GITHUB_OUTPUT"
+          echo "Current $name ($code) → 1.0.$next ($next)"
+
+      - name: Bump, open PR, merge
+        id: bump
+        if: ${{ !inputs.dry_run }}
+        env:
+          NEXT_CODE: ${{ steps.current.outputs.next_code }}
+          NEXT_NAME: ${{ steps.current.outputs.next_name }}
+          PREV_NAME: ${{ steps.current.outputs.name }}
+        run: |
+          set -euo pipefail
+          branch="chore/release-${NEXT_NAME}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+
+          sed -i -E "s/versionCode = [0-9]+/versionCode = ${NEXT_CODE}/" app/build.gradle.kts
+          sed -i -E "s/versionName = \"[^\"]+\"/versionName = \"${NEXT_NAME}\"/" app/build.gradle.kts
+
+          # A release bump is exactly two lines. Anything else means sed matched something it
+          # shouldn't have, and that must not reach main unnoticed.
+          read -r added removed _ < <(git diff --numstat -- app/build.gradle.kts)
+          if [[ "$added" != "2" || "$removed" != "2" ]]; then
+            echo "::error::Expected +2/-2 in app/build.gradle.kts, got +${added}/-${removed}."
+            git diff -- app/build.gradle.kts
+            exit 1
+          fi
+
+          git commit -am "chore(release): bump to ${NEXT_NAME} (versionCode ${NEXT_CODE})"
+          git push origin "$branch"
+
+          gh pr create --base main --head "$branch" \
+            --title "chore(release): bump to ${NEXT_NAME} (versionCode ${NEXT_CODE})" \
+            --body "$(printf '%s\n' \
+              "\`versionCode\` ${{ steps.current.outputs.code }} → ${NEXT_CODE}, \`versionName\` \"${PREV_NAME}\" → \"${NEXT_NAME}\"." \
+              "" \
+              "Opened and merged by \`release.yml\` run [\`${GITHUB_RUN_ID}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})." \
+              "" \
+              "No pre-PR sweep: the diff is two lines, and every commit this release carries was swept on its own PR. The release-variant build in the same run is the gate." )"
+
+          gh pr merge "$branch" --merge --admin --delete-branch
+          git fetch origin main --quiet
+          echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve build sha (dry run)
+        id: dry
+        if: ${{ inputs.dry_run }}
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Never build a moving branch. Pin to one sha, prove it is on main, and prove the version
+      # at that sha is the one being released.
+      - name: Verify and check out the build sha
+        id: build
+        env:
+          SHA: ${{ steps.bump.outputs.sha || steps.dry.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::$SHA is not an ancestor of origin/main — refusing to build it."
+            exit 1
+          fi
+          git switch --detach "$SHA"
+          code=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts)
+          name=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          {
+            echo "sha=$SHA"
+            echo "code=$code"
+            echo "name=$name"
+            echo "aab=releases/openloop-$name-$code.aab"
+          } >> "$GITHUB_OUTPUT"
+          echo "Building $name ($code) from $SHA"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Takes the Gradle version from gradle/wrapper/gradle-wrapper.properties, and from v4 also
+      # checksums gradle-wrapper.jar against Gradle's published hashes on every run — which is what
+      # makes committing that jar safe.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # keystore.properties and google-services.json are both gitignored, so CI has to
+      # reconstitute them. Actions masks these values in the log.
+      - name: Restore signing material
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          set -euo pipefail
+          for required in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD GOOGLE_SERVICES_JSON; do
+            if [[ -z "${!required}" ]]; then
+              echo "::error::Secret $required is not set. Every run needs the signing material."
+              exit 1
+            fi
+          done
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+          {
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+          # Prove the material is usable before spending 15 minutes on R8.
+          keytool -list -keystore "$RUNNER_TEMP/upload.jks" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
+          echo "Keystore opens and contains the alias."
+
+      - name: Build the release bundle
+        run: |
+          set -euo pipefail
+          # git on Windows does not track the executable bit, so gradlew is mode 100644 in the
+          # index and arrives non-executable on a Linux runner. Set it rather than assume it.
+          chmod +x gradlew
+          ./gradlew :app:bundleRelease --no-daemon --stacktrace
+
+      - name: Verify the signature
+        id: sign
+        run: |
+          set -euo pipefail
+          built=app/build/outputs/bundle/release/app-release.aab
+          if ! jarsigner -verify "$built" | grep -q 'jar verified'; then
+            echo "::error::jarsigner did not report the bundle as verified."
+            jarsigner -verify -verbose "$built" | tail -20
+            exit 1
+          fi
+          mkdir -p releases
+          cp "$built" "${{ steps.build.outputs.aab }}"
+          echo "$(jarsigner -verify "$built" | head -1) → ${{ steps.build.outputs.aab }}"
+
+      # Lesson 040: a new native/JNI/reflection dependency can crash only under R8, which nothing
+      # in this workflow would catch. Detect the condition and say so; don't pretend to verify it.
+      - name: Lesson 040 — native dependency check
+        env:
+          SHA: ${{ steps.build.outputs.sha }}
+        run: |
+          set -euo pipefail
+          prev=$(git tag --sort=-v:refname | head -1)
+          if [[ -z "$prev" ]]; then
+            echo "No previous tag — skipping."
+          elif git diff --quiet "$prev".."$SHA" -- gradle/libs.versions.toml; then
+            echo "gradle/libs.versions.toml unchanged since $prev — Lesson 040 does not apply."
+          else
+            echo "::warning::Dependency catalog changed since $prev. If anything native, JNI-backed or reflection-heavy landed, run the Lesson 040 release-APK device check before uploading."
+            git diff "$prev".."$SHA" -- gradle/libs.versions.toml
+          fi
+
+      - name: Draft release notes
+        env:
+          NAME: ${{ steps.build.outputs.name }}
+          SHA: ${{ steps.build.outputs.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p notes
+          prev=$(git tag --sort=-v:refname | head -1)
+          {
+            echo "# ${NAME}"
+            echo
+            echo "## What's new since ${prev:-the beginning}"
+            echo
+            if [[ -n "$prev" ]]; then git log "$prev".."$SHA" --oneline --no-merges; fi
+            echo
+            echo "<!-- Draft. Group by area and rewrite before use. -->"
+          } > "notes/github-release-notes-${NAME}.md"
+          {
+            echo "<!-- Play Console 'What's new'. Short, plain, feature-first, no version numbers."
+            echo "     Written by hand — this file is a placeholder, not a draft. -->"
+            if [[ -n "$prev" ]] && git diff --quiet "$prev".."$SHA" -- app/src; then
+              echo "NOTE: no app/src changed since ${prev}. This release has nothing user-facing to announce."
+            fi
+          } > "notes/play-notes-${NAME}.md"
+
+      - name: Publish the bundle and notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: openloop-${{ steps.build.outputs.name }}
+          path: |
+            ${{ steps.build.outputs.aab }}
+            notes/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Summary
+        run: |
+          {
+            echo "## ${{ steps.build.outputs.name }} (versionCode ${{ steps.build.outputs.code }})"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Build sha | \`${{ steps.build.outputs.sha }}\` |"
+            echo "| Bundle | \`${{ steps.build.outputs.aab }}\` |"
+            echo "| Signature | verified |"
+            echo
+            echo "### Next"
+            echo
+            echo "1. Download the artifact above and upload the \`.aab\` to Play Console."
+            echo "2. Dispatch **Tag release** with version \`${{ steps.build.outputs.name }}\`, sha \`${{ steps.build.outputs.sha }}\`, run id \`${GITHUB_RUN_ID}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
