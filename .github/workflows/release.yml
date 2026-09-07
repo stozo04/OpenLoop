@@ -162,26 +162,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # gradle-wrapper.jar is gitignored in this repo (.gitignore), so ./gradlew has no engine
-      # behind it on a fresh checkout. Take the version the wrapper pins and have setup-gradle
-      # provide exactly that — same Gradle the wrapper would have downloaded, read from the same
-      # file, so upgrading the wrapper still moves CI with it.
-      - name: Read the pinned Gradle version
-        id: gradle_version
-        run: |
-          set -euo pipefail
-          version=$(grep -oP 'gradle-\K[0-9.]+(?=-bin\.zip)' gradle/wrapper/gradle-wrapper.properties)
-          if [[ -z "$version" ]]; then
-            echo "::error::Could not read the Gradle version from gradle/wrapper/gradle-wrapper.properties."
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Wrapper pins Gradle $version"
-
+      # Takes the Gradle version from gradle/wrapper/gradle-wrapper.properties, and from v4 also
+      # checksums gradle-wrapper.jar against Gradle's published hashes on every run — which is what
+      # makes committing that jar safe.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: ${{ steps.gradle_version.outputs.version }}
 
       # keystore.properties and google-services.json are both gitignored, so CI has to
       # reconstitute them. Actions masks these values in the log.
@@ -213,7 +198,12 @@ jobs:
           echo "Keystore opens and contains the alias."
 
       - name: Build the release bundle
-        run: gradle :app:bundleRelease --no-daemon --stacktrace
+        run: |
+          set -euo pipefail
+          # git on Windows does not track the executable bit, so gradlew is mode 100644 in the
+          # index and arrives non-executable on a Linux runner. Set it rather than assume it.
+          chmod +x gradlew
+          ./gradlew :app:bundleRelease --no-daemon --stacktrace
 
       - name: Verify the signature
         id: sign
