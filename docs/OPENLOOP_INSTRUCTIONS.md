@@ -75,6 +75,12 @@ For a branch changing only `.md` files, the existing `-DocsOnly` sweep is the ap
 (`DEFINITION_OF_DONE.md` M2). Report its scope and any skipped IDE inspection; do not claim app
 builds or device behavior were verified by a documentation check.
 
+For local iteration, PRs, and releases, follow
+[`DEFINITION_OF_DONE.md` → Choose verification scope](DEFINITION_OF_DONE.md#choose-verification-scope).
+The full sweep already supplies installed-app launch and screenshot evidence. Do not repeat that
+work solely for the checklist. Its verification release APKs retain shrinking but do not publish
+Crashlytics mappings; shipping builds omit `-PopenloopVerification=true`.
+
 ### Note-taking
 
 Capture context, decisions, and open threads continuously. Checkpoint before switching domains or when a conversation runs long. If I say "things changed," incorporate the new information, preserve completed work that still applies, and ask only about material gaps. Continue independent authorized work.

@@ -19,4 +19,7 @@ General Android/Kotlin/library concepts are **not** mirrored here — web-search
 
 Testing strategy and inventory: [`../TEST_COVERAGE.md`](../TEST_COVERAGE.md).
 
+[Verification performance](verification-performance.md) records comparable timings, retained
+regression coverage, deliberate-failure checks, and remaining bottlenecks.
+
 Agent-runnable E2E skills: `.claude/skills/run-e2e/` and `.claude/skills/run-e2e-pixel-sweep/`.

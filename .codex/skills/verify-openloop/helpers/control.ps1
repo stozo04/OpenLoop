@@ -133,8 +133,10 @@ switch ($Action) {
       }
     }
     & $Adb -s $Serial shell pm grant $Package android.permission.CAMERA
-    & $Adb -s $Serial shell am start -n $Activity
-    Start-Sleep -Seconds 2
+    $launch = & $Adb -s $Serial shell am start -W -n $Activity
+    $launchCode = $LASTEXITCODE
+    $launch | Write-Output
+    if ($launchCode -ne 0 -or -not ($launch -match '^Status: ok')) { throw 'Activity did not report a successful launch' }
     pwsh $PSCommandPath doctor -Serial $Serial
     if ($LASTEXITCODE -ne 0) { throw "doctor failed after launch on $Serial" }
     break

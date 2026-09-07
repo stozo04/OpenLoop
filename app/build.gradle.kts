@@ -3,6 +3,7 @@ import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
 import java.util.Properties
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 
 plugins {
     alias(libs.plugins.android.application)
@@ -337,6 +338,19 @@ dependencies {
 if (file("google-services.json").exists()) {
     pluginManager.apply("com.google.gms.google-services")
     pluginManager.apply("com.google.firebase.crashlytics")
+    if (providers.gradleProperty("openloopVerification").map { it.toBooleanStrict() }.getOrElse(false)) {
+        // A new mapping ID invalidates resources and R8 even when no source changed.
+        android.buildTypes.named("release") {
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
+        }
+        tasks.matching { it.name == "packageReleaseBundle" }.configureEach {
+            doFirst {
+                throw GradleException("Verification builds cannot produce release bundles. Omit -PopenloopVerification=true.")
+            }
+        }
+    }
 } else {
     tasks.matching { it.name == "preReleaseBuild" }.configureEach {
         doFirst {

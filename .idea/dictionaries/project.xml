@@ -63,6 +63,7 @@
       <w>boomplay</w>
       <w>brandable</w>
       <w>bugbot</w>
+      <w>buildtools</w>
       <w>buttonless</w>
       <w>camerascreen</w>
       <w>camerax</w>
@@ -315,6 +316,7 @@
       <w>openloopuistate</w>
       <w>openloopviewmodel</w>
       <w>outp</w>
+      <w>pandroid</w>
       <w>parameteri</w>
       <w>parcelable</w>
       <w>pathconv</w>
@@ -331,6 +333,7 @@
       <w>playhead</w>
       <w>playstore</w>
       <w>pointerinput</w>
+      <w>popenloop</w>
       <w>predictive</w>
       <w>preroll</w>
       <w>previewview</w>

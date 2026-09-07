@@ -292,9 +292,10 @@ gh pr checks <number>              # which check failed, and the run URL
 gh run view <run-id> --log-failed  # the failing step, log only
 ```
 
-Then fix it and re-run **the whole sweep**, not just the step that was reported: each CI step
-exits on its own failure, so the steps after it never ran and the log is not a complete list of
-what is broken. Recurring failures get a row in
+Fix and rerun the failed check during iteration. CI steps after a failure may not have run, so
+also check those outstanding gates. Run the final full sweep once after the final commit;
+do not repeat builds and device loops after every spelling fix. See the
+[scope policy](DEFINITION_OF_DONE.md#choose-verification-scope). Recurring failures get a row in
 [`docs/lessons_learned/`](lessons_learned/README.md) so the class is caught next time —
 [041](lessons_learned/041-deleting-a-tracked-asset-breaks-every-link-to-it.md) is one.
 

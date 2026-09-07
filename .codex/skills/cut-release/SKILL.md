@@ -87,9 +87,12 @@ do not silently treat an issue number as a merge sha.
 
 ## Step 2 — Sweep + PR
 
-- Run `.\scripts\pre-pr-sweep.ps1` (full). Only pass `-SkipConnected` / `-SkipInspectCode` when
+- Run `.\scripts\pre-pr-sweep.ps1 -Clean -RerunTests` (full, JVM tests executed). Only pass `-SkipConnected` / `-SkipInspectCode` when
   Studio/an emulator genuinely aren't available this session, and say so in the PR — same rule
   every other PR in this repo follows.
+- Follow the [release verification scope](../../../docs/DEFINITION_OF_DONE.md#choose-verification-scope),
+  including the API-34 lane. The sweep's APKs use verification mapping IDs; Step 4's shipping
+  bundle must omit `-PopenloopVerification=true` so normal Crashlytics mappings are uploaded.
 - Open the PR against `main`. Body: version delta, what's notable since the last release
   (skim `git log <last-tag>..HEAD --oneline` for the headline), sweep receipt summary — mirror
   PR #157's structure and checklist. On the "Release bump" vitals checklist line, write the

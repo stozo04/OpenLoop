@@ -16,15 +16,69 @@ The guiding principle: **don't trust "it compiles" — prove it.** Prove it buil
 - If you discover the breakage was already on `main`, that makes it **more** urgent, not less — a broken gate on `main` means the safety net is down for every future change. Repair it (or escalate) immediately; never build on top of it.
 - Capture the green proof (build verdict + exit 0 + test counts, per the gate below) in the PR.
 
-## Autonomous onboarding proof
+## Installed-app proof
 
 The installed-APK onboarding check is part of this gate:
 
 ```bash
-python scripts/run-verification-loops.py --changed
+python scripts/run-verification-loops.py --all
 ```
 
-It resets only onboarding state, verifies the first-run screen, taps the CTA, proves DataStore persistence, cold-starts, and verifies Video mode with the back camera. A failure is a product failure unless the captured XML/logcat proves the check itself is wrong. The sweep overlaps it with non-device gates, then waits before instrumented tests. `-SkipConnected` skips it and must be reported. On Windows, use `python` or `py -3`, not Git Bash `python3`.
+The runner executes every shipped loop, including onboarding, lenses, photo mode, recording, and
+reverse preview after a nonzero trim. Onboarding alone resets its DataStore; each loop retains its
+process restart and owned cleanup. Identical installed APK bytes avoid a reinstall, never a test.
+The sweep runs these loops before instrumented tests, with one controller per emulator.
+`-SkipConnected` skips both stages and must be reported. On Windows, use `python` or `py -3`.
+
+## Choose verification scope
+
+Trace the changed behavior through its callers, shared state, resources, and build dependencies.
+File count does not establish risk. A one-line change in the ViewModel, manifest, codec pipeline,
+shared verifier, or build configuration can affect many features.
+
+| Stage                    | Required scope                                                                                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local iteration          | Run the affected existing JVM classes, instrumented classes, and installed-app loops. Include downstream callers. List excluded checks; this is not a PR receipt.                                                                                                           |
+| PR validation            | Once the diff and documentation are ready, commit and run one full sweep. It builds debug, release, and the test APK, checks all JVM results, executes all installed-app loops and instrumented tests, and runs the static gates. All-Markdown branches retain `-DocsOnly`. |
+| Release validation       | Run the full sweep with `-Clean -RerunTests`, plus the API-34 and other applicable device lanes. Build the shipping bundle normally, without the verification property.                                                                                                     |
+| Unknown or shared change | Use the full sweep and applicable device lanes. Do not infer a narrow scope from filenames or a small diff.                                                                                                                                                                 |
+
+For example, trim-handle math has a focused JVM check; its capture and editor callers need device
+verification when their behavior changes:
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest --tests '*TrimHandleMathTest'
+.\gradlew.bat :app:assembleDebug
+python scripts/run-verification-loops.py --loops record_clip reverse_preview_trim
+.\scripts\pre-pr-sweep.ps1 -SkipInspectCode
+.\scripts\pre-pr-sweep.ps1 -Clean -RerunTests -SkipInspectCode
+```
+
+The last two commands are alternatives for ordinary PR and forced full validation.
+Use `-SkipInspectCode` only when an IDE export is unavailable. For a targeted instrumented run,
+use Gradle's `-Pandroid.testInstrumentationRunnerArguments.class=<fully-qualified-class>`.
+The full sweep supplies no test filter and rejects partial loop receipts. `--changed` remains a
+compatibility alias for all loops; it does not infer dependency coverage.
+
+Build the current APK before a standalone loop. Matching the installed hash proves which APK ran,
+not whether someone built it from the latest source. The runner records APK and verifier hashes,
+selection, omissions, durations, and a separate evidence directory per run.
+
+The sweep preserves its previous logs and receipt under `build/sweep-history/`. Gradle profiles
+under `build/reports/profile/` separate task costs. Receipts distinguish `EXECUTED`,
+`FROM-CACHE`, and `UP-TO-DATE` JVM results and report skips. Reused results are not newly executed
+coverage. `-RerunTests` forces just the JVM test task to execute; it does not rebuild every task.
+
+The sweep passes `-PopenloopVerification=true`. This disables Crashlytics mapping uploads for
+verification release APKs, keeping the mapping ID stable so unchanged resources and R8 can be
+reused. R8, resource shrinking, Firebase initialization, and the missing-config release guard remain
+enabled. These APKs are verification artifacts; their crash mappings are not published.
+The property rejects `bundleRelease`. Normal release builds omit it and retain mapping uploads.
+
+Do not run a separate full loop pass or reinstall solely for a screenshot before or after a green
+sweep. Its loop evidence already contains launch proof, UI dumps, and screenshots. Reuse those
+artifacts for the reviewed APK. After a failure, run the affected check while fixing it, then run
+the final sweep once after the final commit. Review can reuse that exact commit's receipt.
 
 ---
 
@@ -170,11 +224,13 @@ changing the script.
 
 ### 0. Baseline — before you change anything
 
-Capture a green build of the *starting* state so any later failure is unambiguously yours:
+Capture a green check of the starting behavior before changing it. An existing receipt for the exact
+starting commit can supply the baseline when its scope covers the change; record its skips and cache
+status. Otherwise run the affected check. Do not prepend a separate clean build to every task:
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # Android Studio's bundled JDK
-.\gradlew.bat clean assembleDebug --console=plain
+.\gradlew.bat assembleDebug --console=plain
 ```
 
 ### 1. Build — debug AND release, genuinely green
@@ -182,7 +238,8 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"   # Android Studi
 Release matters: it runs R8/shrinking and resource crunching that debug skips, and catches things debug never will (it's how we found mislabeled JPEG drawables and R8 issues).
 
 ```powershell
-.\gradlew.bat clean assembleDebug assembleRelease --console=plain; echo "EXIT=$LASTEXITCODE"
+.\gradlew.bat assembleDebug assembleRelease -PopenloopVerification=true --console=plain
+$buildExit = $LASTEXITCODE
 ```
 
 See **["Genuinely green"](#what-genuinely-green-means)** below — a finished command is not the same as a passed build.
@@ -226,7 +283,10 @@ Read the actual counts (`tests=".." failures=".." errors=".."` in `app/build/...
 
 ### 5. Run it for real — boot, install, launch, screenshot, and onboarding proof
 
-This is the step that separates "should work" from "works." Automated tests miss crashes-on-launch, missing/mislabeled assets, and layout breakage. Boot an emulator, install the APK, launch it, capture a screenshot, and run `python scripts/run-verification-loops.py --changed` (the sweep runs it as gate 5b).
+The full sweep's installed-app loops satisfy this step. Read their UI and logcat evidence and attach
+a screenshot, such as onboarding's `returning.png`, from the receipt's evidence directory. For
+standalone manual work, boot an emulator, build the current APK, and run
+`python scripts/run-verification-loops.py --all`.
 
 **Which APK:** debug is the default. When the change adds or bumps a dependency that ships native code, JNI, reflection, or a logging framework, run the **release** APK too and drive the code path that dependency serves — `assembleRelease` proves R8 compiled, not what it removed or renamed, and the first hand-tracking release build crashed on a lens tap that debug handled fine (Lesson 040).
 
@@ -242,7 +302,9 @@ EMU=<sdk>/emulator/emulator.exe ; ADB=<sdk>/platform-tools/adb.exe
 "$ADB" logcat -d | grep -iE "FATAL|AndroidRuntime"              # confirm no crash
 ```
 
-> AGP uninstalls the app after `connectedAndroidTest`, so re-`install` before launching. `pm clear io.github.stozo04.openloop` first if you need a fresh first-run (e.g. to see onboarding).
+> AGP uninstalls the app after connected tests. Reinstall only if continuing device work afterward;
+> the earlier loop screenshots remain valid evidence for the tested APK. Use the onboarding loop's
+> owned reset when testing first-run state.
 
 ### 6. Be honest about what you could NOT verify
 
@@ -283,7 +345,7 @@ A command finishing is **not** a passed build. Confirm all three:
 - [ ] M2 — markdownlint run locally to 0 BEFORE the commit (not left for CI); MD047/MD022/MD032 clear
 - [ ] M3 — instruction changes went into the shared `docs/OPERATING_INSTRUCTIONS.md` / `docs/OPENLOOP_INSTRUCTIONS.md`; root `CLAUDE.md` / `AGENTS.md` are still content-free pointers, still byte-identical
 - [ ] M4 — anything moved/renamed/deleted was `git grep`-ed repo-wide under BOTH names; broken anchors, false statements (allowlists, folder maps, counts, "this file") and wrong pointers fixed — link-check alone is not this check
-- [ ] Baseline green before changes (clean assembleDebug)
+- [ ] Starting behavior verified; baseline scope, cache status, and skips recorded
 - [ ] assembleDebug + assembleRelease: BUILD SUCCESSFUL, exit 0, zero e:; `-Clean` used after build-tool/dependency changes or suspected stale outputs
 - [ ] Requirement checks pass (e.g. zipalign -c -P 16 shows real (OK))
 - [ ] Tracked-file hygiene + Gitleaks pass: no gitignored/generated files or secrets (API keys, tokens, passwords, signing material, or other credentials) are committed

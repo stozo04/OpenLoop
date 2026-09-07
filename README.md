@@ -147,6 +147,11 @@ Then skim the output for lines starting with `e:` (errors — these stop the bui
 
 ### The pre-PR sweep (every gate, one command)
 
+Use [targeted checks during iteration](docs/DEFINITION_OF_DONE.md#choose-verification-scope), then
+run one full sweep after the final commit. The sweep reuses identical APK installations and labels
+cached JVM results separately from executed tests. Verification release APKs disable Crashlytics
+mapping uploads; normal shipping builds do not use `-PopenloopVerification=true`.
+
 ```powershell
 .\scripts\pre-pr-sweep.ps1                                   # full: build + zipalign + lint + tests + text gates + Inspect Code export
 .\scripts\pre-pr-sweep.ps1 -SkipConnected -SkipInspectCode   # no emulator / no Android Studio — the PR must say so
