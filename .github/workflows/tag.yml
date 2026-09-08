@@ -9,6 +9,12 @@ name: Release · tag
 #
 # scripts/tag-release.ps1 runs unmodified: it shells out only to `git` and `gh`, and both — plus
 # pwsh — are preinstalled on ubuntu runners.
+#
+# This workflow deliberately does NOT use RELEASE_TOKEN. Creating a tag and a release needs
+# contents: write, which the job's own GITHUB_TOKEN has (declared below); tags are not covered by
+# the branch ruleset, so there is nothing here to bypass. The PAT belongs to release.yml's merge
+# step and nowhere else — an earlier version preferred it here and got
+# "HTTP 403: Resource not accessible by personal access token" from `gh release create`.
 
 on:
   workflow_dispatch:
@@ -34,8 +40,6 @@ on:
         type: boolean
         default: false
 
-# Creating a tag and a GitHub release is a write. Tags are not covered by the branch ruleset, so
-# the job's own GITHUB_TOKEN is enough here — no PAT or App token needed for run 2.
 permissions:
   contents: write
 
@@ -48,7 +52,7 @@ jobs:
     name: Cut tag and GitHub release
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout
@@ -56,7 +60,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          token: ${{ github.token }}
 
       # tag-release.ps1 warns when releases/openloop-<version>-<code>.aab is missing. In CI it
       # always would be, which turns a real safety check into noise — so pull the artifact the
