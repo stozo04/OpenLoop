@@ -4,6 +4,10 @@ name: Release · build signed AAB
 # resulting merge sha, and publishes it as a run artifact. The owner uploads that .aab to Play,
 # then dispatches tag.yml (run 2) to cut the tag — so the tag keeps meaning "this shipped".
 #
+# The artifact also carries the commit log since the previous tag. That is material for the
+# release notes, not the notes themselves: the cut-release skill writes those (owner call
+# 2026-08-28), because store copy is a claim to real users and no shell script should be making it.
+#
 # There is deliberately NO pre-PR sweep here. The bump diff is two lines in app/build.gradle.kts;
 # nothing in the sweep can be affected by changing an integer, and every commit this release
 # carries already passed the sweep on its own feature PR. What feature PRs never cover is the
@@ -236,7 +240,10 @@ jobs:
             git diff "$prev".."$SHA" -- gradle/libs.versions.toml
           fi
 
-      - name: Draft release notes
+      # Material for the release notes, not the notes. Writing them is the cut-release skill's
+      # job (owner call 2026-08-28) — store copy is a claim to real users, and a shell script has
+      # no business making it. Named commits-*.md so nobody mistakes it for finished copy.
+      - name: Collect the commit log
         env:
           NAME: ${{ steps.build.outputs.name }}
           SHA: ${{ steps.build.outputs.sha }}
@@ -245,23 +252,26 @@ jobs:
           mkdir -p notes
           prev=$(git tag --sort=-v:refname | head -1)
           {
-            echo "# ${NAME}"
+            echo "# ${NAME} — raw material for the release notes"
             echo
-            echo "## What's new since ${prev:-the beginning}"
+            echo "This is NOT release notes. The cut-release skill writes those, in two files:"
+            echo "docs/local/github-release-notes-${NAME}.md and docs/local/play-notes-${NAME}.md."
+            echo
+            echo "## Commits since ${prev:-the beginning}"
             echo
             if [[ -n "$prev" ]]; then git log "$prev".."$SHA" --oneline --no-merges; fi
             echo
-            echo "<!-- Draft. Group by area and rewrite before use. -->"
-          } > "notes/github-release-notes-${NAME}.md"
-          {
-            echo "<!-- Play Console 'What's new'. Short, plain, feature-first, no version numbers."
-            echo "     Written by hand — this file is a placeholder, not a draft. -->"
             if [[ -n "$prev" ]] && git diff --quiet "$prev".."$SHA" -- app/src; then
-              echo "NOTE: no app/src changed since ${prev}. This release has nothing user-facing to announce."
+              echo "## Nothing user-facing changed"
+              echo
+              echo "No file under app/src changed since ${prev}. Say that plainly in the Play notes"
+              echo "instead of inventing feature copy, and raise with the owner whether a production"
+              echo "rollout is worth spending on a build users cannot tell apart from the last one."
             fi
-          } > "notes/play-notes-${NAME}.md"
+          } > "notes/commits-${NAME}.md"
+          cat "notes/commits-${NAME}.md"
 
-      - name: Publish the bundle and notes
+      - name: Publish the bundle and commit log
         uses: actions/upload-artifact@v4
         with:
           name: openloop-${{ steps.build.outputs.name }}
@@ -284,6 +294,7 @@ jobs:
             echo
             echo "### Next"
             echo
-            echo "1. Download the artifact above and upload the \`.aab\` to Play Console."
-            echo "2. Dispatch **Tag release** with version \`${{ steps.build.outputs.name }}\`, sha \`${{ steps.build.outputs.sha }}\`, run id \`${GITHUB_RUN_ID}\`."
+            echo "1. \`gh run download ${GITHUB_RUN_ID} -n openloop-${{ steps.build.outputs.name }}\` — or the Artifacts section below."
+            echo "2. Write the release notes from \`notes/commits-${{ steps.build.outputs.name }}.md\`, then upload the \`.aab\` to Play Console."
+            echo "3. Dispatch **Tag release** with version \`${{ steps.build.outputs.name }}\`, sha \`${{ steps.build.outputs.sha }}\`, run id \`${GITHUB_RUN_ID}\`."
           } >> "$GITHUB_STEP_SUMMARY"

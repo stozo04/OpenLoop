@@ -4,10 +4,11 @@ description: >-
   Runs the OpenLoop Play release, which is two dispatched GitHub Actions workflows rather than a
   local sequence: `release.yml` bumps the version, merges its own bump PR, then builds and signs
   the AAB from the resulting merge sha and publishes it as a run artifact; `tag.yml` cuts the tag
-  afterwards. Use when the user says "/cut-release", "cut a release", "cut release", "ship a
-  release", "start the release process", "bump the version and release", or wants to move a merged
-  `main` toward a tagged Play release. The only manual step is uploading the `.aab` to Play
-  Console; the tag still means "this shipped", so it is cut after that upload, never before.
+  afterwards. Also drafts both sets of release notes, including the Play Console "What's new"
+  text. Use when the user says "/cut-release", "cut a release", "cut release", "ship a release",
+  "start the release process", "bump the version and release", or wants to move a merged `main`
+  toward a tagged Play release. The only manual step is uploading the `.aab` to Play Console; the
+  tag still means "this shipped", so it is cut after that upload, never before.
 ---
 
 # cut-release — OpenLoop Play release
@@ -17,15 +18,16 @@ Follow [shared operating instructions](../../../docs/OPERATING_INSTRUCTIONS.md) 
 **Releases run in GitHub Actions as of 2026-09-07.** Do not bump the version by hand, do not
 build the bundle locally, and do not cut the tag with a local script — the pipeline does all of
 it, with guards that a manual run does not have. Your job is to dispatch the right workflow,
-read what it reports, and stop at the one gate a workflow cannot clear.
+retrieve and check what it produced, draft the notes, and stop at the one gate a workflow
+cannot clear.
 
 ## How a release runs
 
 **Run 1 — `Release · build signed AAB` (`.github/workflows/release.yml`)**
 
 Reads the current `versionCode`, bumps it, opens and merges its own bump PR, resolves the merge
-sha, then builds and signs from that exact sha and publishes the `.aab` plus drafted notes as a
-run artifact. Guards it enforces, so you do not have to:
+sha, then builds and signs from that exact sha and publishes the `.aab` plus a raw commit log as
+a run artifact. Guards it enforces, so you do not have to:
 
 - `versionName` must equal `1.0.<versionCode>` before it will bump; it stops rather than guess a
   new scheme if that convention ever breaks
@@ -51,9 +53,64 @@ script unmodified to cut the tag and GitHub release.
    than falling back to doing the release by hand.
 2. When it finishes, read the run summary: it prints the version, the build sha, the bundle path
    and the exact `tag.yml` inputs to use next.
-3. Hand the owner the artifact link and the drafted notes. **Stop there** — see below.
-4. After the owner confirms the Play upload, dispatch run 2 with the version, sha and run id from
+3. Retrieve the bundle (below) and draft both notes files (below).
+4. Hand the owner the bundle, the `jarsigner` result, and both drafts. **Stop there.**
+5. After the owner confirms the Play upload, dispatch run 2 with the version, sha and run id from
    that summary.
+
+## Getting the signed bundle
+
+The runner is a throwaway VM. Nothing it builds reaches the owner's disk, and
+`app/build/outputs/bundle/release/app-release.aab` on his machine is whatever he last built by
+hand — stale, an older `versionCode`, and a live hazard at upload time. **Never point the owner
+at a locally built `.aab`.** The only bundle that shipped through the pipeline is the artifact.
+
+```bash
+gh run download <run_id> -n openloop-<version> -D <destination>
+```
+
+`gh` extracts into the current directory when `-D` is omitted, preserving the artifact's internal
+structure — convenient from the repo root, since the `.aab` lands in the gitignored `releases/`,
+but it also drops an untracked `notes/` there. Naming a destination avoids the surprise. From the
+browser: open the release run, scroll past the job list to **Artifacts** at the bottom, and
+download `openloop-<version>`. Either way the contents are:
+
+```text
+releases/openloop-<version>-<code>.aab
+notes/commits-<version>.md
+```
+
+Two properties worth stating to the owner rather than assuming he knows:
+
+- **Artifacts expire after 30 days.** Long enough to upload, not an archive. Tell him to save the
+  `.aab` into his local `releases/` folder — it is gitignored, it is what the old process kept,
+  and it is what `scripts/tag-release.ps1` looks for in the manual fallback.
+- **His local `app/build/` is no longer where releases come from** and will keep drifting from
+  what actually ships. Suggest deleting the stale bundle so there is nothing to grab by mistake.
+
+## Release notes — you draft both
+
+Run 1 writes `notes/commits-<version>.md`: the raw commit log since the previous tag. That is
+material, not copy. Writing the actual notes is this skill's job (owner call 2026-08-28), and it
+is not something a shell script can do — which is a reason to draft them yourself, never a reason
+to skip them.
+
+Draft two files into `docs/local/` (gitignored — owner-only, never commit):
+
+1. **`github-release-notes-<version>.md`** (technical) — the commit log grouped by area, mirroring
+   the structure of the 1.0.49–1.0.51 drafts. Only needed if the owner wants a curated summary;
+   `tag-release.ps1` defaults to `gh --generate-notes` and needs no file at all. Offer it, do not
+   assume it.
+2. **`play-notes-<version>.md`** (user-facing) — the Play Console "What's new". Short, plain
+   bullets, feature-first, no version numbers, no jargon. Mirror the voice of the 1.0.49 and
+   1.0.51 drafts: three tight bullets, not padded to fill a character limit.
+
+**When nothing user-facing changed**, say so plainly instead of inventing copy. Check with
+`git diff --quiet <prev-tag>..<buildSha> -- app/src`. If it is empty, the honest draft is a
+one-line maintenance note, and the right advice is that a production rollout may not be worth
+spending on a build users cannot tell apart from the last one — an internal testing track proves
+the pipeline without publishing a no-op update. Never write "bug fixes and performance
+improvements" for a release that contains neither; that is a false claim to real users.
 
 ## Stop — wait for the Play upload (hard stop)
 
@@ -61,7 +118,10 @@ Nothing in this session can upload to Play Console or confirm that someone did. 
 `tag.yml` until the owner explicitly confirms the `.aab` is uploaded.** Refuse even if asked to
 "just do it all" — the tag means "this shipped", and only the owner can establish that.
 
-This is now the *only* hard stop. The old Stop A (a required approving review on the bump PR) is
+"Go ahead", "sounds good" and "uploading now" are instructions or progress reports, not
+statements that the upload finished. Ask, rather than treating enthusiasm as confirmation.
+
+This is the *only* hard stop. The old Stop A (a required approving review on the bump PR) is
 gone: the workflow merges its own bump PR, which is a deliberate owner decision, not an oversight.
 
 ## Detect where a release currently stands
@@ -112,17 +172,6 @@ applies: build and install the release APK from the build sha on an emulator, dr
 that dependency serves, and confirm no R8-only crash before the owner uploads. If nothing
 native landed, say so explicitly and skip — do not run a device check with nothing to verify.
 
-## Release notes
-
-Run 1 drafts both files into the artifact:
-
-- **GitHub release notes** (technical) — grouped commit log since the previous tag. Only needed
-  if the owner wants a curated summary; `tag-release.ps1` defaults to `gh --generate-notes`.
-- **Play Console "What's new"** (user-facing) — a placeholder, deliberately not auto-written.
-  Short, plain, feature-first bullets, no version numbers, no jargon. Three tight bullets is the
-  house style. If no `app/src` changed since the last tag, the draft says so — surface that to
-  the owner, because a release with nothing user-facing may not be worth a production rollout.
-
 ## Owner calls — binding, read before doing anything
 
 1. **2026-08-28 (issue #158)** — this skill does **not** run or gate on the Play
@@ -130,7 +179,11 @@ Run 1 drafts both files into the artifact:
    `DEFINITION_OF_DONE.md` and `release-signing-and-aab.md` §3; it is deliberately not performed
    here. If a checklist asks for vitals numbers, write
    `N/A — vitals check out of scope for /cut-release, owner call 2026-08-28 (issue #158)`.
-2. **2026-09-07** — the release is automated end to end except the Play upload. The workflow
+2. **2026-08-28 (issue #158)** — this skill **does** draft the Play Console "What's new" text.
+   Moving the build into a workflow does not retire this: the workflow produces the commit log,
+   you write the copy. An agent does not get to drop an owner call because the mechanics around
+   it changed.
+3. **2026-09-07** — the release is automated end to end except the Play upload. The workflow
    merges its own bump PR; no approving review is required on it. The sweep does not run on a
    release bump. The tag is still cut only after the upload is confirmed.
 
@@ -165,11 +218,15 @@ pipeline, and fix the pipeline afterwards rather than leaving two paths in use.
 2. Never type, or ask the owner to type, a `versionCode` or `versionName`. Run 1 reads them.
 3. Never derive a build sha from a branch name or a moving `origin/main` — use the sha the
    release run reports, which is the merge commit it built.
-4. Never gather or gate on Play vitals numbers — out of scope per the 2026-08-28 owner call.
-5. Never attach the `.aab`, an unsigned APK, or any binary to the GitHub release.
+4. Never hand the owner a locally built `.aab`, or let him upload one. The shipping bundle is the
+   release run's artifact; a local `app/build/` copy is a different build with a different sha.
+5. Never write user-facing release notes for changes that did not happen. If nothing in `app/src`
+   moved, say so.
+6. Never gather or gate on Play vitals numbers — out of scope per the 2026-08-28 owner call.
+7. Never attach the `.aab`, an unsigned APK, or any binary to the GitHub release.
    `release-signing-and-aab.md`'s "Never attach" section explains why: a signing-key mismatch
    between the upload key and Play's app-signing key forks the install base permanently. The
    bundle lives in the workflow run's artifacts, which is not the same thing.
-6. Never do the release by hand because dispatching is inconvenient. If you cannot dispatch the
+8. Never do the release by hand because dispatching is inconvenient. If you cannot dispatch the
    workflow from this session, say so and hand it to the owner.
-7. If a stage's precondition does not hold, say so and refuse rather than improvising around it.
+9. If a stage's precondition does not hold, say so and refuse rather than improvising around it.
