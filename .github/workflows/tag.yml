@@ -85,18 +85,32 @@ jobs:
           jarsigner -verify "$expected" | grep -q 'jar verified'
           echo "$expected is present and still verifies."
 
+      # Arguments go in a hash table, NOT an array. Expanding an array into a PowerShell script
+      # binds each element by position, so the parameter names themselves get passed as values:
+      # '-Version' lands in $Version, the real version in $Sha, and the last name has no position
+      # left to bind to. A hash table binds by name, which is what this needs.
+      #
+      # Inputs arrive as environment variables rather than being pasted into the script text, so a
+      # title containing a quote cannot break the parse.
       - name: Cut the tag and release
         shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ inputs.sha }}
+          TITLE: ${{ inputs.title }}
+          USE_NOTES: ${{ inputs.notes }}
         run: |
-          $tagArgs = @(
-            '-Version', '${{ inputs.version }}'
-            '-Sha',     '${{ inputs.sha }}'
-          )
-          if ('${{ inputs.title }}') { $tagArgs += @('-Title', '${{ inputs.title }}') }
-          $notes = "notes/github-release-notes-${{ inputs.version }}.md"
-          if ('${{ inputs.notes }}' -eq 'true') {
-            if (-not (Test-Path $notes)) { throw "Curated notes requested but $notes is not present — pass run_id, or leave notes off to use --generate-notes." }
-            $tagArgs += @('-NotesFile', $notes)
+          $tagArgs = @{
+            Version = $env:VERSION
+            Sha     = $env:SHA
+          }
+          if ($env:TITLE) { $tagArgs.Title = $env:TITLE }
+          if ($env:USE_NOTES -eq 'true') {
+            $notesFile = "notes/github-release-notes-$($env:VERSION).md"
+            if (-not (Test-Path $notesFile)) {
+              throw "Curated notes requested but $notesFile is not present — pass run_id, or leave notes off to use --generate-notes."
+            }
+            $tagArgs.NotesFile = $notesFile
           }
           ./scripts/tag-release.ps1 @tagArgs
 
