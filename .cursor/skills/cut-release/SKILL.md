@@ -66,13 +66,16 @@ hand — stale, an older `versionCode`, and a live hazard at upload time. **Neve
 at a locally built `.aab`.** The only bundle that shipped through the pipeline is the artifact.
 
 ```bash
-gh run download <run_id> -n openloop-<version>
+gh run download <run_id> -n openloop-<version> -D <destination>
 ```
 
-Or from the browser: open the release run, scroll past the job list to **Artifacts** at the
-bottom, and download `openloop-<version>`. Either way you get:
+`gh` extracts into the current directory when `-D` is omitted, preserving the artifact's internal
+structure — convenient from the repo root, since the `.aab` lands in the gitignored `releases/`,
+but it also drops an untracked `notes/` there. Naming a destination avoids the surprise. From the
+browser: open the release run, scroll past the job list to **Artifacts** at the bottom, and
+download `openloop-<version>`. Either way the contents are:
 
-```
+```text
 releases/openloop-<version>-<code>.aab
 notes/commits-<version>.md
 ```
@@ -115,8 +118,8 @@ Nothing in this session can upload to Play Console or confirm that someone did. 
 `tag.yml` until the owner explicitly confirms the `.aab` is uploaded.** Refuse even if asked to
 "just do it all" — the tag means "this shipped", and only the owner can establish that.
 
-"Go ahead", "sounds good" and similar are instructions to proceed, not statements that the upload
-happened. Ask, rather than treating enthusiasm as confirmation.
+"Go ahead", "sounds good" and "uploading now" are instructions or progress reports, not
+statements that the upload finished. Ask, rather than treating enthusiasm as confirmation.
 
 This is the *only* hard stop. The old Stop A (a required approving review on the bump PR) is
 gone: the workflow merges its own bump PR, which is a deliberate owner decision, not an oversight.
