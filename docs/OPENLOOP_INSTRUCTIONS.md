@@ -93,7 +93,7 @@ Show reasoning, not just conclusions. I value breadth and rigor equally — cast
 
 When operating in a specific subfolder that has its own agent instructions, respect that folder's voice and approach. This file provides the defaults; subfolder overrides take precedence.
 
-All project documentation (`.md` files) belongs in the `docs/` directory — not the project root. The only exceptions are `README.md` and the two harness pointers `CLAUDE.md` / `AGENTS.md`, which live at the root by convention. **Folder map and placement rules:** [`docs/README.md`](README.md) (Markdown layout, image assets, gitignored `docs/local/` for private notes).
+Project documentation (`.md` files) belongs in `docs/`. Root exceptions are `README.md`, the two harness pointers `CLAUDE.md` / `AGENTS.md`, and the owner's shared `Engineering-Prompt.md`. **Folder map and placement rules:** [`docs/README.md`](README.md) (Markdown layout, image assets, gitignored `docs/local/` for private notes).
 
 ## Architecture Snapshot
 
