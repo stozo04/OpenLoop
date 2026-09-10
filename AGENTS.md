@@ -1,3 +1,5 @@
+Read and follow [Engineering-Prompt.md](Engineering-Prompt.md) before starting work in this project.
+
 First Read: `docs/OPERATING_INSTRUCTIONS.md` — how to work here.
 Then Read: `docs/OPENLOOP_INSTRUCTIONS.md` — what OpenLoop is.
 

@@ -1,13 +1,13 @@
 # Documentation layout — OpenLoop
 
 **Single rule:** all project documentation lives under `docs/`. The only exceptions at the repo
-root are `README.md`, `CLAUDE.md`, and `AGENTS.md` (convention).
+root are `README.md`, `CLAUDE.md`, `AGENTS.md`, and the owner's shared `Engineering-Prompt.md`.
 
 **Agent instructions are shared, not per-tool** (owner instruction, 2026-08-30). The owner works
 this repo with several LLMs, so the instructions exist **once**, under `docs/`:
 [`OPERATING_INSTRUCTIONS.md`](OPERATING_INSTRUCTIONS.md) (how to work here) and
 [`OPENLOOP_INSTRUCTIONS.md`](OPENLOOP_INSTRUCTIONS.md) (what OpenLoop is). Root `CLAUDE.md` and
-`AGENTS.md` are two-line pointers at those files and hold no content of their own — each harness only
+`AGENTS.md` first link to [`Engineering-Prompt.md`](../Engineering-Prompt.md), then to those files, and hold no content of their own. Each harness only
 auto-discovers *its* filename at the repo root, which is why the pointers can't move into `docs/`.
 **Never fork a per-tool copy**; edit the `docs/` file and every LLM picks the change up.
 
@@ -85,8 +85,8 @@ In-app launcher assets live only under `app/src/main/res/` (see root [`README.md
 ## Enforcement
 
 1. **Agents:** `CLAUDE.md` mandates reading the core `docs/lessons_learned/` tier and this layout before adding docs.
-2. **PR review:** the [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) skill flags new `.md` outside `docs/` (except root `README.md` / `CLAUDE.md`).
-3. **CI — doc layout gate:** [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml) fails PRs that **add** new `*.md` outside allowed paths. Allowed today: `docs/`, root `README.md` / `CLAUDE.md` / `AGENTS.md` (tool-discovery entry points — each harness only looks for its own filename at the repo root, so the pointers cannot move; owner instruction, 2026-08-30), `swarm/`, `.claude/`, `.cursor/`, `.codex/` (Cursor and Codex `SKILL.md` packages, same class as `.claude/skills/`).
+2. **PR review:** the [`pr-reviewer`](../.claude/skills/pr-reviewer/SKILL.md) skill flags new `.md` outside the allowed locations below.
+3. **CI — doc layout gate:** [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml) fails PRs that **add** new `*.md` outside allowed paths. Allowed today: `docs/`, root `README.md` / `CLAUDE.md` / `AGENTS.md` (tool-discovery entry points), root `Engineering-Prompt.md` (the owner requires this shared prompt at the same path across projects), `swarm/`, `.claude/`, `.cursor/`, `.codex/` (agent skill packages).
 4. **CI / Tier 3 static analysis:** [`STATIC_ANALYSIS.md`](STATIC_ANALYSIS.md) — markdownlint, table alignment, link check, harness skill-tree identity, cspell and JSON validity over the whole tracked tree, hard. Locally the same checks are gates 6–8 of `scripts/pre-pr-sweep.ps1` (tooling lives in `scripts/`, not here — it is not documentation).
 5. **Secrets:** `keystore.properties`, `*.jks`, and `docs/local/` are gitignored.
 

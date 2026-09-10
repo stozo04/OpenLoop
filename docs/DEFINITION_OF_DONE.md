@@ -90,15 +90,15 @@ Both have failed repeatedly in CI (PR #161 hit both at once), which is why they 
 ### M1. New Markdown lives under `docs/`
 
 **A brand-new `.md` file goes under `docs/`.** The only exceptions are the allowlist in
-[`docs/README.md` § Enforcement](README.md#enforcement) — root `README.md` / `CLAUDE.md` / `AGENTS.md`
+[`docs/README.md` § Enforcement](README.md#enforcement) — root `README.md` / `CLAUDE.md` / `AGENTS.md` / `Engineering-Prompt.md`
 and the agent-harness paths (`.claude/`, `.cursor/`, `.codex/`, `swarm/`). That list is the
 single source of truth; it is enforced by [`.github/workflows/doc-layout.yml`](../.github/workflows/doc-layout.yml)
 against `git diff --diff-filter=A`.
 
 - **Do not widen the allowlist to make your file fit.** Move the file into `docs/`. Widening the gate is
   an owner decision, requested explicitly and justified in the PR — never a workaround for a red check.
-  (The one widening so far: root `AGENTS.md`, because each LLM harness auto-discovers only *its* filename
-  at the repo root. See M3.)
+  The owner requested root `AGENTS.md` for harness discovery and root `Engineering-Prompt.md` for
+  shared engineering guidance across projects. See M3.
 - Editing an existing root `.md` is fine (the gate only sees *added* files) — but a doc that would be
   new today belongs in `docs/` today.
 - Check yourself before committing:
@@ -126,12 +126,12 @@ one newline), **MD022** (blank line above *and below* every heading), **MD032** 
 The owner drives this repo with several LLMs, so the instructions exist **once** (owner instruction,
 2026-08-30): [`docs/OPERATING_INSTRUCTIONS.md`](OPERATING_INSTRUCTIONS.md) (how to work here) and
 [`docs/OPENLOOP_INSTRUCTIONS.md`](OPENLOOP_INSTRUCTIONS.md) (what OpenLoop is). Root `CLAUDE.md` and
-`AGENTS.md` are byte-identical two-line pointers at those files and carry **no content of their own** —
+`AGENTS.md` are byte-identical pointers to the root `Engineering-Prompt.md` and those files, and carry **no content of their own** —
 they exist only because each harness auto-discovers its own filename at the repo root.
 
 - **Never fork a per-tool copy** of an instruction file, and never paste content back into a root pointer.
   Edit the `docs/` file; every LLM picks the change up.
-- Adding a harness that reads a different root filename? Add another two-line pointer *and* the
+- Adding a harness that reads a different root filename? Add another pointer *and* the
   allowlist entry in `doc-layout.yml` + `docs/README.md` § Enforcement, in the same PR.
 
 ### M4. Moved or renamed something? Grep the whole repo for stale references
