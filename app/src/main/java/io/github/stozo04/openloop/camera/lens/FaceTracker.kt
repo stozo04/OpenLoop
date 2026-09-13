@@ -8,8 +8,10 @@ import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetector
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import com.google.mlkit.vision.face.FaceLandmark
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import kotlin.math.hypot
 
 /**
@@ -47,24 +49,50 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
     @Volatile
     private var epoch = 0
 
-    private val detector = FaceDetection.getClient(
-        FaceDetectorOptions.Builder()
-            // FAST over ACCURATE: this runs per preview frame, and a lens that lags is worse than
-            // a lens that is a pixel off.
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-            // Landmarks (not contours) — the eyes, MOUTH_LEFT/RIGHT and MOUTH_BOTTOM are the whole
-            // input to LensAnchor, and contour mode is several times the work per frame.
-            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-            .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
-            .setMinFaceSize(MIN_FACE_SIZE)
-            // Tracking ids are what let a slot follow a person across frames, and what keys every
-            // per-face state downstream (FaceSnapshot.trackingId).
-            .enableTracking()
-            .build(),
-    )
+    /**
+     * Set when [FaceDetection.getClient] throws [LinkageError] at construction — meaning
+     * libface_detector_v2_jni.so could not be found or loaded for this device's ABI. The camera
+     * and all other lenses continue working; face lenses degrade to a pass-through. Same pattern
+     * as [HandTracker.broken] (Lesson 040).
+     */
+    private var broken = false
+
+    private val detector: FaceDetector?
+
+    init {
+        detector = try {
+            FaceDetection.getClient(
+                FaceDetectorOptions.Builder()
+                    // FAST over ACCURATE: this runs per preview frame, and a lens that lags is worse than
+                    // a lens that is a pixel off.
+                    .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                    // Landmarks (not contours) — the eyes, MOUTH_LEFT/RIGHT and MOUTH_BOTTOM are the whole
+                    // input to LensAnchor, and contour mode is several times the work per frame.
+                    .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                    .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
+                    .setMinFaceSize(MIN_FACE_SIZE)
+                    // Tracking ids are what let a slot follow a person across frames, and what keys every
+                    // per-face state downstream (FaceSnapshot.trackingId).
+                    .enableTracking()
+                    .build(),
+            )
+        } catch (error: LinkageError) {
+            // libface_detector_v2_jni.so absent for this ABI or failed to mmap on a 16 KB-page device.
+            // Report as non-fatal; face lenses show pass-through, camera still works (Lesson 040).
+            Log.w(TAG, "Face detector unavailable; face lenses disabled", error)
+            ReverseCrashlytics.reportFaceTrackerUnavailable(error)
+            broken = true
+            null
+        }
+    }
 
     @SuppressLint("UnsafeOptInUsageError")
     override fun analyze(imageProxy: ImageProxy) {
+        val detector = detector
+        if (broken || detector == null) {
+            imageProxy.close()
+            return
+        }
         val mediaImage = imageProxy.image
         if (mediaImage == null) {
             imageProxy.close()
@@ -130,7 +158,7 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
 
     /** Releases the detector. Call when the analyzer is unbound. */
     fun close() {
-        detector.close()
+        detector?.close()
     }
 
     /**

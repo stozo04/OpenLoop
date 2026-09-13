@@ -157,6 +157,24 @@ internal object ReverseCrashlytics {
     }
 
     /**
+     * ML Kit face detector could not be created (libface_detector_v2_jni.so absent for this ABI or
+     * failed to mmap on a 16 KB-page device): the camera still works but face lenses show
+     * pass-through. Non-fatal so the affected device population is visible in aggregate.
+     */
+    fun reportFaceTrackerUnavailable(cause: Throwable) {
+        val crashlytics = crashlyticsOrNull() ?: return
+        val keys = CustomKeysAndValues.Builder()
+            .putString("face_failure_kind", cause.javaClass.simpleName.take(1024))
+            .build()
+        runCatching {
+            crashlytics.log("face_tracker_unavailable: ${cause.javaClass.simpleName}")
+            crashlytics.recordException(cause, keys)
+        }.onFailure { e ->
+            Log.w(TAG, "Crashlytics recordException failed", e)
+        }
+    }
+
+    /**
      * The MediaPipe hand landmarker could not be created (`docs/PRD-lens-hand-flick.md`): the lens
      * still works and only the hand verb is off, so this is non-fatal — but the population that
      * hits it (a native lib missing for an ABI, an obfuscation regression in a static initializer)
