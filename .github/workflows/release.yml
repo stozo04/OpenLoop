@@ -165,6 +165,15 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default package list is `tools platform-tools`, and `tools` — the obsolete
+          # SDK Tools — no longer exists in Google's repository. sdkmanager exits 1 with
+          # "Warning: Failed to find package 'tools'" and the release dies here, after the bump PR
+          # has already merged (run #7, 2026-09-17, releasing 1.0.53). The v4 tag carries the same
+          # default, so pinning a newer action does not fix it; the list has to be overridden.
+          # Nothing downstream wants the dead package: `bundleRelease` lets AGP fetch the platform
+          # and build-tools it needs, and the signature check is `jarsigner` from the JDK.
+          packages: 'platform-tools'
 
       # Takes the Gradle version from gradle/wrapper/gradle-wrapper.properties, and from v4 also
       # checksums gradle-wrapper.jar against Gradle's published hashes on every run — which is what
