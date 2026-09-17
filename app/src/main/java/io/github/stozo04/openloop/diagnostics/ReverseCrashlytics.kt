@@ -157,6 +157,27 @@ internal object ReverseCrashlytics {
     }
 
     /**
+     * ML Kit's bundled face detector could not be created (`docs/PRD-camera-lenses.md`): its
+     * native library would not load, so the camera keeps working and only the lenses go inert.
+     *
+     * Non-fatal on purpose — it replaces the **fatal** `UnsatisfiedLinkError` this used to be
+     * (Issue #195). The population that hits it still has to be visible in aggregate: a jump here
+     * after an ML Kit bump means the library name in `FaceTracker` moved, not that devices broke.
+     */
+    fun reportFaceTrackerUnavailable(cause: Throwable) {
+        val crashlytics = crashlyticsOrNull() ?: return
+        val keys = CustomKeysAndValues.Builder()
+            .putString("face_failure_kind", cause.javaClass.simpleName.take(1024))
+            .build()
+        runCatching {
+            crashlytics.log("face_tracker_unavailable: ${cause.javaClass.simpleName}")
+            crashlytics.recordException(cause, keys)
+        }.onFailure { e ->
+            Log.w(TAG, "Crashlytics recordException failed", e)
+        }
+    }
+
+    /**
      * The MediaPipe hand landmarker could not be created (`docs/PRD-lens-hand-flick.md`): the lens
      * still works and only the hand verb is off, so this is non-fatal — but the population that
      * hits it (a native lib missing for an ABI, an obfuscation regression in a static initializer)
