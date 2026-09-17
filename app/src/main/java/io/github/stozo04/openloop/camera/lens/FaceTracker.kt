@@ -8,8 +8,10 @@ import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetector
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import com.google.mlkit.vision.face.FaceLandmark
+import io.github.stozo04.openloop.diagnostics.ReverseCrashlytics
 import kotlin.math.hypot
 
 /**
@@ -47,26 +49,20 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
     @Volatile
     private var epoch = 0
 
-    private val detector = FaceDetection.getClient(
-        FaceDetectorOptions.Builder()
-            // FAST over ACCURATE: this runs per preview frame, and a lens that lags is worse than
-            // a lens that is a pixel off.
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-            // Landmarks (not contours) — the eyes, MOUTH_LEFT/RIGHT and MOUTH_BOTTOM are the whole
-            // input to LensAnchor, and contour mode is several times the work per frame.
-            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-            .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
-            .setMinFaceSize(MIN_FACE_SIZE)
-            // Tracking ids are what let a slot follow a person across frames, and what keys every
-            // per-face state downstream (FaceSnapshot.trackingId).
-            .enableTracking()
-            .build(),
-    )
+    /**
+     * ML Kit's bundled detector, or `null` when its native library will not load on this device —
+     * see [createDetector]. Null means the lenses are inert and nothing else changes.
+     */
+    private val detector: FaceDetector? = createDetector()
 
     @SuppressLint("UnsafeOptInUsageError")
     override fun analyze(imageProxy: ImageProxy) {
+        // No detector on this device (see [createDetector]). Close the proxy anyway and publish
+        // nothing: under KEEP_ONLY_LATEST an unclosed proxy stalls the stream the hand tracker
+        // rides on too, so "lenses are inert" would become "the analyzer is dead".
+        val detector = detector
         val mediaImage = imageProxy.image
-        if (mediaImage == null) {
+        if (detector == null || mediaImage == null) {
             imageProxy.close()
             return
         }
@@ -128,9 +124,55 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
         onFaces(emptyList())
     }
 
-    /** Releases the detector. Call when the analyzer is unbound. */
+    /** Releases the detector. Call when the analyzer is unbound. No-op when it never came up. */
     fun close() {
-        detector.close()
+        detector?.close()
+    }
+
+    /**
+     * Builds the ML Kit detector, or returns `null` when the bundled model's native library will
+     * not load on this device.
+     *
+     * That the reported crash was **fatal** is the tell. ML Kit loads
+     * `libface_detector_v2_jni.so` from the static initializer of its own
+     * `ThickFaceDetectorCreator`, and it runs that off the caller's thread — on its own model-load
+     * worker, inside a GMS `Task`. `Task` funnels only `Exception` into `addOnFailureListener`, so
+     * the `UnsatisfiedLinkError` escapes the worker's `Runnable` and kills the process instead of
+     * surfacing as a failed task. A `try` around [FaceDetection.getClient] would have caught
+     * nothing (Issue #195, Crashlytics `37081b24…`, first seen 1.0.52).
+     *
+     * So the library is loaded **here** first, on the caller's own thread, where the failure is
+     * catchable. A load that succeeds makes ML Kit's own `System.loadLibrary` a no-op; one that
+     * fails means ML Kit would have crashed, so the detector is never built. The lenses then go
+     * inert and the camera, capture, trim and save paths are untouched — the same trade
+     * [io.github.stozo04.openloop.camera.CameraManager] already makes when the analysis use case
+     * cannot bind, and the one [HandTracker] makes for MediaPipe (Lesson 040).
+     */
+    private fun createDetector(): FaceDetector? = try {
+        System.loadLibrary(NATIVE_LIBRARY)
+        FaceDetection.getClient(
+            FaceDetectorOptions.Builder()
+                // FAST over ACCURATE: this runs per preview frame, and a lens that lags is worse
+                // than a lens that is a pixel off.
+                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                // Landmarks (not contours) — the eyes, MOUTH_LEFT/RIGHT and MOUTH_BOTTOM are the
+                // whole input to LensAnchor, and contour mode is several times the work per frame.
+                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
+                .setMinFaceSize(MIN_FACE_SIZE)
+                // Tracking ids are what let a slot follow a person across frames, and what keys
+                // every per-face state downstream (FaceSnapshot.trackingId).
+                .enableTracking()
+                .build(),
+        )
+    } catch (error: LinkageError) {
+        // The JVM's own class for "the library could not come up": UnsatisfiedLinkError when the
+        // .so is missing for this ABI or the install lost its native split, and
+        // ExceptionInInitializerError / NoClassDefFoundError when a static initializer threw.
+        // Not a catch-all — a bug in our own code still propagates (Lesson 013).
+        Log.w(TAG, "ML Kit face detection unavailable; face lenses will be inert", error)
+        ReverseCrashlytics.reportFaceTrackerUnavailable(error)
+        null
     }
 
     /**
@@ -211,6 +253,15 @@ class FaceTracker(private val onFaces: (List<FaceSnapshot>) -> Unit) : ImageAnal
 
     companion object {
         private const val TAG = "OpenLoopFaceTracker"
+
+        /**
+         * The bundled model's native library, loaded by [createDetector] before ML Kit can load it
+         * somewhere uncatchable. **Coupled to the `mlkit-face-detection` pin in
+         * `gradle/libs.versions.toml`** (16.1.7): re-check the name in the AAR's `jni/` folder when
+         * that pin moves, because a rename would read here as "absent" and take face lenses off
+         * every device. The lens loop of `scripts/run-verification-loops.py` is where that shows up.
+         */
+        private const val NATIVE_LIBRARY = "face_detector_v2_jni"
 
         /**
          * How many people can wear the lens at once — `docs/PRD-multi-face-lenses.md` D1. Two is a

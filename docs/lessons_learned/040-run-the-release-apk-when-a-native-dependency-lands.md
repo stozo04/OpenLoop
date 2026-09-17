@@ -48,6 +48,15 @@ without an explicit `-dontwarn`.
   and `LinkageError` (`ExceptionInInitializerError`, `UnsatisfiedLinkError`, `NoClassDefFoundError`
   — the JVM's own class of "the library could not come up"), turns the verb off, and reports a
   Crashlytics non-fatal. Not a catch-all: a bug in our code still propagates (Lesson 013).
+- **First check the failure is even reachable from a `try`.** MediaPipe loads its library inside
+  `HandLandmarker.createFromOptions`, on the thread that called it, so wrapping the call is enough.
+  ML Kit does not: `FaceDetection.getClient` hands the load to ML Kit's **own** worker thread
+  inside a GMS `Task`, and `Task` funnels only `Exception` into `addOnFailureListener` — an `Error`
+  escapes the worker's `Runnable` and kills the process. Wrapping `getClient` there catches
+  nothing. Where the load is out of reach, **load the library yourself first**, on your own thread,
+  and skip building the detector when that throws (`FaceTracker.createDetector`, Issue #195). That
+  couples one string to the dependency's `jni/` folder; say so at the version-catalog pin, because
+  a rename reads as "absent" and silently takes the feature off every device.
 
 ## Detection checklist
 

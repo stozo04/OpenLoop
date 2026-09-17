@@ -259,6 +259,7 @@
     "lavfi",
     "lensed",
     "letterboxing",
+    "libface",
     "libimage",
     "libmediapipe",
     "libwebp",

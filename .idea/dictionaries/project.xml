@@ -236,6 +236,7 @@
       <w>lavfi</w>
       <w>lensed</w>
       <w>letterboxing</w>
+      <w>libface</w>
       <w>libimage</w>
       <w>libmediapipe</w>
       <w>libwebp</w>

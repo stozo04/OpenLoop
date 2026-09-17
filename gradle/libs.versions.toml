@@ -103,6 +103,9 @@ play-review-ktx = { group = "com.google.android.play", name = "review-ktx", vers
 # ML Kit face detection — powers camera lenses (docs/PRD-camera-lenses.md). Deliberately the
 # STABLE face-detection API, not the beta face-mesh one; landmark mode already gives the eyes and
 # mouth corners LensAnchor needs. Bundled model: no Play-services round trip on first use.
+# Bumping this pin: re-check that the AAR still ships `jni/*/libface_detector_v2_jni.so` under that
+# exact name. FaceTracker loads it by name before ML Kit can (Issue #195, Lesson 040), and a rename
+# would read as "absent" and take face lenses off every device.
 mlkit-face-detection = { group = "com.google.mlkit", name = "face-detection", version.ref = "mlkitFaceDetection" }
 
 # MediaPipe Hand Landmarker — the hand that flicks a lens (docs/PRD-lens-hand-flick.md). Hands only;
