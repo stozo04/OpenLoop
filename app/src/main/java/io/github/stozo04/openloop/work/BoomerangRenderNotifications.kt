@@ -60,26 +60,6 @@ object BoomerangRenderNotifications {
             .build()
     }
 
-    fun buildCompleteNotification(context: Context): Notification {
-        ensureChannel(context)
-        val contentIntent = PendingIntent.getActivity(
-            context,
-            1,
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(context.getString(R.string.notification_loop_export_complete_title))
-            .setContentText(context.getString(R.string.notification_loop_export_complete_text))
-            .setContentIntent(contentIntent)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
-    }
-
     fun createForegroundInfo(context: Context, progressPercent: Int): ForegroundInfo {
         val notification = buildProgressNotification(context, progressPercent)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

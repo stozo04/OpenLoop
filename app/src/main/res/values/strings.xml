@@ -45,8 +45,6 @@
     <string name="notification_loop_export_channel_desc">Progress while your loop is being created</string>
     <string name="notification_loop_export_title">Creating your loop…</string>
     <string name="notification_loop_export_progress">%1$d%% complete</string>
-    <string name="notification_loop_export_complete_title">Loop ready</string>
-    <string name="notification_loop_export_complete_text">Tap to open OpenLoop</string>
 
     <!-- Post-save snackbars (slice 06) -->
     <!-- Kind-neutral: the same snackbar follows a saved loop and a captured photo. -->
