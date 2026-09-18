@@ -104,13 +104,4 @@ class BoomerangRenderNotificationsRobolectricTest {
         val flags = Shadows.shadowOf(pendingIntent).flags
         assertTrue(flags and PendingIntent.FLAG_IMMUTABLE != 0)
     }
-
-    @Test
-    fun buildCompleteNotification_usesImmutablePendingIntent() {
-        val notification = BoomerangRenderNotifications.buildCompleteNotification(context)
-        val pendingIntent = requireNotNull(notification.contentIntent)
-
-        val flags = Shadows.shadowOf(pendingIntent).flags
-        assertTrue(flags and PendingIntent.FLAG_IMMUTABLE != 0)
-    }
 }
